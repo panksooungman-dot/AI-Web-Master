@@ -1,0 +1,46 @@
+---
+description: Documentation workflow and writing standards for docs/ and templates/
+globs: docs/**,templates/**,**/*.md
+alwaysApply: false
+---
+
+# Documentation Rules
+
+## Philosophy
+
+**Documentation First** — intent and context before code.
+
+Every feature requires: **Context → Plan → Implementation → Review**.
+
+## Workflow
+
+```
+Context → Plan → Build → Review → Document
+```
+
+| Stage | Location | Template |
+|-------|----------|----------|
+| Context | `docs/context/` | `templates/context-template.md` |
+| Plan | `docs/plan/` | `templates/plan-template.md` |
+| Build record | `docs/build/` | — |
+| Review | PR or `docs/build/` | `templates/review-template.md` |
+| Skills | `docs/skills/` | — |
+
+## When Writing
+
+- Use `templates/` — do not invent new document structures
+- Include **Why**, **What**, and **Impact** in every significant doc
+- Never store secrets or credential values in docs
+- Link related docs (`PROJECT_VISION.md`, `ARCHITECTURE.md`, Plan refs)
+
+## Plan Gate
+
+- No Build without an approved Plan in `docs/plan/`
+- Record implementation results in `docs/build/` after Review
+- Update `docs/context/` when glossary or constraints change
+
+## Agent Handoff
+
+- Planner → `docs/plan/` → Builder
+- Builder → `docs/build/` → Reviewer → Documenter
+- Follow `agents/Planner.md`, `agents/Documenter.md`

@@ -1,0 +1,52 @@
+---
+description: Clean Architecture and system structure rules for all work
+alwaysApply: true
+---
+
+# Architecture Rules
+
+## System Layers
+
+This repo has two layers:
+
+1. **OS Layer** — `docs/`, `agents/`, `templates/`, `scripts/`
+2. **Application Layer** — `src/` + `app/`
+
+## Clean Architecture (`src/`)
+
+```
+presentation → application → domain ← infrastructure
+```
+
+| Layer | Responsibility | May depend on |
+|-------|----------------|---------------|
+| presentation | UI, hooks, view composition | application, domain (read) |
+| application | Use cases, orchestration | domain |
+| domain | Entities, rules, repository interfaces | nothing external |
+| infrastructure | API, DB, external services | domain (implements interfaces) |
+
+**Dependency rule**: dependencies point inward. Domain must not import frameworks or DB libraries.
+
+## `app/` vs `src/`
+
+- `app/` — Next.js routes, layouts, Server/Client entry points only
+- `src/` — all business logic, reusable UI, use cases
+- Route Handlers call `src/application/` — no business logic in `app/`
+
+## Directory Map
+
+- `docs/context/` — background and constraints
+- `docs/plan/` — design before implementation
+- `docs/build/` — implementation and deployment records
+- `agents/` — agent roles and handoff rules
+
+## Changes
+
+- Read `ARCHITECTURE.md` before structural changes
+- New layers or cross-boundary imports require a Plan in `docs/plan/`
+- Technology choices must align with `TECH_STACK.md`
+- Prefer reuse (`templates/`, existing modules) over rewrite
+
+## Next.js 16
+
+Consult `node_modules/next/dist/docs/` and `AGENTS.md` — APIs differ from older Next.js versions.

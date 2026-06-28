@@ -1,0 +1,44 @@
+---
+description: Development workflow and coding standards for src/ and app/
+globs: src/**,app/**,scripts/**
+alwaysApply: false
+---
+
+# Development Rules
+
+## Before You Code
+
+1. Read `AI_RULES.md`, relevant `docs/plan/`, and `docs/context/`.
+2. Do not implement without an approved Plan in `docs/plan/`.
+3. Explain **Why**, **What**, and **Impact** before significant changes.
+4. Never overwrite files without stating what changed and why.
+
+## Workflow
+
+```
+Understand → Plan → Build → Test → Review → Document
+```
+
+- **Reuse** `templates/` and existing `src/` modules before writing new code.
+- Keep changes scoped to the request — no drive-by refactors.
+- Run `npm run lint` and `npm run build` when applicable.
+
+## Coding Standards
+
+- Readable code over clever code
+- Small, single-responsibility modules
+- Strong TypeScript typing — avoid `any`
+- Consistent, role-revealing names
+- No duplicated logic — extract shared utilities
+
+## Next.js 16
+
+- Read `node_modules/next/dist/docs/` before using Next.js APIs
+- Do not use deprecated APIs or Pages Router patterns
+- Keep business logic in `src/` — `app/` is routing and composition only
+
+## Application Code
+
+- Do not create `src/` code unless explicitly requested
+- Route Handlers delegate to `src/application/` use cases
+- Match patterns in `agents/Builder.md`

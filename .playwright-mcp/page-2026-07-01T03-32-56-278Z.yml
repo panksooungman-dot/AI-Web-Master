@@ -1,0 +1,168 @@
+- generic [active] [ref=f22e1]:
+  - banner [ref=f22e2]:
+    - generic [ref=f22e4]:
+      - link "CNBIZ" [ref=f22e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f22e6]: CNBIZ
+      - button "메뉴 열기" [ref=f22e8]:
+        - img [ref=f22e9]
+  - main [ref=f22e11]:
+    - generic [ref=f22e13]:
+      - paragraph [ref=f22e14]: About CNBIZ
+      - heading "고객의 성공을 함께 설계하는 디지털 혁신 파트너" [level=1] [ref=f22e16]:
+        - text: 고객의 성공을 함께 설계하는
+        - text: 디지털 혁신 파트너
+      - paragraph [ref=f22e17]: CNBIZ는 2010년 설립 이래, 명확한 비전과 원칙을 바탕으로 고객과 함께 성장해왔습니다. 우리가 걸어온 길과 지향하는 방향을 소개합니다.
+    - generic [ref=f22e19]:
+      - generic [ref=f22e20]:
+        - paragraph [ref=f22e21]: Vision & Mission
+        - heading "우리가 나아가는 방향" [level=2] [ref=f22e22]
+      - generic [ref=f22e23]:
+        - generic [ref=f22e24]:
+          - paragraph [ref=f22e25]: Vision
+          - heading "디지털로 만드는 더 나은 비즈니스" [level=3] [ref=f22e26]
+          - paragraph [ref=f22e27]: 모든 기업이 디지털 기술을 통해 본질적인 경쟁력을 갖추는 세상을 만듭니다.
+        - generic [ref=f22e28]:
+          - paragraph [ref=f22e29]: Mission
+          - heading "고객의 성장을 함께 설계하는 파트너" [level=3] [ref=f22e30]
+          - paragraph [ref=f22e31]: 깊은 산업 이해와 최신 기술을 바탕으로 고객의 문제를 함께 고민하고 해결합니다.
+      - generic [ref=f22e32]:
+        - generic [ref=f22e33]:
+          - img [ref=f22e35]
+          - heading "전문성" [level=3] [ref=f22e37]
+          - paragraph [ref=f22e38]: 각 분야 최고 전문가들이 검증된 방법론으로 문제를 해결합니다.
+        - generic [ref=f22e39]:
+          - img [ref=f22e41]
+          - heading "신뢰성" [level=3] [ref=f22e43]
+          - paragraph [ref=f22e44]: 15년 이상 검증된 납기 준수율로 약속한 결과를 반드시 전달합니다.
+        - generic [ref=f22e45]:
+          - img [ref=f22e47]
+          - heading "혁신성" [level=3] [ref=f22e49]
+          - paragraph [ref=f22e50]: 최신 기술을 선제적으로 도입해 고객의 경쟁력을 한 단계 높입니다.
+        - generic [ref=f22e51]:
+          - img [ref=f22e53]
+          - heading "파트너십" [level=3] [ref=f22e55]
+          - paragraph [ref=f22e56]: 단기 프로젝트를 넘어 고객과 함께 성장하는 관계를 지향합니다.
+    - generic [ref=f22e58]:
+      - generic [ref=f22e59]:
+        - paragraph [ref=f22e60]: History
+        - heading "CNBIZ의 성장 여정" [level=2] [ref=f22e61]
+      - list [ref=f22e62]:
+        - listitem [ref=f22e63]:
+          - paragraph [ref=f22e65]: "2010"
+          - heading "CNBIZ 설립" [level=3] [ref=f22e66]
+          - paragraph [ref=f22e67]: IT 컨설팅 전문 기업으로 서울에서 출발했습니다.
+        - listitem [ref=f22e68]:
+          - paragraph [ref=f22e70]: "2013"
+          - heading "첫 엔터프라이즈 프로젝트 수주" [level=3] [ref=f22e71]
+          - paragraph [ref=f22e72]: 대기업 대상 시스템 구축 프로젝트를 성공적으로 완료했습니다.
+        - listitem [ref=f22e73]:
+          - paragraph [ref=f22e75]: "2016"
+          - heading "클라우드 사업부 신설" [level=3] [ref=f22e76]
+          - paragraph [ref=f22e77]: AWS·Azure 기반 클라우드 인프라 서비스를 시작했습니다.
+        - listitem [ref=f22e78]:
+          - paragraph [ref=f22e80]: "2019"
+          - heading "AI/ML 솔루션팀 신설" [level=3] [ref=f22e81]
+          - paragraph [ref=f22e82]: 머신러닝·자연어 처리 기반 서비스 개발에 착수했습니다.
+        - listitem [ref=f22e83]:
+          - paragraph [ref=f22e85]: "2022"
+          - heading "누적 고객사 200개 돌파" [level=3] [ref=f22e86]
+          - paragraph [ref=f22e87]: 국내외 다양한 산업군의 파트너와 함께 성장했습니다.
+        - listitem [ref=f22e88]:
+          - paragraph [ref=f22e90]: "2026"
+          - heading "임직원 150명 규모로 성장" [level=3] [ref=f22e91]
+          - paragraph [ref=f22e92]: 각 분야 전문가 150여 명이 함께하는 조직으로 확장했습니다.
+    - generic [ref=f22e94]:
+      - generic [ref=f22e95]:
+        - paragraph [ref=f22e96]: Organization
+        - heading "전문성을 갖춘 조직" [level=2] [ref=f22e97]
+        - paragraph [ref=f22e98]: 각 분야 전문가들이 팀을 이루어 고객의 프로젝트를 처음부터 끝까지 함께합니다.
+      - generic [ref=f22e99]:
+        - generic [ref=f22e100]:
+          - img [ref=f22e102]
+          - heading "경영지원" [level=3] [ref=f22e104]
+          - paragraph [ref=f22e105]: 인사·재무·경영 전반을 총괄하며 조직의 안정적인 성장을 뒷받침합니다.
+        - generic [ref=f22e106]:
+          - img [ref=f22e108]
+          - heading "디지털 전환 컨설팅" [level=3] [ref=f22e110]
+          - paragraph [ref=f22e111]: 고객사의 현황을 진단하고 디지털 전환 전략을 수립합니다.
+        - generic [ref=f22e112]:
+          - img [ref=f22e114]
+          - heading "AI/ML 엔지니어링" [level=3] [ref=f22e116]
+          - paragraph [ref=f22e117]: 머신러닝·자연어 처리 기술을 실제 서비스에 접목합니다.
+        - generic [ref=f22e118]:
+          - img [ref=f22e120]
+          - heading "엔터프라이즈 개발" [level=3] [ref=f22e122]
+          - paragraph [ref=f22e123]: 웹·모바일부터 대규모 시스템까지 확장성 있게 구축합니다.
+        - generic [ref=f22e124]:
+          - img [ref=f22e126]
+          - heading "클라우드/인프라" [level=3] [ref=f22e128]
+          - paragraph [ref=f22e129]: AWS·Azure·GCP 기반의 안정적인 클라우드 환경을 운영합니다.
+        - generic [ref=f22e130]:
+          - img [ref=f22e132]
+          - heading "고객지원" [level=3] [ref=f22e134]
+          - paragraph [ref=f22e135]: 도입 이후에도 지속적인 운영·유지보수를 지원합니다.
+  - contentinfo [ref=f22e136]:
+    - generic [ref=f22e137]:
+      - generic [ref=f22e138]:
+        - generic [ref=f22e139]:
+          - link "CNBIZ" [ref=f22e140] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f22e141]: CNBIZ
+          - paragraph [ref=f22e142]:
+            - text: 디지털 혁신으로
+            - text: 비즈니스의 미래를 함께 만듭니다.
+          - generic [ref=f22e143]:
+            - link "LinkedIn" [ref=f22e144] [cursor=pointer]:
+              - /url: https://linkedin.com
+              - img [ref=f22e145]
+            - link "YouTube" [ref=f22e147] [cursor=pointer]:
+              - /url: https://youtube.com
+              - img [ref=f22e148]
+        - generic [ref=f22e150]:
+          - heading "회사" [level=3] [ref=f22e151]
+          - list [ref=f22e152]:
+            - listitem [ref=f22e153]:
+              - link "회사소개" [ref=f22e154] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=f22e155]:
+              - link "회사 연혁" [ref=f22e156] [cursor=pointer]:
+                - /url: /about#history
+            - listitem [ref=f22e157]:
+              - link "핵심 가치" [ref=f22e158] [cursor=pointer]:
+                - /url: /about#values
+        - generic [ref=f22e159]:
+          - heading "사업" [level=3] [ref=f22e160]
+          - list [ref=f22e161]:
+            - listitem [ref=f22e162]:
+              - link "사업소개" [ref=f22e163] [cursor=pointer]:
+                - /url: /services
+            - listitem [ref=f22e164]:
+              - link "디지털 전환 컨설팅" [ref=f22e165] [cursor=pointer]:
+                - /url: /services#consulting
+            - listitem [ref=f22e166]:
+              - link "AI / ML 솔루션" [ref=f22e167] [cursor=pointer]:
+                - /url: /services#ai
+            - listitem [ref=f22e168]:
+              - link "엔터프라이즈 개발" [ref=f22e169] [cursor=pointer]:
+                - /url: /services#development
+            - listitem [ref=f22e170]:
+              - link "클라우드 인프라" [ref=f22e171] [cursor=pointer]:
+                - /url: /services#cloud
+        - generic [ref=f22e172]:
+          - heading "고객지원" [level=3] [ref=f22e173]
+          - list [ref=f22e174]:
+            - listitem [ref=f22e175]:
+              - link "문의하기" [ref=f22e176] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=f22e177]:
+              - link "이메일 문의" [ref=f22e178] [cursor=pointer]:
+                - /url: /contact#form
+      - generic [ref=f22e179]:
+        - generic [ref=f22e180]:
+          - generic [ref=f22e181]: "(주)씨엔비즈 | 대표이사: — | 사업자등록번호: —"
+          - generic [ref=f22e182]: "|"
+          - generic [ref=f22e183]: 서울특별시 — (주소 추후 업데이트)
+        - paragraph [ref=f22e184]: © 2025 CNBIZ. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f22e190] [cursor=pointer]:
+    - img [ref=f22e191]

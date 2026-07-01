@@ -1,0 +1,125 @@
+- generic [ref=f39e1]:
+  - banner [ref=f39e2]:
+    - generic [ref=f39e4]:
+      - link "CNBIZ" [ref=f39e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f39e6]: CNBIZ
+      - navigation "주요 메뉴" [ref=f39e117]:
+        - link "회사소개" [ref=f39e118] [cursor=pointer]:
+          - /url: /about
+        - link "사업소개" [ref=f39e119] [cursor=pointer]:
+          - /url: /services
+        - link "포트폴리오" [ref=f39e120] [cursor=pointer]:
+          - /url: /portfolio
+        - link "문의하기" [ref=f39e121] [cursor=pointer]:
+          - /url: /contact
+      - link "문의하기" [ref=f39e123] [cursor=pointer]:
+        - /url: /contact
+  - main [ref=f39e11]:
+    - generic [ref=f39e13]:
+      - generic [ref=f39e14]:
+        - paragraph [ref=f39e15]: Contact
+        - heading "문의하기" [level=1] [ref=f39e16]
+        - paragraph [ref=f39e17]: 프로젝트 상담부터 간단한 질문까지, 아래 양식을 남겨주시면 담당자가 빠르게 답변드립니다.
+      - generic [ref=f39e18]:
+        - generic [ref=f39e20]:
+          - heading "오시는 길 및 연락처" [level=2] [ref=f39e21]
+          - list [ref=f39e22]:
+            - listitem [ref=f39e23]:
+              - img [ref=f39e25]
+              - generic [ref=f39e28]:
+                - paragraph [ref=f39e29]: 주소
+                - paragraph [ref=f39e30]: 서울특별시 — (주소 추후 업데이트)
+            - listitem [ref=f39e31]:
+              - img [ref=f39e33]
+              - generic [ref=f39e35]:
+                - paragraph [ref=f39e36]: 운영시간
+                - paragraph [ref=f39e37]: 평일 09:00 - 18:00 (주말·공휴일 휴무)
+            - listitem [ref=f39e38]:
+              - img [ref=f39e40]
+              - generic [ref=f39e42]:
+                - paragraph [ref=f39e43]: 응답 시간
+                - paragraph [ref=f39e44]: 영업일 기준 24시간 이내 답변
+        - generic [ref=f39e46]:
+          - generic [ref=f39e47]:
+            - generic [ref=f39e48]: 이름 *
+            - textbox "이름 *" [active] [ref=f39e49]:
+              - /placeholder: 홍길동
+          - generic [ref=f39e50]:
+            - generic [ref=f39e51]: 연락처 *
+            - textbox "연락처 *" [ref=f39e52]:
+              - /placeholder: 010-1234-5678
+          - generic [ref=f39e53]:
+            - generic [ref=f39e54]: 이메일 *
+            - textbox "이메일 *" [ref=f39e55]:
+              - /placeholder: example@company.com
+          - generic [ref=f39e56]:
+            - generic [ref=f39e57]: 문의 내용 *
+            - textbox "문의 내용 *" [ref=f39e58]:
+              - /placeholder: 문의하실 내용을 입력해주세요.
+          - button "문의 보내기" [ref=f39e59]
+  - contentinfo [ref=f39e60]:
+    - generic [ref=f39e61]:
+      - generic [ref=f39e62]:
+        - generic [ref=f39e63]:
+          - link "CNBIZ" [ref=f39e64] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f39e65]: CNBIZ
+          - paragraph [ref=f39e66]:
+            - text: 디지털 혁신으로
+            - text: 비즈니스의 미래를 함께 만듭니다.
+          - generic [ref=f39e67]:
+            - link "LinkedIn" [ref=f39e68] [cursor=pointer]:
+              - /url: https://linkedin.com
+              - img [ref=f39e69]
+            - link "YouTube" [ref=f39e71] [cursor=pointer]:
+              - /url: https://youtube.com
+              - img [ref=f39e72]
+        - generic [ref=f39e74]:
+          - paragraph [ref=f39e75]: 회사
+          - list [ref=f39e76]:
+            - listitem [ref=f39e77]:
+              - link "회사소개" [ref=f39e78] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=f39e79]:
+              - link "회사 연혁" [ref=f39e80] [cursor=pointer]:
+                - /url: /about#history
+            - listitem [ref=f39e81]:
+              - link "핵심 가치" [ref=f39e82] [cursor=pointer]:
+                - /url: /about#values
+        - generic [ref=f39e83]:
+          - paragraph [ref=f39e84]: 사업
+          - list [ref=f39e85]:
+            - listitem [ref=f39e86]:
+              - link "사업소개" [ref=f39e87] [cursor=pointer]:
+                - /url: /services
+            - listitem [ref=f39e88]:
+              - link "디지털 전환 컨설팅" [ref=f39e89] [cursor=pointer]:
+                - /url: /services#consulting
+            - listitem [ref=f39e90]:
+              - link "AI / ML 솔루션" [ref=f39e91] [cursor=pointer]:
+                - /url: /services#ai
+            - listitem [ref=f39e92]:
+              - link "엔터프라이즈 개발" [ref=f39e93] [cursor=pointer]:
+                - /url: /services#development
+            - listitem [ref=f39e94]:
+              - link "클라우드 인프라" [ref=f39e95] [cursor=pointer]:
+                - /url: /services#cloud
+        - generic [ref=f39e96]:
+          - paragraph [ref=f39e97]: 고객지원
+          - list [ref=f39e98]:
+            - listitem [ref=f39e99]:
+              - link "문의하기" [ref=f39e100] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=f39e101]:
+              - link "이메일 문의" [ref=f39e102] [cursor=pointer]:
+                - /url: /contact#form
+      - generic [ref=f39e103]:
+        - generic [ref=f39e104]:
+          - generic [ref=f39e105]: "(주)씨엔비즈 | 대표이사: — | 사업자등록번호: —"
+          - generic [ref=f39e124]: "|"
+          - generic [ref=f39e106]: 서울특별시 — (주소 추후 업데이트)
+        - paragraph [ref=f39e107]: © 2025 CNBIZ. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f39e113] [cursor=pointer]:
+    - img [ref=f39e114]
+  - alert [ref=f39e125]

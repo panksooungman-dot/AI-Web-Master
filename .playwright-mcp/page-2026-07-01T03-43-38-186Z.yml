@@ -1,0 +1,231 @@
+- generic [active] [ref=f28e1]:
+  - banner [ref=f28e2]:
+    - generic [ref=f28e4]:
+      - link "CNBIZ" [ref=f28e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f28e6]: CNBIZ
+      - navigation "주요 메뉴" [ref=f28e7]:
+        - link "회사소개" [ref=f28e8] [cursor=pointer]:
+          - /url: /about
+        - link "사업소개" [ref=f28e9] [cursor=pointer]:
+          - /url: /services
+        - link "포트폴리오" [ref=f28e10] [cursor=pointer]:
+          - /url: /portfolio
+        - link "문의하기" [ref=f28e11] [cursor=pointer]:
+          - /url: /contact
+      - link "문의하기" [ref=f28e13] [cursor=pointer]:
+        - /url: /contact
+  - main [ref=f28e14]:
+    - generic [ref=f28e16]:
+      - paragraph [ref=f28e17]: Services
+      - heading "비즈니스 성장을 위한 전문 서비스" [level=1] [ref=f28e19]:
+        - text: 비즈니스 성장을 위한
+        - text: 전문 서비스
+      - paragraph [ref=f28e20]: 컨설팅부터 AI, 개발, 인프라까지. CNBIZ는 디지털 전환의 각 단계에 필요한 전문성을 하나의 팀으로 제공합니다.
+    - generic [ref=f28e22]:
+      - generic [ref=f28e23]:
+        - paragraph [ref=f28e24]: What We Do
+        - heading "4가지 핵심 서비스" [level=2] [ref=f28e25]
+      - generic [ref=f28e26]:
+        - link "디지털 전환 컨설팅 현황 분석부터 전략 수립까지, 디지털 전환의 방향을 함께 설계합니다. 자세히 보기" [ref=f28e27] [cursor=pointer]:
+          - /url: "#consulting"
+          - img [ref=f28e29]
+          - heading "디지털 전환 컨설팅" [level=3] [ref=f28e31]
+          - paragraph [ref=f28e32]: 현황 분석부터 전략 수립까지, 디지털 전환의 방향을 함께 설계합니다.
+          - paragraph [ref=f28e33]:
+            - text: 자세히 보기
+            - img [ref=f28e34]
+        - link "AI / ML 솔루션 머신러닝과 생성형 AI 기술을 실제 비즈니스 문제에 접목합니다. 자세히 보기" [ref=f28e36] [cursor=pointer]:
+          - /url: "#ai"
+          - img [ref=f28e38]
+          - heading "AI / ML 솔루션" [level=3] [ref=f28e40]
+          - paragraph [ref=f28e41]: 머신러닝과 생성형 AI 기술을 실제 비즈니스 문제에 접목합니다.
+          - paragraph [ref=f28e42]:
+            - text: 자세히 보기
+            - img [ref=f28e43]
+        - link "엔터프라이즈 개발 대규모 시스템부터 모바일 앱까지, 확장성 있는 소프트웨어를 구축합니다. 자세히 보기" [ref=f28e45] [cursor=pointer]:
+          - /url: "#development"
+          - img [ref=f28e47]
+          - heading "엔터프라이즈 개발" [level=3] [ref=f28e49]
+          - paragraph [ref=f28e50]: 대규모 시스템부터 모바일 앱까지, 확장성 있는 소프트웨어를 구축합니다.
+          - paragraph [ref=f28e51]:
+            - text: 자세히 보기
+            - img [ref=f28e52]
+        - link "클라우드 인프라 AWS · Azure · GCP 기반의 안정적이고 비용 효율적인 환경을 구성합니다. 자세히 보기" [ref=f28e54] [cursor=pointer]:
+          - /url: "#cloud"
+          - img [ref=f28e56]
+          - heading "클라우드 인프라" [level=3] [ref=f28e58]
+          - paragraph [ref=f28e59]: AWS · Azure · GCP 기반의 안정적이고 비용 효율적인 환경을 구성합니다.
+          - paragraph [ref=f28e60]:
+            - text: 자세히 보기
+            - img [ref=f28e61]
+    - generic [ref=f28e65]:
+      - generic [ref=f28e66]:
+        - paragraph [ref=f28e67]: Digital Transformation Consulting
+        - heading "디지털 전환 컨설팅" [level=2] [ref=f28e68]
+        - paragraph [ref=f28e69]: 기업의 현황을 정확히 진단하고, 데이터에 기반한 디지털 전환 전략과 실행 로드맵을 함께 수립합니다. 조직의 변화 관리까지 책임지고 지원합니다.
+      - generic [ref=f28e70]:
+        - heading "주요 제공 범위" [level=3] [ref=f28e71]
+        - list [ref=f28e72]:
+          - listitem [ref=f28e73]:
+            - img [ref=f28e74]
+            - text: 현황 진단 및 갭 분석
+          - listitem [ref=f28e76]:
+            - img [ref=f28e77]
+            - text: 디지털 전환 전략 로드맵 수립
+          - listitem [ref=f28e79]:
+            - img [ref=f28e80]
+            - text: 변화 관리 및 조직 역량 강화
+          - listitem [ref=f28e82]:
+            - img [ref=f28e83]
+            - text: 성과 측정 체계 구축
+    - generic [ref=f28e87]:
+      - generic [ref=f28e88]:
+        - paragraph [ref=f28e89]: AI / ML Solutions
+        - heading "AI / ML 솔루션" [level=2] [ref=f28e90]
+        - paragraph [ref=f28e91]: 머신러닝과 생성형 AI 기술을 실제 비즈니스 문제에 접목해 실질적인 성과를 만듭니다. 데이터 수집부터 모델 운영까지 전 과정을 지원합니다.
+      - generic [ref=f28e92]:
+        - heading "주요 제공 범위" [level=3] [ref=f28e93]
+        - list [ref=f28e94]:
+          - listitem [ref=f28e95]:
+            - img [ref=f28e96]
+            - text: 예측 분석 모델 개발
+          - listitem [ref=f28e98]:
+            - img [ref=f28e99]
+            - text: AI 기반 업무 자동화
+          - listitem [ref=f28e101]:
+            - img [ref=f28e102]
+            - text: LLM 기반 챗봇 · 에이전트 구축
+          - listitem [ref=f28e104]:
+            - img [ref=f28e105]
+            - text: 데이터 파이프라인 설계
+    - generic [ref=f28e109]:
+      - generic [ref=f28e110]:
+        - paragraph [ref=f28e111]: Enterprise Development
+        - heading "엔터프라이즈 개발" [level=2] [ref=f28e112]
+        - paragraph [ref=f28e113]: 웹·모바일부터 대규모 백엔드 시스템까지, 확장 가능하고 안정적인 소프트웨어를 구축합니다. 레거시 시스템의 현대화도 함께 지원합니다.
+      - generic [ref=f28e114]:
+        - heading "주요 제공 범위" [level=3] [ref=f28e115]
+        - list [ref=f28e116]:
+          - listitem [ref=f28e117]:
+            - img [ref=f28e118]
+            - text: 웹 / 모바일 애플리케이션 개발
+          - listitem [ref=f28e120]:
+            - img [ref=f28e121]
+            - text: ERP · CRM 시스템 연동
+          - listitem [ref=f28e123]:
+            - img [ref=f28e124]
+            - text: MSA(마이크로서비스) 아키텍처 설계
+          - listitem [ref=f28e126]:
+            - img [ref=f28e127]
+            - text: 레거시 시스템 현대화
+    - generic [ref=f28e131]:
+      - generic [ref=f28e132]:
+        - paragraph [ref=f28e133]: Cloud Infrastructure
+        - heading "클라우드 인프라" [level=2] [ref=f28e134]
+        - paragraph [ref=f28e135]: AWS · Azure · GCP 기반의 안정적이고 비용 효율적인 클라우드 환경을 설계하고 운영합니다. 보안과 컴플라이언스를 기본으로 갖춥니다.
+      - generic [ref=f28e136]:
+        - heading "주요 제공 범위" [level=3] [ref=f28e137]
+        - list [ref=f28e138]:
+          - listitem [ref=f28e139]:
+            - img [ref=f28e140]
+            - text: 클라우드 마이그레이션
+          - listitem [ref=f28e142]:
+            - img [ref=f28e143]
+            - text: DevOps / CI-CD 파이프라인 구축
+          - listitem [ref=f28e145]:
+            - img [ref=f28e146]
+            - text: 보안 · 컴플라이언스 체계 수립
+          - listitem [ref=f28e148]:
+            - img [ref=f28e149]
+            - text: 24시간 모니터링 및 운영 지원
+    - generic [ref=f28e152]:
+      - generic [ref=f28e153]:
+        - paragraph [ref=f28e154]: Process
+        - heading "도입 프로세스" [level=2] [ref=f28e155]
+        - paragraph [ref=f28e156]: 문의부터 프로젝트 완료까지, CNBIZ와 함께하는 과정입니다.
+      - list [ref=f28e157]:
+        - listitem [ref=f28e158]:
+          - paragraph [ref=f28e159]: "01"
+          - heading "상담 신청" [level=3] [ref=f28e160]
+          - paragraph [ref=f28e161]: 홈페이지 또는 이메일로 문의를 남겨주시면 담당자가 영업일 24시간 내 연락드립니다.
+        - listitem [ref=f28e162]:
+          - paragraph [ref=f28e163]: "02"
+          - heading "요구사항 분석" [level=3] [ref=f28e164]
+          - paragraph [ref=f28e165]: 현황과 목표를 함께 점검하고 프로젝트 범위를 구체화합니다.
+        - listitem [ref=f28e166]:
+          - paragraph [ref=f28e167]: "03"
+          - heading "제안 및 견적" [level=3] [ref=f28e168]
+          - paragraph [ref=f28e169]: 맞춤형 솔루션과 일정, 비용을 담은 제안서를 전달합니다.
+        - listitem [ref=f28e170]:
+          - paragraph [ref=f28e171]: "04"
+          - heading "프로젝트 착수" [level=3] [ref=f28e172]
+          - paragraph [ref=f28e173]: 계약 체결 후 전담팀이 구성되어 본격적으로 프로젝트를 시작합니다.
+        - listitem [ref=f28e174]:
+          - paragraph [ref=f28e175]: "05"
+          - heading "지속적 지원" [level=3] [ref=f28e176]
+          - paragraph [ref=f28e177]: 오픈 이후에도 운영·유지보수를 통해 안정적인 서비스를 지원합니다.
+  - contentinfo [ref=f28e178]:
+    - generic [ref=f28e179]:
+      - generic [ref=f28e180]:
+        - generic [ref=f28e181]:
+          - link "CNBIZ" [ref=f28e182] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f28e183]: CNBIZ
+          - paragraph [ref=f28e184]:
+            - text: 디지털 혁신으로
+            - text: 비즈니스의 미래를 함께 만듭니다.
+          - generic [ref=f28e185]:
+            - link "LinkedIn" [ref=f28e186] [cursor=pointer]:
+              - /url: https://linkedin.com
+              - img [ref=f28e187]
+            - link "YouTube" [ref=f28e189] [cursor=pointer]:
+              - /url: https://youtube.com
+              - img [ref=f28e190]
+        - generic [ref=f28e192]:
+          - heading "회사" [level=3] [ref=f28e193]
+          - list [ref=f28e194]:
+            - listitem [ref=f28e195]:
+              - link "회사소개" [ref=f28e196] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=f28e197]:
+              - link "회사 연혁" [ref=f28e198] [cursor=pointer]:
+                - /url: /about#history
+            - listitem [ref=f28e199]:
+              - link "핵심 가치" [ref=f28e200] [cursor=pointer]:
+                - /url: /about#values
+        - generic [ref=f28e201]:
+          - heading "사업" [level=3] [ref=f28e202]
+          - list [ref=f28e203]:
+            - listitem [ref=f28e204]:
+              - link "사업소개" [ref=f28e205] [cursor=pointer]:
+                - /url: /services
+            - listitem [ref=f28e206]:
+              - link "디지털 전환 컨설팅" [ref=f28e207] [cursor=pointer]:
+                - /url: /services#consulting
+            - listitem [ref=f28e208]:
+              - link "AI / ML 솔루션" [ref=f28e209] [cursor=pointer]:
+                - /url: /services#ai
+            - listitem [ref=f28e210]:
+              - link "엔터프라이즈 개발" [ref=f28e211] [cursor=pointer]:
+                - /url: /services#development
+            - listitem [ref=f28e212]:
+              - link "클라우드 인프라" [ref=f28e213] [cursor=pointer]:
+                - /url: /services#cloud
+        - generic [ref=f28e214]:
+          - heading "고객지원" [level=3] [ref=f28e215]
+          - list [ref=f28e216]:
+            - listitem [ref=f28e217]:
+              - link "문의하기" [ref=f28e218] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=f28e219]:
+              - link "이메일 문의" [ref=f28e220] [cursor=pointer]:
+                - /url: /contact#form
+      - generic [ref=f28e221]:
+        - generic [ref=f28e222]:
+          - generic [ref=f28e223]: "(주)씨엔비즈 | 대표이사: — | 사업자등록번호: —"
+          - generic [ref=f28e224]: "|"
+          - generic [ref=f28e225]: 서울특별시 — (주소 추후 업데이트)
+        - paragraph [ref=f28e226]: © 2025 CNBIZ. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f28e232] [cursor=pointer]:
+    - img [ref=f28e233]

@@ -1,4 +1,4 @@
-export type EventCategory = "agent" | "terminal" | "git";
+export type EventCategory = "agent" | "terminal" | "git" | "workflow";
 
 export interface EngineEvent {
   id: string;

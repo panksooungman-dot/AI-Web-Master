@@ -8,6 +8,15 @@
 
 ### 추가 (Added)
 
+- Phase 4: AI Workflow Engine — `lib/workflows/`에 Development OS·Agent Engine·Project Manager를 연결하는 워크플로 오케스트레이션 엔진 신규 구현. 새 대시보드는 만들지 않고 서비스 레이어 + API 라우트로만 구성
+  - **재사용 중심 설계**: 6종 Step(Create Workspace·Run Terminal·Initialize Git·Execute AI Prompt·Commit Changes·Push Repository) 전부가 새 실행 로직 없이 기존 서비스로만 위임됨 — Create Workspace는 `lib/workspaces/registry.ts`의 `createWorkspace()`, 나머지 5종은 전부 `lib/agents/taskQueue.ts`의 `taskQueue.enqueue()`(→ Agent Service → `executeShellCommand`)로 위임. Git 관련 Step은 `git ` 접두사 자동 분류로 Git 이벤트도 별도 코드 없이 발생
+  - `lib/workflows/types.ts`·`lib/workflows/registry.ts`(Workflow 정의 fs 저장 `lib/data/workflows.json`, 기존 registry 패턴과 동일) — Create workflow
+  - `lib/workflows/engine.ts` — Execute·Pause·Resume·Cancel(Task Queue의 Pending/Running/Completed/Failed 상태 전이 재사용), 각 Step의 Timestamp·Duration·Logs·Result를 `StepExecutionRecord`로 기록(Execution History). Task 완료 대기는 폴링이 아닌 기존 Event Bus 구독(`eventBus.subscribe`)으로 구현. Cancel은 진행 중인 Step의 `taskQueue.cancel()`을 그대로 호출해 실제 프로세스를 종료
+  - `lib/events/eventBus.ts` — `EventCategory`에 `workflow` 한 종류만 추가(기존 agent/terminal/git 카테고리와 이벤트 버스 자체는 그대로 재사용, 새 이벤트 버스를 만들지 않음)
+  - API 라우트(신규 페이지 없음) — `app/api/workflows`(목록·생성)·`app/api/workflows/[id]`·`app/api/workflows/[id]/run`, `app/api/workflows/runs`(전체 실행 이력)·`app/api/workflows/runs/[id]`·`.../pause`·`.../resume`·`.../cancel`
+  - curl로 End-to-End 검증: Workspace 생성→파일 작성→`git init`→커밋까지 4단계 전부 실제 파일시스템·Git에 반영됨을 확인. Pause(진행 중이던 Step은 끝까지 완료 후 다음 Step 전에 정지)→Resume(나머지 Step 정상 완료) 확인. Cancel 시 10초 대기 명령이 약 1.8초 만에 실제 프로세스 종료됨을 확인(soft-cancel 아님)
+  - `npm run lint`·`npm run build` 통과(31개 라우트), Development OS·Project Manager·Agent Engine 전부 회귀 없음을 재확인
+
 - Phase 3: Project Manager — `app/projects/`에 Development OS 위에서 실행되는 첫 번째 애플리케이션 신규 구현
   - `lib/projects/registry.ts` — `ProjectRecord`(Name·Company·Type·Description·Workspace 연결·Status·CreatedAt·LastOpenedAt) fs 기반 저장(`lib/data/projects.json`, Workspace registry와 동일한 패턴)
   - `lib/projects/status.ts` — 기존 공용 서비스 `runTerminalCommand`(`lib/terminal/client.ts`)만 재사용해 Git 상태(branch·dirty count·last commit)와 AI 도구 설치 여부(`claude --version`·`cursor --version`)를 조회. Terminal/GitHub/AI Manager 페이지는 전혀 수정하지 않음

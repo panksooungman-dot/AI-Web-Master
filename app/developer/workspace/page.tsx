@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card } from "@/components/developer/Card";
+import { PageHeader } from "@/components/developer/PageHeader";
+import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import type { WorkspaceRecord } from "@/lib/workspaces/registry";
 
@@ -20,6 +23,7 @@ const DEFAULT_BASE_PATH = "D:/Workspace";
 export default function WorkspacesPage() {
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState("");
   const [targetPath, setTargetPath] = useState("");
@@ -36,6 +40,9 @@ export default function WorkspacesPage() {
       .then((res) => res.json())
       .then((data: WorkspacesResponse) => {
         if (!cancelled) setWorkspaces(data.workspaces ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Workspace 목록을 불러오지 못했습니다.");
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -102,23 +109,22 @@ export default function WorkspacesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Workspaces</h1>
-          <p className="text-gray-400 mt-2">실제 폴더 기반의 작업 공간입니다.</p>
-        </div>
-
-        <button
-          onClick={() => (isCreating ? resetForm() : setIsCreating(true))}
-          className="shrink-0 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 font-semibold transition-colors"
-        >
-          {isCreating ? "Cancel" : "+ New Workspace"}
-        </button>
-      </div>
+    <div>
+      <PageHeader
+        title="Workspaces"
+        description="실제 폴더 기반의 작업 공간입니다."
+        actions={
+          <button
+            onClick={() => (isCreating ? resetForm() : setIsCreating(true))}
+            className="shrink-0 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 font-semibold transition-colors"
+          >
+            {isCreating ? "Cancel" : "+ New Workspace"}
+          </button>
+        }
+      />
 
       {isCreating && (
-        <div className="mb-6 rounded-xl border border-gray-700 bg-gray-900 p-5 flex flex-col gap-3 max-w-md">
+        <Card className="mb-6 flex flex-col gap-3 max-w-md">
           <div>
             <label htmlFor="workspace-name" className="block text-sm text-gray-400 mb-1">
               Name
@@ -147,7 +153,7 @@ export default function WorkspacesPage() {
             />
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <StatusMessage tone="error">{error}</StatusMessage>}
 
           <div className="flex gap-2">
             <button
@@ -164,20 +170,19 @@ export default function WorkspacesPage() {
               Cancel
             </button>
           </div>
-        </div>
+        </Card>
       )}
 
       {isLoading ? (
-        <p className="text-gray-500">Loading...</p>
+        <LoadingText />
+      ) : loadError ? (
+        <StatusMessage tone="error">{loadError}</StatusMessage>
       ) : workspaces.length === 0 ? (
         <p className="text-gray-500">아직 생성된 Workspace가 없습니다.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {workspaces.map((workspace) => (
-            <div
-              key={workspace.id}
-              className="rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-xl flex flex-col gap-3"
-            >
+            <Card key={workspace.id} className="flex flex-col gap-3">
               <h2 className="text-lg font-bold">{workspace.name}</h2>
               <p className="text-sm text-gray-400 font-mono break-all">{workspace.path}</p>
               <p className="text-xs text-gray-500">
@@ -189,10 +194,10 @@ export default function WorkspacesPage() {
               >
                 Open
               </button>
-            </div>
+            </Card>
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

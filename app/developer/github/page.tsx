@@ -1,14 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useWorkspaceStore } from "@/lib/store/workspace-store";
-
-interface TerminalApiResponse {
-  success: boolean;
-  output?: string;
-  error?: string;
-  cwd?: string;
-}
+import { Card } from "@/components/developer/Card";
+import { PageHeader } from "@/components/developer/PageHeader";
+import { useResolvedCwd } from "@/lib/hooks/useResolvedCwd";
+import { readSettings } from "@/lib/settings/store";
+import { runTerminalCommand } from "@/lib/terminal/client";
 
 interface GitStatusBuckets {
   modified: string[];
@@ -90,23 +87,12 @@ function deriveRepoName(remoteUrl: string | null, cwd: string | null): string {
   return "(알 수 없음)";
 }
 
+function escapeForShell(value: string): string {
+  return value.replace(/"/g, '`"');
+}
+
 export default function GitHubManagerPage() {
-  const { currentWorkspace, isHydrated } = useWorkspaceStore();
-  const [cwd, setCwd] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-
-    if (currentWorkspace) {
-      queueMicrotask(() => setCwd(currentWorkspace.path));
-      return;
-    }
-
-    fetch("/api/terminal")
-      .then((res) => res.json())
-      .then((data: { cwd: string }) => setCwd(data.cwd))
-      .catch(() => setCwd(null));
-  }, [isHydrated, currentWorkspace]);
+  const { cwd, currentWorkspace, error: cwdError } = useResolvedCwd();
 
   const [repoName, setRepoName] = useState<string | null>(null);
   const [branch, setBranch] = useState<string | null>(null);
@@ -122,13 +108,7 @@ export default function GitHubManagerPage() {
 
   const runGit = useCallback(
     async (args: string): Promise<{ success: boolean; output: string }> => {
-      const res = await fetch("/api/terminal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: `git ${args}`, cwd }),
-      });
-
-      const data = (await res.json()) as TerminalApiResponse;
+      const data = await runTerminalCommand(`git ${args}`, { cwd });
 
       return {
         success: data.success,
@@ -213,8 +193,15 @@ export default function GitHubManagerPage() {
         return;
       }
 
-      const escaped = message.replace(/"/g, '`"');
-      const commitResult = await runGit(`commit -m "${escaped}"`);
+      const { userName, userEmail } = readSettings().git;
+      const identityFlags = [
+        userName.trim() ? `-c user.name="${escapeForShell(userName.trim())}"` : null,
+        userEmail.trim() ? `-c user.email="${escapeForShell(userEmail.trim())}"` : null,
+      ].filter((flag): flag is string => flag !== null);
+
+      const escaped = escapeForShell(message);
+      const commitArgs = [...identityFlags, `commit -m "${escaped}"`].join(" ");
+      const commitResult = await runGit(commitArgs);
       setResult({ label: "Commit", success: commitResult.success, text: commitResult.output });
 
       if (commitResult.success) {
@@ -234,21 +221,19 @@ export default function GitHubManagerPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">🐙 GitHub Manager</h1>
-        <p className="text-gray-400 mt-2">Local Git Management</p>
-        {currentWorkspace && (
-          <p className="text-sm text-blue-400 mt-1">
-            Workspace: <span className="font-semibold">{currentWorkspace.name}</span>
-          </p>
-        )}
-        <p className="font-mono text-sm text-green-400 mt-1">{cwd ?? "Loading..."}</p>
-      </div>
+    <div>
+      <PageHeader
+        icon="🐙"
+        title="GitHub Manager"
+        description="Local Git Management"
+        workspaceName={currentWorkspace?.name}
+        path={cwdError ?? cwd ?? "Loading..."}
+      />
 
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-xl mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">Repository Info</h2>
+      <Card
+        title="Repository Info"
+        className="mb-6"
+        actions={
           <button
             onClick={refresh}
             disabled={!cwd || isRefreshing}
@@ -256,8 +241,8 @@ export default function GitHubManagerPage() {
           >
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
-        </div>
-
+        }
+      >
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="flex gap-2">
             <dt className="text-gray-500 w-32 shrink-0">Repository Name</dt>
@@ -276,11 +261,9 @@ export default function GitHubManagerPage() {
             <dd className="font-mono break-all">{gitLog[0] ?? "(커밋 없음)"}</dd>
           </div>
         </dl>
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-xl mb-6">
-        <h2 className="text-lg font-bold mb-4">Actions</h2>
-
+      <Card title="Actions" className="mb-6">
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => setIsCloneFormOpen((prev) => !prev)}
@@ -353,11 +336,9 @@ export default function GitHubManagerPage() {
             </button>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-xl mb-6">
-        <h2 className="text-lg font-bold mb-4">Git Status</h2>
-
+      <Card title="Git Status" className="mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {statusSections.map((section) => (
             <div key={section.label}>
@@ -376,11 +357,9 @@ export default function GitHubManagerPage() {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-xl mb-6">
-        <h2 className="text-lg font-bold mb-4">Git Log (최근 5개)</h2>
-
+      <Card title="Git Log (최근 5개)" className="mb-6">
         {gitLog.length === 0 ? (
           <p className="text-sm text-gray-600">커밋 기록이 없습니다.</p>
         ) : (
@@ -390,13 +369,10 @@ export default function GitHubManagerPage() {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
       {result && (
-        <div className="rounded-xl border border-gray-700 bg-black p-5 shadow-xl">
-          <h2 className="text-lg font-bold mb-2">
-            {result.label} 결과
-          </h2>
+        <Card title={`${result.label} 결과`} variant="console">
           <pre
             className={`font-mono text-sm whitespace-pre-wrap break-all ${
               result.success ? "text-green-400" : "text-red-500"
@@ -404,8 +380,8 @@ export default function GitHubManagerPage() {
           >
             {result.text || "(출력 없음)"}
           </pre>
-        </div>
+        </Card>
       )}
-    </main>
+    </div>
   );
 }

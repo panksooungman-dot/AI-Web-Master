@@ -6,8 +6,36 @@ import path from "path";
 
 const CD_PATTERN = /^cd(?:\s+(.*))?$/i;
 
+type Shell = "PowerShell" | "CMD" | "Git Bash";
+
+const VALID_SHELLS: Shell[] = ["PowerShell", "CMD", "Git Bash"];
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isShell(value: unknown): value is Shell {
+  return typeof value === "string" && (VALID_SHELLS as string[]).includes(value);
+}
+
+function buildShellInvocation(shell: Shell, command: string): { bin: string; args: string[] } {
+  if (shell === "CMD") {
+    return { bin: "cmd.exe", args: ["/d", "/s", "/c", `chcp 65001>nul && ${command}`] };
+  }
+
+  if (shell === "Git Bash") {
+    return { bin: "bash.exe", args: ["-c", command] };
+  }
+
+  return {
+    bin: "powershell.exe",
+    args: [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`,
+    ],
+  };
 }
 
 function stripQuotes(value: string): string {
@@ -45,6 +73,9 @@ export async function POST(request: Request) {
       cwd = body.cwd;
     }
 
+    const shell: Shell =
+      isRecord(body) && isShell(body.shell) ? body.shell : "PowerShell";
+
     const trimmed = command.trim();
 
     if (!trimmed) {
@@ -74,19 +105,11 @@ export async function POST(request: Request) {
     }
 
     const output = await new Promise<string>((resolve, reject) => {
-      const child = spawn(
-        "powershell.exe",
-        [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${trimmed}`,
-        ],
-        {
-          cwd,
-          windowsHide: true,
-        }
-      );
+      const { bin, args } = buildShellInvocation(shell, trimmed);
+      const child = spawn(bin, args, {
+        cwd,
+        windowsHide: true,
+      });
 
       let stdout = "";
       let stderr = "";

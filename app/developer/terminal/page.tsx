@@ -1,24 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { PageHeader } from "@/components/developer/PageHeader";
+import { useResolvedCwd } from "@/lib/hooks/useResolvedCwd";
+import { readSettings, type Shell } from "@/lib/settings/store";
+import { runTerminalCommand } from "@/lib/terminal/client";
 
 type LineType = "banner" | "command" | "output" | "error";
 
 interface TerminalLine {
   type: LineType;
   text: string;
-}
-
-interface TerminalResponse {
-  success: boolean;
-  output?: string;
-  error?: string;
-  cwd?: string;
-}
-
-interface CwdResponse {
-  cwd: string;
 }
 
 const INITIAL_LINES: TerminalLine[] = [
@@ -30,32 +22,30 @@ export default function TerminalPage() {
   const [command, setCommand] = useState("");
   const [lines, setLines] = useState<TerminalLine[]>(INITIAL_LINES);
   const [isLoading, setIsLoading] = useState(false);
-  const [cwd, setCwd] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const { currentWorkspace, isHydrated } = useWorkspaceStore();
+  const [shell, setShell] = useState<Shell>("PowerShell");
+  const [fontSize, setFontSize] = useState(14);
+  const { cwd, currentWorkspace, error: cwdError } = useResolvedCwd();
 
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isHydrated) return;
-
-    if (currentWorkspace) {
-      queueMicrotask(() => setCwd(currentWorkspace.path));
-      return;
-    }
-
-    fetch("/api/terminal")
-      .then((res) => res.json())
-      .then((data: CwdResponse) => setCwd(data.cwd))
-      .catch(() => setCwd(null));
-  }, [isHydrated, currentWorkspace]);
+    queueMicrotask(() => {
+      const settings = readSettings();
+      setShell(settings.terminal.defaultShell);
+      setFontSize(settings.terminal.fontSize);
+    });
+  }, []);
 
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [lines]);
+
+  const [runtimeCwd, setRuntimeCwd] = useState<string | null>(null);
+  const effectiveCwd = runtimeCwd ?? cwd;
 
   const runCommand = async () => {
     const trimmed = command.trim();
@@ -68,16 +58,10 @@ export default function TerminalPage() {
     setCommand("");
 
     try {
-      const res = await fetch("/api/terminal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: trimmed, cwd }),
-      });
-
-      const data = (await res.json()) as TerminalResponse;
+      const data = await runTerminalCommand(trimmed, { cwd: effectiveCwd, shell });
 
       if (typeof data.cwd === "string") {
-        setCwd(data.cwd);
+        setRuntimeCwd(data.cwd);
       }
 
       if (data.success) {
@@ -90,9 +74,6 @@ export default function TerminalPage() {
           { type: "error", text: data.error ?? "알 수 없는 오류" },
         ]);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "요청 실패";
-      setLines((prev) => [...prev, { type: "error", text: message }]);
     } finally {
       setIsLoading(false);
     }
@@ -134,22 +115,17 @@ export default function TerminalPage() {
     setLines(INITIAL_LINES);
   };
 
-  const promptLabel = cwd ? `${cwd} >` : "...";
+  const promptLabel = effectiveCwd ? `${effectiveCwd} >` : "...";
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">💻 AI-WEB-MASTER Terminal</h1>
-        <p className="text-gray-400 mt-2">
-          Development OS Terminal
-        </p>
-        {currentWorkspace && (
-          <p className="text-sm text-blue-400 mt-1">
-            Workspace: <span className="font-semibold">{currentWorkspace.name}</span>
-          </p>
-        )}
-        <p className="font-mono text-sm text-green-400 mt-1">{cwd ?? "Loading..."}</p>
-      </div>
+    <div>
+      <PageHeader
+        icon="💻"
+        title="AI-WEB-MASTER Terminal"
+        description="Development OS Terminal"
+        workspaceName={currentWorkspace?.name}
+        path={cwdError ?? effectiveCwd ?? "Loading..."}
+      />
 
       <div className="rounded-xl border border-gray-700 bg-black overflow-hidden shadow-xl">
         <div className="flex items-center justify-between bg-gray-900 px-4 py-3 border-b border-gray-700">
@@ -175,7 +151,11 @@ export default function TerminalPage() {
           </div>
         </div>
 
-        <div ref={outputRef} className="h-[500px] overflow-y-auto p-4 font-mono text-sm">
+        <div
+          ref={outputRef}
+          className="h-[500px] overflow-y-auto p-4 font-mono"
+          style={{ fontSize: `${fontSize}px` }}
+        >
           {lines.map((line, index) => (
             <div
               key={index}
@@ -209,10 +189,11 @@ export default function TerminalPage() {
             onKeyDown={handleKeyDown}
             disabled={isLoading}
             placeholder="Type a command..."
+            style={{ fontSize: `${fontSize}px` }}
             className="w-full rounded bg-gray-900 border border-gray-700 px-4 py-3 outline-none focus:border-green-500 disabled:opacity-50 font-mono"
           />
         </div>
       </div>
-    </main>
+    </div>
   );
 }

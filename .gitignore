@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local workspace registry (machine-specific paths)
 /lib/data/
+
+# Playwright MCP QA artifacts (screenshots, snapshots, console logs)
+/.playwright-mcp/

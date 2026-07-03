@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
+import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 
 type LogCategory = "Terminal" | "Git" | "AI" | "System";
 type LogStatus = "Success" | "Error" | "Info" | "Warning";
@@ -15,6 +16,10 @@ interface LogItem {
   category: LogCategory;
   message: string;
   status: LogStatus;
+}
+
+interface LogsResponse {
+  logs: LogItem[];
 }
 
 const CATEGORY_TONES: Record<LogCategory, BadgeTone> = {
@@ -33,23 +38,27 @@ const STATUS_TONES: Record<LogStatus, BadgeTone> = {
 
 const FILTERS: FilterOption[] = ["All", "Terminal", "Git", "AI", "System"];
 
-const MOCK_LOGS: LogItem[] = [
-  { id: "1", timestamp: "2026-07-03 21:10:02", category: "Terminal", message: "명령 실행: git status", status: "Success" },
-  { id: "2", timestamp: "2026-07-03 21:09:41", category: "Terminal", message: "명령 실행: npm install", status: "Info" },
-  { id: "3", timestamp: "2026-07-03 21:08:55", category: "Git", message: "Commit 완료: Initial test commit", status: "Success" },
-  { id: "4", timestamp: "2026-07-03 21:07:30", category: "Git", message: "Push 실패: 원격 저장소 인증 오류", status: "Error" },
-  { id: "5", timestamp: "2026-07-03 21:06:12", category: "AI", message: "Claude Code 시작됨", status: "Success" },
-  { id: "6", timestamp: "2026-07-03 21:05:47", category: "AI", message: "ChatGPT 설정 화면 토글", status: "Info" },
-  { id: "7", timestamp: "2026-07-03 21:04:20", category: "System", message: "Workspace 전환: AI Web Master", status: "Info" },
-  { id: "8", timestamp: "2026-07-03 21:03:10", category: "System", message: "디스크 공간 부족 경고", status: "Warning" },
-  { id: "9", timestamp: "2026-07-03 21:02:00", category: "Terminal", message: "명령 실행 실패: 존재하지 않는 경로", status: "Error" },
-  { id: "10", timestamp: "2026-07-03 21:01:15", category: "Git", message: "Fetch 완료", status: "Success" },
-];
-
 export default function LogsManagerPage() {
-  const [logs, setLogs] = useState<LogItem[]>(MOCK_LOGS);
+  const [logs, setLogs] = useState<LogItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterOption>("All");
+
+  const loadLogs = () => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    fetch("/api/logs")
+      .then((res) => res.json())
+      .then((data: LogsResponse) => setLogs(data.logs ?? []))
+      .catch(() => setLoadError("로그를 불러오지 못했습니다."))
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    queueMicrotask(() => loadLogs());
+  }, []);
 
   const filteredLogs = logs.filter((log) => {
     const matchesFilter = activeFilter === "All" || log.category === activeFilter;
@@ -58,7 +67,7 @@ export default function LogsManagerPage() {
   });
 
   const handleRefresh = () => {
-    setLogs(MOCK_LOGS);
+    loadLogs();
   };
 
   const handleClear = () => {
@@ -133,7 +142,11 @@ export default function LogsManagerPage() {
         ))}
       </div>
 
-      {filteredLogs.length === 0 ? (
+      {isLoading ? (
+        <LoadingText />
+      ) : loadError ? (
+        <StatusMessage tone="error">{loadError}</StatusMessage>
+      ) : filteredLogs.length === 0 ? (
         <p className="text-gray-500">표시할 로그가 없습니다.</p>
       ) : (
         <div className="flex flex-col gap-3">

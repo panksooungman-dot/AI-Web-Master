@@ -321,8 +321,13 @@ export default function ProjectsPage() {
   const handleCancelRun = async () => {
     if (!activeRun) return;
 
-    await fetch(`/api/workflows/runs/${activeRun.id}/cancel`, { method: "POST" });
-    setActiveRun(null);
+    if (["Completed", "Failed", "Cancelled"].includes(activeRun.status)) {
+      setActiveRun(null);
+      return;
+    }
+
+    const res = await fetch(`/api/workflows/runs/${activeRun.id}/cancel`, { method: "POST" });
+    if (res.ok) setActiveRun(null);
   };
 
   const openProject = async (project: ProjectRecord) => {
@@ -342,6 +347,9 @@ export default function ProjectsPage() {
   };
 
   const hasFailedStep = activeRun?.status === "Failed";
+  const isRunTerminal = activeRun
+    ? ["Completed", "Failed", "Cancelled"].includes(activeRun.status)
+    : false;
   const completedSteps = activeRun?.steps.filter((step) => step.status === "Success").length ?? 0;
   const totalSteps = activeRun?.steps.length ?? 0;
 
@@ -413,7 +421,7 @@ export default function ProjectsPage() {
               onClick={handleCancelRun}
               className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1 text-sm transition-colors"
             >
-              취소
+              {isRunTerminal ? "닫기" : "취소"}
             </button>
             {activeRun.context.workspaceId && (
               <Link

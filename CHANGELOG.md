@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-07-04
+
+### 추가 (Added)
+
+- New Project 부트스트랩 워크플로 — `/projects`에서 "새 Workspace 자동 생성" 모드로 Project를 생성하면 Workspace 생성 → Git 초기화 → 폴더/README/package.json 생성 → `npm install` → 최초 커밋까지 7단계를 하나의 Workflow Run으로 자동 실행. 기존 Workflow Engine(`lib/workflows/engine.ts`)에 3개 Step Kind(`generate-structure`·`generate-readme`·`generate-package-json`, 모두 로컬 fs 연산으로 새 프로세스 없이 처리)와 `retryStep()`(실패한 Step만 재실행), Workspace id/name을 다음 Step으로 전달하는 Context 전파를 추가해 구현. 새 대시보드 없이 기존 Project Manager UI에 진행 상황 패널(Step별 상태·소요시간·에러 메시지, 진행률 바)만 추가
+  - `app/api/projects/bootstrap/route.ts`(신규) — Bootstrap Workflow 정의·Run 생성, `app/api/workflows/runs/[id]/retry/route.ts`(신규) — 실패 Step 재시도 API
+  - `app/projects/page.tsx` — Run을 1초 간격으로 폴링해 진행 상황 표시, 완료 시 `POST /api/projects`로 Project 자동 등록, 실패 시 재시도·취소 버튼 노출
+- Logs Manager 실데이터 연동 — `app/api/logs/route.ts`(신규)에서 기존 Event Bus(`lib/events/eventBus.ts`)의 실행 이력(Terminal·Git 명령, Workflow Run/Step, Agent Task 이벤트)을 조회해 Logs Manager가 표시하는 형식으로 변환. Logs Manager(`app/developer/logs/page.tsx`)가 10건의 고정 Mock 데이터 대신 이 API를 호출하도록 변경(검색·필터·Export UI는 그대로 유지, Refresh 버튼이 실제 재조회를 수행하도록 연결)
+
+### 변경 (Changed)
+
+- 없음
+
+### 수정 (Fixed)
+
+- Terminal(`app/developer/terminal/page.tsx`) — 페이지 진입 직후(클라이언트 하이드레이션 완료 전) Run 버튼을 클릭하면 클릭이 씹히거나 입력한 명령이 조용히 사라져 아무 반응이 없던 문제 수정. `isMounted` 상태를 추가해 하이드레이션이 끝나기 전까지 Run 버튼·명령 입력창을 실제로 비활성화하도록 변경(반복 재현 테스트로 수정 전 첫 클릭 실패율 약 2/3 확인, 수정 후 5/5 연속 성공 확인)
+- Project 진행 상황 패널의 "취소" 버튼(`app/projects/page.tsx`) — 이미 종료된(Failed·Completed·Cancelled) Run에 취소 API를 호출해 항상 400 오류가 발생하던 문제 수정. 오류 발생 여부와 무관하게 화면에서 Run을 지워버리는 로직이라 실제로 아직 실행 중인 Run의 취소 요청이 실패해도 진행 상황 패널이 사라지는(추적 불가능해지는) 위험이 있었음. 종료된 Run은 API 호출 없이 즉시 패널을 닫고, 진행 중인 Run은 취소 API가 성공했을 때만 패널을 닫도록 수정, 버튼 라벨도 종료 상태에서는 "닫기"로 표시
+
+### 검증 (Verified)
+
+- New Project 부트스트랩 워크플로 End-to-End 확인 — Playwright로 Project 생성(새 Workspace 자동 생성) → 7단계 Run 완료 → Project 자동 등록 → Open Project → Open Terminal → 실제 명령 실행(`dir`) → Logs Manager에서 실시간 반영까지 전 구간 확인
+- 실패 처리 확인 — Workspace 생성 실패(잘못된 경로 문자로 실제 `ENOENT` 유발), Git 초기화 실패(존재하지 않는 cwd), Terminal 명령 실행 실패(존재하지 않는 명령) 각각 실제로 실패시켜 Run 상태·에러 메시지가 정상 표시됨을 확인
+- 재시도·취소 확인 — 실패한 Step만 재시도되어 동일하게 재실패함을 확인(전체 Run이 처음부터 재실행되지 않음), 실행 중인 Step에 대한 취소가 약 2초 내 실제 프로세스 종료로 이어짐을 확인(제한 시간 60초 명령이 끝까지 실행되지 않고 즉시 Cancelled 처리됨)
+- `npm run lint`·`npm run build` 통과 확인
+
+---
+
 ## 2026-07-03
 
 ### 추가 (Added)

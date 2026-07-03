@@ -26,9 +26,14 @@ export default function TerminalPage() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [shell, setShell] = useState<Shell>("PowerShell");
   const [fontSize, setFontSize] = useState(14);
+  const [isMounted, setIsMounted] = useState(false);
   const { cwd, currentWorkspace, error: cwdError } = useResolvedCwd();
 
   const outputRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    queueMicrotask(() => setIsMounted(true));
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -116,6 +121,7 @@ export default function TerminalPage() {
   };
 
   const promptLabel = effectiveCwd ? `${effectiveCwd} >` : "...";
+  const controlsDisabled = isLoading || !isMounted;
 
   return (
     <div>
@@ -143,7 +149,7 @@ export default function TerminalPage() {
 
             <button
               onClick={runCommand}
-              disabled={isLoading}
+              disabled={controlsDisabled}
               className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:opacity-50"
             >
               {isLoading ? "Running..." : "Run"}
@@ -187,7 +193,7 @@ export default function TerminalPage() {
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading}
+            disabled={controlsDisabled}
             placeholder="Type a command..."
             style={{ fontSize: `${fontSize}px` }}
             className="w-full rounded bg-gray-900 border border-gray-700 px-4 py-3 outline-none focus:border-green-500 disabled:opacity-50 font-mono"

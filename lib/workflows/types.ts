@@ -4,7 +4,10 @@ export type WorkflowStepKind =
   | "git-init"
   | "ai-prompt"
   | "git-commit"
-  | "git-push";
+  | "git-push"
+  | "generate-structure"
+  | "generate-readme"
+  | "generate-package-json";
 
 export interface WorkflowStepDefinition {
   id: string;

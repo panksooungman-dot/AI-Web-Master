@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getWorkflow } from "./registry";
 import { createWorkspace } from "@/lib/workspaces/registry";
 import { taskQueue, type AgentTask } from "@/lib/agents/taskQueue";
@@ -14,6 +16,8 @@ interface StepOutcome {
   output: string;
   error?: string;
   nextCwd?: string;
+  nextWorkspaceId?: string;
+  nextWorkspaceName?: string;
   cancelled?: boolean;
 }
 
@@ -23,6 +27,16 @@ function createRunId(): string {
 
 function escapeForShell(value: string): string {
   return value.replace(/"/g, '\\"');
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+
+  return slug || "new-project";
 }
 
 function toStepOutcome(task: AgentTask): StepOutcome {
@@ -184,13 +198,87 @@ class WorkflowEngine {
     return true;
   }
 
+  retryStep(id: string): boolean {
+    const run = this.runs.get(id);
+    if (!run || run.status !== "Failed") return false;
+
+    const stepRecord = run.steps[run.currentStepIndex];
+    if (!stepRecord) return false;
+
+    stepRecord.status = "Pending";
+    stepRecord.startedAt = null;
+    stepRecord.finishedAt = null;
+    stepRecord.durationMs = null;
+    stepRecord.logs = [];
+    stepRecord.result = null;
+
+    run.status = "Pending";
+    this.pending.push(id);
+
+    eventBus.emit("workflow", "run.retry", { runId: id, stepId: stepRecord.stepId });
+
+    void this.processNext();
+
+    return true;
+  }
+
   private async executeStep(
     run: WorkflowRun,
     step: WorkflowStepDefinition
   ): Promise<StepOutcome> {
     if (step.kind === "create-workspace") {
       const workspace = createWorkspace(step.params.name, step.params.path);
-      return { success: true, output: `Workspace 생성됨: ${workspace.path}`, nextCwd: workspace.path };
+      return {
+        success: true,
+        output: `Workspace 생성됨: ${workspace.path}`,
+        nextCwd: workspace.path,
+        nextWorkspaceId: workspace.id,
+        nextWorkspaceName: workspace.name,
+      };
+    }
+
+    if (step.kind === "generate-structure") {
+      const folders = (step.params.folders || "src")
+        .split(",")
+        .map((folder) => folder.trim())
+        .filter(Boolean);
+
+      for (const folder of folders) {
+        fs.mkdirSync(path.join(run.context.cwd, folder), { recursive: true });
+      }
+
+      return { success: true, output: `폴더 생성됨: ${folders.join(", ")}` };
+    }
+
+    if (step.kind === "generate-readme") {
+      const projectName = step.params.projectName || "New Project";
+      const description = step.params.description || "";
+      const content = `# ${projectName}\n\n${description}\n`;
+
+      fs.writeFileSync(path.join(run.context.cwd, "README.md"), content, "utf-8");
+
+      return { success: true, output: "README.md 생성됨" };
+    }
+
+    if (step.kind === "generate-package-json") {
+      const projectName = step.params.projectName || "New Project";
+      const description = step.params.description || "";
+
+      const packageJson = {
+        name: slugify(projectName),
+        version: "0.1.0",
+        description,
+        private: true,
+        scripts: {},
+      };
+
+      fs.writeFileSync(
+        path.join(run.context.cwd, "package.json"),
+        JSON.stringify(packageJson, null, 2),
+        "utf-8"
+      );
+
+      return { success: true, output: "package.json 생성됨" };
     }
 
     const command = this.resolveCommand(step);
@@ -292,6 +380,8 @@ class WorkflowEngine {
         } else if (outcome.success) {
           stepRecord.status = "Success";
           if (outcome.nextCwd) run.context.cwd = outcome.nextCwd;
+          if (outcome.nextWorkspaceId) run.context.workspaceId = outcome.nextWorkspaceId;
+          if (outcome.nextWorkspaceName) run.context.workspaceName = outcome.nextWorkspaceName;
         } else {
           stepRecord.status = "Failed";
           run.status = "Failed";

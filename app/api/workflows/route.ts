@@ -9,6 +9,9 @@ const VALID_KINDS: WorkflowStepKind[] = [
   "ai-prompt",
   "git-commit",
   "git-push",
+  "generate-structure",
+  "generate-readme",
+  "generate-package-json",
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,4 +1,7 @@
 import { runTerminalCommand } from "@/lib/terminal/client";
+import type { ProjectHealth } from "@/lib/projects/detect";
+
+export type { ProjectHealth };
 
 export interface ProjectGitStatus {
   hasRepo: boolean;
@@ -53,4 +56,14 @@ export async function fetchAiStatus(): Promise<AiToolStatus[]> {
     { name: "Claude Code", installed: claudeVersion !== null, version: claudeVersion },
     { name: "Cursor", installed: cursorVersion !== null, version: cursorVersion },
   ];
+}
+
+export async function fetchProjectHealth(workspacePath: string): Promise<ProjectHealth | null> {
+  try {
+    const res = await fetch(`/api/projects/health?path=${encodeURIComponent(workspacePath)}`);
+    const data = (await res.json()) as { health?: ProjectHealth };
+    return data.health ?? null;
+  } catch {
+    return null;
+  }
 }

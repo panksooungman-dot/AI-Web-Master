@@ -9,7 +9,14 @@ import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import type { ProjectRecord, ProjectStatus } from "@/lib/projects/registry";
-import { fetchAiStatus, fetchGitStatus, type AiToolStatus, type ProjectGitStatus } from "@/lib/projects/status";
+import {
+  fetchAiStatus,
+  fetchGitStatus,
+  fetchProjectHealth,
+  type AiToolStatus,
+  type ProjectGitStatus,
+  type ProjectHealth,
+} from "@/lib/projects/status";
 
 interface ProjectResponse {
   project?: ProjectRecord;
@@ -33,6 +40,7 @@ export default function ProjectDashboardPage() {
 
   const [gitStatus, setGitStatus] = useState<ProjectGitStatus | null>(null);
   const [aiStatus, setAiStatus] = useState<AiToolStatus[] | null>(null);
+  const [healthStatus, setHealthStatus] = useState<ProjectHealth | null>(null);
   const [isStatusLoading, setIsStatusLoading] = useState(true);
 
   useEffect(() => {
@@ -78,14 +86,17 @@ export default function ProjectDashboardPage() {
       setIsStatusLoading(true);
     });
 
-    Promise.all([fetchGitStatus(project.workspacePath), fetchAiStatus()]).then(
-      ([git, ai]) => {
-        if (cancelled) return;
-        setGitStatus(git);
-        setAiStatus(ai);
-        setIsStatusLoading(false);
-      }
-    );
+    Promise.all([
+      fetchGitStatus(project.workspacePath),
+      fetchAiStatus(),
+      fetchProjectHealth(project.workspacePath),
+    ]).then(([git, ai, health]) => {
+      if (cancelled) return;
+      setGitStatus(git);
+      setAiStatus(ai);
+      setHealthStatus(health);
+      setIsStatusLoading(false);
+    });
 
     return () => {
       cancelled = true;
@@ -125,7 +136,12 @@ export default function ProjectDashboardPage() {
         title={project.name}
         description={`${project.company} · ${project.type}`}
         path={project.workspacePath}
-        actions={<Badge tone={STATUS_TONES[project.status]}>{project.status}</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            {project.imported && <Badge tone="purple">Imported</Badge>}
+            <Badge tone={STATUS_TONES[project.status]}>{project.status}</Badge>
+          </div>
+        }
       />
 
       {project.description && (
@@ -188,6 +204,39 @@ export default function ProjectDashboardPage() {
           >
             Open AI Manager
           </Link>
+        </Card>
+
+        <Card title="Health">
+          {isStatusLoading ? (
+            <LoadingText>확인 중...</LoadingText>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-28 shrink-0">Framework</span>
+                <Badge tone={healthStatus?.framework ? "accent" : "neutral"}>
+                  {healthStatus?.framework ?? "감지 안 됨"}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-28 shrink-0">Node</span>
+                <span className="text-xs text-gray-400 font-mono">
+                  {healthStatus?.nodeVersion ?? "-"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-28 shrink-0">Package Manager</span>
+                <span className="text-xs text-gray-400 font-mono">
+                  {healthStatus?.packageManager ?? "-"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-28 shrink-0">README.md</span>
+                <Badge tone={healthStatus?.hasReadme ? "success" : "neutral"}>
+                  {healthStatus?.hasReadme ? "있음" : "없음"}
+                </Badge>
+              </div>
+            </div>
+          )}
         </Card>
 
         <Card title="Recent Activity">

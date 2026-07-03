@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import type { ProjectRecord, ProjectStatus } from "@/lib/projects/registry";
+import type { ProjectHealth } from "@/lib/projects/status";
 import type { WorkspaceRecord } from "@/lib/workspaces/registry";
 import type { StepRunStatus, WorkflowRun } from "@/lib/workflows/types";
 
@@ -39,6 +40,13 @@ interface RunResponse {
 interface RunActionResponse {
   success: boolean;
   run?: WorkflowRun;
+  error?: string;
+}
+
+interface ImportProjectResponse {
+  success: boolean;
+  project?: ProjectRecord;
+  detection?: ProjectHealth;
   error?: string;
 }
 
@@ -112,6 +120,18 @@ export default function ProjectsPage() {
   const [activeRun, setActiveRun] = useState<WorkflowRun | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
+  const [isImporting, setIsImporting] = useState(false);
+  const [importName, setImportName] = useState("");
+  const [importCompany, setImportCompany] = useState("");
+  const [importFolderPath, setImportFolderPath] = useState("");
+  const [importGitRemoteUrl, setImportGitRemoteUrl] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImportSubmitting, setIsImportSubmitting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    project: ProjectRecord;
+    detection: ProjectHealth;
+  } | null>(null);
+
   const { selectWorkspace } = useWorkspaceStore();
   const router = useRouter();
 
@@ -137,6 +157,34 @@ export default function ProjectsPage() {
     setNewWorkspacePath("");
     setPathTouched(false);
     setError(null);
+  };
+
+  const resetImportForm = () => {
+    setIsImporting(false);
+    setImportName("");
+    setImportCompany("");
+    setImportFolderPath("");
+    setImportGitRemoteUrl("");
+    setImportError(null);
+  };
+
+  const handleOpenCreate = () => {
+    if (isCreating) {
+      resetForm();
+      return;
+    }
+    resetImportForm();
+    setIsCreating(true);
+  };
+
+  const handleOpenImport = () => {
+    if (isImporting) {
+      resetImportForm();
+      return;
+    }
+    resetForm();
+    setImportResult(null);
+    setIsImporting(true);
   };
 
   useEffect(() => {
@@ -330,6 +378,50 @@ export default function ProjectsPage() {
     if (res.ok) setActiveRun(null);
   };
 
+  const handleImport = async () => {
+    if (
+      !importName.trim() ||
+      !importCompany.trim() ||
+      !importFolderPath.trim() ||
+      isImportSubmitting
+    ) {
+      setImportError("Project Name·Company·Folder Path는 필수입니다.");
+      return;
+    }
+
+    setIsImportSubmitting(true);
+    setImportError(null);
+
+    try {
+      const res = await fetch("/api/projects/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: importName.trim(),
+          company: importCompany.trim(),
+          folderPath: importFolderPath.trim(),
+          gitRemoteUrl: importGitRemoteUrl.trim(),
+        }),
+      });
+
+      const data = (await res.json()) as ImportProjectResponse;
+
+      if (!data.success || !data.project || !data.detection) {
+        setImportError(data.error ?? "Import 실패");
+        return;
+      }
+
+      setProjects((prev) => [...prev, data.project as ProjectRecord]);
+      setImportResult({ project: data.project, detection: data.detection });
+      resetImportForm();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "요청 실패";
+      setImportError(message);
+    } finally {
+      setIsImportSubmitting(false);
+    }
+  };
+
   const openProject = async (project: ProjectRecord) => {
     selectWorkspace({
       id: project.workspaceId,
@@ -360,12 +452,20 @@ export default function ProjectsPage() {
         description="Development OS 위에서 실행되는 프로젝트를 관리합니다."
         actions={
           !activeRun && (
-            <button
-              onClick={() => (isCreating ? resetForm() : setIsCreating(true))}
-              className="shrink-0 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 font-semibold transition-colors"
-            >
-              {isCreating ? "Cancel" : "+ New Project"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleOpenCreate}
+                className="shrink-0 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 font-semibold transition-colors"
+              >
+                {isCreating ? "Cancel" : "+ New Project"}
+              </button>
+              <button
+                onClick={handleOpenImport}
+                className="shrink-0 rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 font-semibold transition-colors"
+              >
+                {isImporting ? "Cancel" : "Import Existing Project"}
+              </button>
+            </div>
           )
         }
       />
@@ -576,6 +676,132 @@ export default function ProjectsPage() {
         </Card>
       )}
 
+      {isImporting && !activeRun && (
+        <Card className="mb-6 max-w-lg">
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Project Name</label>
+              <input
+                type="text"
+                value={importName}
+                onChange={(e) => setImportName(e.target.value)}
+                placeholder="Existing App"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Company</label>
+              <input
+                type="text"
+                value={importCompany}
+                onChange={(e) => setImportCompany(e.target.value)}
+                placeholder="CNBIZ"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Existing Folder Path</label>
+              <input
+                type="text"
+                value={importFolderPath}
+                onChange={(e) => setImportFolderPath(e.target.value)}
+                placeholder="D:/Projects/existing-app"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                이미 존재하는 로컬 폴더를 그대로 등록합니다. 파일을 복사하거나 새로 생성하지 않습니다.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">
+                Existing Git Repository (optional)
+              </label>
+              <input
+                type="text"
+                value={importGitRemoteUrl}
+                onChange={(e) => setImportGitRemoteUrl(e.target.value)}
+                placeholder="https://github.com/org/existing-app.git"
+                className={inputClass}
+              />
+            </div>
+
+            {importError && <StatusMessage tone="error">{importError}</StatusMessage>}
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleImport}
+                disabled={isImportSubmitting}
+                className="rounded bg-green-600 hover:bg-green-700 px-4 py-2 text-sm transition-colors disabled:opacity-50"
+              >
+                {isImportSubmitting ? "Importing..." : "Import"}
+              </button>
+              <button
+                onClick={resetImportForm}
+                className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {importResult && (
+        <Card
+          variant="console"
+          className="mb-6 max-w-lg"
+          title={`Import 완료: ${importResult.project.name}`}
+        >
+          <ul className="flex flex-col gap-1.5 text-sm">
+            <li className="flex items-center justify-between gap-3">
+              <span className="text-gray-400">Git 저장소</span>
+              <Badge tone={importResult.detection.hasGit ? "success" : "neutral"}>
+                {importResult.detection.hasGit ? "감지됨" : "없음"}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between gap-3">
+              <span className="text-gray-400">package.json</span>
+              <Badge tone={importResult.detection.hasPackageJson ? "success" : "neutral"}>
+                {importResult.detection.hasPackageJson ? "감지됨" : "없음"}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between gap-3">
+              <span className="text-gray-400">README.md</span>
+              <Badge tone={importResult.detection.hasReadme ? "success" : "neutral"}>
+                {importResult.detection.hasReadme ? "감지됨" : "없음"}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between gap-3">
+              <span className="text-gray-400">Framework</span>
+              <Badge tone={importResult.detection.framework ? "accent" : "neutral"}>
+                {importResult.detection.framework ?? "감지 안 됨"}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between gap-3">
+              <span className="text-gray-400">Package Manager</span>
+              <Badge tone={importResult.detection.packageManager ? "accent" : "neutral"}>
+                {importResult.detection.packageManager ?? "감지 안 됨"}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between gap-3">
+              <span className="text-gray-400 shrink-0">Workspace 경로</span>
+              <span className="text-xs text-gray-400 font-mono break-all text-right">
+                {importResult.project.workspacePath}
+              </span>
+            </li>
+          </ul>
+          <button
+            onClick={() => setImportResult(null)}
+            className="mt-3 rounded bg-gray-700 hover:bg-gray-600 px-3 py-1 text-sm transition-colors"
+          >
+            확인
+          </button>
+        </Card>
+      )}
+
       {isLoading ? (
         <LoadingText />
       ) : loadError ? (
@@ -588,7 +814,12 @@ export default function ProjectsPage() {
             <Card
               key={project.id}
               className="flex flex-col gap-2"
-              actions={<Badge tone={STATUS_TONES[project.status]}>{project.status}</Badge>}
+              actions={
+                <div className="flex items-center gap-2">
+                  {project.imported && <Badge tone="purple">Imported</Badge>}
+                  <Badge tone={STATUS_TONES[project.status]}>{project.status}</Badge>
+                </div>
+              }
               title={project.name}
             >
               <p className="text-sm text-gray-400">{project.company}</p>

@@ -15,6 +15,8 @@ export interface ProjectRecord {
   status: ProjectStatus;
   createdAt: string;
   lastOpenedAt: string | null;
+  imported?: boolean;
+  gitRemoteUrl?: string;
 }
 
 export interface CreateProjectInput {
@@ -25,6 +27,8 @@ export interface CreateProjectInput {
   workspaceId: string;
   workspaceName: string;
   workspacePath: string;
+  imported?: boolean;
+  gitRemoteUrl?: string;
 }
 
 const REGISTRY_PATH = path.join(process.cwd(), "lib", "data", "projects.json");
@@ -79,6 +83,8 @@ export function createProject(input: CreateProjectInput): ProjectRecord {
     status: "Active",
     createdAt: new Date().toISOString(),
     lastOpenedAt: null,
+    imported: input.imported,
+    gitRemoteUrl: input.gitRemoteUrl,
   };
 
   const records = readRegistry();

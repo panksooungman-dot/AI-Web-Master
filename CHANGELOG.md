@@ -8,6 +8,14 @@
 
 ### 추가 (Added)
 
+- Phase 3: Project Manager — `app/projects/`에 Development OS 위에서 실행되는 첫 번째 애플리케이션 신규 구현
+  - `lib/projects/registry.ts` — `ProjectRecord`(Name·Company·Type·Description·Workspace 연결·Status·CreatedAt·LastOpenedAt) fs 기반 저장(`lib/data/projects.json`, Workspace registry와 동일한 패턴)
+  - `lib/projects/status.ts` — 기존 공용 서비스 `runTerminalCommand`(`lib/terminal/client.ts`)만 재사용해 Git 상태(branch·dirty count·last commit)와 AI 도구 설치 여부(`claude --version`·`cursor --version`)를 조회. Terminal/GitHub/AI Manager 페이지는 전혀 수정하지 않음
+  - `app/api/projects/route.ts`(GET 목록·POST 생성), `app/api/projects/[id]/route.ts`(GET 단건·PATCH로 Last Opened 갱신) 신규 구현. 기존에 있던(구) `app/api/projects/create|list|open`은 VS Code를 직접 실행하는 별개의 구식 개념이라 신규 API로 교체
+  - `app/projects/page.tsx` — Project List(Name·Company·Status·Created At·Last Opened) + New Project 폼(Name·Company·Type·Description·**기존** Workspace 선택, 새 Workspace를 만들지 않고 `/api/workspaces`로 기존 목록만 재사용)
+  - `app/projects/[id]/page.tsx` — Open Project 시 `useWorkspaceStore().selectWorkspace()`로 Workspace 선택 + Dashboard(Terminal 상태·Git 상태·AI 상태·Recent Activity)를 표시하고 Terminal/GitHub Manager/AI Manager로 이동하는 링크 제공. Development OS의 UI는 재사용만 하고 재구현하지 않음(`components/developer/Card`·`Badge`·`PageHeader`·`StatusMessage` 재사용)
+  - `npm run lint`, `npm run build` 모두 통과, Development OS 6개 페이지는 수정 없이 그대로 유지됨을 확인
+
 - AI Manager MVP (Task 010) — `app/developer/ai/page.tsx` 신규 구현. Claude Code(Status·Version·Start·Stop·Restart), ChatGPT(Status·Open·Settings 토글 패널), Cursor(Status·Open·Version), Ollama(Status·Installed Models, 향후 사용) 카드와 AI 실행 로그 영역 추가. 실제 프로세스 실행 없이 로컬 state로만 상태·로그 관리(UI/상태 관리 MVP 단계). 모바일(390px) 반응형 확인 완료
 - Logs Manager MVP (Task 011) — `app/developer/logs/page.tsx` 신규 구현. Terminal·Git·AI·System 4개 카테고리의 Mock 로그(Timestamp·Category·Message·Status)를 카드로 표시. Search Logs(메시지 검색)와 All/Terminal/Git/AI/System 필터를 조합 적용, Refresh(Mock 데이터 재조회)·Clear Logs(초기화)·Export(현재 로그를 JSON 파일로 다운로드) 버튼 구현. 모바일(390px) 반응형 확인 완료
 - Settings Manager MVP (Task 012) — `app/developer/settings/page.tsx` 신규 구현. General(Theme·Language·Auto Save), Terminal(Default Shell·Font Size·Working Directory), Git(User Name·User Email·Default Branch), AI(Claude Code Path·Cursor Path·ChatGPT URL), Workspace(Default Workspace Path·Auto Open Last Workspace), About(App/Node/Next.js Version) 6개 섹션 구현. Save·Reset(기본값)·Export Settings(JSON 다운로드)·Import Settings(JSON 업로드) 버튼 구현, `localStorage`(`ai-web-master:settings`)로 저장(Database 미사용). 모바일(390px) 반응형 확인 완료

@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { OG_DEFAULTS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site-config";
+import { WorkspaceStoreProvider } from "@/lib/store/workspace-store";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,7 +68,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
         <Header />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1">
+          <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
+        </main>
         <Footer />
       </body>
     </html>

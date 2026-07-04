@@ -1,18 +1,21 @@
 # WBS (Work Breakdown Structure)
 
-> **최종 수정:** 2026-06-30  
+> **최종 수정:** 2026-07-05  
 > 이 파일은 세션 시작 시 가장 먼저 확인한다.
 
 ---
 
 ## 현재 상태 (Quick Status)
 
+> ⚠️ **구조 변경 안내 (2026-07-05):** 2026-07-04 모노레포 전환 이후 실제 프로덕션(`cnbiz.kr`)은 `apps/cnbiz-web`(v2)에서 서비스된다. 아래 "WBS 상세" 1~11단계는 `app/`(v1, 레거시) 기준으로 2026-07-01에 마지막으로 갱신된 뒤 동결되었다. v2의 실제 진행 현황은 **[v2 모노레포 진행 현황](#v2-모노레포-진행-현황-appscnbiz-web--cnbizkr-실제-프로덕션)** 섹션을 기준으로 확인한다.
+
 | 항목 | 내용 |
 |------|------|
-| **현재 작업** | 10단계 — 테스트 (8.2 이메일 발송 API는 별도 승인 대기 중) |
-| **전체 진행률** | ▓▓▓▓▓▓▓░░░ 71% (55항목 중 39항목 완료) |
-| **최근 완료** | SEO 구현 (메타데이터·OG 이미지·sitemap.xml·robots.txt·Organization 구조화 데이터) |
-| **다음 작업** | 10.2 모바일(390px)·10.3 태블릿(768px)·10.4 데스크탑(1280px) 반응형 전 페이지 확인 |
+| **활성 프로젝트** | `apps/cnbiz-web` (v2 모노레포) — `cnbiz.kr` 프로덕션 |
+| **v2 현재 작업** | SEO 보강(OG 이미지·canonical·Organization 구조화 데이터) 및 10단계 테스트(반응형·접근성·Lighthouse) |
+| **v2 최근 완료** | `sitemap.xml`·`robots.txt` 구현, `main` 병합 후 Vercel 자동 배포·프로덕션 응답 검증 (2026-07-05) |
+| **v2 다음 작업** | 반응형(390/768/1280) 전 페이지 확인, `/portfolio` 실 콘텐츠·`/about` 연혁·`/contact` 연락처 정보(자료 수령 후) |
+| **v1(레거시) 상태** | 2026-07-01 기준 71%(55항목 중 39항목)에서 동결, 더 이상 갱신하지 않음 |
 
 ---
 
@@ -24,8 +27,9 @@
 | 프레임워크 | Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS 4 |
 | 브랜드 컬러 | 블루 계열 (blue-600 / blue-700 중심) |
 | 개발 방식 | AI 주도 개발 (Claude Code) |
-| 저장소 | `D:\ai-web-master` |
-| 목표 URL | — (미정) |
+| 저장소 | `D:\ai-web-master` (npm workspaces 모노레포) |
+| 구조 | Development OS(`app/`·`lib/`·`components/`, 루트) + CNBIZ Website v2(`apps/cnbiz-web`) + 공유 패키지(`packages/*`) — 2026-07-04 모노레포 전환 |
+| 목표 URL | `https://cnbiz.kr` (v2, Vercel 프로덕션 배포·검증 완료) / `https://cnbiz.ai.kr`(기존 운영 사이트, 별도 유지·미변경) |
 
 ---
 
@@ -39,6 +43,8 @@
 | 포트폴리오 | `/portfolio` | 1 | 🔄 Placeholder 완료 |
 | 문의하기 | `/contact` | 1 | 🔄 UI 완료, API 승인 대기 |
 | 관리자 | `/admin` | 2 | 🔲 Phase 2 |
+
+> 위 표는 v1(`app/`) 기준이다. `/admin`은 Development OS(루트) 전용이며 CNBIZ Website에는 해당하지 않는다. **v2(`apps/cnbiz-web`, 실제 프로덕션) 기준 페이지별 상태는 [v2 모노레포 진행 현황](#v2-모노레포-진행-현황-appscnbiz-web--cnbizkr-실제-프로덕션)을 따른다.**
 
 ---
 
@@ -81,7 +87,88 @@
 
 ---
 
-## WBS 상세
+## v2 모노레포 진행 현황 (`apps/cnbiz-web` — cnbiz.kr, 실제 프로덕션)
+
+> 2026-07-04 모노레포 전환 이후 실제 서비스되는 CNBIZ 홈페이지는 이 섹션이 기준이다. 아래 "WBS 상세(v1)"는 참고용 이력이며 더 이상 갱신하지 않는다.
+
+### 저장소 구조
+
+```
+apps/cnbiz-web/            # CNBIZ Website v2 (cnbiz.kr)
+├── app/
+│   ├── page.tsx            # 메인
+│   ├── about/page.tsx       # 회사소개
+│   ├── services/page.tsx    # 사업소개
+│   ├── portfolio/page.tsx   # 포트폴리오
+│   ├── contact/page.tsx     # 문의하기
+│   ├── api/contact/route.ts # 문의 폼 처리 API
+│   ├── sitemap.ts           # /sitemap.xml
+│   └── robots.ts            # /robots.txt
+├── components/sections/     # 페이지별 섹션 컴포넌트
+├── components/layout/       # Header·Footer·MobileMenu (v2 신규 작성)
+└── REQUEST.md                # v2 전용 의뢰서 (사실 정보 TODO 추적)
+
+packages/
+├── design-system/     # 컬러·타이포·레이아웃 토큰
+├── ui/                # Button·LinkButton·Input·Textarea·Card
+├── layout-primitives/ # Container·Section·MobileDrawer
+└── utils/             # cn() 등 공용 유틸
+```
+
+### 페이지별 상태
+
+| 페이지 | 경로 | 상태 | 비고 |
+|--------|------|------|------|
+| 메인 | `/` | ✅ 완료 | Hero·Values·ServicesOverview·FAQ·CTA |
+| 회사소개 | `/about` | 🔄 부분 완료 | Hero·CompanyOverview·MissionVision·Process 완료. 연혁·조직도는 설립연도·직원 수 등 사실 정보 미확정으로 의도적 제외(TODO) |
+| 사업소개 | `/services` | ✅ 완료 | Hero·Overview·Detail(4종, 앵커)·Process(5단계) |
+| 포트폴리오 | `/portfolio` | 🔄 Placeholder | Hero + TODO 배지 카드 3종. 실제 사례는 자료 수령 후 진행 |
+| 문의하기 | `/contact` | ✅ 완료 | UI·서버 검증·로컬 저장·이메일 발송(Resend)·스팸 방지(honeypot+rate limit) 구현, 실제 키로 발송 검증 완료(2026-07-04). 연락처 정보(전화·이메일·주소·운영시간)는 TODO 배지 표시 중(자료 수령 대기) |
+
+### SEO
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| 페이지별 메타 title·description | ✅ 완료 | `app/layout.tsx`·각 페이지 Metadata |
+| sitemap.xml | ✅ 완료 | `app/sitemap.ts`, 프로덕션 배포·응답 검증 완료(2026-07-05) |
+| robots.txt | ✅ 완료 | `app/robots.ts`, sitemap 경로 포함 |
+| OG 태그·동적 OG 이미지 | 🔲 대기 | v1에는 있으나(`app/opengraph-image.tsx`) v2엔 미구현 |
+| canonical·metadataBase | 🔲 대기 | 미구현 |
+| Organization 구조화 데이터(JSON-LD) | 🔲 대기 | 미구현 |
+
+### 테스트
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| `npm run build` 통과 | ✅ 완료 | 매 기능 추가 시 확인 |
+| Playwright 렌더링·콘솔 에러 확인 | ✅ 완료 | 매 기능 추가 시 페이지 단위로 확인(CHANGELOG 참고) |
+| 모바일(390px)·태블릿(768px)·데스크탑(1280px) 반응형 전수 확인 | 🔲 대기 | 페이지별 부분 확인만 있었음, 전체 감사 미실시 |
+| 키보드 네비게이션·접근성(aria) 전수 확인 | 🔲 대기 | |
+| Lighthouse 성능 점수 확인 | 🔲 대기 | |
+
+### 배포
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| Vercel 프로젝트 연결(Git 통합) | ✅ 완료 | 기존 연결 확인(사용자 확인, 2026-07-05), `main` push 시 자동 배포 확인 |
+| 커스텀 도메인 `cnbiz.kr` 연결·SSL | ✅ 완료 | `cnbiz.kr` → `www.cnbiz.kr` 308 리다이렉트는 의도된 설정(사용자 확인). HTTPS 정상 |
+| 환경 변수(Resend API 키 등) | ✅ 완료 | `.env.local`(machine-local)로 관리, 실제 발송 검증 완료 |
+| Google Analytics 연동 | 🔲 대기 | |
+| Google Search Console 등록·사이트맵 제출 | 🔲 대기 | |
+
+### 남은 작업 (우선순위 순)
+
+1. `/portfolio` 실제 사례 콘텐츠 (자료 수령 필요)
+2. `/about` 연혁·조직도, `/contact` 연락처 정보 (사실 정보 확인 필요)
+3. SEO 보강 — OG 이미지·canonical·Organization JSON-LD
+4. 반응형·접근성·Lighthouse 전수 테스트
+5. GA·GSC 연동
+
+---
+
+## WBS 상세 (v1 — `app/`, 레거시 · 2026-07-01 기준 동결)
+
+> 아래 1~11단계는 모노레포 전환 이전(v1, 루트 `app/`) 기준 WBS이며 참고 이력으로만 유지한다. 실제 진행 상황은 위 v2 섹션을 따른다.
 
 ### 1. 프로젝트 준비
 
@@ -246,6 +333,7 @@
 | 2026-07-01 | 사업소개(`/services`) 페이지 구현 완료. 6단계 완료, 빌드 통과 | Claude Code |
 | 2026-07-01 | 문의하기(`/contact`) 페이지 UI 구현 완료(8.1·8.3·8.4·8.5). 이메일 발송 API(8.2)는 사용자 지시로 미구현, 승인 대기 | Claude Code |
 | 2026-07-01 | SEO 구현 완료(9.1~9.5). 메타데이터·OG 이미지·sitemap.xml·robots.txt·Organization 구조화 데이터 적용, 9단계 완료 | Claude Code |
+| 2026-07-05 | `apps/cnbiz-web`(v2 모노레포) 진행 현황 섹션 신설. sitemap.xml·robots.txt 구현 및 `cnbiz.kr` 프로덕션 배포 반영. 기존 1~11단계(v1, `app/`)는 레거시로 표시하고 2026-07-01 기준으로 동결 | Claude Code |
 
 ---
 

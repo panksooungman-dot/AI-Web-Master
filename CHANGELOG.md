@@ -4,6 +4,218 @@
 
 ---
 
+## 2026-07-04 (13)
+
+### 검증 (Verified)
+
+- **CNBIZ Website v2 — Contact 이메일 실제 발송 확인**: 사용자가 발급한 실제 Resend API 키로 `apps/cnbiz-web/.env.local`(machine-local, git 미추적)을 구성하고 실제 발송을 검증
+  - 최초 `CONTACT_EMAIL_FROM`을 개인 Gmail 주소로 설정했을 때 Resend가 403(도메인 미검증)으로 거부함을 확인 — Gmail 등 일반 웹메일 도메인은 발신 도메인으로 검증이 불가능하므로, 실제 도메인(`cnbiz.kr`) 검증 전까지는 Resend 기본 샌드박스 발신 주소(`onboarding@resend.dev`)를 사용하도록 조정
+  - 조정 후 실제 이메일이 수신 주소로 정상 도착함을 사용자가 직접 확인
+  - 유효성 검사(400)·honeypot(200, 저장·발송 모두 생략)가 실제 이메일 설정이 활성화된 상태에서도 동일하게 정상 동작함을 재확인
+  - `apps/cnbiz-web` `npm run lint`·`npm run build` 통과, Playwright로 `/`·`/about`·`/services`·`/portfolio` 전 페이지 콘솔 에러 없이 정상 로드됨을 최종 확인
+
+### 수정 (Fixed)
+
+- **자격 증명 관리 실수 수정**: 실제 Resend API 키·수신/발신 이메일 주소가 git으로 추적되는 `apps/cnbiz-web/.env.example`(템플릿 파일)에 잘못 입력된 것을 발견. 아직 커밋·스테이징되지 않은 상태(untracked)임을 `git status`로 확인해 git 이력에는 노출되지 않았음을 확인. 값을 git 미추적 파일인 `apps/cnbiz-web/.env.local`로 옮기고 `.env.example`은 값이 비어있는 템플릿 상태로 복원
+
+---
+
+## 2026-07-04 (12)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Contact API 스팸 방지**: 이메일 발송 전 단계 검증 강화 목적으로 honeypot·요청 빈도 제한 추가
+  - `apps/cnbiz-web/lib/contact/spam.ts`(신규) — `isHoneypotFilled()`(봇이 채우는 숨김 필드 `company` 감지 시 저장·발송 없이 성공 응답만 반환해 봇에게 탐지 사실을 알리지 않음), `isRateLimited()`(IP당 10분에 5회, 단일 인스턴스 메모리 기반 — 다중 인스턴스 확장 시 Redis 등 공유 저장소로 교체 필요), `getClientIp()`
+  - `apps/cnbiz-web/app/api/contact/route.ts` — honeypot·rate limit 검사를 유효성 검사보다 먼저 수행하도록 연결(요청 429 응답 추가)
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — 화면에 보이지 않는 honeypot 필드(`company`) 추가, `aria-hidden`·`tabIndex={-1}`로 실제 사용자·키보드 이용자에게는 노출되지 않음
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- **실패 처리 검증**: 의도적으로 잘못된 `RESEND_API_KEY`로 실제 Resend API에 요청해 401 응답을 실제로 받았고, `notifyContactSubmission()`이 이를 catch하여 로그만 남기고 예외를 전파하지 않음을 확인 — API는 200을 반환했고 제출 내역은 로컬에 정상 저장됨(검증 후 테스트 키·데이터 제거)
+- **스팸 방지 검증**: honeypot(`company`) 필드를 채운 요청은 200을 반환하되 로컬 저장·이메일 발송 모두 건너뜀을 확인. 동일 IP로 연속 요청 시 5번째 요청부터 429와 함께 차단됨을 확인(검증 후 서버 재시작으로 메모리 상태·테스트 데이터 초기화)
+- **유효성 검사 재확인**: 필수값 누락·잘못된 이메일 형식 요청이 여전히 400과 필드별 오류를 반환함을 확인
+- Playwright로 `/contact`에서 실제 폼 제출 최종 확인 — 성공 상태 UI 정상 표시, 한글 데이터가 깨지지 않고 정상 저장됨을 확인(콘솔 에러는 파비콘 404 1건뿐)
+- **미완료 항목(사용자 확인 필요)**: 실제 Resend API 키·실제 수신/발신 이메일 주소가 없어 실제 이메일 발송 성공 여부는 검증하지 못함. 개발 환경 배포 대상(호스팅 플랫폼)도 아직 확정되지 않음 — 아래 메시지로 확인 요청
+
+---
+
+## 2026-07-04 (11)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Contact 이메일 알림 연동**: 새 npm 패키지 설치 없이 `fetch` 기반 HTTP 호출로 Resend 이메일 발송을 구현. 환경 변수로만 동작하며 자격 증명은 코드에 하드코딩하지 않음, 제공자 교체가 쉽도록 인터페이스로 분리
+  - `apps/cnbiz-web/lib/contact/email/types.ts` — `EmailProvider` 인터페이스(`send()`)
+  - `apps/cnbiz-web/lib/contact/email/providers/resend.ts` — Resend REST API(`fetch`) 기반 구현
+  - `apps/cnbiz-web/lib/contact/email/providers/noop.ts` — 제공자 미설정/자격 증명 누락 시 발송을 건너뛰는 fallback(로컬 저장은 `lib/contact/store.ts`에서 이미 항상 수행되므로 제출 자체는 유실되지 않음)
+  - `apps/cnbiz-web/lib/contact/email/index.ts` — `CONTACT_EMAIL_PROVIDER` 값에 따라 제공자를 선택(현재 `resend`만 지원, 새 제공자는 `providers/`에 파일 추가 + `switch` 분기 추가만으로 확장 가능)
+  - `apps/cnbiz-web/lib/contact/notify.ts` — no-op 스텁을 실제 발송 로직으로 교체. `CONTACT_EMAIL_TO`/`CONTACT_EMAIL_FROM` 미설정 또는 발송 실패 시에도 예외를 던지지 않고 경고만 로그(문의 접수 자체는 항상 로컬 저장을 통해 유지됨)
+  - `apps/cnbiz-web/.env.example`(신규) — `CONTACT_EMAIL_PROVIDER`·`CONTACT_EMAIL_TO`·`CONTACT_EMAIL_FROM`·`RESEND_API_KEY` (전부 값 없이 키만 기재)
+  - `.gitignore` — `!.env.example` 예외 추가(기존 `.env*` 규칙이 `.env.example`까지 무시하고 있던 문제 수정, `.env.example`만 커밋되도록)
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/contact`에서 이메일 환경 변수가 전혀 설정되지 않은 현재 개발 환경 기준으로 제출 테스트 — 성공 상태 UI 정상 표시, 로컬 `contact-submissions.json`에 정상 기록됨을 확인, 서버 로그에 `[contact-email] CONTACT_EMAIL_TO/CONTACT_EMAIL_FROM not set, skipping email notification` 경고만 출력되고 요청은 200으로 정상 종료됨을 확인(실제 Resend API 키가 없어 발송 자체는 테스트하지 못함 — 배포 전 실제 키로 별도 검증 필요)
+- 콘솔 에러는 파비콘 404(로고 미수령으로 인한 기존 예상 상태) 1건만 존재
+
+---
+
+## 2026-07-04 (10)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Contact API 구현 (`POST /api/contact`)**: 이메일 발송 없이 서버 검증·로컬 저장까지만 구현. `lib/workspaces/registry.ts`(fs 기반 JSON 저장)와 동일한 패턴을 `apps/cnbiz-web`에 적용
+  - `apps/cnbiz-web/lib/contact/types.ts` — `ContactSubmissionInput`·`ContactSubmissionRecord` 타입
+  - `apps/cnbiz-web/lib/contact/validate.ts` — 클라이언트(`ContactForm.tsx`)와 동일한 규칙(필수값·이메일·연락처 형식)으로 서버 측 재검증
+  - `apps/cnbiz-web/lib/contact/store.ts` — `apps/cnbiz-web/lib/data/contact-submissions.json`(machine-local, `.gitignore` 처리)에 제출 내역 append 저장
+  - `apps/cnbiz-web/lib/contact/notify.ts` — 이메일 발송은 아직 구현하지 않고, 추후 이메일 서비스(Resend·SES 등)를 연결할 수 있도록 시그니처만 갖춘 no-op 함수로 구조화(사용자 승인 전까지 실제 발송 없음)
+  - `apps/cnbiz-web/app/api/contact/route.ts`(신규) — 요청 파싱 실패·유효성 오류 시 400과 필드별 오류 메시지 반환, 정상 시 로컬 저장 후 200 반환
+  - `.gitignore` — `apps/cnbiz-web/lib/data/` 추가
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과(`/api/contact`가 동적 라우트로 정상 생성됨을 확인)
+- Playwright로 `/contact`에서 유효한 값 제출 → 성공 상태 UI("문의가 접수되었습니다") 표시 확인, `contact-submissions.json`에 실제로 기록됨을 확인(테스트 데이터는 확인 후 초기화)
+- `curl`로 빈 값·잘못된 이메일/연락처를 담은 요청을 직접 전송해 클라이언트를 우회해도 서버가 400과 필드별 오류 메시지를 반환함을 확인
+- 콘솔 에러는 파비콘 404(로고 미수령으로 인한 기존 예상 상태) 1건만 존재
+
+---
+
+## 2026-07-04 (9)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Contact(문의하기) 페이지 UI 구현**: `apps/cnbiz-web`에 문의하기 페이지 신규 구현. REQUEST.md v2 8번(Contact Information)에서 전화번호·이메일·주소·운영 시간이 전부 TODO 상태임을 확인하고, 지어내는 대신 각 항목에 명시적 "TODO" 배지를 표시. 문의 응답 정책(영업일 기준 24시간 이내 답변)은 이미 Services·FAQ에서 확정 사용 중인 문구라 그대로 재사용. 오시는 길은 실제 위치·지도 연동 여부(카카오맵/구글맵)가 미정이라 지도 대신 placeholder 박스로 대체
+  - `apps/cnbiz-web/components/sections/ContactHeroSection.tsx`(신규)
+  - `apps/cnbiz-web/components/sections/ContactFormSection.tsx`·`ContactForm.tsx`(신규, Client Component) — 이름·연락처·이메일·문의 내용 4개 필드, 클라이언트 유효성 검사(필수값·이메일·연락처 형식), idle/submitting/success/error 상태 UI. `/api/contact`로 POST하도록 미리 연결하되 라우트는 아직 만들지 않아 현재는 항상 오류 상태 UI로 정상 처리됨(API 구현은 사용자 승인 후 별도 진행)
+  - `apps/cnbiz-web/components/sections/ContactInfoSection.tsx`(신규) — 전화번호·이메일·주소·운영 시간 TODO 배지, 문의 응답 정책(확정), 지도 placeholder
+  - `apps/cnbiz-web/app/contact/page.tsx`(신규) — ContactHero→ContactForm→ContactInfo 순으로 조합, Metadata 적용
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/contact` 렌더링 확인 — TODO 배지·응답 정책·지도 placeholder 정상 표시. 빈 폼 제출 시 4개 필드 유효성 오류 메시지 정상 표시, 유효한 값 입력 후 제출 시 `/api/contact` 부재로 인한 오류 상태 UI가 의도대로 표시됨을 확인. 콘솔 에러는 파비콘 404(로고 미수령으로 인한 기존 예상 상태) 1건만 존재
+
+---
+
+## 2026-07-04 (8)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Home 페이지 FAQ 섹션 추가**: FAQ 전용 라우트 없이 홈(`/`) 페이지 ServicesOverview와 CTA 사이에 아코디언 형태로 추가(사용자 확인 후 진행). REQUEST.md v2 14번(FAQ) 5개 질문 중 답변이 검증된 3개(진행 절차·제공 서비스·견적 문의)는 그대로 사용. 유지보수 지원 여부는 이미 확정된 Services 도입 프로세스 05단계("오픈 이후에도 운영·유지보수를 통해 안정적인 서비스를 지원") 문구를 재사용해 답변. 소규모 기업 의뢰 가능 여부는 확정된 사실이 없어 특정 규모·정책을 지어내지 않고 "상담을 통해 함께 결정한다"는 일반적인 문구로 답변
+  - `apps/cnbiz-web/components/sections/FAQSection.tsx`(신규, Client Component) — 단일 항목만 펼쳐지는 아코디언, `aria-expanded`·`aria-controls` 적용
+  - `apps/cnbiz-web/app/page.tsx` — FAQSection을 ServicesOverviewSection과 CTASection 사이에 추가
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/` 렌더링 확인 — FAQ 아코디언 정상 표시(첫 항목 기본 펼침), 다른 질문 클릭 시 이전 항목이 닫히고 클릭한 항목만 펼쳐지는 단일 아코디언 동작 확인, 콘솔 에러 없음
+
+---
+
+## 2026-07-04 (7)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — About 페이지 Process(일하는 방식) 섹션 추가**: 새 라우트를 만들지 않고 `/about` 페이지에 섹션을 추가하는 방향으로 사용자 확인 후 진행. 구체적인 방법론·수치는 검증되지 않았으므로, "깊은 이해 → 함께 설계 → 신뢰할 수 있는 실행 → 지속적인 동반자"라는 일반적이고 전문적인 4단계 협업 방식 설명으로 구성(기존 Services 페이지의 영업 프로세스 5단계와는 별개, 회사 고유 수치·사실 없이 범용 표현만 사용)
+  - `apps/cnbiz-web/components/sections/AboutProcessSection.tsx`(신규)
+  - `apps/cnbiz-web/app/about/page.tsx` — MissionVisionSection과 CTASection 사이에 추가
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/about` 렌더링 확인 — Process 섹션 정상 표시, 콘솔 에러 없음
+
+---
+
+## 2026-07-04 (6)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Portfolio(포트폴리오) 페이지 구현**: `apps/cnbiz-web`에 Portfolio 페이지 신규 구현. REQUEST.md v2 12번(Portfolio)이 프로젝트명·고객사·카테고리·설명·이미지 전 항목 TODO 상태임을 확인하고, 실제 사례를 지어내는 대신 명시적으로 "TODO" 배지가 붙은 placeholder 카드 3개(REQUEST.md의 3행 구조와 동일)로 구성
+  - `apps/cnbiz-web/components/sections/PortfolioHeroSection.tsx`(신규) — Portfolio 페이지 히어로("더 나은 사례로 곧 찾아뵙겠습니다")
+  - `apps/cnbiz-web/components/sections/PortfolioPlaceholderSection.tsx`(신규) — Case 01~03 placeholder 카드. 점선 테두리·회색 톤·"TODO" 배지로 실제 콘텐츠 카드와 시각적으로 구분, 디자인 토큰(`packages/design-system`)에 정의된 색상만 사용(임의의 강조색 추가하지 않음)
+  - `apps/cnbiz-web/app/portfolio/page.tsx`(신규) — PortfolioHero→PortfolioPlaceholder→CTA(공용 컴포넌트 재사용) 순으로 조합, Metadata 적용
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/portfolio` 렌더링 확인 — Hero·3개 TODO placeholder 카드·CTA 정상 표시, 콘솔 에러는 파비콘 404(로고 미수령으로 인한 기존 예상 상태) 1건만 존재
+
+---
+
+## 2026-07-04 (5)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Services(사업소개) 페이지 구현**: `apps/cnbiz-web`에 REQUEST.md v2 7번(Services)에서 확정한 4개 서비스·주요 제공 범위·5단계 도입 프로세스만으로 구성. 실제 고객 사례·포트폴리오는 REQUEST.md 12번이 여전히 전부 TODO 상태라 이번 범위에 포함하지 않음(사례 지어내지 않음)
+  - `apps/cnbiz-web/components/sections/ServicesHeroSection.tsx`(신규) — Services 페이지 히어로
+  - `apps/cnbiz-web/components/sections/ServicesDetailSection.tsx`(신규) — 4개 서비스 상세(한줄 설명 + 주요 제공 범위), 각 서비스에 `id`(`consulting`/`ai`/`development`/`cloud`) 부여해 기존 Footer·Home `ServicesOverviewSection`의 앵커 링크가 실제로 이동하도록 연결
+  - `apps/cnbiz-web/components/sections/ServiceProcessSection.tsx`(신규) — 도입 프로세스 5단계
+  - `apps/cnbiz-web/app/services/page.tsx`(신규) — ServicesHero→ServicesOverview(공용 컴포넌트 재사용)→ServicesDetail→ServiceProcess→CTA(공용 컴포넌트 재사용) 순으로 조합, Metadata 적용
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/services`·`/services#cloud` 렌더링 확인 — 4개 서비스 카드→상세 앵커 이동 정상 동작, 도입 프로세스 5단계 정상 표시, 콘솔 에러 없음
+
+---
+
+## 2026-07-04 (4)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — About(회사소개) 페이지 구현**: 도메인 전략 확정(`cnbiz.kr`= 신규 공식 홈페이지, `cnbiz.ai.kr`= 기존 운영 사이트 유지·미변경)에 따라 `apps/cnbiz-web`(cnbiz.kr용)에 About 페이지 신규 구현. 회사 연혁·조직도는 설립연도·직원 수 등 의뢰자 확인 사실 정보가 여전히 TODO 상태라 이번 범위에서 제외(v1처럼 임시 수치를 채워 넣지 않음)
+  - `apps/cnbiz-web/components/sections/AboutHeroSection.tsx`(신규) — REQUEST.md v2 4번(회사 개요)의 소개 한 줄·소개 상세 문구를 그대로 사용
+  - `apps/cnbiz-web/components/sections/CompanyOverviewSection.tsx`(신규) — 회사명·업종·대표 서비스(검증된 값)만 표기, 설립연도·직원 수는 표기하지 않음(TODO 유지)
+  - `apps/cnbiz-web/components/sections/MissionVisionSection.tsx`(신규, `id="values"`) — Mission·Vision·핵심가치 4종. Footer의 `/about#values` 링크와 일치
+  - `apps/cnbiz-web/app/about/page.tsx`(신규) — AboutHero→CompanyOverview→MissionVision→CTA(공용 컴포넌트 재사용) 순으로 조합, Metadata 적용
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 `/about` 렌더링 확인 — 회사명·업종·대표 서비스·Mission·Vision·핵심가치 정상 표시, 설립연도·직원 수·연혁·조직도 등 미확인 정보는 노출되지 않음을 확인. 콘솔 에러는 파비콘 404(로고 미수령으로 인한 기존 예상 상태) 1건만 존재
+
+---
+
+## 2026-07-04 (3)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — 콘텐츠 기반 문서 및 Header·Footer·Home 구현**
+  - `apps/cnbiz-web/REQUEST.md`(신규) — v2 전용 의뢰서. 카피라이팅 성격 콘텐츠(헤드라인·Mission·Vision·핵심가치·서비스 설명·프로세스)는 v1 초안을 v2 확정 콘텐츠로 채택하고, 의뢰자만 확인 가능한 사실 정보(설립연도·직원 수·실주소·로고·최종 브랜드 컬러·후기·FAQ 일부)만 TODO로 남김. v1 컴포넌트에 있던 "설립연도 2010"·"직원 150+"·"15년 이상" 등의 수치는 v1 `REQUEST.md`가 실제로는 "추후 기입" 상태였음을 확인하고 사실로 취급하지 않음(TODO 유지)
+  - `apps/cnbiz-web/components/layout/{Header,Footer,MobileMenu}.tsx`(신규) — v1 코드 재사용 없이 신규 작성, `packages/ui`(`LinkButton`)·`packages/layout-primitives`(`Container`·`MobileDrawer`) 기반. Footer는 실제 확인되지 않은 주소·SNS 링크를 지어내지 않고 "확인 후 게시 예정"으로 안내
+  - `apps/cnbiz-web/components/sections/{Hero,Values,ServicesOverview,CTA}Section.tsx`(신규) — REQUEST.md v2에서 확정한 카피로 Home 페이지 구성. Hero의 신뢰 지표(설립연도·프로젝트 수 등)는 실제 수치 미확정 상태라 UI에 포함하지 않음
+  - `apps/cnbiz-web/app/layout.tsx`·`app/page.tsx` — Header/Footer 연결, Hero→Values→ServicesOverview→CTA 순서로 Home 조합
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과
+- Playwright로 데스크탑·모바일(390px) 뷰포트에서 Home 페이지 렌더링 확인, 모바일 햄버거 메뉴 열기/닫기 및 nav 링크 동작 확인. 콘솔 에러는 파비콘 404(로고 미수령으로 인한 예상된 상태) 1건만 존재
+
+---
+
+## 2026-07-04 (2)
+
+### 추가 (Added)
+
+- **모노레포 전환 — CNBIZ Website v2 착수**: npm workspaces(`workspaces: ["apps/*", "packages/*"]`)를 도입해 Development OS(기존 루트 `app/`·`lib/`·`components/`, 변경 없음)와 신규 CNBIZ 홈페이지 v2(`apps/cnbiz-web`)를 같은 저장소 안에서 완전히 분리된 프로젝트로 운영. v1의 UI 원자 컴포넌트(Button·Card 등)는 WBS 2.3/2.5 기준 실제로는 각 섹션에 인라인으로만 존재해 추출된 적이 없었음을 확인하고, `DESIGN_SYSTEM.md`/`CNBIZ_RULES.md` 스펙을 기준으로 신규 작성
+  - `packages/design-system` — 색상·타이포·레이아웃·radius 토큰(`tokens.ts`)과 Tailwind 4 `@theme` 블록(`theme.css`)
+  - `packages/ui` — `Button`·`LinkButton`·`Input`·`Textarea`·`Card` 신규 작성(기존 v1 코드 재사용 아님)
+  - `packages/layout-primitives` — `Container`·`Section`·`MobileDrawer`(범용 동작만 추출, v1 Header/Footer의 CNBIZ 전용 콘텐츠는 가져오지 않음)
+  - `packages/utils` — `cn()` 클래스 병합 유틸
+  - `apps/cnbiz-web` — Next.js 16 신규 앱(자체 `package.json`·`next.config.ts`·`tsconfig.json`·`eslint.config.mjs`), 공유 패키지를 `transpilePackages`로 연결. 임시 플레이스홀더 홈(`app/page.tsx`)만 존재하며 실제 비즈니스 페이지(회사소개·사업소개·포트폴리오·문의)는 아직 미구현
+  - 루트 `tsconfig.json`에 `apps`·`packages` 제외 추가, 루트 `eslint.config.mjs`에 `apps/**`·`packages/**` 무시 추가 — 두 프로젝트의 타입체크·린트 범위가 서로 섞이지 않도록 분리(Dev OS의 린트/빌드 범위는 기존과 동일하게 유지)
+  - `.gitignore`의 `node_modules`·`.next`·`out` 패턴을 모든 하위 워크스페이스에 적용되도록 일반화
+
+### 검증 (Verified)
+
+- 루트(Development OS) `npm run lint`·`npm run build` 통과 — 기존 35개 라우트 전부 회귀 없음 확인
+- `apps/cnbiz-web` `npm run lint`·`npm run build` 통과, 생성된 CSS에서 `packages/design-system`의 `--primary` 토큰(`#005bac`)이 정상적으로 반영됨을 확인(패키지 간 CSS `@import` 해석 검증)
+
+---
+
 ## 2026-07-04
 
 ### 추가 (Added)

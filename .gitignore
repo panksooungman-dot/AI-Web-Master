@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -14,8 +14,8 @@
 /coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
 /build
@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,8 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local workspace registry (machine-specific paths)
+# local workspace registry (machine-specific paths) / local contact submission log
 /lib/data/
+apps/cnbiz-web/lib/data/
 
 # Playwright MCP QA artifacts (screenshots, snapshots, console logs)
 /.playwright-mcp/

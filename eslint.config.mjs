@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Standalone CommonJS utility scripts (not part of the Next.js app source).
     "*.cjs",
+    // Separate workspace projects (apps/cnbiz-web, packages/*) — each lints itself.
+    "apps/**",
+    "packages/**",
   ]),
 ]);
 

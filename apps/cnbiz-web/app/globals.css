@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@import "@cnbiz/design-system/theme.css";
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}

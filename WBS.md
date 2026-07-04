@@ -13,8 +13,8 @@
 |------|------|
 | **활성 프로젝트** | `apps/cnbiz-web` (v2 모노레포) — `cnbiz.kr` 프로덕션 |
 | **v2 현재 작업** | SEO 보강(OG 이미지·canonical·Organization 구조화 데이터) 및 10단계 테스트(반응형·접근성·Lighthouse) |
-| **v2 최근 완료** | `sitemap.xml`·`robots.txt` 구현, `main` 병합 후 Vercel 자동 배포·프로덕션 응답 검증 (2026-07-05) |
-| **v2 다음 작업** | 반응형(390/768/1280) 전 페이지 확인, `/portfolio` 실 콘텐츠·`/about` 연혁·`/contact` 연락처 정보(자료 수령 후) |
+| **v2 최근 완료** | Google Analytics 4 연동, Vercel 환경 변수 설정·재배포 후 프로덕션 반영 확인 (2026-07-05) |
+| **v2 다음 작업** | 반응형(390/768/1280) 전 페이지 확인, `/portfolio` 실 콘텐츠·`/about` 연혁·`/contact` 연락처 정보(자료 수령 후), GSC 연동 |
 | **v1(레거시) 상태** | 2026-07-01 기준 71%(55항목 중 39항목)에서 동결, 더 이상 갱신하지 않음 |
 
 ---
@@ -153,7 +153,7 @@ packages/
 | Vercel 프로젝트 연결(Git 통합) | ✅ 완료 | 기존 연결 확인(사용자 확인, 2026-07-05), `main` push 시 자동 배포 확인 |
 | 커스텀 도메인 `cnbiz.kr` 연결·SSL | ✅ 완료 | `cnbiz.kr` → `www.cnbiz.kr` 308 리다이렉트는 의도된 설정(사용자 확인). HTTPS 정상 |
 | 환경 변수(Resend API 키 등) | ✅ 완료 | `.env.local`(machine-local)로 관리, 실제 발송 검증 완료 |
-| Google Analytics 연동 | 🔲 대기 | |
+| Google Analytics 연동 | ✅ 완료 | `@next/third-parties`(`GoogleAnalytics`), production-only 게이팅. `NEXT_PUBLIC_GA_MEASUREMENT_ID`는 Vercel 환경 변수로 설정, 재배포 후 프로덕션에서 `gtag.js` 로드 확인(2026-07-05) |
 | Google Search Console 등록·사이트맵 제출 | 🔲 대기 | |
 
 ### 남은 작업 (우선순위 순)
@@ -162,7 +162,7 @@ packages/
 2. `/about` 연혁·조직도, `/contact` 연락처 정보 (사실 정보 확인 필요)
 3. SEO 보강 — OG 이미지·canonical·Organization JSON-LD
 4. 반응형·접근성·Lighthouse 전수 테스트
-5. GA·GSC 연동
+5. GSC 연동
 
 ---
 
@@ -334,6 +334,7 @@ packages/
 | 2026-07-01 | 문의하기(`/contact`) 페이지 UI 구현 완료(8.1·8.3·8.4·8.5). 이메일 발송 API(8.2)는 사용자 지시로 미구현, 승인 대기 | Claude Code |
 | 2026-07-01 | SEO 구현 완료(9.1~9.5). 메타데이터·OG 이미지·sitemap.xml·robots.txt·Organization 구조화 데이터 적용, 9단계 완료 | Claude Code |
 | 2026-07-05 | `apps/cnbiz-web`(v2 모노레포) 진행 현황 섹션 신설. sitemap.xml·robots.txt 구현 및 `cnbiz.kr` 프로덕션 배포 반영. 기존 1~11단계(v1, `app/`)는 레거시로 표시하고 2026-07-01 기준으로 동결 | Claude Code |
+| 2026-07-05 | Google Analytics 4 연동 완료 반영 (`@next/third-parties`, Vercel 환경 변수 설정 후 프로덕션 확인) | Claude Code |
 
 ---
 

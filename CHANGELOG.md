@@ -20,6 +20,24 @@
 
 ---
 
+## 2026-07-05 (2)
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — Google Analytics 4 연동**: `apps/cnbiz-web`에 `@next/third-parties`의 `GoogleAnalytics` 컴포넌트로 GA4 연동. 개발 환경(`next dev`)에서는 로드되지 않도록 `NODE_ENV === "production"` 및 측정 ID 존재 여부로 게이팅
+  - `apps/cnbiz-web/package.json` — `@next/third-parties` 의존성 추가
+  - `apps/cnbiz-web/app/layout.tsx` — 루트 레이아웃에 `<GoogleAnalytics gaId={...} />` 조건부 렌더링 추가
+  - `apps/cnbiz-web/.env.example` — `NEXT_PUBLIC_GA_MEASUREMENT_ID` 템플릿 항목 추가(값 없음)
+  - `apps/cnbiz-web/.env.local`(machine-local, git 미추적) — 실제 측정 ID(`G-HF43CX4DP5`) 설정
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run build` 통과. 프로덕션 빌드 HTML에 `googletagmanager.com/gtag/js?id=G-HF43CX4DP5` 포함 확인, `next dev`에서는 GA 스크립트가 로드되지 않음을 확인(production-only 게이팅 정상 동작)
+- `main` 병합·push 후 Vercel 자동 배포. 최초 배포 시 `NEXT_PUBLIC_GA_MEASUREMENT_ID`가 Vercel 환경 변수에 없어 프로덕션에 GA 스크립트가 반영되지 않음을 확인 — 사용자가 Vercel 프로젝트 설정에 해당 환경 변수를 추가하고 재배포
+- 재배포 후 `https://cnbiz.kr/`에서 GA 스크립트(`gtag.js?id=G-HF43CX4DP5`)가 정상 포함됨을 확인. `/`·`/about`·`/services`·`/portfolio`·`/contact`·`/sitemap.xml`·`/robots.txt` 전체 200 응답 확인
+
+---
+
 ## 2026-07-04 (13)
 
 ### 검증 (Verified)

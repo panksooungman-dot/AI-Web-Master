@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-07-05
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — sitemap.xml·robots.txt 신규 구현**: 루트 프로젝트(Development OS)와 별개로 `apps/cnbiz-web`(cnbiz.kr)에는 sitemap·robots가 없던 것을 확인하고 신규 추가
+  - `apps/cnbiz-web/app/sitemap.ts`(신규) — Base URL `https://cnbiz.kr`, 5개 공개 페이지(`/`·`/about`·`/services`·`/portfolio`·`/contact`)에 `changeFrequency`·`priority` 지정
+  - `apps/cnbiz-web/app/robots.ts`(신규) — 전체 크롤러 허용(`/login`·`/signup`·`/admin` 등 비공개 라우트가 이 앱에는 존재하지 않아 disallow 규칙 없음), sitemap 경로 명시
+
+### 검증 (Verified)
+
+- `apps/cnbiz-web` `npm run build` 통과, `/sitemap.xml`·`/robots.txt` 정적 라우트로 생성됨을 확인
+- `next start`로 로컬 프로덕션 서버 실행 후 `curl`로 XML/텍스트 응답 직접 확인
+- `feat/cnbiz-web-sitemap` 브랜치로 커밋·푸시 후 `main`에 머지·푸시(Vercel Git 연동으로 자동 배포). 배포 완료 후 `https://cnbiz.kr/sitemap.xml` 실제 프로덕션 응답을 확인 — `cnbiz.kr` → `www.cnbiz.kr` 308 리다이렉트 후 200과 함께 5개 URL이 포함된 유효한 XML을 반환함을 확인
+
+---
+
 ## 2026-07-04 (13)
 
 ### 검증 (Verified)

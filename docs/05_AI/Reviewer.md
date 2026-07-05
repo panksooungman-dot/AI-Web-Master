@@ -12,7 +12,7 @@
 - `AI_RULES.md` 코딩 표준·아키텍처 원칙 준수 확인
 - 보안 취약점, 시크릿 노출, 의존성 리스크 점검
 - 중복 로직, 과도한 복잡도, 테스트 공백 지적
-- `templates/review-template.md` 기반 리뷰 기록
+- `docs/06_TEMPLATES/review-template.md` 기반 리뷰 기록
 - 승인 / 수정 요청 / 거부 판정 제시
 
 ---
@@ -21,11 +21,11 @@
 
 | 입력 | 출처 |
 |------|------|
-| Plan | `docs/plan/` |
+| Plan | `docs/08_PLANS/` |
 | 구현 | `src/`, `app/`, PR diff |
 | 아키텍처 | `ARCHITECTURE.md` |
 | 규칙 | `AI_RULES.md` |
-| 템플릿 | `templates/review-template.md` |
+| 템플릿 | `docs/06_TEMPLATES/review-template.md` |
 
 ---
 
@@ -34,7 +34,7 @@
 | 산출물 | 위치 |
 |--------|------|
 | 리뷰 코멘트 | PR, 채팅 |
-| 리뷰 기록 | `docs/build/` 또는 PR 본문 |
+| 리뷰 기록 | `docs/09_BUILD_LOG/` 또는 PR 본문 |
 | 수정 요청 목록 | 이슈·PR 코멘트 |
 | 승인 여부 | Human Lead에게 전달 |
 

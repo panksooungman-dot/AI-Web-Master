@@ -24,9 +24,9 @@
 
 | 스크립트 (예정) | 용도 |
 |-----------------|------|
-| `scaffold-context.mjs` | `templates/context-template.md` → `docs/context/` |
-| `scaffold-plan.mjs` | `templates/plan-template.md` → `docs/plan/` |
-| `scaffold-review.mjs` | `templates/review-template.md` → PR/빌드 기록 |
+| `scaffold-context.mjs` | `docs/06_TEMPLATES/context-template.md` → `docs/07_KNOWLEDGE/` |
+| `scaffold-plan.mjs` | `docs/06_TEMPLATES/plan-template.md` → `docs/08_PLANS/` |
+| `scaffold-review.mjs` | `docs/06_TEMPLATES/review-template.md` → PR/빌드 기록 |
 
 ### Development
 
@@ -47,7 +47,7 @@
 
 | 스크립트 (예정) | 용도 |
 |-----------------|------|
-| `export-skills.mjs` | `docs/skills/` → Cursor Skills 동기화 |
+| `export-skills.mjs` | `docs/05_AI/skills/` → Cursor Skills 동기화 |
 | `agent-handoff.mjs` | Plan 승인 시 Builder용 컨텍스트 패키징 |
 
 ---
@@ -59,7 +59,7 @@
 | `package.json` | `"scripts": { "scaffold:plan": "node scripts/..." }` |
 | GitHub Actions | `npm run ci:local` |
 | Cursor Hooks | `create-hook` 스킬로 이벤트 트리거 |
-| Documenter | `docs/build/` 에 스크립트 사용법 기록 |
+| Documenter | `docs/09_BUILD_LOG/` 에 스크립트 사용법 기록 |
 
 ---
 
@@ -69,7 +69,7 @@
 1. 수동 반복 작업 식별
 2. scripts/ 에 스크립트 추가
 3. package.json 또는 CI에 등록
-4. docs/build/ 에 사용법 문서화
+4. docs/09_BUILD_LOG/ 에 사용법 문서화
 ```
 
 ---
@@ -79,6 +79,6 @@
 - 스크립트는 **멱등(idempotent)** 하게 작성합니다.
 - 실패 시 명확한 exit code와 로그를 출력합니다.
 - 시크릿·토큰은 환경 변수로만 주입합니다.
-- 새 스크립트 추가 시 Documenter가 `docs/build/` 에 기록합니다.
+- 새 스크립트 추가 시 Documenter가 `docs/09_BUILD_LOG/` 에 기록합니다.
 
 **원칙**: 사람 개입을 최소화하고, 복구 경로를 명확히 합니다.

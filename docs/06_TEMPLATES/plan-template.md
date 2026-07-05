@@ -3,7 +3,7 @@
 > 작성일: YYYY-MM-DD  
 > 작성자: Planner Agent / [이름]  
 > 상태: Draft | Approved | Superseded  
-> Context: [docs/context/ 링크]
+> Context: [docs/07_KNOWLEDGE/ 링크]
 
 ---
 

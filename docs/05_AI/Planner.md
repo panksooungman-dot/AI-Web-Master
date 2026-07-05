@@ -8,10 +8,10 @@
 
 ## Responsibilities
 
-- `docs/context/` 및 `PROJECT_VISION.md` 기반 맥락 파악
+- `docs/07_KNOWLEDGE/` 및 `PROJECT_VISION.md` 기반 맥락 파악
 - 기능 명세, 사용자 스토리, API·데이터 모델 초안 작성
 - 아키텍처 대안 비교 및 권장안 제시
-- `docs/plan/` 에 Plan 문서 생성·갱신
+- `docs/08_PLANS/` 에 Plan 문서 생성·갱신
 - Human Lead 승인 전까지 Build 시작 금지 권고
 - Architect Agent와 아키텍처 정합성 협의
 
@@ -22,9 +22,9 @@
 | 입력 | 출처 |
 |------|------|
 | 기능 요청·아이디어 | Human Lead, 이슈, 채팅 |
-| 맥락 | `docs/context/`, `PROJECT_VISION.md` |
+| 맥락 | `docs/07_KNOWLEDGE/`, `PROJECT_VISION.md` |
 | 제약 | `AI_RULES.md`, `ARCHITECTURE.md`, `TECH_STACK.md` |
-| 템플릿 | `templates/plan-template.md`, `templates/context-template.md` |
+| 템플릿 | `docs/06_TEMPLATES/plan-template.md`, `docs/06_TEMPLATES/context-template.md` |
 
 ---
 
@@ -32,9 +32,9 @@
 
 | 산출물 | 위치 |
 |--------|------|
-| Context 문서 (필요 시) | `docs/context/` |
-| Plan 문서 | `docs/plan/` |
-| ADR·기술 선택 근거 | `docs/plan/` 내 섹션 |
+| Context 문서 (필요 시) | `docs/07_KNOWLEDGE/` |
+| Plan 문서 | `docs/08_PLANS/` |
+| ADR·기술 선택 근거 | `docs/08_PLANS/` 내 섹션 |
 | Handoff 노트 | Plan 문서 하단 → Builder용 |
 
 ---

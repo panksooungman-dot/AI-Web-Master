@@ -1,4 +1,4 @@
-# docs/plan
+# docs/08_PLANS
 
 **Plan 단계** 산출물을 저장합니다. 구현 전 설계·명세·트레이드오프 분석이 여기에 해당합니다.
 
@@ -25,7 +25,7 @@
 
 ## Required Sections
 
-`templates/plan-template.md` 기준:
+`docs/06_TEMPLATES/plan-template.md` 기준:
 
 | 섹션 | 필수 | 설명 |
 |------|------|------|
@@ -46,7 +46,7 @@
 ### 파일 명명
 
 ```
-docs/plan/
+docs/08_PLANS/
 ├── README.md
 ├── phase1-ai-chat-ui.md
 ├── phase1-api-routes.md
@@ -56,7 +56,7 @@ docs/plan/
 ### 사용 예 (Cursor Plan 모드)
 
 ```
-@docs/context/
+@docs/07_KNOWLEDGE/
 @docs/02_DEVELOPMENT/ARCHITECTURE.md
 @docs/06_TEMPLATES/plan-template.md
 AI 채팅 UI Phase 1 Plan 작성. Non-goals에 API 연동 제외.
@@ -76,7 +76,7 @@ AI 채팅 UI Phase 1 Plan 작성. Non-goals에 API 연동 제외.
 ## Workflow
 
 ```
-docs/context/ → docs/plan/ (승인) → src/ + app/ → Review
+docs/07_KNOWLEDGE/ → docs/08_PLANS/ (승인) → src/ + app/ → Review
 ```
 
 **원칙**: Plan 문서가 없으면 Build를 시작하지 않습니다.

@@ -11,10 +11,10 @@
 
 ## 워크플로
 
-1. `docs/plan/` 에서 패턴 확정
-2. `templates/` 에 템플릿 추가
+1. `docs/08_PLANS/` 에서 패턴 확정
+2. `docs/06_TEMPLATES/` 에 템플릿 추가
 3. Build 시 템플릿을 복사·변형하여 `src/` 에 적용
-4. 스킬(`docs/skills/`)과 연동하여 자동 스캐폴딩
+4. 스킬(`docs/05_AI/skills/`)과 연동하여 자동 스캐폴딩
 
 ## 원칙
 

@@ -22,7 +22,7 @@
 | 입력 | 출처 |
 |------|------|
 | 비전·로드맵 | `PROJECT_VISION.md`, `PROJECT_ROADMAP.md` |
-| Plan | `docs/plan/` |
+| Plan | `docs/08_PLANS/` |
 | 구현 | `src/`, `app/` |
 | 기술 스택 | `TECH_STACK.md`, `package.json` |
 | 리뷰 피드백 | Reviewer, PR |
@@ -33,9 +33,9 @@
 
 | 산출물 | 위치 |
 |--------|------|
-| ADR·아키텍처 결정 | `docs/plan/` |
+| ADR·아키텍처 결정 | `docs/08_PLANS/` |
 | `ARCHITECTURE.md` 갱신 제안 | PR, 문서 |
-| 계층·모듈 구조 가이드 | `docs/plan/`, `src/README.md` |
+| 계층·모듈 구조 가이드 | `docs/08_PLANS/`, `src/README.md` |
 | 에스컬레이션 | Human Lead |
 
 ---
@@ -46,7 +46,7 @@
 - **Documentation First**: 구조 변경은 Plan·ADR 선행을 요구합니다.
 - Next.js 16: `node_modules/next/dist/docs/` 기준, `app/` vs `src/` 역할 분리 유지
 - 과도한 엔지니어링·조기 최적화를 지양합니다.
-- 기술 선택은 `TECH_STACK.md` 및 `docs/plan/` ADR과 정합해야 합니다.
+- 기술 선택은 `TECH_STACK.md` 및 `docs/08_PLANS/` ADR과 정합해야 합니다.
 - Human Lead의 비전·우선순위를 최종 기준으로 합니다.
 
 ---

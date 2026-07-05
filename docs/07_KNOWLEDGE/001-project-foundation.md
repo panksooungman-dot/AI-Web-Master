@@ -61,7 +61,7 @@
 | **Human Lead** | 비전·우선순위·최종 승인 | 예측 가능한 AI 산출물, 검토 부담 감소 |
 | **개발자 (사람)** | 구현·아키텍처·코드 리뷰 | 문서화된 맥락, 재사용 템플릿·스킬 |
 | **AI 에이전트** | Planner, Builder, Reviewer 등 | 명확한 규칙·handoff·입출력 정의 |
-| **향후 팀원** | 온보딩 대상 | `docs/context/`, `agents/`, `templates/` 로 빠른 적응 |
+| **향후 팀원** | 온보딩 대상 | `docs/07_KNOWLEDGE/`, `docs/05_AI/`, `docs/06_TEMPLATES/` 로 빠른 적응 |
 | **다른 프로젝트** | OS 패턴 이식 | 템플릿·스킬·폴더 구조 재사용 |
 
 ---
@@ -71,7 +71,7 @@
 ### Phase 0 (현재 목표)
 
 - ✅ 비전·규칙·아키텍처·로드맵 문서
-- ✅ `docs/`, `agents/`, `templates/` 구조
+- ✅ `docs/`, `docs/05_AI/`, `docs/06_TEMPLATES/` 구조
 - ✅ `.cursor/rules/` (development, documentation, architecture)
 - ✅ 첫 Context 문서 (본 문서)
 - 🔲 첫 Plan 문서 → Build → Review → Document 사이클
@@ -80,7 +80,7 @@
 
 - `src/` 4계층 스캐폴딩 및 첫 MVP 기능
 - GitHub Actions (lint, build)
-- `docs/skills/` 실제 스킬 + Cursor 연동
+- `docs/05_AI/skills/` 실제 스킬 + Cursor 연동
 - `scripts/` 자동화 스크립트
 
 ### 최종 상태
@@ -125,8 +125,8 @@
 | # | 기준 | 측정 |
 |---|------|------|
 | 1 | OS 문서 세트 완비 | `PROJECT_VISION`, `AI_RULES`, `ARCHITECTURE`, `TECH_STACK`, `ROADMAP` 존재 |
-| 2 | 워크플로 인프라 | `docs/`, `agents/`, `templates/`, `.cursor/rules/` 존재 |
-| 3 | 첫 Context 문서 | `docs/context/001-project-foundation.md` (본 문서) |
+| 2 | 워크플로 인프라 | `docs/`, `docs/05_AI/`, `docs/06_TEMPLATES/`, `.cursor/rules/` 존재 |
+| 3 | 첫 Context 문서 | `docs/07_KNOWLEDGE/001-project-foundation.md` (본 문서) |
 | 4 | Cursor Rules 연동 | 3개 `.mdc` 규칙 활성 |
 | 5 | 기존 파일 무결성 | 앱 코드·설정 의도치 않은 변경 없음 |
 
@@ -134,7 +134,7 @@
 
 | # | 기준 | 측정 |
 |---|------|------|
-| 6 | 첫 Plan 승인 | `docs/plan/` 에 Approved 문서 1건 이상 |
+| 6 | 첫 Plan 승인 | `docs/08_PLANS/` 에 Approved 문서 1건 이상 |
 | 7 | `src/` 스캐폴딩 | 4계층 폴더 생성 |
 | 8 | CI 최소 파이프라인 | lint + build 통과 |
 | 9 | End-to-end 사이클 | Context → Plan → Build → Review → Document 1회 완료 |
@@ -153,4 +153,4 @@
 - [`PROJECT_ROADMAP.md`](../01_PMO/PROJECT_ROADMAP.md)
 - [`ARCHITECTURE.md`](../02_DEVELOPMENT/ARCHITECTURE.md)
 - [`AI_RULES.md`](../05_AI/AI_RULES.md)
-- [`templates/context-template.md`](../06_TEMPLATES/context-template.md)
+- [`docs/06_TEMPLATES/context-template.md`](../06_TEMPLATES/context-template.md)

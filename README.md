@@ -11,7 +11,7 @@
 - **문서 우선**: Context → Plan → Build → Review → Document
 - **에이전트 협업**: Planner, Builder, Reviewer, Architect, Documenter
 - **클린 아키텍처**: `src/` 4계층 + Next.js `app/`
-- **재사용**: `templates/`, `docs/skills/`, `scripts/`
+- **재사용**: `docs/06_TEMPLATES/`, `docs/05_AI/skills/`, `scripts/`
 
 현재 단계: **Phase 0 — Foundation** (문서·구조 구축, 애플리케이션 코드 미작성)
 
@@ -29,21 +29,21 @@
 
 ```
 ai-web-master/
-├── PROJECT_VISION.md      # 비전·원칙·미션
-├── AI_RULES.md            # AI 에이전트 운영 규칙
-├── PROJECT_ROADMAP.md     # 로드맵·마일스톤
-├── ARCHITECTURE.md        # 시스템 아키텍처
-├── TECH_STACK.md          # 기술 스택
-├── AGENTS.md              # Next.js 16 에이전트 규칙
-│
 ├── docs/
-│   ├── context/           # 배경 맥락
-│   ├── plan/              # 설계·명세
-│   ├── build/             # 구현·배포 기록
-│   └── skills/            # 스킬·워크플로
+│   ├── 00_COMPANY/        # 비전·조직·정책·문서 인덱스
+│   ├── 01_PMO/            # 로드맵·WBS·체인지로그
+│   ├── 02_DEVELOPMENT/    # 아키텍처·기술 스택·개발 규칙
+│   ├── 03_DESIGN/         # 디자인 시스템
+│   ├── 04_OPERATIONS/     # 운영(예정)
+│   ├── 05_AI/             # AI 에이전트 정의·규칙·워크플로·스킬
+│   ├── 06_TEMPLATES/      # 문서·기능 템플릿
+│   ├── 07_KNOWLEDGE/      # 배경 맥락·지식베이스
+│   ├── 08_PLANS/          # 설계·명세 (Plan)
+│   ├── 09_BUILD_LOG/      # 구현·배포 기록 (Build)
+│   └── 99_ARCHIVE/        # 보관
 │
-├── agents/                # 에이전트 정의
-├── templates/             # 문서·기능 템플릿
+├── AGENTS.md              # Claude Code 프로젝트 운영 규칙
+├── CLAUDE.md              # Claude Code 자동 인식 규칙
 ├── scripts/               # 자동화 스크립트
 │
 ├── src/                   # 애플리케이션 소스 (Clean Architecture)
@@ -95,13 +95,13 @@ Understand → Plan → Implement → Test → Review → Document
 
 | 단계 | 위치 |
 |------|------|
-| Context | `docs/context/` |
-| Plan | `docs/plan/` |
+| Context | `docs/07_KNOWLEDGE/` |
+| Plan | `docs/08_PLANS/` |
 | Build | `src/`, `app/` |
 | Review | PR, Reviewer Agent |
-| Document | `docs/build/` |
+| Document | `docs/09_BUILD_LOG/` |
 
-템플릿: [`templates/`](./docs/06_TEMPLATES/)
+템플릿: [`docs/06_TEMPLATES/`](./docs/06_TEMPLATES/)
 
 ---
 
@@ -113,13 +113,13 @@ Context → Plan → Build → Review → Document
 
 | 에이전트 | 모드 | 문서 |
 |---------|------|------|
-| Planner | Plan | [`agents/Planner.md`](./docs/05_AI/Planner.md) |
-| Builder | Build | [`agents/Builder.md`](./docs/05_AI/Builder.md) |
-| Reviewer | — | [`agents/Reviewer.md`](./docs/05_AI/Reviewer.md) |
-| Architect | Plan/Build | [`agents/Architect.md`](./docs/05_AI/Architect.md) |
-| Documenter | — | [`agents/Documenter.md`](./docs/05_AI/Documenter.md) |
+| Planner | Plan | [`docs/05_AI/Planner.md`](./docs/05_AI/Planner.md) |
+| Builder | Build | [`docs/05_AI/Builder.md`](./docs/05_AI/Builder.md) |
+| Reviewer | — | [`docs/05_AI/Reviewer.md`](./docs/05_AI/Reviewer.md) |
+| Architect | Plan/Build | [`docs/05_AI/Architect.md`](./docs/05_AI/Architect.md) |
+| Documenter | — | [`docs/05_AI/Documenter.md`](./docs/05_AI/Documenter.md) |
 
-Cursor: `@docs/05_AI/AI_RULES.md`, `@docs/context`, Plan/Build 모드, `/` 스킬 활용
+Cursor: `@docs/05_AI/AI_RULES.md`, `@docs/07_KNOWLEDGE`, Plan/Build 모드, `/` 스킬 활용
 
 ---
 

@@ -1,306 +1,368 @@
-# AI Component Guide
+# AI_COMPONENT_GUIDE
 
-AI와 정확하고 효율적으로 협업하기 위한 컴포넌트 식별 표준입니다.
-
----
-
-# 목적
-
-AI와 사람이 동일한 UI를 추측 없이 정확하게 식별하여
-빠르고 안전하게 수정할 수 있도록 합니다.
-
-## 기대 효과
-
-- 작업 속도 향상
-- 토큰 사용량 감소
-- 잘못된 수정 방지
-- 유지보수 향상
-- Playwright 테스트 향상
-- AI 협업 정확도 향상
+> AI Business OS - AI Component Development Guide
 
 ---
 
-# Component Naming Rule
+# 문서 정보
 
-모든 컴포넌트는 아래 규칙을 따른다.
+| 항목 | 내용 |
+|------|------|
+| Document | AI_COMPONENT_GUIDE.md |
+| Department | Development |
+| Version | 1.0 |
+| Status | Active |
+| Owner | Development Team |
+| Approver | CEO |
 
-```
-section-component-element
-```
+---
 
-예시
+# 목적 (Purpose)
 
-```
-hero-title
-hero-subtitle
+본 문서는 AI Business OS에서 사용하는 컴포넌트 설계 및 개발 표준을 정의한다.
 
-hero-btn-primary
-hero-btn-secondary
+목표
 
-hero-btn-primary-icon
+- 컴포넌트 재사용성 향상
+- 유지보수성 확보
+- 일관된 코드 구조 유지
+- AI가 예측 가능한 프로젝트 구조 제공
+- 중복 코드 최소화
 
-about-card-01
-about-card-02
+---
 
-service-card-01
-service-card-02
+# 적용 범위 (Scope)
 
-portfolio-card-01
+본 문서는 다음 대상에 적용한다.
 
-contact-submit-btn
+- React Component
+- Next.js Component
+- Layout
+- UI Component
+- Feature Component
+- Custom Hook
+- Service Module
 
-footer-company
+---
+
+# 핵심 원칙 (Core Principles)
+
+## 1. Single Responsibility
+
+하나의 컴포넌트는 하나의 책임만 가진다.
+
+---
+
+## 2. Reusability
+
+반복되는 UI는 반드시 컴포넌트로 분리한다.
+
+---
+
+## 3. Readability
+
+누구나 이해할 수 있는 구조를 유지한다.
+
+---
+
+## 4. Maintainability
+
+확장성보다 유지보수를 우선한다.
+
+---
+
+## 5. Testability
+
+컴포넌트는 독립적으로 테스트 가능해야 한다.
+
+---
+
+# 프로젝트 구조
+
+```text
+src/
+│
+├── components/
+├── features/
+├── hooks/
+├── services/
+├── lib/
+├── utils/
+├── types/
+└── constants/
 ```
 
 ---
 
-# Component ID
+# Components
 
-모든 주요 UI는 반드시 고유한 Component ID를 가진다.
+공통 UI 컴포넌트
 
-React 예시
+```text
+components/
+├── common/
+├── layout/
+├── ui/
+├── form/
+├── table/
+├── modal/
+├── card/
+└── feedback/
+```
+
+---
+
+# Features
+
+도메인 중심 구조
+
+```text
+features/
+└── auth/
+    ├── components/
+    ├── hooks/
+    ├── services/
+    ├── types/
+    ├── utils/
+    └── index.ts
+```
+
+---
+
+# 컴포넌트 작성 규칙
+
+## 파일명
+
+PascalCase 사용
+
+```text
+UserCard.tsx
+LoginForm.tsx
+ProductTable.tsx
+```
+
+---
+
+## Hook
+
+```text
+useAuth.ts
+useUser.ts
+useProduct.ts
+```
+
+반드시 `use`로 시작한다.
+
+---
+
+## Service
+
+```text
+authService.ts
+userService.ts
+```
+
+camelCase 사용
+
+---
+
+## Type
+
+```text
+User.ts
+Product.ts
+ApiResponse.ts
+```
+
+---
+
+# Props 규칙
+
+좋은 예
 
 ```tsx
-<button data-testid="hero-btn-primary">
+<UserCard user={user} />
 ```
 
-Card 예시
+좋지 않은 예
 
 ```tsx
-<div data-testid="service-card-01">
+<UserCard
+  id={id}
+  name={name}
+  email={email}
+  phone={phone}
+/>
 ```
+
+관련 데이터는 객체로 전달한다.
 
 ---
 
-# Component ID 규칙
+# State 관리
 
-- Component ID는 프로젝트 전체에서 중복될 수 없다.
-- Component ID는 한 번 생성하면 변경하지 않는다.
-- 삭제된 Component ID는 재사용하지 않는다.
-- 새로운 UI 생성 시 반드시 Component ID를 함께 생성한다.
+우선순위
 
----
+1. Local State
+2. Context API
+3. Global State
 
-# AI 작업 규칙
-
-Claude, Cursor, Copilot 등 AI는
-
-항상 Component ID를 기준으로 작업한다.
-
-예시
-
-```
-hero-btn-primary 색상을 변경해줘.
-
-service-card-02 아이콘을 변경해줘.
-
-contact-submit-btn을 크게 만들어줘.
-```
-
-AI는
-
-"왼쪽 버튼"
-
-"첫 번째 카드"
-
-같은 추측 기반 작업을 하지 않는다.
+필요 이상으로 전역 상태를 사용하지 않는다.
 
 ---
 
-# Playwright 규칙
+# Business Logic
 
-Playwright 테스트도 Component ID를 사용한다.
+Business Logic은 컴포넌트 내부에 작성하지 않는다.
 
-예시
+구조
 
-```ts
-await page.getByTestId("hero-btn-primary").click();
-```
-
----
-
-# AI Inspector
-
-개발 모드에서만 활성화한다.
-
-마우스를 올리면
-
-```
-Section
-
-Hero
-
+```text
 Component
-
-Primary Button
-
-Component ID
-
-hero-btn-primary
-
-File
-
-components/home/Hero.tsx
-```
-
-를 표시한다.
-
----
-
-# Copy 기능
-
-Inspector에는 두 개의 복사 기능을 제공한다.
-
-## Copy ID
-
-복사 결과
-
-```
-hero-btn-primary
-```
-
-## Copy Prompt
-
-복사 결과
-
-```
-hero-btn-primary 버튼 아이콘을 변경해줘.
+    │
+    ▼
+Hook
+    │
+    ▼
+Service
+    │
+    ▼
+API
 ```
 
 ---
 
-# 디자인 수정 원칙
+# API 호출 규칙
 
-디자인 수정 요청은
-반드시 Component ID를 기준으로 한다.
+컴포넌트에서 직접 API를 호출하지 않는다.
 
-예시
-
-❌
+반드시
 
 ```
-왼쪽 버튼 바꿔줘.
+Component
+↓
+
+Hook
+
+↓
+
+Service
 ```
 
-⭕
+구조를 사용한다.
 
+---
+
+# Import 순서
+
+```text
+1. React
+2. Next.js
+3. External Library
+4. Internal Module
+5. Components
+6. Hooks
+7. Types
+8. Styles
 ```
-hero-btn-primary 아이콘 변경
-```
 
 ---
 
-# 개발 원칙
+# Styling
 
-모든 새로운 UI는
+기본 원칙
 
-- Component ID 생성
-- data-testid 추가
-- Playwright 테스트 가능
-
-상태를 유지해야 한다.
-
----
-
-# AI 협업 원칙
-
-AI는
-
-- Component ID를 우선 사용한다.
-- 추측하지 않는다.
-- 동일한 Component ID만 수정한다.
-- 다른 컴포넌트를 변경하지 않는다.
+- Tailwind CSS 사용
+- Inline Style 지양
+- 공통 스타일 재사용
+- Design System 준수
 
 ---
 
-# 적용 대상
+# Component 분리 기준
 
-- Claude Code
-- Cursor
-- GitHub Copilot
-- Playwright
-- QA 테스트
-- 유지보수
-- 디자인 수정
+다음 중 하나에 해당하면 분리한다.
 
----
-
-# 향후 개발 예정
-
-AI Inspector
-
-- Hover Inspector
-- Component Highlight
-- Copy ID
-- Copy Prompt
-- File Open
-- VSCode Jump
-- Figma Link
-- Component Tree
-- Responsive Preview
+- 100줄 이상
+- 재사용 가능
+- 독립 테스트 가능
+- UI 반복
 
 ---
 
-# 최종 목표
+# Error Handling
 
-누구나 화면에서 원하는 컴포넌트를 선택하고
+모든 컴포넌트는
 
-Component ID를 복사하여
+- Loading
+- Empty
+- Error
 
-AI에게 전달하면
-
-추측 없이 정확하게 원하는 UI만 수정할 수 있는 개발 환경을 구축한다.
-
-# 프로젝트 표준
-
-이 문서의 규칙은 프로젝트 전체에 적용된다.
-
-새로운 컴포넌트를 생성하거나 기존 컴포넌트를 수정할 경우 반드시 다음을 수행한다.
-
-- Component ID 생성 및 유지
-- data-testid 추가
-- AI Inspector 대상 등록
-
-예외가 필요한 경우에는 사유를 코드 리뷰 또는 문서에 기록한다.
-
-Claude Code는 UI 컴포넌트를 생성하거나 수정할 때
-본 문서의 규칙을 기본 표준으로 적용한다.
-
-# 적용 규칙
-
-이 문서의 규칙은 프로젝트 전체에 적용된다.
-
-새로운 컴포넌트를 생성할 때는 반드시
-
-- Component ID 생성
-- data-testid 추가
-- AI Inspector 대상 등록
-
-을 함께 수행한다.
+상태를 처리해야 한다.
 
 ---
 
-# Component Registry
+# Performance
 
-현재 프로젝트에서 사용하는 Component ID 목록입니다.
-새로운 컴포넌트를 만들면 반드시 이 목록에도 추가합니다.
+다음을 적극 활용한다.
 
-# Component Registry
+- React.memo
+- useMemo
+- useCallback
+- Lazy Loading
+- Dynamic Import
 
-## Layout
-- APP_LAYOUT
-- HEADER_NAV
-- FOOTER
+필요하지 않은 최적화는 하지 않는다.
 
-## Home
-- HERO_SECTION
-- SERVICE_GRID
-- SERVICE_CARD
-- CTA_SECTION
-- CONTACT_FORM
+---
 
-## Common
-- PRIMARY_BUTTON
-- SECONDARY_BUTTON
-- MODAL
-- LOADING_SPINNER
+# 금지 사항
+
+다음을 금지한다.
+
+- Business Logic을 UI에 작성
+- 직접 Database 접근
+- 하드코딩
+- 중복 컴포넌트 생성
+- 거대한 컴포넌트 작성
+
+---
+
+# 체크리스트
+
+## 컴포넌트 생성 전
+
+- [ ] 기존 컴포넌트 확인
+- [ ] 재사용 가능 여부 확인
+- [ ] Design System 확인
+
+## 개발 중
+
+- [ ] Props 최소화
+- [ ] Hook 분리
+- [ ] Service 분리
+- [ ] Type 정의
+
+## 완료 후
+
+- [ ] 테스트 완료
+- [ ] 문서 업데이트
+- [ ] 코드 리뷰 완료
+
+---
+
+# 관련 문서
+
+- ARCHITECTURE.md
+- TECH_STACK.md
+- CNBIZ_RULES.md
+- DESIGN_SYSTEM.md
+- AI_RULES.md
+
+---
+
+# 변경 이력
+
+| Version | Date | Description |
+|----------|------|-------------|
+| 1.0 | 2026-07-05 | Initial Release |

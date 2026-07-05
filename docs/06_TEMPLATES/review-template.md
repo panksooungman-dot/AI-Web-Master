@@ -2,7 +2,7 @@
 
 > 작성일: YYYY-MM-DD  
 > Reviewer: Reviewer Agent / [이름]  
-> Plan: [docs/plan/ 링크]  
+> Plan: [docs/08_PLANS/ 링크]  
 > Verdict: ✅ Approved | 🔄 Changes Requested | ❌ Rejected
 
 ---
@@ -79,4 +79,4 @@
 ## References
 
 - PR: 
-- `templates/review-template.md`
+- `docs/06_TEMPLATES/review-template.md`

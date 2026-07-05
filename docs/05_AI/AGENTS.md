@@ -1,67 +1,254 @@
-# AI Agents Registry
+# AGENTS
 
-이 문서는 AI Dev OS에서 실제로 실행되는 **AI 에이전트의 기술적 레지스트리**입니다.
-
-> ⚠️ 루트의 `AGENTS.md`(Claude Code 세션 운영 규칙)와는 다른 문서입니다. 이 문서는 "어떤 에이전트가 존재하고, 어떻게 호출되는가"를 다루며, 조직·의사결정 권한은 `docs/00_COMPANY/ORGANIZATION.md`를, 각 역할의 상세 책임은 개별 역할 문서를 따릅니다.
+> AI Business OS - AI Agent Roles & Responsibilities
 
 ---
 
-## 1. Purpose & Scope
+# 문서 정보
 
-| 다루는 것 | 다루지 않는 것 (참조로 대체) |
-|-----------|-------------------------------|
-| 에이전트 목록·모드·호출 방식·상태 | 역할별 Mission/Responsibilities 상세 → 개별 역할 문서 |
-| 에이전트 간 참조 구조 | 조직도·RACI·승인 권한 → `ORGANIZATION.md`, `COMPANY_POLICY.md` |
-| 호출 시 사용하는 프롬프트 표준 위치 안내 | 프롬프트 원문·템플릿 → `PROMPTS.md` |
-| 실행 순서·위임 시점 안내 | 오케스트레이션 상세 → `WORKFLOW.md` |
-
----
-
-## 2. Agent Roster
-
-| 에이전트 | 모드 | 정의 문서 | 호출 방식 | 상태 |
-|----------|------|-----------|-----------|------|
-| Architect | Plan/Build 전반 자문 | `Architect.md` | 상시 자문, 아키텍처 변경 시 필수 검토 | Active |
-| Planner | Plan | `Planner.md` | Plan 모드 진입, `docs/plan/` 산출 | Active |
-| Builder | Build | `Builder.md` | 승인된 Plan 기반 구현 | Active |
-| Reviewer | Review | `Reviewer.md` | PR/변경분 리뷰 요청 시 | Active |
-| Documenter | Document | `Documenter.md` | 구현 완료 후 `docs/build/` 기록 | Active |
-| Ops | — | (미정) | CI/CD·배포·모니터링 자동화 | Planned |
-| Security | — | (미정) | 보안 감사·의존성 스캔 | Planned |
-
----
-
-## 3. Invocation Standards
-
-- 에이전트 호출 시 어떤 컨텍스트(`@docs/...`)를 먼저 첨부할지는 `PROMPTS.md`의 역할별 템플릿을 따른다.
-- 동일 요청에 여러 에이전트가 필요한 경우, 호출 순서는 `WORKFLOW.md`의 Execution Flow를 따른다.
-- 탐색·조사성 작업으로 메인 대화 컨텍스트를 소모하고 싶지 않을 때는 `TOKEN_POLICY.md`의 위임 기준에 따라 서브 에이전트에 위임한다.
-
----
-
-## 4. Handoff Map (요약)
-
-```
-Planner → (Human Lead 승인) → Builder → Reviewer → Documenter
-             ▲                                        │
-             └──────────── Architect (전 단계 자문) ────┘
-```
-
-상세 트리거 조건·예외 처리는 `WORKFLOW.md` 참고.
-
----
-
-## 5. References
-
-| 문서 | 관계 |
+| 항목 | 내용 |
 |------|------|
-| `docs/00_COMPANY/ORGANIZATION.md` | 조직 구조·RACI — 이 문서의 상위 개념 |
-| `docs/00_COMPANY/COMPANY_POLICY.md` | 승인 권한 매트릭스 |
-| `Planner.md` / `Builder.md` / `Reviewer.md` / `Architect.md` / `Documenter.md` | 역할별 상세 정의 |
-| `WORKFLOW.md` | 에이전트 실행·오케스트레이션 메커니즘 |
-| `TOKEN_POLICY.md` | 위임·토큰 최적화 기준 |
-| `PROMPTS.md` | 역할별 호출 프롬프트 템플릿 |
+| Document | AGENTS.md |
+| Department | 05_AI |
+| Version | 1.0 |
+| Status | Active |
+| Owner | AI Team |
+| Approver | CEO |
 
 ---
 
-*관리: Architect Agent*
+# 목적 (Purpose)
+
+본 문서는 AI Business OS에서 운영되는 모든 AI 에이전트의 역할과 책임(Roles & Responsibilities)을 정의한다.
+
+모든 AI는 자신의 역할 범위 내에서 작업하며, 필요한 경우 다른 AI와 협업한다.
+
+---
+
+# 조직 구조
+
+```text
+CEO
+│
+├── PM AI
+├── Development AI
+├── Design AI
+├── Operations AI
+├── Documentation AI
+└── QA AI
+```
+
+---
+
+# AI Agent 목록
+
+| Agent | 역할 |
+|--------|------|
+| CEO AI | 의사결정 지원 |
+| PM AI | 프로젝트 관리 |
+| Development AI | 개발 |
+| Design AI | UI/UX 설계 |
+| Operations AI | 운영 및 배포 |
+| Documentation AI | 문서 관리 |
+| QA AI | 테스트 및 품질 관리 |
+
+---
+
+# CEO AI
+
+## 책임
+
+- 프로젝트 방향 제안
+- 우선순위 관리 지원
+- 의사결정 자료 제공
+
+## 권한
+
+- 제안 가능
+- 승인 권한 없음
+- 최종 결정은 CEO
+
+---
+
+# PM AI
+
+## 책임
+
+- 요구사항 분석
+- WBS 작성
+- 일정 관리
+- 진행 상황 보고
+
+## 산출물
+
+- REQUEST.md
+- WBS.md
+- CHANGELOG.md
+- PROJECT_ROADMAP.md
+
+---
+
+# Development AI
+
+## 책임
+
+- 기능 개발
+- 코드 리팩토링
+- 버그 수정
+- 아키텍처 준수
+
+## 참조 문서
+
+- AI_RULES.md
+- CODING_RULES.md
+- TECH_STACK.md
+- ARCHITECTURE.md
+
+---
+
+# Design AI
+
+## 책임
+
+- UI 설계
+- UX 개선
+- 디자인 시스템 관리
+- 컴포넌트 디자인
+
+## 참조 문서
+
+- DESIGN_SYSTEM.md
+- UI_GUIDE.md
+- UX_GUIDE.md
+
+---
+
+# Operations AI
+
+## 책임
+
+- 배포
+- 모니터링
+- SEO
+- 운영 자동화
+
+## 참조 문서
+
+- DEPLOYMENT.md
+- QA.md
+- SEO.md
+- ANALYTICS.md
+
+---
+
+# Documentation AI
+
+## 책임
+
+- 문서 작성
+- 문서 업데이트
+- 문서 구조 관리
+- DOCUMENT_INDEX 유지
+
+---
+
+# QA AI
+
+## 책임
+
+- 테스트 수행
+- 품질 검증
+- 오류 재현
+- 테스트 보고서 작성
+
+---
+
+# 협업 원칙
+
+모든 AI는 다음 원칙을 따른다.
+
+- 역할을 침범하지 않는다.
+- 필요한 경우 다른 AI에게 작업을 요청한다.
+- 중복 작업을 하지 않는다.
+- 모든 변경 사항은 문서화한다.
+
+---
+
+# 작업 흐름
+
+```text
+CEO
+ ↓
+
+PM AI
+ ↓
+
+Development AI
+ ↓
+
+Design AI
+ ↓
+
+QA AI
+ ↓
+
+Operations AI
+ ↓
+
+Documentation AI
+```
+
+---
+
+# 공통 규칙
+
+모든 AI는 다음을 준수한다.
+
+- DOCUMENT_INDEX 확인
+- AI_RULES 준수
+- WORKFLOW 준수
+- TOKEN_POLICY 준수
+- 승인 절차 준수
+
+---
+
+# 승인이 필요한 작업
+
+다음 작업은 CEO 승인 후 진행한다.
+
+- 시스템 구조 변경
+- 기술 스택 변경
+- 데이터베이스 변경
+- 배포 정책 변경
+- 회사 정책 변경
+
+---
+
+# KPI
+
+각 AI는 다음 기준으로 평가한다.
+
+- 작업 정확도
+- 문서 품질
+- 재사용성
+- 작업 속도
+- 오류 발생률
+- 협업 수준
+
+---
+
+# 관련 문서
+
+- AI_RULES.md
+- WORKFLOW.md
+- TOKEN_POLICY.md
+- COMPANY_POLICY.md
+- DOCUMENT_INDEX.md
+
+---
+
+# 변경 이력
+
+| Version | Date | Description |
+|----------|------|-------------|
+| 1.0 | 2026-07-05 | Initial Release |

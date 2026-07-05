@@ -37,17 +37,24 @@
 | `TECH_STACK.md` | 기술 스택 정의 | Active |
 | `CNBIZ_RULES.md` | 개발 표준(컴포넌트·스타일·Git) | Active |
 | `AI_COMPONENT_GUIDDE.md` | Component ID 협업 표준 | Active |
-| `001-phase1-mvp.md` | Phase 1 MVP Plan | Draft |
 
 ## 5. Design Documents (`docs/03_DESIGN/`)
 
 | 문서 | 설명 | 상태 |
 |------|------|------|
 | `DESIGN_SYSTEM.md` | 컬러·타이포·레이아웃·컴포넌트 디자인 기준 | Active |
+| `UI_GUIDE.md` | UI 가이드 (빈 문서) | Placeholder |
+| `UX_GUIDE.md` | UX 가이드 (빈 문서) | Placeholder |
 
 ## 6. Operations Documents (`docs/04_OPERATIONS/`)
 
-현재 문서 없음 (Phase 2 이후 CI/CD·배포·모니터링 문서 예정).
+| 문서 | 설명 | 상태 |
+|------|------|------|
+| `README.md` | 폴더 안내(빈 placeholder, Phase 2 이후 CI/CD·배포·모니터링 문서 예정) | Placeholder |
+| `DEPLOYMENT.md` | 배포 가이드 (빈 문서) | Placeholder |
+| `QA.md` | QA 가이드 (빈 문서) | Placeholder |
+| `SEO.md` | SEO 가이드 (빈 문서) | Placeholder |
+| `ANALYTICS.md` | 분석·모니터링 가이드 (빈 문서) | Placeholder |
 
 ## 7. AI Documents (`docs/05_AI/`)
 
@@ -64,6 +71,7 @@
 | `Reviewer.md` | Reviewer Agent 정의 | Active |
 | `Documenter.md` | Documenter Agent 정의 | Active |
 | `README.md` | 폴더 안내 | Active |
+| `skills/README.md` | 에이전트 스킬·반복 워크플로 가이드 | Active |
 
 ## 8. Templates (`docs/06_TEMPLATES/`)
 
@@ -74,6 +82,10 @@
 | `feature-template.md` | 기능 명세 템플릿 | Active |
 | `review-template.md` | 리뷰 문서 템플릿 | Active |
 | `bug-template.md` | 버그 리포트 템플릿 | Active |
+| `request-template.md` | 프로젝트/기능 개발 요청 템플릿 | Active |
+| `wbs-template.md` | 작업 분해 구조(WBS) 템플릿 | Active |
+| `project-roadmap-template.md` | 프로젝트 로드맵 템플릿 | Active |
+| `changelog-template.md` | 변경 이력(CHANGELOG) 템플릿 | Active |
 | `README.md` | 폴더 안내 | Active |
 
 ## 9. Knowledge Base (`docs/07_KNOWLEDGE/`)
@@ -81,22 +93,34 @@
 | 문서 | 설명 | 상태 |
 |------|------|------|
 | `001-project-foundation.md` | 프로젝트 배경·목표·제약 Context | Active |
+| `README.md` | Context 작성 가이드 | Active |
 
-## 10. Archive (`docs/99_ARCHIVE/`)
+## 10. Plans (`docs/08_PLANS/`)
 
-현재 문서 없음.
+| 문서 | 설명 | 상태 |
+|------|------|------|
+| `001-phase1-mvp.md` | Phase 1 MVP Plan | Draft |
+| `README.md` | Plan 작성 가이드 | Active |
 
-## 11. Workflow Docs
+## 11. Build Log (`docs/09_BUILD_LOG/`)
+
+| 문서 | 설명 | 상태 |
+|------|------|------|
+| `README.md` | Build 기록 가이드(아직 실제 기록 없음) | Active |
+
+## 12. Archive (`docs/99_ARCHIVE/`)
+
+| 문서 | 설명 | 상태 |
+|------|------|------|
+| `README.md` | 폴더 안내(빈 placeholder) | Placeholder |
+
+## 13. Docs Root
 
 | 문서 | 설명 | 상태 |
 |------|------|------|
 | `docs/README.md` | docs 폴더 전체 안내 | Active |
-| `docs/context/README.md` | Context 작성 가이드 | Active |
-| `docs/plan/README.md` | Plan 작성 가이드 | Active |
-| `docs/build/README.md` | Build 기록 가이드 | Active |
-| `docs/skills/README.md` | 스킬 문서 가이드 | Active |
 
-## 12. Root Documents
+## 14. Root Documents
 
 | 문서 | 설명 | 상태 |
 |------|------|------|
@@ -106,7 +130,7 @@
 
 ---
 
-## 13. Index Maintenance Rule
+## 15. Index Maintenance Rule
 
 - 신규 문서를 생성하면 해당 폴더 섹션에 행을 추가한다.
 - 문서 상태가 바뀌면(Draft → Active, Active → Archived 등) 이 표를 갱신한다.

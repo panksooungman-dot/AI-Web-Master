@@ -1,4 +1,4 @@
-# docs/context
+# docs/07_KNOWLEDGE
 
 AI와 사람이 작업할 때 필요한 **배경 맥락(Context)** 을 보관합니다.
 
@@ -17,7 +17,7 @@ AI와 사람이 작업할 때 필요한 **배경 맥락(Context)** 을 보관합
 | 시점 | 행동 |
 |------|------|
 | **새 기능 착수 전** | 관련 Context 문서 작성 또는 갱신 |
-| **Plan 모드 진입 전** | `@docs/context` 로 맥락 첨부 |
+| **Plan 모드 진입 전** | `@docs/07_KNOWLEDGE` 로 맥락 첨부 |
 | **온보딩** | 신규 에이전트·팀원이 먼저 읽을 문서 |
 | **의사결정 후** | ADR 요약을 Context 또는 Plan에 반영 |
 
@@ -25,7 +25,7 @@ AI와 사람이 작업할 때 필요한 **배경 맥락(Context)** 을 보관합
 
 ## Required Sections
 
-`templates/context-template.md` 기준:
+`docs/06_TEMPLATES/context-template.md` 기준:
 
 | 섹션 | 필수 | 설명 |
 |------|------|------|
@@ -45,7 +45,7 @@ AI와 사람이 작업할 때 필요한 **배경 맥락(Context)** 을 보관합
 ### 파일 명명
 
 ```
-docs/context/
+docs/07_KNOWLEDGE/
 ├── README.md
 ├── glossary.md              # 전역 용어집
 ├── ai-chat-domain.md        # AI 채팅 도메인 맥락
@@ -55,7 +55,7 @@ docs/context/
 ### 사용 예 (Cursor)
 
 ```
-@docs/context/ai-chat-domain.md
+@docs/07_KNOWLEDGE/ai-chat-domain.md
 @docs/00_COMPANY/PROJECT_VISION.md
 Plan 모드: AI 채팅 기능의 Context를 바탕으로 Plan 초안 작성
 ```
@@ -79,7 +79,7 @@ Phase 3에서 인증이 필요함. B2B SaaS, 이메일+OAuth.
 ## Workflow
 
 ```
-요청 → Context 작성 → docs/plan/ → Build
+요청 → Context 작성 → docs/08_PLANS/ → Build
 ```
 
 **원칙**: 맥락 없이 Plan을 시작하지 않습니다 (Documentation First).

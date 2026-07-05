@@ -1,4 +1,4 @@
-# docs/skills
+# docs/05_AI/skills
 
 에이전트 **스킬(Skills)** 및 반복 워크플로 문서를 정의합니다. Cursor의 `/` 스킬과 연계하여 사용합니다.
 
@@ -8,7 +8,7 @@
 
 - 반복 작업을 **재사용 가능한 워크플로**로 정의합니다.
 - 에이전트·사람 모두 동일한 단계로 작업합니다.
-- `templates/` 와 연동하여 스캐폴딩·문서 생성을 표준화합니다.
+- `docs/06_TEMPLATES/` 와 연동하여 스캐폴딩·문서 생성을 표준화합니다.
 
 ---
 
@@ -45,7 +45,7 @@
 ### 파일 명명
 
 ```
-docs/skills/
+docs/05_AI/skills/
 ├── README.md
 ├── add-feature-page.md
 ├── add-api-route.md
@@ -62,23 +62,23 @@ docs/skills/
 Plan 승인 후 presentation + app 라우트 스캐폴딩
 
 ## Inputs
-- docs/plan/[feature].md
-- templates/feature-template.md
+- docs/08_PLANS/[feature].md
+- docs/06_TEMPLATES/feature-template.md
 - ARCHITECTURE.md
 
 ## Steps
 1. Plan에서 Affected Layers 확인
-2. templates/ 기반 파일 생성
+2. docs/06_TEMPLATES/ 기반 파일 생성
 3. lint + build 실행
-4. docs/build/ 에 기록
+4. docs/09_BUILD_LOG/ 에 기록
 
 ## Example Prompt
-/add-feature-page @docs/plan/phase1-ai-chat-ui.md
+/add-feature-page @docs/08_PLANS/phase1-ai-chat-ui.md
 ```
 
 ### Cursor 연동
 
-1. `docs/skills/` 에 스킬 명세 작성
+1. `docs/05_AI/skills/` 에 스킬 명세 작성
 2. 필요 시 `.cursor/skills` 또는 Cursor Skill로 등록
 3. 채팅에서 `/스킬명` 호출
 
@@ -87,7 +87,7 @@ Plan 승인 후 presentation + app 라우트 스캐폴딩
 ## Workflow
 
 ```
-반복 작업 식별 → docs/skills/ 문서화 → (선택) Cursor 등록 → 재사용
+반복 작업 식별 → docs/05_AI/skills/ 문서화 → (선택) Cursor 등록 → 재사용
 ```
 
 **원칙**: 한 번 정의한 워크플로는 스킬로 축적합니다 (Reuse Before Rewrite).

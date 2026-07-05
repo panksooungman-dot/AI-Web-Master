@@ -1,7 +1,7 @@
 # Feature: [기능 이름]
 
 > 유형: Feature  
-> Plan: [docs/plan/ 링크]  
+> Plan: [docs/08_PLANS/ 링크]  
 > 상태: Planned | In Progress | Done
 
 ---
@@ -49,9 +49,9 @@
 
 ## Documentation
 
-- [ ] `docs/build/` 구현 기록
+- [ ] `docs/09_BUILD_LOG/` 구현 기록
 - [ ] README 갱신 (필요 시)
-- [ ] `docs/skills/` 스킬 추가 (재사용 시)
+- [ ] `docs/05_AI/skills/` 스킬 추가 (재사용 시)
 
 ---
 

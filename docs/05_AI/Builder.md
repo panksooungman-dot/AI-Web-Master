@@ -8,12 +8,12 @@
 
 ## Responsibilities
 
-- `docs/plan/` 승인 설계에 따른 `src/`, `app/` 구현
-- `templates/` 기반 스캐폴딩 활용
+- `docs/08_PLANS/` 승인 설계에 따른 `src/`, `app/` 구현
+- `docs/06_TEMPLATES/` 기반 스캐폴딩 활용
 - 린트·빌드·테스트 실행 (가능한 경우)
 - 변경 범위를 요청·Plan에 한정
 - 구현 완료 후 Reviewer handoff 준비
-- `docs/build/` 에 구현 요약 기록 (또는 Documenter에 위임)
+- `docs/09_BUILD_LOG/` 에 구현 요약 기록 (또는 Documenter에 위임)
 
 ---
 
@@ -21,11 +21,11 @@
 
 | 입력 | 출처 |
 |------|------|
-| 승인된 Plan | `docs/plan/` |
-| 맥락 | `docs/context/` |
+| 승인된 Plan | `docs/08_PLANS/` |
+| 맥락 | `docs/07_KNOWLEDGE/` |
 | 아키텍처 | `ARCHITECTURE.md`, `src/README.md` |
 | 규칙 | `AI_RULES.md`, `AGENTS.md` |
-| 템플릿 | `templates/feature-template.md` |
+| 템플릿 | `docs/06_TEMPLATES/feature-template.md` |
 
 ---
 
@@ -34,7 +34,7 @@
 | 산출물 | 위치 |
 |--------|------|
 | 소스 코드 | `src/`, `app/` |
-| 구현 요약 | `docs/build/` |
+| 구현 요약 | `docs/09_BUILD_LOG/` |
 | PR / 커밋 | Git |
 
 ---

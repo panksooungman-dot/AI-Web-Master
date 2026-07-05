@@ -61,12 +61,12 @@ User
 
 ## Development Workflow
 
-1. `docs/context/` — 맥락 확보
-2. `docs/plan/` — 설계 승인
-3. `templates/feature-template.md` — 범위 정의
+1. `docs/07_KNOWLEDGE/` — 맥락 확보
+2. `docs/08_PLANS/` — 설계 승인
+3. `docs/06_TEMPLATES/feature-template.md` — 범위 정의
 4. Builder Agent — 계층별 구현
 5. Reviewer Agent — 검토
-6. `docs/build/` — 구현 기록
+6. `docs/09_BUILD_LOG/` — 구현 기록
 
 ---
 
@@ -109,7 +109,7 @@ src/
 
 - Plan 승인 없이 `src/` 코드 생성 금지
 - domain 계층은 framework·DB 라이브러리에 의존하지 않음
-- 새 계층·폴더 추가는 Architect Agent + `docs/plan/` ADR 선행
+- 새 계층·폴더 추가는 Architect Agent + `docs/08_PLANS/` ADR 선행
 - 테스트는 application·domain 우선 (Phase 1+)
 
 상세: `ARCHITECTURE.md`, `TECH_STACK.md`

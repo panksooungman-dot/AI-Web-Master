@@ -1,4 +1,4 @@
-# docs/build
+# docs/09_BUILD_LOG
 
 **Build 단계** 구현·검증·배포와 관련된 문서를 보관합니다.
 
@@ -19,7 +19,7 @@
 | **구현 완료 후** | 구현 요약·변경 파일 목록 기록 |
 | **배포 전/후** | 환경 변수 가이드, 릴리스 노트 |
 | **Review 승인 후** | 최종 Build 기록 + Review 링크 |
-| **Hotfix 후** | `templates/bug-template.md` 기반 기록 |
+| **Hotfix 후** | `docs/06_TEMPLATES/bug-template.md` 기반 기록 |
 
 ---
 
@@ -30,7 +30,7 @@ Build 기록 문서 권장 구조:
 | 섹션 | 필수 | 설명 |
 |------|------|------|
 | Summary | ✅ | 무엇을 구현했는가 |
-| Plan Reference | ✅ | `docs/plan/` 링크 |
+| Plan Reference | ✅ | `docs/08_PLANS/` 링크 |
 | Changes | ✅ | 파일·모듈 변경 목록 |
 | Why / What / Impact | ✅ | `AI_RULES.md` 통신 규칙 |
 | Testing | ✅ | 실행한 검증 (lint, build, test) |
@@ -45,7 +45,7 @@ Build 기록 문서 권장 구조:
 ### 파일 명명
 
 ```
-docs/build/
+docs/09_BUILD_LOG/
 ├── README.md
 ├── phase1-ai-chat-ui-implementation.md
 ├── release-v0.1.0.md
@@ -58,7 +58,7 @@ docs/build/
 # Build: AI Chat UI (Phase 1)
 
 ## Plan Reference
-docs/plan/phase1-ai-chat-ui.md
+docs/08_PLANS/phase1-ai-chat-ui.md
 
 ## Changes
 - src/presentation/chat/ChatPanel.tsx (new)
@@ -89,7 +89,7 @@ PR #12 — Approved by Reviewer Agent
 ## Workflow
 
 ```
-docs/plan/ (승인) → Build (src/) → Review → docs/build/ (기록)
+docs/08_PLANS/ (승인) → Build (src/) → Review → docs/09_BUILD_LOG/ (기록)
 ```
 
 **원칙**: 코드만으로 전달되지 않는 운영·배포 지식은 반드시 문서로 남깁니다.

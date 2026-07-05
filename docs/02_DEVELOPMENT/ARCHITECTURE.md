@@ -1,149 +1,310 @@
-# Architecture
+# ARCHITECTURE
 
-AI Development Operating System — 시스템 아키텍처
-
----
-
-## Overall Architecture
-
-이 저장소는 두 층으로 구성됩니다.
-
-1. **Operating System Layer** — AI·사람이 협업하는 개발 운영 체계 (문서, 에이전트, 템플릿, 스크립트)
-2. **Application Layer** — 실제 제품 코드 (`src/`, `app/`)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Human Lead (승인·비전)                    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│              AI Agents (agents/)                             │
-│  Planner │ Builder │ Reviewer │ Architect │ Documenter        │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│           Documentation Workflow (docs/)                     │
-│  context → plan → build → skills                             │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│     Templates (templates/)  │  Scripts (scripts/)            │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│              Application (src/ + app/)                       │
-│  presentation → application → domain → infrastructure      │
-└─────────────────────────────────────────────────────────────┘
-```
+> AI Business OS - System Architecture Standard
 
 ---
 
-## Directory Responsibilities
+# 문서 정보
 
-| 경로 | 책임 |
+| 항목 | 내용 |
 |------|------|
-| `PROJECT_VISION.md` | 비전, 원칙, 미션 |
-| `AI_RULES.md` | AI 에이전트 운영 규칙 |
-| `PROJECT_ROADMAP.md` | 단계별 로드맵 |
-| `ARCHITECTURE.md` | 본 문서 — 시스템 아키텍처 |
-| `TECH_STACK.md` | 기술 스택 정의 |
-| `AGENTS.md` | Next.js 16 에이전트 규칙 |
-| `docs/context/` | 배경 맥락, 용어, 제약 |
-| `docs/plan/` | 설계·명세 (Plan 산출물) |
-| `docs/build/` | 구현·배포 기록 (Build 산출물) |
-| `docs/skills/` | 스킬·워크플로 정의 |
-| `agents/` | 에이전트 역할·handoff 정의 |
-| `templates/` | 문서·코드 보일러플레이트 |
-| `scripts/` | 자동화 스크립트 |
-| `src/` | 애플리케이션 소스 (Clean Architecture) |
-| `app/` | Next.js App Router (프레젠테이션 진입점) |
+| Document | ARCHITECTURE.md |
+| Department | 02_DEVELOPMENT |
+| Version | 1.0 |
+| Status | Active |
+| Owner | Development Team |
+| Approver | CEO |
 
 ---
 
-## Data Flow
+# 목적 (Purpose)
 
-### 문서·개발 흐름
+본 문서는 AI Business OS의 시스템 아키텍처 표준을 정의한다.
 
-```
-요청/아이디어
-    → docs/context/     (맥락 수집)
-    → docs/plan/        (설계·승인)
-    → src/ + app/       (구현)
-    → Review            (PR, Reviewer Agent)
-    → docs/build/       (구현·배포 기록)
-```
-
-### 애플리케이션 런타임 (예정)
-
-```
-Browser
-    → app/ (Next.js routes, RSC/Client Components)
-    → src/presentation/ (UI 컴포넌트, 뷰 모델)
-    → src/application/  (유스케이스, 서비스)
-    → src/domain/       (엔티티, 도메인 규칙)
-    → src/infrastructure/ (API, DB, 외부 서비스)
-```
-
-의존성 방향: **바깥 → 안쪽** (Infrastructure는 Domain 인터페이스 구현)
+모든 프로젝트는 본 문서를 기반으로 설계하며, 일관성·확장성·유지보수성을 최우선으로 한다.
 
 ---
 
-## Development Lifecycle
+# 아키텍처 원칙
 
-| 단계 | 담당 | 산출물 |
-|------|------|--------|
-| 1. Understand | Planner, Human | `docs/context/` |
-| 2. Plan | Planner, Architect | `docs/plan/` |
-| 3. Implement | Builder | `src/`, `app/` |
-| 4. Test | Builder, CI | 테스트·린트 결과 |
-| 5. Review | Reviewer | PR 코멘트, 리뷰 기록 |
-| 6. Document | Documenter | `docs/build/`, ADR |
+- 단순한 구조를 우선한다.
+- 기능보다 유지보수를 우선한다.
+- 재사용 가능한 컴포넌트를 설계한다.
+- 모듈 간 의존성을 최소화한다.
+- 문서와 코드의 구조를 일치시킨다.
 
 ---
 
-## AI Workflow
+# 전체 구조
+
+```text
+Client
+    │
+    ▼
+Next.js Application
+    │
+    ├── UI Layer
+    ├── Business Logic
+    ├── API Layer
+    └── Data Access Layer
+            │
+            ▼
+Supabase
+```
+
+---
+
+# 프로젝트 구조
+
+```text
+apps/
+packages/
+docs/
+public/
+```
+
+### apps
+
+서비스 애플리케이션
+
+### packages
+
+공통 모듈 및 라이브러리
+
+### docs
+
+운영 문서 및 SOP
+
+### public
+
+정적 리소스
+
+---
+
+# Layer Architecture
+
+## Presentation Layer
+
+- UI
+- Layout
+- Page
+- Component
+
+---
+
+## Business Layer
+
+- Service
+- Business Logic
+- Validation
+
+---
+
+## API Layer
+
+- Route Handler
+- API Endpoint
+- Authentication
+
+---
+
+## Data Layer
+
+- Database
+- Storage
+- External API
+
+---
+
+# Component Architecture
+
+컴포넌트는 다음 원칙을 따른다.
+
+- Single Responsibility
+- Reusable
+- Independent
+- Testable
+
+---
+
+# Folder Rules
+
+예시
+
+```text
+components/
+features/
+hooks/
+lib/
+services/
+types/
+utils/
+```
+
+각 폴더는 하나의 책임만 가진다.
+
+---
+
+# Data Flow
+
+```text
+User
+ ↓
+
+UI
+
+ ↓
+
+Business Logic
+
+ ↓
+
+API
+
+ ↓
+
+Database
+
+ ↓
+
+Response
+```
+
+---
+
+# Dependency Rules
+
+허용
 
 ```
-┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│ Planner  │───▶│ Builder  │───▶│ Reviewer │───▶│Documenter│
-│ (Plan)   │    │ (Build)  │    │          │    │          │
-└──────────┘    └──────────┘    └──────────┘    └──────────┘
-      │               │                │                │
-      ▼               ▼                ▼                ▼
- docs/plan/      src/, app/         PR review      docs/build/
+UI
+ ↓
+
+Service
+ ↓
+
+Repository
+ ↓
+
+Database
 ```
 
-- **Architect**: Plan·Build 전반의 아키텍처 거버넌스
-- **Human Lead**: Plan 승인, 프로덕션 배포 승인
-- Handoff는 Git PR, 문서 링크, `@` 컨텍스트로 추적
+금지
+
+```
+UI
+ ↓
+
+Database
+```
+
+직접 접근 금지
 
 ---
 
-## Layered Architecture
+# Error Handling
 
-`src/` 내부 4계층 (Clean Architecture):
+모든 오류는 다음 절차를 따른다.
 
-| 계층 | 역할 | 예시 |
-|------|------|------|
-| **presentation** | UI, 페이지 조합, 사용자 입력 | React 컴포넌트, hooks |
-| **application** | 유스케이스, 오케스트레이션 | `CreateChatUseCase`, 서비스 |
-| **domain** | 엔티티, 값 객체, 도메인 규칙 | `Message`, `Conversation` |
-| **infrastructure** | 외부 연동 구현 | HTTP 클라이언트, DB 리포지토리 |
-
-`app/` (Next.js)은 **라우팅·레이아웃·서버 컴포넌트 진입점**이며, 비즈니스 로직은 `src/`에 둡니다.
+1. 감지
+2. 기록
+3. 사용자 메시지 제공
+4. 복구 시도
+5. 보고
 
 ---
 
-## Future Scalability
+# Security
 
-| 영역 | 확장 방향 |
-|------|-----------|
-| **에이전트** | Ops, Security Agent 추가 (`PROJECT_ROADMAP.md`) |
-| **자동화** | `scripts/` + CI + Cursor Automations |
-| **멀티 테넌트** | domain 계층에 테넌트 경계 정의 |
-| **API** | Route Handlers → application 유스케이스 위임 |
-| **DB** | infrastructure에 Repository 패턴, domain 인터페이스 |
-| **캐시·큐** | infrastructure 확장, application은 인터페이스만 의존 |
-| **모노레포** | OS 레이어를 별도 패키지로 분리 가능 |
+기본 원칙
 
-원칙: 계층 경계와 문서 워크플로는 규모가 커져도 유지합니다.
+- 환경 변수 사용
+- API Key 노출 금지
+- 인증 필수
+- 권한 검증
+- 입력값 검증
+
+---
+
+# Performance
+
+목표
+
+- 불필요한 렌더링 방지
+- 코드 분할(Code Splitting)
+- 이미지 최적화
+- 캐시 활용
+- Lazy Loading 적용
+
+---
+
+# Logging
+
+기록 대상
+
+- Error
+- Warning
+- API 호출
+- 배포 이력
+
+운영 환경에서는 Debug 로그를 제거한다.
+
+---
+
+# Architecture Review
+
+다음 항목은 반드시 검토한다.
+
+- 확장성
+- 유지보수성
+- 성능
+- 보안
+- 재사용성
+
+---
+
+# 승인 대상
+
+다음 변경은 CEO 승인 후 진행한다.
+
+- 프로젝트 구조 변경
+- 핵심 아키텍처 변경
+- 데이터베이스 구조 변경
+- 인증 구조 변경
+- 외부 시스템 연동
+
+---
+
+# 체크리스트
+
+개발 시작 전
+
+- [ ] PROJECT_VISION 확인
+- [ ] TECH_STACK 확인
+- [ ] CNBIZ_RULES 확인
+- [ ] AI_COMPONENT_GUIDE 확인
+
+개발 완료 후
+
+- [ ] Architecture 유지 여부 확인
+- [ ] 문서 업데이트
+- [ ] 테스트 완료
+
+---
+
+# 관련 문서
+
+- TECH_STACK.md
+- AI_COMPONENT_GUIDE.md
+- CNBIZ_RULES.md
+- AI_RULES.md
+- COMPANY_POLICY.md
+- DOCUMENT_INDEX.md
+
+---
+
+# 변경 이력
+
+| Version | Date | Description |
+|----------|------|-------------|
+| 1.0 | 2026-07-05 | Initial Release |

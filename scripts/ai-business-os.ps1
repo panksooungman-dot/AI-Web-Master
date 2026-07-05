@@ -469,32 +469,67 @@ function docs {
 
 # ------------------------------------------------------------
 # 종료 시 Commit/Push 여부 확인
-#   PowerShell.Exiting 엔진 이벤트를 사용합니다.
-#   (동일 세션에서 스크립트를 다시 dot-source 할 경우를 대비해
-#    기존 구독을 먼저 해제한 뒤 재등록합니다.)
+#
+#   `exit`는 PowerShell 예약 키워드다. function으로 재정의해도
+#   Get-Command에는 잡히지만 실제 `exit` 입력 시에는 절대 호출되지
+#   않는다(파서가 키워드로 처리하고 세션을 바로 종료함). 그래서
+#   PowerShell.Exiting 엔진 이벤트만으로는 액션이 별도 컨텍스트에서
+#   실행되어 Read-Host가 응답을 받지 못해 무반응으로 보였다.
+#
+#   해결: PSReadLine의 Enter 키를 가로채 입력 버퍼가 정확히 "exit"일
+#   때는 실제 exit 키워드로 넘기지 않고, 이 자리(메인 스레드)에서 로직을
+#   실행한 뒤 [Environment]::Exit()으로 프로세스를 직접 종료한다. 창을
+#   X로 닫는 등 PSReadLine을 거치지 않는 종료 경로를 대비해
+#   PowerShell.Exiting 이벤트는 폴백으로 유지한다(동일 세션에서 스크립트를
+#   다시 dot-source 할 경우를 대비해 기존 구독은 먼저 해제 후 재등록).
 # ------------------------------------------------------------
 
-Get-EventSubscriber -SourceIdentifier "PowerShell.Exiting" -ErrorAction SilentlyContinue | Unregister-Event -Force
+$script:AIBizExitHandled = $false
 
-Register-EngineEvent -SourceIdentifier "PowerShell.Exiting" -Action {
+function Invoke-AIBizExitFlow {
+    # git이 어떤 이유로도(core.pager/pager.<cmd> 설정, tty 감지 등) pager를 띄우지
+    # 못하도록 환경 변수 + -c 옵션 + --no-pager를 모두 함께 사용해 이중, 삼중으로 막는다.
+    $prevGitPager = $env:GIT_PAGER
+    $prevPager    = $env:PAGER
+    $env:GIT_PAGER = "cat"
+    $env:PAGER     = "cat"
+
     try {
         $root = $script:AIBizOSRoot
         if (Test-Path (Join-Path $root ".git")) {
             Push-Location $root
             try {
-                $porcelain = git status --porcelain 2>$null
+                # 변경된 파일 "개수"만 확인한다. 파일 목록 자체는 화면에 출력하지 않는다.
+                $porcelain = git -c core.pager=cat -c pager.status=false --no-pager status --porcelain 2>$null
                 if ($LASTEXITCODE -eq 0 -and $porcelain) {
                     $count = ($porcelain | Measure-Object -Line).Lines
+
                     Write-Host ""
-                    Write-Host "[exit] 커밋되지 않은 변경사항이 $count 건 있습니다 ($root)." -ForegroundColor Yellow
-                    $answer = Read-Host "지금 Commit/Push 하시겠습니까? (y/N)"
-                    if ($answer -eq 'y' -or $answer -eq 'Y') {
-                        git add -A
+                    Write-Host "[exit] 커밋되지 않은 변경사항 $count 건" -ForegroundColor Yellow
+
+                    $commitAnswer = Read-Host "Commit 하시겠습니까? (y/N)"
+                    if ($commitAnswer -eq 'y' -or $commitAnswer -eq 'Y') {
+                        git -c core.pager=cat --no-pager add -A *> $null
+
                         $msg = Read-Host "커밋 메시지를 입력하세요"
                         if (-not $msg) { $msg = "chore: session end commit" }
-                        git commit -m $msg
-                        git push
-                        Write-Host "[exit] Commit/Push 완료." -ForegroundColor Green
+
+                        git -c core.pager=cat --no-pager commit -m $msg *> $null
+                        if ($LASTEXITCODE -eq 0) {
+                            Write-Host "[exit] Commit 성공" -ForegroundColor Green
+                        } else {
+                            Write-Host "[exit] Commit 실패" -ForegroundColor Red
+                        }
+
+                        $pushAnswer = Read-Host "Push 하시겠습니까? (y/N)"
+                        if ($pushAnswer -eq 'y' -or $pushAnswer -eq 'Y') {
+                            git -c core.pager=cat --no-pager push *> $null
+                            if ($LASTEXITCODE -eq 0) {
+                                Write-Host "[exit] Push 성공" -ForegroundColor Green
+                            } else {
+                                Write-Host "[exit] Push 실패" -ForegroundColor Red
+                            }
+                        }
                     }
                 }
             } finally {
@@ -503,6 +538,39 @@ Register-EngineEvent -SourceIdentifier "PowerShell.Exiting" -Action {
         }
     } catch {
         # 종료 과정 중 오류는 무시 (세션 종료를 막지 않음)
+    } finally {
+        $env:GIT_PAGER = $prevGitPager
+        $env:PAGER     = $prevPager
+    }
+    Write-Host "안전하게 종료되었습니다." -ForegroundColor Cyan
+}
+
+if (Get-Module -ListAvailable -Name PSReadLine) {
+    Set-PSReadLineKeyHandler -Chord "Enter" -ScriptBlock {
+        param($key, $arg)
+
+        $line = $null
+        $cursor = $null
+        [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+
+        if ($line -and $line.Trim() -eq "exit") {
+            # 실제 exit 키워드로는 절대 넘기지 않는다(넘기면 우리 로직 전에 세션이 즉시 종료됨).
+            [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+            Write-Host ""
+            $script:AIBizExitHandled = $true
+            Invoke-AIBizExitFlow
+            [Environment]::Exit(0)
+        } else {
+            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine($key, $arg)
+        }
+    }
+}
+
+Get-EventSubscriber -SourceIdentifier "PowerShell.Exiting" -ErrorAction SilentlyContinue | Unregister-Event -Force
+
+Register-EngineEvent -SourceIdentifier "PowerShell.Exiting" -Action {
+    if (-not $script:AIBizExitHandled) {
+        Invoke-AIBizExitFlow
     }
 } | Out-Null
 

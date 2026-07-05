@@ -1,0 +1,55 @@
+# ============================================================
+# Git Line Ending Policy (Windows 개발 환경 기준)
+# ------------------------------------------------------------
+# 저장소에는 LF로 저장하고, 체크아웃 시에도 LF를 유지한다.
+# core.autocrlf 설정(사용자별로 다를 수 있음)과 무관하게
+# 모든 기여자에게 동일한 결과를 보장하기 위해 명시한다.
+# ============================================================
+
+* text=auto eol=lf
+
+# ---- 소스 코드 ----
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.css   text eol=lf
+*.scss  text eol=lf
+
+# ---- 문서 ----
+*.md    text eol=lf
+*.mdc   text eol=lf
+*.txt   text eol=lf
+
+# ---- 설정 파일 ----
+*.yml           text eol=lf
+*.yaml          text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.env.example    text eol=lf
+
+# ---- Windows 전용 스크립트: CRLF 유지 ----
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# ---- PowerShell: LF로 통일 ----
+*.ps1   text eol=lf
+
+# ---- Shell 스크립트: LF 필수 ----
+*.sh    text eol=lf
+
+# ---- 이미지/폰트/바이너리: 변환 금지 ----
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.pdf   binary
+*.svg   text eol=lf

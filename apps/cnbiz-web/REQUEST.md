@@ -3,7 +3,7 @@
 > 작성일: 2026년 07월 04일
 > 의뢰자: CNBIZ
 > 담당자: Claude Code (AI 개발팀)
-> 관련 문서: 루트 [`REQUEST.md`](../../REQUEST.md)(v1, 참고용) · [`DESIGN_SYSTEM.md`](../../DESIGN_SYSTEM.md) · [`CNBIZ_RULES.md`](../../CNBIZ_RULES.md)
+> 관련 문서: 루트 [`REQUEST.md`](../../docs/01_PMO/REQUEST.md)(v1, 참고용) · [`DESIGN_SYSTEM.md`](../../docs/03_DESIGN/DESIGN_SYSTEM.md) · [`CNBIZ_RULES.md`](../../docs/02_DEVELOPMENT/CNBIZ_RULES.md)
 
 ---
 

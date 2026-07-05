@@ -38,6 +38,28 @@
 
 ---
 
+## 2026-07-05 (3)
+
+### 추가 (Added)
+
+- **AI Business OS — Company 표준 문서 신설**: `docs/00_COMPANY/`에 회사 운영체계 문서 3종 신규 작성
+  - `ORGANIZATION.md` — 조직도, 역할 디렉터리, 의사결정 권한(RACI), 에스컬레이션 경로, 성장 모델
+  - `COMPANY_POLICY.md` — 운영 원칙, 승인 권한 매트릭스, 엔지니어링·보안·클라이언트·문서화 정책
+  - `DOCUMENT_INDEX.md` — 저장소 전체 문서 마스터 인덱스(00~99 폴더 전수), 인덱스 유지 규칙
+- **AI Business OS — `docs/05_AI` 폴더 확장**: 에이전트 역할 분리·토큰 최적화·실행 오케스트레이션·프롬프트 표준을 다루는 문서 4종 신규 작성
+  - `AGENTS.md` — AI 에이전트 실행 레지스트리(호출 방식·상태), 루트 `AGENTS.md`·`ORGANIZATION.md`와 스코프 구분 명시
+  - `TOKEN_POLICY.md` — 파일 접근·컨텍스트 관리·서브 에이전트 위임·출력 절제 등 토큰 최적화 정책
+  - `WORKFLOW.md` — 에이전트 실행 트리거·핸드오프 프로토콜·에스컬레이션(문서 라이프사이클과 구분된 실행 메커니즘)
+  - `PROMPTS.md` — 역할별 호출 프롬프트 템플릿, Component ID 기반 UI 프롬프트 규칙, 토큰 효율적 프롬프팅 가이드
+  - `DOCUMENT_INDEX.md`의 05_AI 섹션에 위 4종 등록(갱신)
+
+### 변경 (Changed)
+
+- **문서 위치 정리**: `REQUEST.md`를 `docs/00_COMPANY/`에서 `docs/01_PMO/`로 이동(PMO 문서로 재분류), 참조 링크(`apps/cnbiz-web/REQUEST.md` 6번째 줄) 1건 수정
+- **루트 Markdown 정리 마무리**: 이전 세션에서 진행되던 루트→`docs/` 재편 작업 중 누락되어 있던 `agents/README.md`→`docs/05_AI/README.md`, `templates/README.md`→`docs/06_TEMPLATES/README.md` 이동 완료, 빈 폴더(`agents/`, `templates/`) 삭제, 루트 `README.md`의 잔존 링크 2건(`@AI_RULES.md` 경로, `templates/` 경로) 수정
+
+---
+
 ## 2026-07-04 (13)
 
 ### 검증 (Verified)

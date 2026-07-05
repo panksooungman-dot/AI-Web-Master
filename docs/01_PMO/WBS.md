@@ -335,6 +335,7 @@ packages/
 | 2026-07-01 | SEO 구현 완료(9.1~9.5). 메타데이터·OG 이미지·sitemap.xml·robots.txt·Organization 구조화 데이터 적용, 9단계 완료 | Claude Code |
 | 2026-07-05 | `apps/cnbiz-web`(v2 모노레포) 진행 현황 섹션 신설. sitemap.xml·robots.txt 구현 및 `cnbiz.kr` 프로덕션 배포 반영. 기존 1~11단계(v1, `app/`)는 레거시로 표시하고 2026-07-01 기준으로 동결 | Claude Code |
 | 2026-07-05 | Google Analytics 4 연동 완료 반영 (`@next/third-parties`, Vercel 환경 변수 설정 후 프로덕션 확인) | Claude Code |
+| 2026-07-05 | AI Business OS 문서 체계 구축 착수. `REQUEST.md` → `docs/01_PMO/` 재분류, `docs/00_COMPANY/`에 `ORGANIZATION.md`·`COMPANY_POLICY.md`·`DOCUMENT_INDEX.md` 신설, `docs/05_AI/`에 `AGENTS.md`·`TOKEN_POLICY.md`·`WORKFLOW.md`·`PROMPTS.md` 신설 | Claude Code |
 
 ---
 

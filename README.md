@@ -21,7 +21,7 @@
 
 > 개발을 “사람이 코드를 치는 일”에서 “사람과 AI가 함께 시스템을 운영하는 일”로 전환한다.
 
-상세: [`PROJECT_VISION.md`](./PROJECT_VISION.md)
+상세: [`PROJECT_VISION.md`](./docs/00_COMPANY/PROJECT_VISION.md)
 
 ---
 
@@ -80,9 +80,9 @@ npm run lint     # ESLint
 
 작업 전 필수 읽기:
 
-1. [`AI_RULES.md`](./AI_RULES.md)
-2. [`PROJECT_VISION.md`](./PROJECT_VISION.md)
-3. [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+1. [`AI_RULES.md`](./docs/05_AI/AI_RULES.md)
+2. [`PROJECT_VISION.md`](./docs/00_COMPANY/PROJECT_VISION.md)
+3. [`ARCHITECTURE.md`](./docs/02_DEVELOPMENT/ARCHITECTURE.md)
 4. 관련 `docs/` 문서
 
 ---
@@ -101,7 +101,7 @@ Understand → Plan → Implement → Test → Review → Document
 | Review | PR, Reviewer Agent |
 | Document | `docs/build/` |
 
-템플릿: [`templates/`](./templates/)
+템플릿: [`templates/`](./docs/06_TEMPLATES/)
 
 ---
 
@@ -113,13 +113,13 @@ Context → Plan → Build → Review → Document
 
 | 에이전트 | 모드 | 문서 |
 |---------|------|------|
-| Planner | Plan | [`agents/Planner.md`](./agents/Planner.md) |
-| Builder | Build | [`agents/Builder.md`](./agents/Builder.md) |
-| Reviewer | — | [`agents/Reviewer.md`](./agents/Reviewer.md) |
-| Architect | Plan/Build | [`agents/Architect.md`](./agents/Architect.md) |
-| Documenter | — | [`agents/Documenter.md`](./agents/Documenter.md) |
+| Planner | Plan | [`agents/Planner.md`](./docs/05_AI/Planner.md) |
+| Builder | Build | [`agents/Builder.md`](./docs/05_AI/Builder.md) |
+| Reviewer | — | [`agents/Reviewer.md`](./docs/05_AI/Reviewer.md) |
+| Architect | Plan/Build | [`agents/Architect.md`](./docs/05_AI/Architect.md) |
+| Documenter | — | [`agents/Documenter.md`](./docs/05_AI/Documenter.md) |
 
-Cursor: `@AI_RULES.md`, `@docs/context`, Plan/Build 모드, `/` 스킬 활용
+Cursor: `@docs/05_AI/AI_RULES.md`, `@docs/context`, Plan/Build 모드, `/` 스킬 활용
 
 ---
 
@@ -127,11 +127,11 @@ Cursor: `@AI_RULES.md`, `@docs/context`, Plan/Build 모드, `/` 스킬 활용
 
 | 문서 | 설명 |
 |------|------|
-| [PROJECT_VISION.md](./PROJECT_VISION.md) | 비전·원칙 |
-| [AI_RULES.md](./AI_RULES.md) | AI 운영 규칙 |
-| [PROJECT_ROADMAP.md](./PROJECT_ROADMAP.md) | 로드맵 |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 아키텍처 |
-| [TECH_STACK.md](./TECH_STACK.md) | 기술 스택 |
+| [PROJECT_VISION.md](./docs/00_COMPANY/PROJECT_VISION.md) | 비전·원칙 |
+| [AI_RULES.md](./docs/05_AI/AI_RULES.md) | AI 운영 규칙 |
+| [PROJECT_ROADMAP.md](./docs/01_PMO/PROJECT_ROADMAP.md) | 로드맵 |
+| [ARCHITECTURE.md](./docs/02_DEVELOPMENT/ARCHITECTURE.md) | 아키텍처 |
+| [TECH_STACK.md](./docs/02_DEVELOPMENT/TECH_STACK.md) | 기술 스택 |
 | [docs/](./docs/) | 워크플로 문서 |
 
 ---

@@ -56,7 +56,7 @@ docs/context/
 
 ```
 @docs/context/ai-chat-domain.md
-@PROJECT_VISION.md
+@docs/00_COMPANY/PROJECT_VISION.md
 Plan 모드: AI 채팅 기능의 Context를 바탕으로 Plan 초안 작성
 ```
 

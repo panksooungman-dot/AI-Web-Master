@@ -149,8 +149,8 @@
 
 ## References
 
-- [`PROJECT_VISION.md`](../../PROJECT_VISION.md)
-- [`PROJECT_ROADMAP.md`](../../PROJECT_ROADMAP.md)
-- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`AI_RULES.md`](../../AI_RULES.md)
-- [`templates/context-template.md`](../../templates/context-template.md)
+- [`PROJECT_VISION.md`](../00_COMPANY/PROJECT_VISION.md)
+- [`PROJECT_ROADMAP.md`](../01_PMO/PROJECT_ROADMAP.md)
+- [`ARCHITECTURE.md`](../02_DEVELOPMENT/ARCHITECTURE.md)
+- [`AI_RULES.md`](../05_AI/AI_RULES.md)
+- [`templates/context-template.md`](../06_TEMPLATES/context-template.md)

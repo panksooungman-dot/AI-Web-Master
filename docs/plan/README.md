@@ -57,8 +57,8 @@ docs/plan/
 
 ```
 @docs/context/
-@ARCHITECTURE.md
-@templates/plan-template.md
+@docs/02_DEVELOPMENT/ARCHITECTURE.md
+@docs/06_TEMPLATES/plan-template.md
 AI 채팅 UI Phase 1 Plan 작성. Non-goals에 API 연동 제외.
 ```
 

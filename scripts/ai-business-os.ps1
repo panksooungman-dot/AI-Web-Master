@@ -1,0 +1,513 @@
+﻿#requires -Version 5.1
+<#
+    AI Business OS Terminal
+    ------------------------
+    이 스크립트는 PowerShell Profile에서 dot-source(. ) 방식으로 로드됩니다.
+    실제 기능은 전부 이 파일에서 관리합니다. Profile에는 아래 한 줄만 있어야 합니다.
+
+        . "D:\ai-web-master\scripts\ai-business-os.ps1"
+
+    제공 기능
+      - 터미널 시작 배너
+      - Prompt에 Git Branch / 변경사항 표시
+      - sync      : 원격 최신 반영 (pull) + 의존성 동기화
+      - health    : 저장소 상태 점검 (branch, ahead/behind, 변경사항, node/npm)
+      - startday  : 하루 시작 루틴 (sync + 상태 요약 + WBS 현재 작업 표시)
+      - endday    : 하루 종료 루틴 (상태 점검 + 커밋 안내)
+      - release   : 버전 태그 릴리스 준비
+      - deploy    : main 브랜치로 push (Vercel Git 연동 배포 트리거)
+      - docs      : docs 폴더로 이동 + DOCUMENT_INDEX 목차 표시
+      - 종료(exit) 시 변경사항이 있으면 Commit/Push 여부 확인
+#>
+
+# ------------------------------------------------------------
+# 설정
+# ------------------------------------------------------------
+
+$script:AIBizOSRoot = "D:\ai-web-master"
+
+# ------------------------------------------------------------
+# 내부 헬퍼 함수 (Git)
+# ------------------------------------------------------------
+
+function Test-AIBizGitRepo {
+    <# 현재 위치(또는 기본 Root)가 Git 저장소인지 확인 #>
+    param([string]$Path = (Get-Location).Path)
+    try {
+        Push-Location $Path -ErrorAction Stop
+        git rev-parse --is-inside-work-tree 2>$null | Out-Null
+        $result = ($LASTEXITCODE -eq 0)
+    } catch {
+        $result = $false
+    } finally {
+        Pop-Location -ErrorAction SilentlyContinue
+    }
+    return $result
+}
+
+function Get-AIBizGitRoot {
+    <# 현재 위치 기준 Git 루트. 실패하면 AIBizOSRoot로 대체 #>
+    try {
+        $top = git rev-parse --show-toplevel 2>$null
+        if ($LASTEXITCODE -eq 0 -and $top) {
+            return ($top -replace '/', '\')
+        }
+    } catch {}
+    return $script:AIBizOSRoot
+}
+
+function Get-AIBizGitBranch {
+    try {
+        $branch = git rev-parse --abbrev-ref HEAD 2>$null
+        if ($LASTEXITCODE -eq 0) { return $branch }
+    } catch {}
+    return $null
+}
+
+function Get-AIBizGitStatusSummary {
+    <# 변경 파일 수, ahead/behind 커밋 수를 반환 #>
+    $summary = [PSCustomObject]@{
+        Changed = 0
+        Ahead   = 0
+        Behind  = 0
+        Branch  = $null
+    }
+    if (-not (Test-AIBizGitRepo)) { return $summary }
+
+    $summary.Branch = Get-AIBizGitBranch
+
+    $porcelain = git status --porcelain 2>$null
+    if ($LASTEXITCODE -eq 0 -and $porcelain) {
+        $summary.Changed = ($porcelain | Measure-Object -Line).Lines
+    }
+
+    $upstream = git rev-parse --abbrev-ref '@{u}' 2>$null
+    if ($LASTEXITCODE -eq 0 -and $upstream) {
+        $counts = git rev-list --left-right --count "HEAD...$upstream" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $counts) {
+            $parts = $counts -split '\s+'
+            if ($parts.Count -ge 2) {
+                $summary.Ahead  = [int]$parts[0]
+                $summary.Behind = [int]$parts[1]
+            }
+        }
+    }
+
+    return $summary
+}
+
+# ------------------------------------------------------------
+# Prompt: Git Branch / 변경사항 표시
+# ------------------------------------------------------------
+
+function prompt {
+    $location = Get-Location
+    $isRepo = Test-AIBizGitRepo
+
+    Write-Host "PS " -NoNewline -ForegroundColor DarkGray
+    Write-Host $location -NoNewline -ForegroundColor Cyan
+
+    if ($isRepo) {
+        $status = Get-AIBizGitStatusSummary
+        Write-Host " [" -NoNewline -ForegroundColor DarkGray
+        Write-Host $status.Branch -NoNewline -ForegroundColor Yellow
+
+        if ($status.Ahead -gt 0) {
+            Write-Host " ↑$($status.Ahead)" -NoNewline -ForegroundColor Green
+        }
+        if ($status.Behind -gt 0) {
+            Write-Host " ↓$($status.Behind)" -NoNewline -ForegroundColor Red
+        }
+        if ($status.Changed -gt 0) {
+            Write-Host " ±$($status.Changed)" -NoNewline -ForegroundColor Magenta
+        } else {
+            Write-Host " clean" -NoNewline -ForegroundColor DarkGreen
+        }
+        Write-Host "]" -NoNewline -ForegroundColor DarkGray
+    }
+
+    return "`n> "
+}
+
+# ------------------------------------------------------------
+# 시작 배너
+# ------------------------------------------------------------
+
+function Show-AIBizBanner {
+    $branch = if (Test-AIBizGitRepo) { Get-AIBizGitBranch } else { $null }
+
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "  AI Business OS Terminal" -ForegroundColor Cyan
+    Write-Host "  Repo : $script:AIBizOSRoot" -ForegroundColor Gray
+    if ($branch) {
+        Write-Host "  Branch: $branch" -ForegroundColor Gray
+    }
+    Write-Host "  Date : $(Get-Date -Format 'yyyy-MM-dd (ddd) HH:mm')" -ForegroundColor Gray
+    Write-Host "--------------------------------------------------" -ForegroundColor DarkCyan
+    Write-Host "  sync | health | startday | endday | release | deploy | docs" -ForegroundColor DarkYellow
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host ""
+}
+
+# ------------------------------------------------------------
+# 명령: sync
+# ------------------------------------------------------------
+
+function sync {
+    <# 원격 최신 반영 + 의존성 동기화 #>
+    $root = Get-AIBizGitRoot
+    if (-not (Test-AIBizGitRepo)) {
+        Write-Host "[sync] Git 저장소가 아닙니다." -ForegroundColor Red
+        return
+    }
+
+    Push-Location $root
+    try {
+        Write-Host "[sync] git fetch..." -ForegroundColor Cyan
+        git fetch --prune
+
+        $before = git rev-parse HEAD 2>$null
+        $lockBefore = if (Test-Path "package-lock.json") { (Get-Item "package-lock.json").LastWriteTimeUtc } else { $null }
+
+        Write-Host "[sync] git pull..." -ForegroundColor Cyan
+        git pull --ff-only
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "[sync] pull 실패 - fast-forward 불가. 수동으로 확인하세요 (git pull / rebase)." -ForegroundColor Red
+            return
+        }
+
+        $after = git rev-parse HEAD 2>$null
+        $lockAfter = if (Test-Path "package-lock.json") { (Get-Item "package-lock.json").LastWriteTimeUtc } else { $null }
+
+        if ($before -ne $after -and $lockBefore -ne $lockAfter -and (Test-Path "package.json")) {
+            Write-Host "[sync] package-lock.json 변경 감지 -> npm install 실행" -ForegroundColor Cyan
+            npm install
+        }
+
+        Write-Host "[sync] 완료." -ForegroundColor Green
+    } finally {
+        Pop-Location
+    }
+}
+
+# ------------------------------------------------------------
+# 명령: health
+# ------------------------------------------------------------
+
+function health {
+    param([switch]$Full)
+
+    $root = Get-AIBizGitRoot
+    Write-Host ""
+    Write-Host "[health] 저장소 상태 점검" -ForegroundColor Cyan
+
+    if (Test-AIBizGitRepo) {
+        Push-Location $root
+        try {
+            $status = Get-AIBizGitStatusSummary
+            Write-Host "  Branch      : $($status.Branch)"
+            Write-Host "  Ahead/Behind: ↑$($status.Ahead) / ↓$($status.Behind)"
+            if ($status.Changed -gt 0) {
+                Write-Host "  변경 파일   : $($status.Changed)건" -ForegroundColor Yellow
+                git status --short
+            } else {
+                Write-Host "  변경 파일   : 없음 (clean)" -ForegroundColor Green
+            }
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-Host "  Git 저장소가 아닙니다." -ForegroundColor Red
+    }
+
+    Write-Host ""
+    Write-Host "  Node : $(node -v 2>$null)"
+    Write-Host "  npm  : $(npm -v 2>$null)"
+
+    if ($Full) {
+        Push-Location $root
+        try {
+            if (Test-Path "package.json") {
+                $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
+                if ($pkg.scripts.PSObject.Properties.Name -contains "lint") {
+                    Write-Host ""
+                    Write-Host "[health] npm run lint 실행 중..." -ForegroundColor Cyan
+                    npm run lint
+                }
+            }
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-Host ""
+        Write-Host "  (린트/빌드까지 확인하려면: health -Full)" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+}
+
+# ------------------------------------------------------------
+# 명령: startday
+# ------------------------------------------------------------
+
+function startday {
+    $root = Get-AIBizGitRoot
+    Show-AIBizBanner
+    Write-Host "[startday] 하루 시작 루틴을 실행합니다." -ForegroundColor Cyan
+
+    Set-Location $root
+    sync
+    health
+
+    $wbsPath = Join-Path $root "docs\01_PMO\WBS.md"
+    if (Test-Path $wbsPath) {
+        Write-Host "[startday] WBS 현재 상태 요약 (docs/01_PMO/WBS.md)" -ForegroundColor Cyan
+        $lines = Get-Content $wbsPath -Encoding UTF8
+        $inSection = $false
+        foreach ($line in $lines) {
+            if ($line -match '^## 현재 상태') { $inSection = $true }
+            elseif ($inSection -and $line -match '^## ') { break }
+            if ($inSection) { Write-Host $line }
+        }
+    } else {
+        Write-Host "[startday] WBS.md를 찾을 수 없습니다: $wbsPath" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "[startday] 준비 완료. 오늘도 화이팅." -ForegroundColor Green
+}
+
+# ------------------------------------------------------------
+# 명령: endday
+# ------------------------------------------------------------
+
+function endday {
+    $root = Get-AIBizGitRoot
+    Write-Host "[endday] 하루 종료 점검을 시작합니다." -ForegroundColor Cyan
+
+    health
+
+    if (-not (Test-AIBizGitRepo)) { return }
+
+    Push-Location $root
+    try {
+        $status = Get-AIBizGitStatusSummary
+        if ($status.Changed -gt 0) {
+            Write-Host "[endday] 커밋되지 않은 변경사항이 있습니다." -ForegroundColor Yellow
+            Write-Host "  - CHANGELOG.md / WBS.md 갱신 여부를 확인하세요 (AGENTS.md 작업 종료 절차)" -ForegroundColor DarkGray
+
+            $answer = Read-Host "지금 커밋하시겠습니까? (y/N)"
+            if ($answer -eq 'y' -or $answer -eq 'Y') {
+                git add -A
+                $msg = Read-Host "커밋 메시지를 입력하세요"
+                if (-not $msg) { $msg = "chore: end of day commit" }
+                git commit -m $msg
+                Write-Host "[endday] 커밋 완료. push는 'deploy' 명령으로 진행하세요." -ForegroundColor Green
+            } else {
+                Write-Host "[endday] 커밋을 건너뛰었습니다." -ForegroundColor DarkGray
+            }
+        } else {
+            Write-Host "[endday] 변경사항 없음 (clean). 오늘도 수고하셨습니다." -ForegroundColor Green
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+# ------------------------------------------------------------
+# 명령: release
+# ------------------------------------------------------------
+
+function release {
+    param(
+        [ValidateSet("patch", "minor", "major")]
+        [string]$Bump = "patch"
+    )
+
+    $root = Get-AIBizGitRoot
+    $pkgPath = Join-Path $root "package.json"
+    if (-not (Test-Path $pkgPath)) {
+        Write-Host "[release] package.json을 찾을 수 없습니다: $pkgPath" -ForegroundColor Red
+        return
+    }
+
+    Push-Location $root
+    try {
+        $status = Get-AIBizGitStatusSummary
+        if ($status.Changed -gt 0) {
+            Write-Host "[release] 커밋되지 않은 변경사항이 있습니다. 먼저 endday로 정리하세요." -ForegroundColor Red
+            return
+        }
+
+        $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
+        $currentVersion = $pkg.version
+        Write-Host "[release] 현재 버전: $currentVersion (Bump: $Bump)" -ForegroundColor Cyan
+
+        $parts = $currentVersion -split '\.'
+        if ($parts.Count -ne 3) {
+            Write-Host "[release] 버전 형식을 해석할 수 없습니다: $currentVersion" -ForegroundColor Red
+            return
+        }
+        [int]$major, [int]$minor, [int]$patch = $parts
+
+        switch ($Bump) {
+            "major" { $major++; $minor = 0; $patch = 0 }
+            "minor" { $minor++; $patch = 0 }
+            "patch" { $patch++ }
+        }
+        $newVersion = "$major.$minor.$patch"
+
+        $answer = Read-Host "새 버전 v$newVersion 로 릴리스를 진행할까요? (y/N)"
+        if ($answer -ne 'y' -and $answer -ne 'Y') {
+            Write-Host "[release] 취소되었습니다." -ForegroundColor DarkGray
+            return
+        }
+
+        $pkg.version = $newVersion
+        ($pkg | ConvertTo-Json -Depth 10) | Set-Content $pkgPath -Encoding utf8
+
+        git add $pkgPath
+        git commit -m "chore(release): v$newVersion"
+        git tag "v$newVersion"
+
+        Write-Host "[release] v$newVersion 태그 생성 완료." -ForegroundColor Green
+        Write-Host "  push하려면: git push && git push --tags (또는 deploy 명령 사용)" -ForegroundColor DarkGray
+    } finally {
+        Pop-Location
+    }
+}
+
+# ------------------------------------------------------------
+# 명령: deploy
+# ------------------------------------------------------------
+
+function deploy {
+    param(
+        [string]$Branch = "main"
+    )
+
+    $root = Get-AIBizGitRoot
+    if (-not (Test-AIBizGitRepo)) {
+        Write-Host "[deploy] Git 저장소가 아닙니다." -ForegroundColor Red
+        return
+    }
+
+    Push-Location $root
+    try {
+        $current = Get-AIBizGitBranch
+        if ($current -ne $Branch) {
+            Write-Host "[deploy] 현재 브랜치($current)가 대상 브랜치($Branch)와 다릅니다." -ForegroundColor Yellow
+            $answer = Read-Host "$Branch 브랜치로 전환할까요? (y/N)"
+            if ($answer -eq 'y' -or $answer -eq 'Y') {
+                git checkout $Branch
+            } else {
+                Write-Host "[deploy] 취소되었습니다." -ForegroundColor DarkGray
+                return
+            }
+        }
+
+        $status = Get-AIBizGitStatusSummary
+        if ($status.Changed -gt 0) {
+            Write-Host "[deploy] 커밋되지 않은 변경사항이 있습니다. 먼저 커밋하세요 (endday 명령 참고)." -ForegroundColor Red
+            return
+        }
+
+        Write-Host "[deploy] $Branch 브랜치를 원격에 push 합니다 (Vercel Git 연동 자동 배포 트리거)." -ForegroundColor Cyan
+        $answer = Read-Host "계속할까요? (y/N)"
+        if ($answer -ne 'y' -and $answer -ne 'Y') {
+            Write-Host "[deploy] 취소되었습니다." -ForegroundColor DarkGray
+            return
+        }
+
+        git push origin $Branch
+        git push origin --tags
+
+        Write-Host "[deploy] push 완료. Vercel 배포 상태를 대시보드에서 확인하세요." -ForegroundColor Green
+    } finally {
+        Pop-Location
+    }
+}
+
+# ------------------------------------------------------------
+# 명령: docs
+# ------------------------------------------------------------
+
+function docs {
+    param([string]$Name)
+
+    $root = Get-AIBizGitRoot
+    $docsPath = Join-Path $root "docs"
+
+    if (-not (Test-Path $docsPath)) {
+        Write-Host "[docs] docs 폴더를 찾을 수 없습니다: $docsPath" -ForegroundColor Red
+        return
+    }
+
+    if ($Name) {
+        $match = Get-ChildItem -Path $docsPath -Recurse -Filter "*$Name*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($match) {
+            Write-Host "[docs] 열기: $($match.FullName)" -ForegroundColor Cyan
+            Invoke-Item $match.FullName
+        } else {
+            Write-Host "[docs] '$Name'와(과) 일치하는 문서를 찾지 못했습니다." -ForegroundColor Yellow
+        }
+        return
+    }
+
+    Set-Location $docsPath
+    $indexPath = Join-Path $docsPath "00_COMPANY\DOCUMENT_INDEX.md"
+    if (Test-Path $indexPath) {
+        Write-Host "[docs] DOCUMENT_INDEX.md 목차" -ForegroundColor Cyan
+        Get-Content $indexPath | Where-Object { $_ -match '^##\s' } | ForEach-Object {
+            Write-Host "  $_"
+        }
+    } else {
+        Write-Host "[docs] DOCUMENT_INDEX.md를 찾을 수 없습니다." -ForegroundColor Yellow
+    }
+}
+
+# ------------------------------------------------------------
+# 종료 시 Commit/Push 여부 확인
+#   PowerShell.Exiting 엔진 이벤트를 사용합니다.
+#   (동일 세션에서 스크립트를 다시 dot-source 할 경우를 대비해
+#    기존 구독을 먼저 해제한 뒤 재등록합니다.)
+# ------------------------------------------------------------
+
+Get-EventSubscriber -SourceIdentifier "PowerShell.Exiting" -ErrorAction SilentlyContinue | Unregister-Event -Force
+
+Register-EngineEvent -SourceIdentifier "PowerShell.Exiting" -Action {
+    try {
+        $root = $script:AIBizOSRoot
+        if (Test-Path (Join-Path $root ".git")) {
+            Push-Location $root
+            try {
+                $porcelain = git status --porcelain 2>$null
+                if ($LASTEXITCODE -eq 0 -and $porcelain) {
+                    $count = ($porcelain | Measure-Object -Line).Lines
+                    Write-Host ""
+                    Write-Host "[exit] 커밋되지 않은 변경사항이 $count 건 있습니다 ($root)." -ForegroundColor Yellow
+                    $answer = Read-Host "지금 Commit/Push 하시겠습니까? (y/N)"
+                    if ($answer -eq 'y' -or $answer -eq 'Y') {
+                        git add -A
+                        $msg = Read-Host "커밋 메시지를 입력하세요"
+                        if (-not $msg) { $msg = "chore: session end commit" }
+                        git commit -m $msg
+                        git push
+                        Write-Host "[exit] Commit/Push 완료." -ForegroundColor Green
+                    }
+                }
+            } finally {
+                Pop-Location
+            }
+        }
+    } catch {
+        # 종료 과정 중 오류는 무시 (세션 종료를 막지 않음)
+    }
+} | Out-Null
+
+# ------------------------------------------------------------
+# 로드 시 배너 표시
+# ------------------------------------------------------------
+
+Show-AIBizBanner

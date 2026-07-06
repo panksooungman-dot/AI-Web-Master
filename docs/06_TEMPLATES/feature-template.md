@@ -49,7 +49,7 @@
 
 ## Documentation
 
-- [ ] `docs/09_BUILD_LOG/` 구현 기록
+- [ ] `docs/09_WORK_HISTORY/` 구현 기록
 - [ ] README 갱신 (필요 시)
 - [ ] `docs/05_AI/skills/` 스킬 추가 (재사용 시)
 

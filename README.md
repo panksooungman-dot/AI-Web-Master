@@ -39,7 +39,7 @@ ai-web-master/
 │   ├── 06_TEMPLATES/      # 문서·기능 템플릿
 │   ├── 07_KNOWLEDGE/      # 배경 맥락·지식베이스
 │   ├── 08_PLANS/          # 설계·명세 (Plan)
-│   ├── 09_BUILD_LOG/      # 구현·배포 기록 (Build)
+│   ├── 09_WORK_HISTORY/   # 작업 이력·컨텍스트 관리 (CURRENT_CONTEXT·WORK_HISTORY·sessions)
 │   └── 99_ARCHIVE/        # 보관
 │
 ├── AGENTS.md              # Claude Code 프로젝트 운영 규칙
@@ -99,7 +99,7 @@ Understand → Plan → Implement → Test → Review → Document
 | Plan | `docs/08_PLANS/` |
 | Build | `src/`, `app/` |
 | Review | PR, Reviewer Agent |
-| Document | `docs/09_BUILD_LOG/` |
+| Document | `docs/09_WORK_HISTORY/` |
 
 템플릿: [`docs/06_TEMPLATES/`](./docs/06_TEMPLATES/)
 

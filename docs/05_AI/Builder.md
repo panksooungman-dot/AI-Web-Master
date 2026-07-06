@@ -13,7 +13,7 @@
 - 린트·빌드·테스트 실행 (가능한 경우)
 - 변경 범위를 요청·Plan에 한정
 - 구현 완료 후 Reviewer handoff 준비
-- `docs/09_BUILD_LOG/` 에 구현 요약 기록 (또는 Documenter에 위임)
+- `docs/09_WORK_HISTORY/` 에 구현 요약 기록 (또는 Documenter에 위임)
 
 ---
 
@@ -34,7 +34,7 @@
 | 산출물 | 위치 |
 |--------|------|
 | 소스 코드 | `src/`, `app/` |
-| 구현 요약 | `docs/09_BUILD_LOG/` |
+| 구현 요약 | `docs/09_WORK_HISTORY/` |
 | PR / 커밋 | Git |
 
 ---

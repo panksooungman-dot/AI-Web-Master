@@ -250,32 +250,133 @@ function health {
 # ------------------------------------------------------------
 # 명령: startday
 # ------------------------------------------------------------
+#
+#   Git Commit/Push는 수행하지 않는다. docs/09_WORK_HISTORY/CURRENT_CONTEXT.md와
+#   가장 최근 sessions/MM-DD.md만 읽어 하루를 바로 이어갈 수 있도록 요약해 보여준다.
+# ------------------------------------------------------------
+
+function Get-AIBizMarkdownSection {
+    <# 마크다운 라인 배열에서 지정한 헤더(예: '# 다음 작업') 다음 줄부터
+       다음 헤더 줄(#으로 시작) 전까지의 내용을 반환한다. #>
+    param(
+        [string[]]$Lines,
+        [string]$Header
+    )
+    $capture = $false
+    $result = @()
+    foreach ($line in $Lines) {
+        if (-not $capture -and $line.TrimEnd() -eq $Header) {
+            $capture = $true
+            continue
+        }
+        if ($capture -and $line -match '^#{1,6}\s') {
+            break
+        }
+        if ($capture) { $result += $line }
+    }
+    return $result
+}
 
 function startday {
     $root = Get-AIBizGitRoot
-    Show-AIBizBanner
-    Write-Host "[startday] 하루 시작 루틴을 실행합니다." -ForegroundColor Cyan
-
-    Set-Location $root
-    sync
-    health
-
-    $wbsPath = Join-Path $root "docs\01_PMO\WBS.md"
-    if (Test-Path $wbsPath) {
-        Write-Host "[startday] WBS 현재 상태 요약 (docs/01_PMO/WBS.md)" -ForegroundColor Cyan
-        $lines = Get-Content $wbsPath -Encoding UTF8
-        $inSection = $false
-        foreach ($line in $lines) {
-            if ($line -match '^## 현재 상태') { $inSection = $true }
-            elseif ($inSection -and $line -match '^## ') { break }
-            if ($inSection) { Write-Host $line }
-        }
-    } else {
-        Write-Host "[startday] WBS.md를 찾을 수 없습니다: $wbsPath" -ForegroundColor Yellow
-    }
+    $contextPath     = Join-Path $root "docs\09_WORK_HISTORY\CURRENT_CONTEXT.md"
+    $workHistoryPath = Join-Path $root "docs\09_WORK_HISTORY\WORK_HISTORY.md"
+    $sessionsDir     = Join-Path $root "docs\09_WORK_HISTORY\sessions"
 
     Write-Host ""
-    Write-Host "[startday] 준비 완료. 오늘도 화이팅." -ForegroundColor Green
+    Write-Host "====================================" -ForegroundColor DarkCyan
+    Write-Host "AI Business OS - Start Day" -ForegroundColor Cyan
+    Write-Host "====================================" -ForegroundColor DarkCyan
+    Write-Host ""
+
+    if (-not (Test-Path $contextPath)) {
+        Write-Host "[startday] CURRENT_CONTEXT.md를 찾을 수 없습니다: $contextPath" -ForegroundColor Red
+        return
+    }
+
+    $contextLines = Get-Content $contextPath -Encoding UTF8
+
+    # --- Project ---
+    $projectName = "AI Business OS"
+    $projectLine = $contextLines | Where-Object { $_ -match '^- 프로젝트명\s*:\s*(.+)$' } | Select-Object -First 1
+    if ($projectLine -match '^- 프로젝트명\s*:\s*(.+)$') { $projectName = $Matches[1].Trim() }
+
+    Write-Host "Project" -ForegroundColor Yellow
+    Write-Host $projectName
+    Write-Host ""
+
+    # --- Current Status (프로젝트 정보 > 현재 단계) ---
+    $currentStage = "정보 없음"
+    $stageLine = $contextLines | Where-Object { $_ -match '^- 현재 단계\s*:\s*(.+)$' } | Select-Object -First 1
+    if ($stageLine -match '^- 현재 단계\s*:\s*(.+)$') { $currentStage = $Matches[1].Trim() }
+
+    Write-Host "Current Status" -ForegroundColor Yellow
+    Write-Host $currentStage
+    Write-Host ""
+
+    # --- Yesterday (가장 최근 session 파일의 완료한 작업) ---
+    $lastSession = $null
+    if (Test-Path $sessionsDir) {
+        $lastSession = Get-ChildItem -Path $sessionsDir -Filter "*.md" -File |
+            Sort-Object Name -Descending | Select-Object -First 1
+    }
+
+    Write-Host "Yesterday" -ForegroundColor Yellow
+    if ($lastSession) {
+        $sessionLines = Get-Content $lastSession.FullName -Encoding UTF8
+        $completedLines = Get-AIBizMarkdownSection -Lines $sessionLines -Header "# 완료한 작업"
+        $completedItems = $completedLines | Where-Object { $_ -match '^\s*-\s+(.+)$' } | ForEach-Object { $_ -replace '^\s*-\s+', '' }
+        if ($completedItems.Count -gt 0) {
+            foreach ($item in $completedItems) {
+                Write-Host "✓ $item" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "(기록된 완료 작업 없음)" -ForegroundColor DarkGray
+        }
+    } else {
+        Write-Host "(세션 기록 없음)" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+
+    # --- Today's Priority (CURRENT_CONTEXT.md > 다음 작업) ---
+    $todoLines = Get-AIBizMarkdownSection -Lines $contextLines -Header "# 다음 작업"
+    $todoItems = $todoLines | Where-Object { $_ -match '^\s*\d+\.\s+(.+)$' } | ForEach-Object { $_ -replace '^\s*\d+\.\s+', '' }
+
+    Write-Host "Today's Priority" -ForegroundColor Yellow
+    if ($todoItems.Count -gt 0) {
+        $i = 1
+        foreach ($item in $todoItems) {
+            Write-Host "$i. $item"
+            $i++
+        }
+    } else {
+        Write-Host "(등록된 TODO 없음)" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+
+    # --- Health Check (읽기 전용 - 문서 존재 여부만 확인, Git Commit/Push 없음) ---
+    Write-Host "Health Check" -ForegroundColor Yellow
+    if (Test-Path $contextPath) {
+        Write-Host "✓ CURRENT_CONTEXT" -ForegroundColor Green
+    } else {
+        Write-Host "✗ CURRENT_CONTEXT" -ForegroundColor Red
+    }
+    if (Test-Path $workHistoryPath) {
+        Write-Host "✓ WORK_HISTORY" -ForegroundColor Green
+    } else {
+        Write-Host "✗ WORK_HISTORY" -ForegroundColor Red
+    }
+    if ($lastSession) {
+        Write-Host "✓ Session" -ForegroundColor Green
+    } else {
+        Write-Host "✗ Session" -ForegroundColor Red
+    }
+    Write-Host ""
+
+    Write-Host "좋은 하루입니다." -ForegroundColor Cyan
+    Write-Host "작업을 시작하세요." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "====================================" -ForegroundColor DarkCyan
 }
 
 # ------------------------------------------------------------

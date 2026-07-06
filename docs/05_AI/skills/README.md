@@ -70,7 +70,7 @@ Plan 승인 후 presentation + app 라우트 스캐폴딩
 1. Plan에서 Affected Layers 확인
 2. docs/06_TEMPLATES/ 기반 파일 생성
 3. lint + build 실행
-4. docs/09_BUILD_LOG/ 에 기록
+4. docs/09_WORK_HISTORY/ 에 기록
 
 ## Example Prompt
 /add-feature-page @docs/08_PLANS/phase1-ai-chat-ui.md

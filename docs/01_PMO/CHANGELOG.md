@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-06
+
+### 추가 (Added)
+
+- **`/endday` 슬래시 명령 구현**: `.claude/commands/endday.md` 신규 작성. Claude Code 전용 프로젝트 종료 명령으로, Git 작업(add/commit/push)은 수행하지 않고 `docs/09_WORK_HISTORY/`(CURRENT_CONTEXT.md·WORK_HISTORY.md·sessions/MM-DD.md) 문서 정리와 내일 TODO 생성, 읽기 전용 Health Check만 수행하도록 범위를 분리. Git 작업은 기존 PowerShell `exit`(`scripts/ai-business-os.ps1`)가 전담하는 역할 분리 유지
+- **`startday` 명령 재구현 (PowerShell)**: `scripts/ai-business-os.ps1`의 `startday`를 기존 `sync`+`health`+WBS 요약 방식에서 `docs/09_WORK_HISTORY/CURRENT_CONTEXT.md`와 가장 최근 `sessions/MM-DD.md`를 읽어 Project·Current Status·Yesterday(최근 완료 작업)·Today's Priority(다음 작업)·Health Check(문서 존재 여부)를 출력하는 방식으로 교체. 마크다운 섹션 추출용 `Get-AIBizMarkdownSection` 헬퍼 함수 신규 추가. Git Commit/Push는 수행하지 않음
+- **`setup.ps1` 신규 구현**: `scripts/setup.ps1` 신규 작성 — 새 PC에서 1회 실행으로 AI Business OS 개발 환경을 자동 구성. PowerShell Profile 확인·생성 → `ai-business-os.ps1` 연결(중복 연결 방지) → startday/endday/health/sync/exit 명령 등록 확인(정적 텍스트 검사, 부작용 없음) → 프로젝트 폴더·Git 저장소 확인 → Git 설치 확인 → Claude Code 설치 확인 → PATH(git/node/npm) 확인 → 8단계 결과를 Health Check로 요약 출력. Git Commit/Push는 수행하지 않음
+
+### 변경 (Changed)
+
+- **`docs/09_BUILD_LOG` 폐기, `docs/09_WORK_HISTORY`를 "09" 슬롯 공식 구조로 확정**: `docs/09_BUILD_LOG/README.md`(이전 세션에서 이미 삭제되어 uncommitted 상태였음) 삭제를 확정하고, 프로젝트 전체에서 `09_BUILD_LOG` 참조를 `09_WORK_HISTORY`로 갱신 — `README.md`, `src/README.md`, `scripts/README.md`, `docs/05_AI/{Builder,Reviewer,Documenter,skills/README}.md`, `docs/06_TEMPLATES/{feature,bug}-template.md`, `docs/08_PLANS/001-phase1-mvp.md`, `docs/00_COMPANY/DOCUMENT_INDEX.md`(섹션 11을 Work History 구성 파일 기준으로 재작성). `docs/09_WORK_HISTORY/README.md`는 예전 Build Log 설명이 그대로 남아있던 것을 확인하고 실제 Work History 구조(CURRENT_CONTEXT.md·WORK_HISTORY.md·sessions/, startday/`/endday` 흐름)에 맞게 재작성
+
+---
+
 ## 2026-07-05
 
 ### 추가 (Added)

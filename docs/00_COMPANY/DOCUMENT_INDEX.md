@@ -102,11 +102,14 @@
 | `001-phase1-mvp.md` | Phase 1 MVP Plan | Draft |
 | `README.md` | Plan 작성 가이드 | Active |
 
-## 11. Build Log (`docs/09_BUILD_LOG/`)
+## 11. Work History (`docs/09_WORK_HISTORY/`)
 
 | 문서 | 설명 | 상태 |
 |------|------|------|
-| `README.md` | Build 기록 가이드(아직 실제 기록 없음) | Active |
+| `README.md` | Work History 시스템 안내 | Active |
+| `CURRENT_CONTEXT.md` | 현재 프로젝트 상태 스냅샷(항상 최신으로 덮어쓰기) | Active |
+| `WORK_HISTORY.md` | 날짜별 작업 이력(append, 삭제 없음) | Active |
+| `sessions/MM-DD.md` | 일일 세션 상세 기록 | Active |
 
 ## 12. Archive (`docs/99_ARCHIVE/`)
 

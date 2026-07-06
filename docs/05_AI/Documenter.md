@@ -8,7 +8,7 @@
 
 ## Responsibilities
 
-- Build·Review 완료 후 `docs/09_BUILD_LOG/` 기록 작성
+- Build·Review 완료 후 `docs/09_WORK_HISTORY/` 기록 작성
 - Context·Plan·Review 문서 정합성 점검
 - README, ADR, 릴리스 노트 갱신
 - `docs/06_TEMPLATES/` 와 실제 문서 형식 동기화
@@ -33,7 +33,7 @@
 
 | 산출물 | 위치 |
 |--------|------|
-| 구현·배포 기록 | `docs/09_BUILD_LOG/` |
+| 구현·배포 기록 | `docs/09_WORK_HISTORY/` |
 | Context 갱신 | `docs/07_KNOWLEDGE/` |
 | README·가이드 갱신 | 각 폴더 README, 루트 문서 |
 | 스킬 문서 | `docs/05_AI/skills/` |

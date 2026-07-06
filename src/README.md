@@ -66,7 +66,7 @@ User
 3. `docs/06_TEMPLATES/feature-template.md` — 범위 정의
 4. Builder Agent — 계층별 구현
 5. Reviewer Agent — 검토
-6. `docs/09_BUILD_LOG/` — 구현 기록
+6. `docs/09_WORK_HISTORY/` — 구현 기록
 
 ---
 

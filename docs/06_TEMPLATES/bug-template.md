@@ -68,7 +68,7 @@
 ## Regression Prevention
 
 - [ ] 테스트 추가
-- [ ] `docs/09_BUILD_LOG/` 기록
+- [ ] `docs/09_WORK_HISTORY/` 기록
 - [ ] Reviewer 검토
 
 ---

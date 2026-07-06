@@ -201,56 +201,232 @@ function sync {
 
 # ------------------------------------------------------------
 # 명령: health
+#
+#   새 PC에서도 health 한 번으로 개발 환경 전체(Development Tools /
+#   Environment / AI Business OS 문서 체계 / Git 상태)가 정상인지 확인한다.
+#   각 항목은 실패 시 원인과 해결 방법을 함께 출력하고, 마지막에 Overall
+#   Status(PASS/FAIL)로 요약한다.
 # ------------------------------------------------------------
+
+function Write-AIBizHealthLine {
+    param(
+        [bool]$Ok,
+        [string]$Label,
+        [string]$Detail = "",
+        [string]$FixHint = ""
+    )
+    if ($Ok) {
+        if ($Detail) {
+            Write-Host ("✅ {0,-14} {1}" -f $Label, $Detail) -ForegroundColor Green
+        } else {
+            Write-Host "✅ $Label" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "❌ $Label" -ForegroundColor Red
+        if ($Detail) { Write-Host "   원인 : $Detail" -ForegroundColor DarkGray }
+        if ($FixHint) { Write-Host "   해결 : $FixHint" -ForegroundColor DarkGray }
+        $script:AIBizHealthFail = $true
+    }
+}
 
 function health {
     param([switch]$Full)
 
-    $root = Get-AIBizGitRoot
-    Write-Host ""
-    Write-Host "[health] 저장소 상태 점검" -ForegroundColor Cyan
+    $root = $script:AIBizOSRoot
+    $sep = "================================================="
+    $script:AIBizHealthFail = $false
 
-    if (Test-AIBizGitRepo) {
+    Write-Host ""
+    Write-Host $sep -ForegroundColor DarkCyan
+    Write-Host "AI Business OS Health Check" -ForegroundColor Cyan
+    Write-Host $sep -ForegroundColor DarkCyan
+
+    # --- Development Tools ---
+    Write-Host ""
+    Write-Host "Development Tools" -ForegroundColor Yellow
+    Write-Host "-----------------" -ForegroundColor DarkGray
+
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "Git" (git --version 2>$null)
+    } else {
+        Write-AIBizHealthLine $false "Git" "git 명령을 찾을 수 없음" "https://git-scm.com 에서 설치 후 새 터미널을 여세요"
+    }
+
+    if (Get-Command code -ErrorAction SilentlyContinue) {
+        $codeVersion = (code --version 2>$null | Select-Object -First 1)
+        Write-AIBizHealthLine $true "VS Code" $codeVersion
+    } else {
+        Write-AIBizHealthLine $false "VS Code" "code 명령을 찾을 수 없음" "VS Code 설치 후 Command Palette에서 'Shell Command: Install code command in PATH' 실행"
+    }
+
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "Node.js" (node -v 2>$null)
+    } else {
+        Write-AIBizHealthLine $false "Node.js" "node 명령을 찾을 수 없음" "https://nodejs.org 에서 LTS 버전 설치 후 새 터미널을 여세요"
+    }
+
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "npm" (npm -v 2>$null)
+    } else {
+        Write-AIBizHealthLine $false "npm" "npm 명령을 찾을 수 없음" "Node.js를 설치하면 npm이 함께 설치됩니다"
+    }
+
+    if (Get-Command claude -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "Claude Code" (claude --version 2>$null)
+    } else {
+        Write-AIBizHealthLine $false "Claude Code" "claude 명령을 찾을 수 없음" "https://claude.com/claude-code 설치 후 PATH를 확인하세요"
+    }
+
+    # --- Environment ---
+    Write-Host ""
+    Write-Host "Environment" -ForegroundColor Yellow
+    Write-Host "-----------" -ForegroundColor DarkGray
+
+    $psVersion = $PSVersionTable.PSVersion
+    if ($psVersion -ge [Version]"5.1") {
+        Write-AIBizHealthLine $true "PowerShell" "$psVersion"
+    } else {
+        Write-AIBizHealthLine $false "PowerShell" "5.1 이상 필요 (현재 $psVersion)" "Windows Update 또는 PowerShell 7 설치 후 재시도"
+    }
+
+    $profilePath = $PROFILE.CurrentUserCurrentHost
+    if (-not $profilePath) { $profilePath = $PROFILE }
+    $scriptPath = Join-Path $root "scripts\ai-business-os.ps1"
+    $profileOk = $false
+    if (Test-Path $profilePath) {
+        $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+        if ($profileContent -and $profileContent.Contains($scriptPath)) { $profileOk = $true }
+    }
+    if ($profileOk) {
+        Write-AIBizHealthLine $true "Profile" $profilePath
+    } else {
+        Write-AIBizHealthLine $false "Profile" "PowerShell Profile에 ai-business-os.ps1이 연결되어 있지 않음" "scripts\setup.ps1 실행"
+    }
+
+    $pathMissing = @()
+    foreach ($tool in @("git", "node", "npm")) {
+        if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { $pathMissing += $tool }
+    }
+    if ($pathMissing.Count -eq 0) {
+        Write-AIBizHealthLine $true "PATH" "git/node/npm 확인됨"
+    } else {
+        Write-AIBizHealthLine $false "PATH" "PATH에 없음: $($pathMissing -join ', ')" "설치 후 새 터미널을 열어 PATH를 다시 로드하세요"
+    }
+
+    if (Test-Path $root) {
+        Write-AIBizHealthLine $true "Project Root" $root
+    } else {
+        Write-AIBizHealthLine $false "Project Root" "경로를 찾을 수 없음: $root" "저장소를 다시 Clone하세요"
+    }
+
+    $isRepo = Test-AIBizGitRepo -Path $root
+    if ($isRepo) {
+        Write-AIBizHealthLine $true "Git Repository" $root
+    } else {
+        Write-AIBizHealthLine $false "Git Repository" "$root 는 Git 저장소가 아님" "git clone으로 프로젝트를 다시 받으세요"
+    }
+
+    # --- AI Business OS ---
+    Write-Host ""
+    Write-Host "AI Business OS" -ForegroundColor Yellow
+    Write-Host "--------------" -ForegroundColor DarkGray
+
+    $contextPath     = Join-Path $root "docs\09_WORK_HISTORY\CURRENT_CONTEXT.md"
+    $workHistoryPath = Join-Path $root "docs\09_WORK_HISTORY\WORK_HISTORY.md"
+    $sessionsDir     = Join-Path $root "docs\09_WORK_HISTORY\sessions"
+
+    if (Test-Path $contextPath) {
+        Write-AIBizHealthLine $true "CURRENT_CONTEXT"
+    } else {
+        Write-AIBizHealthLine $false "CURRENT_CONTEXT" "$contextPath 없음" "docs\09_WORK_HISTORY\CURRENT_CONTEXT.md 를 생성하세요"
+    }
+
+    if (Test-Path $workHistoryPath) {
+        Write-AIBizHealthLine $true "WORK_HISTORY"
+    } else {
+        Write-AIBizHealthLine $false "WORK_HISTORY" "$workHistoryPath 없음" "docs\09_WORK_HISTORY\WORK_HISTORY.md 를 생성하세요"
+    }
+
+    if (Test-Path $sessionsDir) {
+        Write-AIBizHealthLine $true "Sessions"
+    } else {
+        Write-AIBizHealthLine $false "Sessions" "$sessionsDir 없음" "docs\09_WORK_HISTORY\sessions 폴더를 생성하세요"
+    }
+
+    if (Get-Command startday -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "startday"
+    } else {
+        Write-AIBizHealthLine $false "startday" "함수가 등록되지 않음" "scripts\setup.ps1 실행 후 새 터미널을 여세요"
+    }
+
+    if (Get-Command endday -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "endday"
+    } else {
+        Write-AIBizHealthLine $false "endday" "함수가 등록되지 않음" "scripts\setup.ps1 실행 후 새 터미널을 여세요"
+    }
+
+    if (Get-Module -ListAvailable -Name PSReadLine) {
+        Write-AIBizHealthLine $true "exit"
+    } else {
+        Write-AIBizHealthLine $false "exit" "PSReadLine 모듈이 없어 exit 커밋/푸시 훅이 동작하지 않음" "Install-Module -Name PSReadLine -Scope CurrentUser"
+    }
+
+    if (Get-Command health -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "health"
+    } else {
+        Write-AIBizHealthLine $false "health" "함수가 등록되지 않음" "scripts\setup.ps1 실행 후 새 터미널을 여세요"
+    }
+
+    # --- Git ---
+    Write-Host ""
+    Write-Host "Git" -ForegroundColor Yellow
+    Write-Host "---" -ForegroundColor DarkGray
+
+    if ($isRepo) {
         Push-Location $root
         try {
             $status = Get-AIBizGitStatusSummary
-            Write-Host "  Branch      : $($status.Branch)"
-            Write-Host "  Ahead/Behind: ↑$($status.Ahead) / ↓$($status.Behind)"
+            Write-Host "Branch : $($status.Branch)"
             if ($status.Changed -gt 0) {
-                Write-Host "  변경 파일   : $($status.Changed)건" -ForegroundColor Yellow
-                git status --short
+                Write-Host "Status : $($status.Changed)건 변경" -ForegroundColor Yellow
             } else {
-                Write-Host "  변경 파일   : 없음 (clean)" -ForegroundColor Green
+                Write-Host "Status : clean" -ForegroundColor Green
             }
         } finally {
             Pop-Location
         }
     } else {
-        Write-Host "  Git 저장소가 아닙니다." -ForegroundColor Red
+        Write-Host "Branch : -" -ForegroundColor DarkGray
+        Write-Host "Status : Git 저장소가 아니라 확인 불가" -ForegroundColor Red
     }
 
     Write-Host ""
-    Write-Host "  Node : $(node -v 2>$null)"
-    Write-Host "  npm  : $(npm -v 2>$null)"
-
     if ($Full) {
         Push-Location $root
         try {
             if (Test-Path "package.json") {
                 $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
                 if ($pkg.scripts.PSObject.Properties.Name -contains "lint") {
-                    Write-Host ""
                     Write-Host "[health] npm run lint 실행 중..." -ForegroundColor Cyan
                     npm run lint
+                    Write-Host ""
                 }
             }
         } finally {
             Pop-Location
         }
     } else {
+        Write-Host "(린트/빌드까지 확인하려면: health -Full)" -ForegroundColor DarkGray
         Write-Host ""
-        Write-Host "  (린트/빌드까지 확인하려면: health -Full)" -ForegroundColor DarkGray
     }
+
+    Write-Host $sep -ForegroundColor DarkCyan
+    if ($script:AIBizHealthFail) {
+        Write-Host "Overall Status : FAIL" -ForegroundColor Red
+    } else {
+        Write-Host "Overall Status : PASS" -ForegroundColor Green
+    }
+    Write-Host $sep -ForegroundColor DarkCyan
     Write-Host ""
 }
 

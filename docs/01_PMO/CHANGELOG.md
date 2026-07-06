@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-07-07
+
+### 변경 (Changed)
+
+- **`health` 명령 전면 업그레이드**: `scripts/ai-business-os.ps1`의 `health` 함수를 새 PC에서도 한 번에 개발 환경 전체를 점검할 수 있도록 재작성. Development Tools(Git·VS Code·Node.js·npm·Claude Code 버전 확인), Environment(PowerShell 버전·Profile 연결·PATH·Project Root·Git Repository), AI Business OS(CURRENT_CONTEXT.md·WORK_HISTORY.md·sessions 폴더·startday/endday/exit/health 명령 등록 여부), Git(현재 브랜치·Working Tree 상태) 4개 섹션으로 구성하고 각 항목을 ✅/❌로 출력. 실패 항목은 원인과 해결 방법을 함께 출력, 마지막에 `Overall Status : PASS/FAIL` 요약 추가. 공용 출력 헬퍼 `Write-AIBizHealthLine` 신규 추가. 기존 `-Full`(lint 실행) 옵션은 유지
+
+### 검증 (Verified)
+
+- PowerShell에서 `. scripts/ai-business-os.ps1; health` 1회 실행 — Git·VS Code·Node.js·npm·Claude Code·PowerShell·Profile·PATH·Project Root·Git Repository·CURRENT_CONTEXT·WORK_HISTORY·Sessions·startday·endday·exit·health 전 항목 ✅, `Overall Status : PASS` 정상 출력 확인. 세션 종료 시 exit 훅이 자동 실행되어 변경사항 1건을 감지했으나 비대화형 실행이라 커밋/푸시 없이 정상 종료됨을 `git status`로 재확인(오작동 아님)
+
+---
+
 ## 2026-07-06
 
 ### 추가 (Added)

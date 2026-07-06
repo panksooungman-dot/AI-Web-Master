@@ -15,6 +15,8 @@
 ### 변경 (Changed)
 
 - **`docs/09_BUILD_LOG` 폐기, `docs/09_WORK_HISTORY`를 "09" 슬롯 공식 구조로 확정**: `docs/09_BUILD_LOG/README.md`(이전 세션에서 이미 삭제되어 uncommitted 상태였음) 삭제를 확정하고, 프로젝트 전체에서 `09_BUILD_LOG` 참조를 `09_WORK_HISTORY`로 갱신 — `README.md`, `src/README.md`, `scripts/README.md`, `docs/05_AI/{Builder,Reviewer,Documenter,skills/README}.md`, `docs/06_TEMPLATES/{feature,bug}-template.md`, `docs/08_PLANS/001-phase1-mvp.md`, `docs/00_COMPANY/DOCUMENT_INDEX.md`(섹션 11을 Work History 구성 파일 기준으로 재작성). `docs/09_WORK_HISTORY/README.md`는 예전 Build Log 설명이 그대로 남아있던 것을 확인하고 실제 Work History 구조(CURRENT_CONTEXT.md·WORK_HISTORY.md·sessions/, startday/`/endday` 흐름)에 맞게 재작성
+- **`setup.ps1`/`ai-business-os.ps1` 프로젝트 루트 하드코딩 제거**: 두 스크립트의 `$script:AIBizOSRoot = "D:\ai-web-master"`를 `$PSScriptRoot`(스크립트 자신의 실제 위치) 기준 `(Resolve-Path (Join-Path $PSScriptRoot "..")).Path`로 교체 — `scripts/`의 상위 폴더를 프로젝트 루트로 자동 계산하므로 어느 경로에 Git Clone해도 동일하게 동작. `setup.ps1`이 Profile에 연결하는 `ai-business-os.ps1` 경로도 `$PSScriptRoot` 기준으로 계산
+- **`setup.ps1` 출력을 "AI Business OS Installer v1.0" 형식으로 재구성**: Project Root / PowerShell Profile / Git / Claude Code / Commands Registered / Dynamic Root Detection / Health Check 7개 항목의 ✔/✘ 요약과 "Installation Complete! → Next Step(health/startday)" 출력으로 정리. 다른 경로에 클론한 상황을 시뮬레이션해 전 항목 PASS를 재검증(테스트 후 실제 PowerShell Profile은 백업본으로 원상복구)
 
 ---
 

@@ -3,9 +3,13 @@
     AI Business OS Terminal
     ------------------------
     이 스크립트는 PowerShell Profile에서 dot-source(. ) 방식으로 로드됩니다.
-    실제 기능은 전부 이 파일에서 관리합니다. Profile에는 아래 한 줄만 있어야 합니다.
+    실제 기능은 전부 이 파일에서 관리합니다. Profile에는 아래 한 줄만 있어야 합니다
+    (경로는 실제 설치 위치에 맞게 scripts/setup.ps1이 자동으로 채워 넣는다).
 
-        . "D:\ai-web-master\scripts\ai-business-os.ps1"
+        . "<프로젝트 루트>\scripts\ai-business-os.ps1"
+
+    프로젝트 루트는 하드코딩하지 않고 이 파일 자신의 위치($PSScriptRoot)를 기준으로
+    자동 계산되므로, 어느 경로에 Git Clone해도 동일하게 동작한다.
 
     제공 기능
       - 터미널 시작 배너
@@ -24,7 +28,10 @@
 # 설정
 # ------------------------------------------------------------
 
-$script:AIBizOSRoot = "D:\ai-web-master"
+# $PSScriptRoot = 이 파일(scripts/ai-business-os.ps1)이 실제로 위치한 폴더.
+# 그 상위 폴더(..)가 프로젝트 루트다. dot-source로 로드해도 $PSScriptRoot는
+# 파일 자체의 경로를 기준으로 계산되므로 어느 위치에 Clone해도 항상 정확하다.
+$script:AIBizOSRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 # ------------------------------------------------------------
 # 내부 헬퍼 함수 (Git)

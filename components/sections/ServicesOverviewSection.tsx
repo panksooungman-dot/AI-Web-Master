@@ -1,3 +1,5 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 const services = [
   {
     href: "#consulting",
@@ -43,7 +45,10 @@ const services = [
 
 export default function ServicesOverviewSection() {
   return (
-    <section className="py-24 bg-white">
+    <section
+      className="py-24 bg-white"
+      {...componentMarker("ServicesOverviewSection", "components/sections/ServicesOverviewSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">

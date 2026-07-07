@@ -7,6 +7,7 @@ import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { LivePreviewPanel } from "@/components/developer/LivePreviewPanel";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import type { ProjectRecord, ProjectStatus } from "@/lib/projects/registry";
 import {
@@ -147,6 +148,8 @@ export default function ProjectDashboardPage() {
       {project.description && (
         <p className="text-sm text-gray-400 mb-6">{project.description}</p>
       )}
+
+      <LivePreviewPanel workspacePath={project.workspacePath} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <Card title="Terminal">

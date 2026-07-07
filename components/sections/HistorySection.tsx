@@ -1,3 +1,5 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 const milestones = [
   { year: "2010", title: "CNBIZ 설립", desc: "IT 컨설팅 전문 기업으로 서울에서 출발했습니다." },
   { year: "2013", title: "첫 엔터프라이즈 프로젝트 수주", desc: "대기업 대상 시스템 구축 프로젝트를 성공적으로 완료했습니다." },
@@ -9,7 +11,11 @@ const milestones = [
 
 export default function HistorySection() {
   return (
-    <section id="history" className="py-24 bg-slate-50">
+    <section
+      id="history"
+      className="py-24 bg-slate-50"
+      {...componentMarker("HistorySection", "components/sections/HistorySection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">

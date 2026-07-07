@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 export default function CTASection() {
   return (
-    <section className="relative overflow-hidden bg-slate-900 py-24">
+    <section
+      className="relative overflow-hidden bg-slate-900 py-24"
+      {...componentMarker("CTASection", "components/sections/CTASection.tsx")}
+    >
       {/* Decorative blob */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-96 w-[800px] rounded-full bg-blue-600/15 blur-3xl" />

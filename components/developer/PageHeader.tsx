@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 interface PageHeaderProps {
   icon?: string;
@@ -18,7 +19,10 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <div
+      className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6"
+      {...componentMarker("PageHeader", "components/developer/PageHeader.tsx")}
+    >
       <div>
         <h1 className="text-3xl font-bold">
           {icon ? `${icon} ` : ""}

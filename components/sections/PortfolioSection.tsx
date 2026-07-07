@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const portfolios = [
   {
@@ -35,7 +36,11 @@ const portfolios = [
 
 export default function PortfolioSection() {
   return (
-    <section id="portfolio" className="py-24 bg-white">
+    <section
+      id="portfolio"
+      className="py-24 bg-white"
+      {...componentMarker("PortfolioSection", "components/sections/PortfolioSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-14">

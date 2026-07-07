@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { componentMarker } from "@/lib/dev/component-marker";
+
+const CONTACT_FORM_MARKER = componentMarker("ContactForm", "components/sections/ContactForm.tsx");
 
 type FieldName = "name" | "phone" | "email" | "message";
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -90,7 +93,10 @@ export default function ContactForm() {
 
   if (status === "success") {
     return (
-      <div className="rounded-xl border border-slate-200 shadow-md p-8 text-center">
+      <div
+        className="rounded-xl border border-slate-200 shadow-md p-8 text-center"
+        {...CONTACT_FORM_MARKER}
+      >
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -105,7 +111,12 @@ export default function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="rounded-xl border border-slate-200 shadow-md p-6 sm:p-8">
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="rounded-xl border border-slate-200 shadow-md p-6 sm:p-8"
+      {...CONTACT_FORM_MARKER}
+    >
       <div>
         <label htmlFor="name" className={labelClass}>
           이름 <span className="text-primary">*</span>

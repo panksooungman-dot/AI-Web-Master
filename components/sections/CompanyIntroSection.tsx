@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const values = [
   {
@@ -41,7 +42,11 @@ const values = [
 
 export default function CompanyIntroSection() {
   return (
-    <section id="about" className="py-24 bg-white">
+    <section
+      id="about"
+      className="py-24 bg-white"
+      {...componentMarker("CompanyIntroSection", "components/sections/CompanyIntroSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Left: Text content */}

@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 export default function PortfolioComingSoonSection() {
   return (
-    <section className="relative overflow-hidden bg-secondary text-white">
+    <section
+      className="relative overflow-hidden bg-secondary text-white"
+      {...componentMarker(
+        "PortfolioComingSoonSection",
+        "components/sections/PortfolioComingSoonSection.tsx"
+      )}
+    >
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-96 w-[800px] rounded-full bg-primary/20 blur-3xl" />
       </div>

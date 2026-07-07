@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const services = [
   {
@@ -49,7 +50,11 @@ const services = [
 
 export default function ServicesSection() {
   return (
-    <section id="services" className="py-24 bg-slate-50">
+    <section
+      id="services"
+      className="py-24 bg-slate-50"
+      {...componentMarker("ServicesSection", "components/sections/ServicesSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center max-w-2xl mx-auto mb-16">

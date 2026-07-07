@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { OG_DEFAULTS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site-config";
 import { WorkspaceStoreProvider } from "@/lib/store/workspace-store";
+import { DevInspectorOverlay } from "@cnbiz/dev-inspector";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -72,6 +73,7 @@ export default function RootLayout({
           <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
         </main>
         <Footer />
+        <DevInspectorOverlay />
       </body>
     </html>
   );

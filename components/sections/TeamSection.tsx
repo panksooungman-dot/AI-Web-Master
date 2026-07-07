@@ -1,3 +1,5 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 const departments = [
   {
     icon: (
@@ -57,7 +59,10 @@ const departments = [
 
 export default function TeamSection() {
   return (
-    <section className="py-24 bg-white">
+    <section
+      className="py-24 bg-white"
+      {...componentMarker("TeamSection", "components/sections/TeamSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">

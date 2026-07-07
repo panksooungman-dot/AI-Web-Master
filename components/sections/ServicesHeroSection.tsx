@@ -1,6 +1,11 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 export default function ServicesHeroSection() {
   return (
-    <section className="relative overflow-hidden bg-secondary text-white">
+    <section
+      className="relative overflow-hidden bg-secondary text-white"
+      {...componentMarker("ServicesHeroSection", "components/sections/ServicesHeroSection.tsx")}
+    >
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-96 w-[800px] rounded-full bg-primary/20 blur-3xl" />
       </div>

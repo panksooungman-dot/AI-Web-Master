@@ -18,6 +18,10 @@
       - health    : 저장소 상태 점검 (branch, ahead/behind, 변경사항, node/npm)
       - startday  : 하루 시작 루틴 (sync + 상태 요약 + WBS 현재 작업 표시)
       - endday    : 하루 종료 루틴 (상태 점검 + 커밋 안내)
+      - devmode   : AI Business OS 공통 개발 모드 — Project Manager에 등록된
+                    프로젝트 중 하나를 선택(-Name/-Path로 즉시 지정도 가능)하면
+                    VS Code 열기 + npm run dev(포트 자동 감지) + 실시간 미리보기 +
+                    Git 상태 + Claude Code 준비 + 프로젝트 정보까지 자동 실행
       - release   : 버전 태그 릴리스 준비
       - deploy    : main 브랜치로 push (Vercel Git 연동 배포 트리거)
       - docs      : docs 폴더로 이동 + DOCUMENT_INDEX 목차 표시
@@ -151,8 +155,16 @@ function Show-AIBizBanner {
         Write-Host "  Branch: $branch" -ForegroundColor Gray
     }
     Write-Host "  Date : $(Get-Date -Format 'yyyy-MM-dd (ddd) HH:mm')" -ForegroundColor Gray
+
+    $aiCmd = Get-Command ai -ErrorAction SilentlyContinue
+    if ($aiCmd) {
+        Write-Host "  ai CLI: 설치됨 ($($aiCmd.Source))" -ForegroundColor Gray
+    } else {
+        Write-Host "  ai CLI: 미설치 - packages\cli\install.ps1 (또는 scripts\setup.ps1) 실행 필요" -ForegroundColor Yellow
+    }
+
     Write-Host "--------------------------------------------------" -ForegroundColor DarkCyan
-    Write-Host "  sync | health | startday | endday | release | deploy | docs" -ForegroundColor DarkYellow
+    Write-Host "  sync | health | startday | endday | devmode | release | deploy | docs" -ForegroundColor DarkYellow
     Write-Host "==================================================" -ForegroundColor DarkCyan
     Write-Host ""
 }
@@ -377,6 +389,12 @@ function health {
         Write-AIBizHealthLine $false "health" "함수가 등록되지 않음" "scripts\setup.ps1 실행 후 새 터미널을 여세요"
     }
 
+    if (Get-Command devmode -ErrorAction SilentlyContinue) {
+        Write-AIBizHealthLine $true "devmode"
+    } else {
+        Write-AIBizHealthLine $false "devmode" "함수가 등록되지 않음" "scripts\setup.ps1 실행 후 새 터미널을 여세요"
+    }
+
     # --- Git ---
     Write-Host ""
     Write-Host "Git" -ForegroundColor Yellow
@@ -597,6 +615,421 @@ function endday {
     } finally {
         Pop-Location
     }
+}
+
+# ------------------------------------------------------------
+# 명령: devmode
+#
+#   AI Business OS의 "공통 개발 모드". 특정 저장소에 고정되지 않고, Project
+#   Manager(lib/data/projects.json — /projects 화면과 동일한 등록부)에서
+#   프로젝트를 선택(또는 -Name/-Path로 직접 지정)하면 그 프로젝트를 기준으로
+#   아래 6가지를 자동 실행한다.
+#     1) VS Code 열기            (code <프로젝트 경로>)
+#     2) npm run dev 실행        (새 터미널 창, 실제 사용 포트를 출력에서 자동 인식)
+#     3) localhost 미리보기 열기  (감지된 포트로 기본 브라우저 실행)
+#     4) Git 상태 표시           (branch / ahead·behind / 변경 파일 수)
+#     5) Claude Code 준비        (설치·버전 확인, 실행 명령 안내 — 자동 실행은 하지 않음)
+#     6) 프로젝트 정보 표시       (이름/회사/유형/설명/경로/상태/생성일/마지막 열람)
+#
+#   미리보기 화면의 개발모드 ON/OFF, 호버 시 컴포넌트 테두리, 클릭 시 편집
+#   패널(컴포넌트명·파일 경로·VS Code에서 열기·텍스트/이미지/색상/여백 수정),
+#   저장 시 Fast Refresh 반영은 components/dev-inspector/DevInspectorOverlay.tsx가
+#   제공한다. 이 파일이 심어진 프로젝트라면 어떤 프로젝트를 열어도 동일하게
+#   동작한다(없는 프로젝트는 일반 라이브 미리보기만 제공되는 정상적인 축소 동작).
+# ------------------------------------------------------------
+
+function Get-AIBizProjects {
+    <# lib/data/projects.json(Project Manager 등록부)을 읽어 배열로 반환 #>
+    $registryPath = Join-Path $script:AIBizOSRoot "lib\data\projects.json"
+    if (-not (Test-Path $registryPath)) { return @() }
+
+    try {
+        $raw = Get-Content $registryPath -Raw -Encoding UTF8
+        $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
+        if ($null -eq $parsed) { return @() }
+        return @($parsed)
+    } catch {
+        return @()
+    }
+}
+
+function New-AIBizAdHocProject {
+    <# 등록부에 없는 경로를 직접 지정했을 때 쓰는 임시 프로젝트 레코드 #>
+    param([string]$WorkspacePath, [string]$Name)
+
+    return [PSCustomObject]@{
+        id            = $null
+        name          = $(if ($Name) { $Name } else { Split-Path $WorkspacePath -Leaf })
+        company       = "-"
+        type          = "-"
+        description   = ""
+        workspacePath = $WorkspacePath
+        status        = "-"
+        createdAt     = $null
+        lastOpenedAt  = $null
+    }
+}
+
+function Select-AIBizProject {
+    <# -Name / -Path가 있으면 자동 선택, 없으면 등록된 프로젝트 목록에서 대화형 선택 #>
+    param(
+        [string]$Name,
+        [string]$Path
+    )
+
+    if ($Path) {
+        if (-not (Test-Path $Path)) {
+            Write-Host "[devmode] 경로를 찾을 수 없습니다: $Path" -ForegroundColor Red
+            return $null
+        }
+        return New-AIBizAdHocProject -WorkspacePath (Resolve-Path $Path).Path
+    }
+
+    $projects = Get-AIBizProjects
+
+    if ($Name) {
+        $match = $projects | Where-Object { $_.name -like "*$Name*" } | Select-Object -First 1
+        if ($match) { return $match }
+        Write-Host "[devmode] '$Name'와 일치하는 프로젝트를 찾지 못했습니다. 전체 목록에서 선택하세요." -ForegroundColor Yellow
+    }
+
+    if ($projects.Count -eq 0) {
+        Write-Host "[devmode] 등록된 프로젝트가 없습니다 (/projects 에서 먼저 등록할 수 있습니다). 현재 저장소를 사용합니다." -ForegroundColor DarkGray
+        return New-AIBizAdHocProject -WorkspacePath $script:AIBizOSRoot -Name "AI Business OS (현재 저장소)"
+    }
+
+    Write-Host ""
+    Write-Host "등록된 프로젝트" -ForegroundColor Yellow
+    for ($i = 0; $i -lt $projects.Count; $i++) {
+        $p = $projects[$i]
+        Write-Host ("  {0}) {1,-28} ({2,-10}) {3}" -f ($i + 1), $p.name, $p.company, $p.workspacePath)
+    }
+    Write-Host ""
+
+    $choice = Read-Host "프로젝트 번호를 선택하세요 (Enter = 현재 저장소)"
+    if (-not $choice) {
+        return New-AIBizAdHocProject -WorkspacePath $script:AIBizOSRoot -Name "AI Business OS (현재 저장소)"
+    }
+
+    $index = 0
+    if ([int]::TryParse($choice, [ref]$index) -and $index -ge 1 -and $index -le $projects.Count) {
+        return $projects[$index - 1]
+    }
+
+    Write-Host "[devmode] 잘못된 선택입니다. 현재 저장소를 사용합니다." -ForegroundColor Yellow
+    return New-AIBizAdHocProject -WorkspacePath $script:AIBizOSRoot -Name "AI Business OS (현재 저장소)"
+}
+
+function Update-AIBizProjectLastOpened {
+    <# devmode로 연 프로젝트의 lastOpenedAt을 갱신 (/projects 화면과 동일한 갱신). 실패해도 devmode 진행은 막지 않는다 #>
+    param([string]$Id)
+    if (-not $Id) { return }
+
+    $registryPath = Join-Path $script:AIBizOSRoot "lib\data\projects.json"
+    if (-not (Test-Path $registryPath)) { return }
+
+    try {
+        $projects = Get-Content $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $changed = $false
+        foreach ($p in $projects) {
+            if ($p.id -eq $Id) {
+                $p.lastOpenedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                $changed = $true
+            }
+        }
+        if ($changed) {
+            ($projects | ConvertTo-Json -Depth 10) | Set-Content $registryPath -Encoding utf8
+        }
+    } catch {
+        # 등록부 갱신 실패는 무시한다 (devmode 자체 기능이 아니라 부가 동기화이므로)
+    }
+}
+
+function Start-AIBizDevServer {
+    <# 새 터미널 창에서 npm run dev를 실행하고, 출력에서 실제 바인딩된 포트를 감지해 반환한다 #>
+    param([string]$ProjectPath)
+
+    $logFile = Join-Path $env:TEMP ("aibiz-devmode-{0}.log" -f (Get-Date -Format "yyyyMMddHHmmssfff"))
+
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", `
+        "Set-Location '$ProjectPath'; npm run dev *>&1 | Tee-Object -FilePath '$logFile'"
+
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Milliseconds 500
+        if (Test-Path $logFile) {
+            $content = Get-Content $logFile -Raw -ErrorAction SilentlyContinue
+            if ($content -match "https?://localhost:(\d+)") {
+                return [int]$Matches[1]
+            }
+        }
+    }
+
+    return $null
+}
+
+function Install-AIBizDevInspector {
+    <#
+      대상 프로젝트에 Visual Editor(@cnbiz/dev-inspector 공유 패키지)를 자동으로 연결한다.
+      이미 연결되어 있으면 아무것도 하지 않는다(멱등 — 기존 프로젝트도 그대로 유지).
+      코드를 복사하지 않고, 로컬 공유 패키지를 npm install로 연결한 뒤 프로젝트마다
+      다른 4가지만 자동 생성/수정한다:
+        - app/api/dev-inspector/{save-text,save-image,save-style}/route.ts (신규 파일, 1줄 재노출)
+        - babel.config.js (없을 때만 생성 — data-component-id 자동 주입 플러그인 등록)
+        - next.config에 transpilePackages 추가 (안전하게 위치를 찾을 수 있을 때만)
+        - app/layout.tsx에 <DevInspectorOverlay /> 삽입 (안전하게 위치를 찾을 수 있을 때만)
+      자동으로 처리할 수 없는 항목은 파일을 건드리지 않고 수동 안내만 출력한다.
+    #>
+    param([string]$ProjectPath)
+
+    $sharedPackagePath = Join-Path $script:AIBizOSRoot "packages\dev-inspector"
+    if (-not (Test-Path $sharedPackagePath)) {
+        Write-Host "⚠️  Visual Editor    공유 패키지를 찾을 수 없어 건너뜁니다 ($sharedPackagePath)" -ForegroundColor Yellow
+        return
+    }
+
+    $appDir = Join-Path $ProjectPath "app"
+    $packageJsonPath = Join-Path $ProjectPath "package.json"
+    if (-not (Test-Path $appDir) -or -not (Test-Path $packageJsonPath)) {
+        Write-Host "⚠️  Visual Editor    App Router(app/) 구조가 아니어서 건너뜁니다" -ForegroundColor Yellow
+        return
+    }
+
+    $apiRouteDir = Join-Path $ProjectPath "app\api\dev-inspector"
+    if (Test-Path (Join-Path $apiRouteDir "save-text\route.ts")) {
+        Write-Host "✅ Visual Editor    이미 연결되어 있음 (건너뜀)" -ForegroundColor Green
+        return
+    }
+
+    Write-Host "[devmode] Visual Editor(@cnbiz/dev-inspector)를 이 프로젝트에 처음 연결합니다..." -ForegroundColor Cyan
+
+    # 1) npm install (로컬 공유 패키지 참조 — 코드 복사 없음)
+    Push-Location $ProjectPath
+    try {
+        npm install $sharedPackagePath --save *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ❌ npm install 실패 - 수동으로 실행: npm install `"$sharedPackagePath`"" -ForegroundColor Red
+            return
+        }
+        Write-Host "  ✅ npm install 완료 (@cnbiz/dev-inspector)" -ForegroundColor Green
+    } finally {
+        Pop-Location
+    }
+
+    # 2) API 라우트 3개 생성 (실제 로직은 공유 패키지, 여긴 1줄 재노출)
+    $handlers = [ordered]@{
+        "save-text"  = "saveTextHandler"
+        "save-image" = "saveImageHandler"
+        "save-style" = "saveStyleHandler"
+    }
+    foreach ($route in $handlers.Keys) {
+        $routeDir = Join-Path $apiRouteDir $route
+        New-Item -ItemType Directory -Force -Path $routeDir | Out-Null
+        $routeFile = Join-Path $routeDir "route.ts"
+        $handlerName = $handlers[$route]
+        Set-Content -Path $routeFile -Encoding utf8 -Value @(
+            "// devmode(AI Business OS)가 자동 생성한 wiring 파일. 실제 구현은"
+            "// @cnbiz/dev-inspector/src/server(공유 패키지)에 있다."
+            "export { $handlerName as POST } from `"@cnbiz/dev-inspector/src/server`";"
+        )
+    }
+    Write-Host "  ✅ API 라우트 3개 생성 (app/api/dev-inspector/*)" -ForegroundColor Green
+
+    # 3) babel.config.js — 이미 babel 설정이 있으면 건드리지 않는다
+    $existingBabelConfig = @("babel.config.js", ".babelrc", ".babelrc.js", "babel.config.mjs") |
+        Where-Object { Test-Path (Join-Path $ProjectPath $_) } | Select-Object -First 1
+
+    if ($existingBabelConfig) {
+        Write-Host "  ⚠️  기존 babel 설정이 있어 자동 생성을 건너뜁니다 ($existingBabelConfig)" -ForegroundColor Yellow
+        Write-Host "     수동으로 플러그인 등록: require.resolve('@cnbiz/dev-inspector/src/babel-plugin-component-marker')" -ForegroundColor DarkGray
+    } else {
+        $babelPluginPath = ($sharedPackagePath -replace '\\', '/') + "/src/babel-plugin-component-marker.js"
+        Set-Content -Path (Join-Path $ProjectPath "babel.config.js") -Encoding utf8 -Value @(
+            "module.exports = {"
+            "  presets: [`"next/babel`"],"
+            "  plugins: [`"$babelPluginPath`"],"
+            "};"
+        )
+        Write-Host "  ✅ babel.config.js 생성 - data-component-id를 컴포넌트 루트에 자동 주입합니다" -ForegroundColor Green
+        Write-Host "     (참고: Next.js가 이제 SWC 대신 Babel로 컴파일합니다)" -ForegroundColor DarkGray
+    }
+
+    # 4) next.config에 transpilePackages 추가 (안전하게 위치를 찾을 수 있을 때만)
+    $nextConfigFile = @("next.config.ts", "next.config.js", "next.config.mjs") |
+        ForEach-Object { Join-Path $ProjectPath $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if (-not $nextConfigFile) {
+        Write-Host "  ⚠️  next.config 파일을 찾지 못했습니다 - transpilePackages를 수동으로 설정하세요" -ForegroundColor Yellow
+    } else {
+        $configContent = Get-Content $nextConfigFile -Raw -Encoding UTF8
+        if ($configContent -match "@cnbiz/dev-inspector") {
+            Write-Host "  ✅ next.config에 이미 설정되어 있음" -ForegroundColor Green
+        } elseif ($configContent -match "transpilePackages\s*:\s*\[") {
+            Write-Host "  ⚠️  next.config에 기존 transpilePackages가 있어 자동 추가를 건너뜁니다" -ForegroundColor Yellow
+            Write-Host "     수동으로 배열에 `"@cnbiz/dev-inspector`" 추가 ($nextConfigFile)" -ForegroundColor DarkGray
+        } else {
+            $anchorMatches = [regex]::Matches($configContent, "=\s*\{")
+            if ($anchorMatches.Count -eq 1) {
+                $insertPos = $anchorMatches[0].Index + $anchorMatches[0].Length
+                $updated = $configContent.Insert($insertPos, "`n  transpilePackages: [`"@cnbiz/dev-inspector`"],")
+                Set-Content -Path $nextConfigFile -Value $updated -Encoding utf8
+                Write-Host "  ✅ next.config에 transpilePackages 자동 추가 ($nextConfigFile)" -ForegroundColor Green
+            } else {
+                Write-Host "  ⚠️  next.config 형식을 자동으로 인식하지 못해 건너뜁니다" -ForegroundColor Yellow
+                Write-Host "     수동으로 추가: transpilePackages: [`"@cnbiz/dev-inspector`"]" -ForegroundColor DarkGray
+            }
+        }
+    }
+
+    # 5) app/layout.tsx에 <DevInspectorOverlay /> 삽입 (안전하게 위치를 찾을 수 있을 때만)
+    $layoutFile = @("app\layout.tsx", "app\layout.jsx", "src\app\layout.tsx") |
+        ForEach-Object { Join-Path $ProjectPath $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if (-not $layoutFile) {
+        Write-Host "  ⚠️  app/layout.tsx를 찾지 못했습니다 - 수동으로 <DevInspectorOverlay /> 추가 필요" -ForegroundColor Yellow
+    } else {
+        $layoutContent = Get-Content $layoutFile -Raw -Encoding UTF8
+        if ($layoutContent -match "DevInspectorOverlay") {
+            Write-Host "  ✅ layout에 이미 DevInspectorOverlay가 있음" -ForegroundColor Green
+        } else {
+            $bodyCloseMatches = [regex]::Matches($layoutContent, "</body>")
+            if ($bodyCloseMatches.Count -eq 1) {
+                $insertPos = $bodyCloseMatches[0].Index
+                $updated = $layoutContent.Insert($insertPos, "<DevInspectorOverlay />`n      ")
+                $updated = "import { DevInspectorOverlay } from `"@cnbiz/dev-inspector`";`n" + $updated
+                Set-Content -Path $layoutFile -Value $updated -Encoding utf8
+                Write-Host "  ✅ $layoutFile 에 <DevInspectorOverlay /> 자동 추가" -ForegroundColor Green
+            } else {
+                Write-Host "  ⚠️  layout.tsx에서 </body> 위치를 안전하게 찾지 못해 건너뜁니다" -ForegroundColor Yellow
+                Write-Host "     수동으로 </body> 앞에 <DevInspectorOverlay /> 추가 ($layoutFile)" -ForegroundColor DarkGray
+            }
+        }
+    }
+
+    Write-Host "[devmode] Visual Editor 연결 완료." -ForegroundColor Cyan
+}
+
+function devmode {
+    <#
+      참고: 이 함수는 ai-web-master 저장소에 PowerShell 프로필이 연결되어 있을
+      때만 동작한다(프로젝트 전용). 어떤 컴퓨터·어떤 프로젝트에서도 동일하게
+      쓸 수 있는 전역 버전은 packages/cli(@cnbiz/ai-business-os-cli, `ai`
+      명령)를 설치해 `ai devmode`로 실행한다. 두 버전 모두 유지되며, 이 함수는
+      기존 사용자를 위해 그대로 남아있다.
+    #>
+    param(
+        [string]$Name,
+        [string]$Path
+    )
+
+    Write-Host ""
+    Write-Host "====================================" -ForegroundColor DarkCyan
+    Write-Host "AI Business OS - Dev Mode" -ForegroundColor Cyan
+    Write-Host "====================================" -ForegroundColor DarkCyan
+
+    $project = Select-AIBizProject -Name $Name -Path $Path
+    if (-not $project) { return }
+
+    $workspacePath = $project.workspacePath
+    if (-not (Test-Path $workspacePath)) {
+        Write-Host "[devmode] 프로젝트 경로를 찾을 수 없습니다: $workspacePath" -ForegroundColor Red
+        return
+    }
+
+    Write-Host ""
+    Write-Host "선택됨: $($project.name)  ->  $workspacePath" -ForegroundColor Cyan
+    Write-Host ""
+
+    # 0) Visual Editor(@cnbiz/dev-inspector) 자동 연결 — 새 프로젝트에도 코드 복사 없이 적용
+    Install-AIBizDevInspector -ProjectPath $workspacePath
+    Write-Host ""
+
+    # 1) VS Code 열기
+    if (Get-Command code -ErrorAction SilentlyContinue) {
+        code $workspacePath
+        Write-Host "✅ VS Code         열림 ($workspacePath)" -ForegroundColor Green
+    } else {
+        Write-Host "❌ VS Code         code 명령을 찾을 수 없음" -ForegroundColor Red
+        Write-Host "   해결 : VS Code에서 Command Palette > 'Shell Command: Install code command in PATH' 실행" -ForegroundColor DarkGray
+    }
+
+    # 2) npm run dev 실행 + 3) 미리보기 열기 (실제 포트를 출력에서 자동 감지)
+    $hasPackageJson = Test-Path (Join-Path $workspacePath "package.json")
+    $port = $null
+    if ($hasPackageJson) {
+        Write-Host "[devmode] 새 터미널 창에서 'npm run dev'를 시작합니다 (포트 자동 감지 중)..." -ForegroundColor Cyan
+        $port = Start-AIBizDevServer -ProjectPath $workspacePath
+
+        if ($port) {
+            Write-Host "✅ Dev Server      새 터미널 창에서 시작됨 (http://localhost:$port)" -ForegroundColor Green
+            Start-Process "http://localhost:$port"
+            Write-Host "✅ Live Preview    열림 (http://localhost:$port)" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️  Dev Server      포트를 자동으로 감지하지 못했습니다 - 새로 열린 터미널 창을 직접 확인하세요" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "⚠️  Dev Server      package.json이 없어 건너뜁니다 ($workspacePath)" -ForegroundColor Yellow
+    }
+
+    # 4) Git 상태 표시
+    Write-Host ""
+    Write-Host "Git 상태" -ForegroundColor Yellow
+    Push-Location $workspacePath
+    try {
+        if (Test-AIBizGitRepo -Path $workspacePath) {
+            $gitStatus = Get-AIBizGitStatusSummary
+            Write-Host "  Branch : $($gitStatus.Branch)"
+            if ($gitStatus.Ahead -gt 0)  { Write-Host "  Ahead  : $($gitStatus.Ahead)"  -ForegroundColor Green }
+            if ($gitStatus.Behind -gt 0) { Write-Host "  Behind : $($gitStatus.Behind)" -ForegroundColor Red }
+            if ($gitStatus.Changed -gt 0) {
+                Write-Host "  Status : $($gitStatus.Changed)건 변경" -ForegroundColor Yellow
+            } else {
+                Write-Host "  Status : clean" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "  Git 저장소가 아닙니다." -ForegroundColor DarkGray
+        }
+    } finally {
+        Pop-Location
+    }
+
+    # 5) Claude Code 준비
+    Write-Host ""
+    Write-Host "Claude Code" -ForegroundColor Yellow
+    if (Get-Command claude -ErrorAction SilentlyContinue) {
+        $claudeVersion = (claude --version 2>$null)
+        Write-Host "✅ 준비됨 ($claudeVersion)" -ForegroundColor Green
+        Write-Host "  실행: cd `"$workspacePath`" 후 claude" -ForegroundColor DarkGray
+    } else {
+        Write-Host "❌ claude 명령을 찾을 수 없음" -ForegroundColor Red
+        Write-Host "  해결 : https://claude.com/claude-code 설치 후 PATH를 확인하세요" -ForegroundColor DarkGray
+    }
+
+    # 6) 프로젝트 정보 표시
+    Write-Host ""
+    Write-Host "프로젝트 정보" -ForegroundColor Yellow
+    Write-Host "  이름   : $($project.name)"
+    Write-Host "  회사   : $($project.company)"
+    Write-Host "  유형   : $($project.type)"
+    if ($project.description) { Write-Host "  설명   : $($project.description)" }
+    Write-Host "  경로   : $workspacePath"
+    Write-Host "  상태   : $($project.status)"
+    if ($project.createdAt)    { Write-Host "  생성일    : $($project.createdAt)" }
+    if ($project.lastOpenedAt) { Write-Host "  마지막 열람: $($project.lastOpenedAt)" }
+
+    if ($project.id) {
+        Update-AIBizProjectLastOpened -Id $project.id
+    }
+
+    Write-Host ""
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host "창 배치: VS Code(Win+왼쪽 화살표) · 미리보기(Win+오른쪽 화살표)" -ForegroundColor DarkGray
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host "브라우저 좌하단 '🎨 편집 모드' 버튼을 켜면 호버 선택·클릭 편집 패널·" -ForegroundColor Gray
+    Write-Host "텍스트/이미지/색상/여백 저장이 그 자리에서 가능합니다(해당 컴포넌트가" -ForegroundColor Gray
+    Write-Host "심어진 프로젝트에 한함 - components/dev-inspector 참고)." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "====================================" -ForegroundColor DarkCyan
+    Write-Host ""
 }
 
 # ------------------------------------------------------------
@@ -857,6 +1290,21 @@ Register-EngineEvent -SourceIdentifier "PowerShell.Exiting" -Action {
         Invoke-AIBizExitFlow
     }
 } | Out-Null
+
+# ------------------------------------------------------------
+# ai CLI(@cnbiz/ai-business-os-cli) PATH 자가 복구
+#    `ai` 전역 CLI가 이 세션이 열리기 전(다른 프로세스)에 설치·PATH 등록됐다면,
+#    이미 실행 중인 이 세션의 $env:Path에는 반영되지 않았을 수 있다(윈도우를
+#    새로 열지 않고 계속 쓰는 경우 흔히 발생). 이 스크립트는 새 PowerShell
+#    창을 열 때마다 Profile을 통해 로드되므로, 매번 조용히 한 번 더 PATH를
+#    Machine+User 레지스트리 기준으로 반영해 별도 조치 없이 `ai`가 바로
+#    동작하게 한다.
+# ------------------------------------------------------------
+if (-not (Get-Command ai -ErrorAction SilentlyContinue)) {
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machinePath;$userPath"
+}
 
 # ------------------------------------------------------------
 # 로드 시 배너 표시

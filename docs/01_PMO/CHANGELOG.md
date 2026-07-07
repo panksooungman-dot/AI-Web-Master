@@ -4,6 +4,95 @@
 
 ---
 
+## 2026-07-08 (3)
+
+### 수정 (Fixed)
+
+- **PowerShell Profile로 열린 창(ai-business-os.ps1 정상 실행·배너 표시)에서도 `Get-Command ai`가 계속 실패하던 문제 수정**: `ai` CLI 자체는 정상 설치되어 있어도, PATH 레지스트리 등록이 **그 창이 열리기 전에** 다른 프로세스(install.ps1/setup.ps1)에서 이뤄졌다면 이미 실행 중이던 PowerShell 세션의 `$env:Path`에는 반영되지 않는다 — 새 창을 열지 않고 계속 쓰던 세션에서 흔히 발생하는 문제
+  - `scripts/ai-business-os.ps1`에 자가 복구 로직 추가: 스크립트가 로드될 때(Profile을 통해 새 PowerShell 창을 열 때마다 실행됨) `ai` 명령이 현재 세션에서 인식되지 않으면, Machine+User 레지스트리에서 PATH를 다시 읽어 세션에 즉시 반영 — 사용자가 별도 조치를 하지 않아도 다음에 여는 창부터는 자동으로 해결됨
+  - 시작 배너(`Show-AIBizBanner`)에 `ai CLI: 설치됨 (경로)` / `ai CLI: 미설치 - ... 실행 필요` 줄 추가 — 터미널을 열 때마다 `ai` 상태가 바로 보이므로 다음에 같은 문제가 생겨도 원인을 즉시 알 수 있음
+
+### 검증 (Verified)
+
+- 안전한 발췌본(exit-hook 등록 이전 구간만) dot-source 방식으로 재현 테스트: 현재 세션의 `$env:Path`에서만 npm 전역 경로를 제거해 "이미 열려 있던 창" 상태를 만든 뒤(레지스트리는 건드리지 않음) `ai` 인식 실패를 먼저 확인 → 자가 복구 로직 실행 후 `ai` 인식 성공, 배너에 `ai CLI: 설치됨 (...)` 표시까지 확인
+- 전체 스크립트 구문 검사(`Parser]::ParseFile`) 통과, UTF-8 BOM 유지 확인
+
+---
+
+## 2026-07-08 (2)
+
+### 수정 (Fixed)
+
+- **`setup.ps1` 실행 후에도 `Get-Command ai`가 실패하던 문제 수정**: 사용자가 "설치"로 실행한 것이 `packages/cli/install.ps1`(신규 `ai` 전역 CLI 설치 스크립트)가 아니라 `scripts/setup.ps1`(이 저장소 전용, PowerShell 프로필에 `devmode`/`health` 등을 연결하는 기존 스크립트)이었음을 확인. `setup.ps1`은 "Installation Complete!"를 출력하지만 애초에 `ai` CLI를 전혀 설치하지 않는 별개의 스크립트였음 — 두 설치 스크립트가 이름 때문에 혼동되고 있었음
+  - `setup.ps1`에 8번째 단계 "AI CLI (ai 명령)" 추가 — `packages/cli/install.ps1`을 직접 호출해 전역 `ai` 명령을 실제로 설치하고, 완료 후 `Get-Command ai`로 재검증해 결과 테이블에 포함. 어느 설치 스크립트를 먼저 실행하더라도 최종적으로 `ai` 명령이 설치되도록 함
+  - 스크립트 상단 설명과 "Next Step" 안내를 `ai doctor`/`ai devmode` 중심으로 갱신, 기존 `health`/`startday`(이 저장소 전용)는 별도로 구분 표기
+
+### 검증 (Verified)
+
+- 이전과 동일한 방법으로 "새 PC" 상태 재현(레지스트리 User PATH에서 npm 전역 경로 임시 제거, 사전 백업) 후 `setup.ps1`을 직접 실행 — 결과 테이블에 `✔ AI CLI (ai 명령)` 표시, "Installation Complete!" 출력 확인
+- 스크립트 종료 직후 레지스트리(`[Environment]::GetEnvironmentVariable("Path","User")`, 프로세스 캐시가 아닌 실제 저장값)에 npm 전역 경로가 영구 등록됐음을 확인
+- 세션 PATH 갱신 후 사용자가 보고한 것과 동일한 명령을 실행 — `Get-Command ai`(정상 조회), `ai --help`(정상 출력) 모두 확인
+
+---
+
+## 2026-07-08
+
+### 수정 (Fixed)
+
+- **`install.ps1`이 새 컴퓨터에서 `ai` 명령을 PATH에 영구 등록하지 못하던 문제 수정**: 사용자가 실제 새 PC에서 설치 후 `Get-Command ai`/`where.exe ai`가 모두 실패한다고 보고. 원인은 기존 `Update-SessionPath`가 **현재 세션의 `$env:Path`만** 갱신하고 레지스트리(`HKCU\Environment`)에는 아무것도 쓰지 않았던 것 — Node.js를 새로 설치한 환경에서 npm 전역 prefix(`%AppData%\Roaming\npm`)가 애초에 영구 PATH에 등록되어 있지 않으면, 설치 스크립트가 끝나고 새 터미널을 열어도 `ai`가 인식되지 않았음
+  - `Add-ToUserPath` 함수 신규 추가 — `npm config get prefix`로 실제 npm 전역 설치 위치를 **가정하지 않고 직접 조회**한 뒤, 사용자 PATH(레지스트리, 영구 반영)에 없으면 추가. 이미 있으면 중복 추가하지 않음
+  - `npm install -g`가 실패하면(관리자 권한이 필요한 위치를 가리키는 경우 등) 사용자 전용 npm prefix(`%LOCALAPPDATA%\ai-business-os\npm-global`)로 전환해 자동 재시도
+  - `npm install -g` 성공 여부 판정 로직도 함께 수정 — 기존에는 `2>&1 | ForEach-Object {...}`로 출력을 파이프한 뒤 `$LASTEXITCODE`를 읽어 값이 유실될 수 있었음. 네이티브 호출 직후 즉시 `$LASTEXITCODE`를 캡처하도록 변경
+  - 설치 마지막 단계에서 `Get-Command`(PATH 조회, 세션에 따라 달라질 수 있음)만이 아니라 `ai.cmd` 파일이 실제로 디스크에 존재하는지, 그 전체 경로로 `ai --help`/`ai doctor`를 직접 실행했을 때 정상 동작하는지까지 증거 기반으로 검증하도록 변경
+
+### 검증 (Verified)
+
+- 실제 재현 후 수정: 이 개발 PC의 사용자 PATH(레지스트리)에서 npm 전역 prefix 항목을 임시로 제거해(`[Environment]::SetEnvironmentVariable` 직접 조작, 사전에 원본 값 백업) "새 PC에 Node.js는 있지만 npm 전역 경로가 PATH에 없는" 상태를 실제로 재현
+- 그 상태에서 `install.ps1`을 재실행 — `사용자 PATH 등록 ... (새로 추가함)` 로그로 실제 추가 동작을 확인하고, 스크립트 종료 직후 레지스트리를 다시 읽어(`[Environment]::GetEnvironmentVariable("Path","User")`, 프로세스에 캐시된 값이 아닌 실제 저장값) npm prefix가 영구적으로 포함됐음을 확인 — 새로 여는 터미널에서도 정상 동작할 근거 확보
+- `ai --help`·`ai doctor`가 설치 스크립트 내에서 전체 경로 직접 실행으로 정상 출력됨을 확인
+
+---
+
+## 2026-07-07 (3)
+
+### 추가 (Added)
+
+- **AI Business OS CLI 설치 완결(원커맨드 설치)**: `packages/cli/install.ps1`을 Node.js/npm만 확인하던 기존 버전에서, Git·Node.js·VS Code까지 winget으로 자동 설치 시도하는 전체 설치 스크립트로 확장. `packages/cli/Setup.cmd`(더블클릭 실행기, 관리자 권한 불필요) 신규 추가 — "Setup.exe" 요청에 대해 컴파일된 MSI/EXE 대신 더블클릭 가능한 배치 런처로 대응(README에 이 선택을 명시)
+  - 설치 스크립트가 winget install 직후 `$env:Path`를 Machine+User 레지스트리에서 다시 읽어 **현재 세션에 즉시 반영** — 새 터미널을 열지 않아도 이어서 `ai` 명령을 바로 사용 가능
+  - 설치 마지막 단계에서 방금 설치한 `ai` 자신으로 `ai doctor`를 실행해 최종 점검 결과를 보여줌 — "설치 후 devmode 바로 실행 가능" 상태를 설치 스크립트 스스로 증명
+  - 소요 시간 표시(초 단위) 추가
+  - README에 "AI Business OS CLI 설치" 섹션 신규 작성 — Setup.cmd/install.ps1 두 가지 설치 경로, 설치 스크립트가 수행하는 단계, `ai doctor`/`ai new`/`ai devmode` 사용법, 제거 방법 기재
+
+### 수정 (Fixed)
+
+- `install.ps1`이 UTF-8 BOM 없이 저장되어 있어 Windows PowerShell 5.1에서 한글 문자열이 깨져 표시되던 문제 발견 및 수정 — 기존 `scripts/ai-business-os.ps1`·`scripts/setup.ps1`과 동일하게 UTF-8 BOM으로 재저장. 스크립트 안에서 `[Console]::OutputEncoding`을 UTF-8로 맞추는 것만으로는 해결되지 않고(콘솔 출력 인코딩과 스크립트 소스 파일 자체를 읽는 인코딩은 별개 문제), 파일 자체의 BOM이 원인이었음을 실제 재현 후 확인
+
+### 검증 (Verified)
+
+- 격리된 PowerShell 프로세스(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File install.ps1`)로 설치 스크립트 전체를 처음부터 끝까지 실제 실행 — Git·Node.js·npm·VS Code 확인, `npm install -g` 전역 설치, 세션 내 PATH 즉시 갱신, 마지막 `ai doctor` 임베디드 실행까지 전 구간 정상 동작 확인(환경에 이미 도구가 설치되어 있어 winget 자동 설치 분기 자체는 조건 검증만 하고 실제 설치 실행까지는 재현하지 않음 — 정직하게 한계로 기록)
+- BOM 수정 전/후 동일한 스크립트를 재실행해 한글 깨짐이 실제로 해결됨을 화면 출력으로 직접 대조 확인
+
+## 2026-07-07 (2)
+
+### 추가 (Added)
+
+- **AI Business OS 전역 CLI (`packages/cli`, `@cnbiz/ai-business-os-cli`, `ai` 명령) 신규 구현**: 기존 `devmode`는 ai-web-master 저장소에 PowerShell 프로필이 연결되어 있어야만 동작하는 프로젝트 전용 기능이었음을 확인하고(프로젝트 레지스트리·Visual Editor 공유 패키지가 모두 저장소 내부 경로에 고정), 어떤 컴퓨터·어떤 프로젝트에서도 동작하는 Node.js 기반 전역 CLI로 새로 구현
+  - `ai new` — 새 프로젝트 스캐폴딩(package.json·README·git init) 후 전역 레지스트리(`~/.ai-business-os/projects.json`, 특정 저장소가 아닌 사용자 홈 기준)에 등록
+  - `ai devmode` — VS Code 열기 + 새 터미널 창에서 `npm run dev`(포트 자동 감지) + 브라우저 미리보기 + Git 상태 + Claude Code 준비 확인 + Visual Editor(@cnbiz/dev-inspector) 자동 연결. 등록된 프로젝트가 없으면 현재 폴더를 대상으로 동작(`--path`/`--name` 옵션 지원)
+  - `ai deploy` — 브랜치 확인 → 미커밋 변경사항 검사 → 확인 후 push
+  - `ai doctor` — Git·Node·npm·VS Code·Claude Code 설치 여부 및 버전, 전역 설정 디렉터리 상태 점검
+  - Visual Editor 자동 연결 로직은 `scripts/ai-business-os.ps1`의 `Install-AIBizDevInspector`를 Node.js로 포팅(`packages/cli/src/lib/devInspectorInstall.js`), `@cnbiz/dev-inspector` 공유 패키지 소스를 `packages/cli/vendor/dev-inspector`에 물리적으로 복사해 번들 — CLI가 어느 컴퓨터에 설치되든 ai-web-master 저장소가 로컬에 없어도 동작
+  - `packages/cli/install.ps1` — Node.js/npm 확인 후 `npm install -g`로 전역 설치하는 Windows 설치 스크립트(관리자 권한 불필요, MSI/EXE 아님)
+  - 기존 `scripts/ai-business-os.ps1`의 `devmode`(PowerShell 프로필 기반)는 그대로 유지 — 저장소 전용 워크플로가 필요한 기존 사용자를 위해 남겨두고, 함수 상단에 전역 CLI로의 안내 주석만 추가
+
+### 검증 (Verified)
+
+- `npm link`로 `ai` 명령을 전역 등록 후, ai-web-master와 무관한 디렉터리(`C:\Users\CNBIZ`)에서 `ai doctor` 실행 확인 — Git·Node·npm·VS Code·Claude Code 전부 정상 감지
+- `ai new`로 ai-web-master 외부(scratchpad)에 완전히 새 프로젝트 생성 → 전역 레지스트리 등록 확인
+- 격리된 Next.js 형태 fixture 프로젝트에 대해 `ai devmode --path`를 실제로 실행 — Visual Editor 자동 연결(npm install로 `packages/cli/vendor/dev-inspector`를 `file:` 의존성으로 연결, API 라우트 3개 생성, `babel.config.js` 생성, `next.config.ts`에 `transpilePackages` 추가, `app/layout.tsx`에 `<DevInspectorOverlay />` 삽입) 전부 파일 diff로 확인, 재실행 시 멱등하게 건너뜀을 확인. VS Code 실제 실행, Git 상태·Claude Code 준비 확인까지 전 구간 정상 동작 확인
+- 버그 수정: Windows에서 `npm.cmd`/`code.cmd`처럼 셸 스크립트로 배포되는 명령은 `shell:true` 없이 `spawnSync`하면 `EINVAL`로 실패함을 발견해 수정. `git init` 직후(커밋이 하나도 없는 상태)에는 `git rev-parse --abbrev-ref HEAD`가 실패해 브랜치를 "Git 저장소가 아님"으로 잘못 표시하던 문제를 `git symbolic-ref --short HEAD` fallback으로 수정 — `ai new` 직후 `ai devmode`를 실행하는 실제 흐름에서 발생하는 문제였음
+- 루트(Development OS) `npx tsc --noEmit`·`npm run lint` 통과, 회귀 없음 확인
+
 ## 2026-07-07
 
 ### 변경 (Changed)

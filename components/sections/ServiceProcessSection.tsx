@@ -1,3 +1,5 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 const steps = [
   { step: "01", title: "상담 신청", desc: "홈페이지 또는 이메일로 문의를 남겨주시면 담당자가 영업일 24시간 내 연락드립니다." },
   { step: "02", title: "요구사항 분석", desc: "현황과 목표를 함께 점검하고 프로젝트 범위를 구체화합니다." },
@@ -8,7 +10,10 @@ const steps = [
 
 export default function ServiceProcessSection() {
   return (
-    <section className="py-24 bg-secondary text-white">
+    <section
+      className="py-24 bg-secondary text-white"
+      {...componentMarker("ServiceProcessSection", "components/sections/ServiceProcessSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary-light text-sm font-semibold tracking-widest uppercase mb-3">

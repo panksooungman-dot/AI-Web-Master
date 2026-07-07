@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
+import { componentMarker } from "@/lib/dev/component-marker";
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
   actions?: ReactNode;
   children: ReactNode;
@@ -13,10 +14,19 @@ const VARIANT_BACKGROUND: Record<NonNullable<CardProps["variant"]>, string> = {
   console: "bg-black",
 };
 
-export function Card({ title, actions, children, className, variant = "panel" }: CardProps) {
+export function Card({
+  title,
+  actions,
+  children,
+  className,
+  variant = "panel",
+  ...rest
+}: CardProps) {
   return (
     <div
       className={`rounded-xl border border-gray-700 ${VARIANT_BACKGROUND[variant]} p-5 shadow-xl ${className ?? ""}`}
+      {...componentMarker("Card", "components/developer/Card.tsx")}
+      {...rest}
     >
       {(title || actions) && (
         <div className="flex items-center justify-between mb-4">

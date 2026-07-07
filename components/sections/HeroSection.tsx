@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const stats = [
   { value: "2010", label: "설립연도" },
@@ -9,7 +10,10 @@ const stats = [
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-secondary text-white">
+    <section
+      className="relative overflow-hidden bg-secondary text-white"
+      {...componentMarker("HeroSection", "components/sections/HeroSection.tsx")}
+    >
       {/* Decorative blobs */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-48 -right-48 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />

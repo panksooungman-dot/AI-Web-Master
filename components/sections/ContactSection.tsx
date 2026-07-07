@@ -1,4 +1,5 @@
 import ContactForm from "@/components/sections/ContactForm";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const infoItems = [
   {
@@ -33,7 +34,11 @@ const infoItems = [
 
 export default function ContactSection() {
   return (
-    <section id="form" className="scroll-mt-20 py-24 bg-white">
+    <section
+      id="form"
+      className="scroll-mt-20 py-24 bg-white"
+      {...componentMarker("ContactSection", "components/sections/ContactSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">

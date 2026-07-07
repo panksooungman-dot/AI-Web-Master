@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 interface NavLink {
   label: string;
@@ -28,7 +29,7 @@ export default function MobileMenu({ navLinks }: { navLinks: NavLink[] }) {
   }, [isOpen]);
 
   return (
-    <div className="lg:hidden">
+    <div className="lg:hidden" {...componentMarker("MobileMenu", "components/layout/MobileMenu.tsx")}>
       <button
         ref={buttonRef}
         type="button"

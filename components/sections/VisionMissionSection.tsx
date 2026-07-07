@@ -1,3 +1,5 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 const values = [
   {
     icon: (
@@ -39,7 +41,11 @@ const values = [
 
 export default function VisionMissionSection() {
   return (
-    <section id="values" className="py-24 bg-white">
+    <section
+      id="values"
+      className="py-24 bg-white"
+      {...componentMarker("VisionMissionSection", "components/sections/VisionMissionSection.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">

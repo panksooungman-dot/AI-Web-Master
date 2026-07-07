@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const footerLinks = {
   회사: [
@@ -21,7 +22,10 @@ const footerLinks = {
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400">
+    <footer
+      className="bg-slate-900 text-slate-400"
+      {...componentMarker("Footer", "components/layout/Footer.tsx")}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 py-14 border-b border-slate-800">

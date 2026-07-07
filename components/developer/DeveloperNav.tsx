@@ -2,21 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const NAV_LINKS = [
+  { href: "/projects", label: "프로젝트 관리" },
   { href: "/developer/workspace", label: "Workspace" },
   { href: "/developer/terminal", label: "Terminal" },
   { href: "/developer/github", label: "GitHub" },
   { href: "/developer/ai", label: "AI" },
   { href: "/developer/logs", label: "Logs" },
   { href: "/developer/settings", label: "Settings" },
+  { href: "/developer/ui-map", label: "UI Explorer" },
 ];
 
 export function DeveloperNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-2 mb-6 border-b border-gray-800 pb-4">
+    <nav
+      className="flex flex-wrap gap-2 mb-6 border-b border-gray-800 pb-4"
+      {...componentMarker("DeveloperNav", "components/developer/DeveloperNav.tsx")}
+    >
       {NAV_LINKS.map((link) => {
         const isActive = pathname === link.href;
 

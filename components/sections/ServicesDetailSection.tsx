@@ -1,3 +1,5 @@
+import { componentMarker } from "@/lib/dev/component-marker";
+
 const services = [
   {
     id: "consulting",
@@ -57,6 +59,7 @@ export default function ServicesDetailSection() {
           key={service.id}
           id={service.id}
           className={`scroll-mt-20 py-24 ${index % 2 === 1 ? "bg-slate-50" : "bg-white"}`}
+          {...componentMarker("ServicesDetailSection", "components/sections/ServicesDetailSection.tsx")}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">

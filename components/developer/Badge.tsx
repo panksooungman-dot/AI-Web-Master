@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 export type BadgeTone =
   | "success"
@@ -31,6 +32,7 @@ export function Badge({ tone, children, className }: BadgeProps) {
   return (
     <span
       className={`shrink-0 rounded border px-2 py-0.5 text-xs font-semibold ${TONE_STYLES[tone]} ${className ?? ""}`}
+      {...componentMarker("Badge", "components/developer/Badge.tsx")}
     >
       {children}
     </span>

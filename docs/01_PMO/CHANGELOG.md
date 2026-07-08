@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-07-08 (4)
+
+### 수정 (Fixed)
+
+- **`setup.ps1`이 "Installation Complete!"를 출력해도 실제로는 `ai.cmd`가 생성되지 않던 문제 수정**: 근본 원인은 `packages/cli/install.ps1` 20번째 줄의 `$ErrorActionPreference = "Stop"` — `npm install -g`가 stderr에 경고 한 줄(예: `npm warn using --force ...`)만 출력해도 PowerShell 5.1이 이를 즉시 종료 오류(NativeCommandError)로 승격시켜 스크립트가 `ai.cmd` shim 생성 확인 코드에 도달하기 전에 조용히 중단되고 있었음. `setup.ps1`은 이 중단을 감지하지 못하고 `Get-Command ai`(PATH 인식 여부)만으로 성공을 판정해 항상 "Installation Complete!"를 출력하던 것도 함께 원인이었음
+  - `packages/cli/install.ps1` — `$ErrorActionPreference`를 `"Stop"`에서 `"Continue"`로 변경(스크립트는 예외가 아닌 `$LASTEXITCODE` 명시적 확인으로 성공 여부를 판단하므로 안전). `npm install -g`에 `--force` 추가(npm이 "up to date"로 오판해 shim 재생성을 건너뛰는 것 방지). shim이 여전히 없으면 `npm uninstall -g` 후 재설치하는 자동 복구 로직 추가. 전체 실패 시 `exit 1` 반환(기존엔 항상 exit 0)
+  - `scripts/setup.ps1` — "AI CLI (ai 명령)" 항목을 `Get-Command ai` 단독 판정 대신, `npm config get prefix` + `Test-Path "<prefix>\ai.cmd"`로 파일 실존 여부를 직접 검사한 뒤에만 성공 처리하도록 변경
+
+### 검증 (Verified)
+
+- `ai.cmd`·`ai.ps1`·`ai` shim 파일을 실제로 삭제해 "새 PC" 상태를 재현한 뒤 `install.ps1` 단독 실행, `setup.ps1` 전체 실행 각각에 대해 수정 전 재현(조용한 중단, `ai.cmd` 미생성) → 수정 후 정상 생성(`Test-Path` → `True`, 종료 코드 0)까지 확인
+
+---
+
+## 2026-07-08 (5)
+
+### 추가 (Added)
+
+- **AI Business OS CLI — 메뉴 런처(Menu Launcher) V1 구현**: 명령어를 외우지 않고 `ai`만 입력하면 번호로 모든 기능을 실행할 수 있는 대화형 메뉴 신규 추가
+  - `packages/cli/src/commands/menu.js`(신규) — 메뉴 항목을 `{ key, label, action }` 배열(`MENU_ITEMS`)로 정의해 새 메뉴 추가 시 함수 하나 + 배열 한 줄만 더하면 되는 구조. 1.설치/업데이트(`scripts/setup.ps1` 실행, 저장소 루트를 자동 탐색해 실행하고 없으면 안내 메시지) 2.개발 시작(기존 `devmode()` 그대로 재사용) 3.환경 점검(기존 `doctor()` 그대로 재사용) 4.Claude 실행(현재 폴더에서 `claude` 인터랙티브 실행) 5.UI Explorer(`http://localhost:3000/developer/ui-explorer` 열기) 6.Git 동기화(`git pull`) 7.저장 및 업로드(커밋 메시지 입력 → `git add -A` → commit → 확인 후 push) 8.설정(설정 폴더 경로 표시 및 열기) 0.종료
+  - `packages/cli/bin/ai.js` — 인자 없이 `ai`만 입력하거나 `ai menu` 입력 시 메뉴가 실행되도록 연결(기존 `ai new`·`ai devmode`·`ai deploy`·`ai doctor`는 동작 변경 없이 그대로 유지), 도움말에 메뉴 안내 추가
+  - **중복 제거 리팩터링**: `devmode.js`·`deploy.js`에 각각 중복 정의되어 있던 단일 질문용 `ask()`를 `packages/cli/src/lib/prompt.js`(신규)로, `devmode.js`의 `openBrowser()`를 `packages/cli/src/lib/system.js`(신규, `openInSystem()` — URL과 폴더 경로를 동일하게 처리)로 추출해 메뉴에서도 재사용. `packages/cli/src/lib/paths.js`(신규) — 현재 폴더 또는 Git 저장소 루트 기준으로 특정 저장소 전용 파일(`scripts/setup.ps1` 등)을 탐색하는 `findProjectFile()` 추가
+
+### 검증 (Verified)
+
+- `node bin/ai.js --help`로 도움말에 메뉴 안내 정상 출력 확인
+- 실제 타이핑을 지연 시뮬레이션(각 입력 사이 0.5~1.5초 지연)한 자동화 테스트로 메뉴 전체 흐름(메뉴 출력 → 번호 선택 → 기존 `doctor()` 실행 → "계속하려면 Enter" 대기 → 메뉴로 복귀 → `0` 입력 시 정상 종료) End-to-End 확인. 한 번에 모든 입력을 몰아넣는 파이프 테스트에서만 나타나는 Node readline의 알려진 특성(순차 생성되는 readline 인터페이스가 버퍼링된 입력을 놓치는 현상)을 원인으로 확인했고, 실제 인터랙티브 사용(사람이 순차적으로 타이핑) 환경에서는 재현되지 않음을 확인
+
+---
+
 ## 2026-07-08 (3)
 
 ### 수정 (Fixed)

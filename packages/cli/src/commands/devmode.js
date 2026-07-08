@@ -1,23 +1,14 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawn, spawnSync } = require("node:child_process");
-const readline = require("node:readline");
+const { spawnSync } = require("node:child_process");
 const { log } = require("../lib/log");
 const { listProjects, touchProject } = require("../lib/projects");
 const { getStatusSummary } = require("../lib/git");
 const { commandExists, getVersion } = require("../lib/tools");
 const { startDevServer } = require("../lib/devServer");
 const { installDevInspector } = require("../lib/devInspectorInstall");
-
-function ask(question) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
+const { ask } = require("../lib/prompt");
+const { openInSystem } = require("../lib/system");
 
 function currentDirProject() {
   return {
@@ -81,16 +72,6 @@ async function selectProject(args) {
   return currentDirProject();
 }
 
-function openBrowser(url) {
-  if (process.platform === "win32") {
-    spawn("cmd", ["/c", "start", "", url], { stdio: "ignore", detached: true }).unref();
-  } else if (process.platform === "darwin") {
-    spawn("open", [url], { stdio: "ignore", detached: true }).unref();
-  } else {
-    spawn("xdg-open", [url], { stdio: "ignore", detached: true }).unref();
-  }
-}
-
 async function devmode(args) {
   log.title("AI Business OS - Dev Mode");
 
@@ -131,7 +112,7 @@ async function devmode(args) {
     const { port } = await startDevServer(workspacePath);
     if (port) {
       log.ok("Dev Server", `새 터미널 창에서 시작됨 (http://localhost:${port})`);
-      openBrowser(`http://localhost:${port}`);
+      openInSystem(`http://localhost:${port}`);
       log.ok("Live Preview", `열림 (http://localhost:${port})`);
     } else {
       log.warn("Dev Server", "포트를 자동으로 감지하지 못했습니다 - 새로 열린 터미널 창을 확인하세요");

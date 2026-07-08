@@ -4,6 +4,7 @@ const { doctor } = require("../src/commands/doctor");
 const { newProject } = require("../src/commands/new");
 const { devmode } = require("../src/commands/devmode");
 const { deploy } = require("../src/commands/deploy");
+const { menu } = require("../src/commands/menu");
 
 function parseArgs(argv) {
   const args = {};
@@ -28,6 +29,8 @@ function printHelp() {
   console.log("");
   console.log("사용법: ai <command> [옵션]");
   console.log("");
+  console.log("  ai           메뉴 실행 (번호로 모든 기능 선택)");
+  console.log("  ai menu      메뉴 실행 (위와 동일)");
   console.log("  ai new       새 프로젝트 생성");
   console.log("  ai devmode   VS Code + npm run dev + 실시간 미리보기 + Visual Editor 실행");
   console.log("               옵션: --name <이름> | --path <경로>");
@@ -53,7 +56,10 @@ async function main() {
     case "doctor":
       doctor();
       break;
+    case "menu":
     case undefined:
+      await menu();
+      break;
     case "-h":
     case "--help":
     case "help":

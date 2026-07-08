@@ -1,0 +1,15 @@
+{
+  "title": "🤖 AI Business OS",
+  "exitKey": "0",
+  "exitLabel": "종료",
+  "items": [
+    { "key": "1", "icon": "🛠", "label": "설치 / 업데이트", "action": "install" },
+    { "key": "2", "icon": "🚀", "label": "개발 시작", "action": "devStart" },
+    { "key": "3", "icon": "❤️", "label": "환경 점검", "action": "healthCheck" },
+    { "key": "4", "icon": "🤖", "label": "Claude 실행", "action": "claude" },
+    { "key": "5", "icon": "🌐", "label": "UI Explorer", "action": "uiExplorer" },
+    { "key": "6", "icon": "🔄", "label": "Git 동기화", "action": "gitSync" },
+    { "key": "7", "icon": "📦", "label": "저장 및 업로드", "action": "saveUpload" },
+    { "key": "8", "icon": "⚙", "label": "설정", "action": "settings" }
+  ]
+}

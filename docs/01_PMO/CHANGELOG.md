@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-07-08 (6)
+
+### 변경 (Changed)
+
+- **AI Business OS CLI — 메뉴 런처(Menu Launcher) V2: 메뉴 정의를 설정 파일로 분리**: V1(`packages/cli/src/commands/menu.js`)은 메뉴 8개 항목과 각 항목의 실행 로직이 하나의 파일에 배열(`MENU_ITEMS`)로 하드코딩되어 있어, 새 메뉴를 추가하려면 항상 이 파일을 수정해야 했다. V2에서는 "무엇을 보여줄지(메뉴 구성)"와 "어떻게 실행할지(핸들러 코드)"를 분리해, 기존 동작을 재사용하는 새 메뉴는 코드를 건드리지 않고 설정 파일만 수정해도 되도록 재구성
+  - `packages/cli/src/config/menu.json`(신규) — 메뉴 제목·종료 키·8개 항목(key·icon·label·action)을 선언적으로 정의. 항목마다 `action`(핸들러 이름) 대신 `type: "shell"` + `command`를 지정하면 코드 추가 없이 임의의 셸 명령을 새 메뉴로 등록할 수 있음(실제 동작 검증 완료, 최종 커밋에는 8개 기존 항목만 유지)
+  - `packages/cli/src/commands/menu/actions.js`(신규) — V1 `menu.js`에 있던 8개 핸들러 함수(install·devStart·healthCheck·claude·uiExplorer·gitSync·saveUpload·settings)를 그대로 옮기고, `menu.json`의 `action` 이름과 1:1 대응하는 registry 객체로 export
+  - `packages/cli/src/commands/menu/index.js`(신규, 기존 `commands/menu.js` 대체) — `menu.json`을 읽어 메뉴를 출력하고 번호 입력을 받아 대응하는 핸들러(또는 셸 명령)를 실행하는 루프만 담당. 시작 시 `menu.json`의 모든 `action`이 `actions.js`에 실제로 존재하는지 검증해, 오타가 있으면 메뉴 실행 전에 어떤 항목·어떤 이름이 잘못됐는지 즉시 알려줌(예: `menu.json의 "설치 / 업데이트"(action: "nonExistentAction")에 해당하는 핸들러가 없습니다 ...`)
+  - `packages/cli/src/commands/menu.js`(V1 파일) 삭제 — `bin/ai.js`의 `require("../src/commands/menu")`는 코드 변경 없이 새 폴더의 `index.js`로 자동 해석됨(Node의 디렉터리 require 규칙)
+
+### 검증 (Verified)
+
+- 실제 타이핑을 지연 시뮬레이션한 자동화 테스트로 V1과 동일한 메뉴 흐름(출력 → 3번 선택 → `doctor()` 실행 → 계속 대기 → 메뉴 복귀 → `0` 종료) 정상 동작 재확인
+- **설정 파일만 수정해 메뉴 추가가 실제로 되는지 검증**: `menu.json`에 `type: "shell"` 항목(`9. 테스트 셸 명령`)을 임시로 추가해 코드 변경 없이 메뉴에 나타나고 실행(echo 명령 출력 확인)됨을 확인한 뒤 되돌림
+- **잘못된 설정에 대한 방어 검증**: `menu.json`의 한 항목에 존재하지 않는 `action` 이름을 넣었을 때, 메뉴가 그려지기 전에 어떤 항목·어떤 이름이 잘못됐는지 명확한 에러 메시지로 안내하고 정상 종료됨을 확인한 뒤 원복
+
+---
+
 ## 2026-07-08 (4)
 
 ### 수정 (Fixed)

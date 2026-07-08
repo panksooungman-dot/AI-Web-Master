@@ -1,24 +1,28 @@
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { log } = require("../lib/log");
-const { ask } = require("../lib/prompt");
-const { openInSystem } = require("../lib/system");
-const { commandExists } = require("../lib/tools");
-const { isGitRepo, getStatusSummary, run } = require("../lib/git");
-const { findProjectFile } = require("../lib/paths");
-const { CONFIG_DIR } = require("../lib/config");
-const { listProjects } = require("../lib/projects");
-const { doctor } = require("./doctor");
-const { devmode } = require("./devmode");
+const { log } = require("../../lib/log");
+const { ask } = require("../../lib/prompt");
+const { openInSystem } = require("../../lib/system");
+const { commandExists } = require("../../lib/tools");
+const { isGitRepo, getStatusSummary, run } = require("../../lib/git");
+const { findProjectFile } = require("../../lib/paths");
+const { CONFIG_DIR } = require("../../lib/config");
+const { listProjects } = require("../../lib/projects");
+const { doctor } = require("../doctor");
+const { devmode } = require("../devmode");
 
 const UI_EXPLORER_URL = "http://localhost:3000/developer/ui-explorer";
 
 // ------------------------------------------------------------
-// 메뉴 항목별 실행 함수 (기능 1개 = 함수 1개, 새 메뉴는 아래에 함수를
-// 추가하고 MENU_ITEMS 배열에 한 줄만 더하면 된다)
+// 메뉴 액션 핸들러 — 각 함수는 src/config/menu.json의 "action" 값과
+// 이름이 일치해야 한다(예: "action": "install" → 아래 install()).
+// 새 메뉴 항목이 완전히 새로운 동작을 필요로 할 때만 여기에 함수를
+// 추가하고 menu.json에 action 이름을 연결하면 된다. 이미 있는 동작을
+// 재사용하거나 단순 셸 명령이면 menu.json만 수정해도 충분하다
+// (type: "shell" 항목 참고, src/commands/menu/index.js 참고).
 // ------------------------------------------------------------
 
-async function installOrUpdate() {
+function install() {
   log.title("AI Business OS - 설치 / 업데이트");
 
   const setupScript = findProjectFile(path.join("scripts", "setup.ps1"));
@@ -36,15 +40,15 @@ async function installOrUpdate() {
   });
 }
 
-async function startDev() {
+async function devStart() {
   await devmode({});
 }
 
-function checkHealth() {
+function healthCheck() {
   doctor();
 }
 
-function launchClaude() {
+function claude() {
   log.title("AI Business OS - Claude 실행");
 
   if (!commandExists("claude")) {
@@ -61,7 +65,7 @@ function launchClaude() {
   spawnSync(isWin ? "claude.cmd" : "claude", [], { cwd: process.cwd(), stdio: "inherit", shell: isWin });
 }
 
-function openUiExplorer() {
+function uiExplorer() {
   log.title("AI Business OS - UI Explorer");
 
   openInSystem(UI_EXPLORER_URL);
@@ -69,7 +73,7 @@ function openUiExplorer() {
   log.dim("  개발 서버(npm run dev)가 실행 중이어야 정상적으로 열립니다.");
 }
 
-async function syncGit() {
+async function gitSync() {
   log.title("AI Business OS - Git 동기화");
 
   const cwd = process.cwd();
@@ -94,7 +98,7 @@ async function syncGit() {
   }
 }
 
-async function saveAndUpload() {
+async function saveUpload() {
   log.title("AI Business OS - 저장 및 업로드");
 
   const cwd = process.cwd();
@@ -139,7 +143,7 @@ async function saveAndUpload() {
   }
 }
 
-async function openSettings() {
+async function settings() {
   log.title("AI Business OS - 설정");
 
   console.log("");
@@ -157,62 +161,13 @@ async function openSettings() {
   }
 }
 
-// ------------------------------------------------------------
-// 메뉴 정의 — 새 기능을 추가하려면 위에 함수를 만들고 이 배열에
-// { key, label, action } 한 줄만 추가하면 된다.
-// ------------------------------------------------------------
-const MENU_ITEMS = [
-  { key: "1", label: "🛠 설치 / 업데이트", action: installOrUpdate },
-  { key: "2", label: "🚀 개발 시작", action: startDev },
-  { key: "3", label: "❤️ 환경 점검", action: checkHealth },
-  { key: "4", label: "🤖 Claude 실행", action: launchClaude },
-  { key: "5", label: "🌐 UI Explorer", action: openUiExplorer },
-  { key: "6", label: "🔄 Git 동기화", action: syncGit },
-  { key: "7", label: "📦 저장 및 업로드", action: saveAndUpload },
-  { key: "8", label: "⚙ 설정", action: openSettings },
-];
-
-function printMenu() {
-  console.log("");
-  console.log("🤖 AI Business OS");
-  console.log("");
-  console.log("==================================");
-  for (const item of MENU_ITEMS) {
-    console.log(`${item.key}. ${item.label}`);
-  }
-  console.log("0. 종료");
-  console.log("==================================");
-  console.log("");
-}
-
-async function menu() {
-  let running = true;
-
-  while (running) {
-    printMenu();
-    const choice = await ask("번호를 입력하세요: ");
-
-    if (choice === "0") {
-      log.dim("[menu] 종료합니다.");
-      break;
-    }
-
-    if (!choice) continue;
-
-    const item = MENU_ITEMS.find((m) => m.key === choice);
-    if (!item) {
-      log.warn("menu", `알 수 없는 번호입니다: ${choice}`);
-      continue;
-    }
-
-    try {
-      await item.action();
-    } catch (err) {
-      log.error(item.label, err && err.message ? err.message : String(err));
-    }
-
-    await ask("\n계속하려면 Enter를 누르세요...");
-  }
-}
-
-module.exports = { menu, MENU_ITEMS };
+module.exports = {
+  install,
+  devStart,
+  healthCheck,
+  claude,
+  uiExplorer,
+  gitSync,
+  saveUpload,
+  settings,
+};

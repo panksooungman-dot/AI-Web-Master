@@ -5,6 +5,8 @@ const colors = {
   yellow: "\x1b[33m",
   red: "\x1b[31m",
   gray: "\x1b[90m",
+  boldCyan: "\x1b[1;36m",
+  boldYellow: "\x1b[1;33m",
 };
 
 function color(text, name) {

@@ -32,6 +32,9 @@ function loadMenuConfig() {
     if (type === "shell" && !item.command) {
       throw new Error(`menu.json의 "${item.label}" 항목은 type이 "shell"인데 command가 없습니다.`);
     }
+
+    // type: "help"는 action/command가 필요 없다 — index.js가 config를 이용해
+    // 직접 도움말 화면을 그린다(printHelp 참고).
   }
 
   return config;
@@ -98,13 +101,18 @@ function printHelp(config) {
 }
 
 // type: "shell"인 항목은 코드를 전혀 추가하지 않고 menu.json만 수정해도
-// 동작한다(예: 단순 명령 실행). type: "action"(기본값)인 항목은
-// actions.js에 정의된 함수를 실행한다.
-async function runItem(item) {
+// 동작한다(예: 단순 명령 실행). type: "help"는 도움말 화면을 그린다.
+// type: "action"(기본값)인 항목은 actions.js에 정의된 함수를 실행한다.
+async function runItem(item, config) {
   const type = item.type || "action";
 
   if (type === "shell") {
     spawnSync(item.command, { stdio: "inherit", shell: true });
+    return;
+  }
+
+  if (type === "help") {
+    printHelp(config);
     return;
   }
 
@@ -153,13 +161,6 @@ async function menu() {
         break;
       }
 
-      if (upper === "H") {
-        currentLabel = "도움말";
-        printHelp(config);
-        await ask("계속하려면 Enter를 누르세요...");
-        continue;
-      }
-
       if (upper === "R") {
         currentLabel = "새로고침";
         try {
@@ -173,15 +174,29 @@ async function menu() {
 
       if (!choice) continue;
 
-      const item = config.items.find((i) => i.key === choice);
-      if (!item) {
-        log.warn("menu", `알 수 없는 입력입니다: ${choice} (H/R/Q 또는 번호를 입력하세요)`);
-        continue;
+      // H는 menu.json에 type: "help" 항목이 있으면 그 항목을 고른 것과
+      // 완전히 동일하게 처리한다(단축키와 번호 선택이 같은 경로를 타므로
+      // 동작이 항상 일치한다). 그런 항목이 없어도(menu.json에서 지웠어도)
+      // H는 최소한의 안내를 볼 수 있도록 printHelp로 대체한다.
+      let item;
+      if (upper === "H") {
+        item = config.items.find((i) => (i.type || "action") === "help");
+        if (!item) {
+          printHelp(config);
+          await ask("계속하려면 Enter를 누르세요...");
+          continue;
+        }
+      } else {
+        item = config.items.find((i) => i.key === choice);
+        if (!item) {
+          log.warn("menu", `알 수 없는 입력입니다: ${choice} (H/R/Q 또는 번호를 입력하세요)`);
+          continue;
+        }
       }
 
       currentLabel = `${item.icon} ${item.label}`;
       try {
-        await runItem(item);
+        await runItem(item, config);
       } catch (err) {
         log.error(currentLabel, describeError(err));
       }

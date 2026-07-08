@@ -186,6 +186,7 @@ if (Test-Path $cliInstallScript) {
     Write-Host "[setup] AI CLI(ai 명령) 설치 중... (packages/cli/install.ps1)" -ForegroundColor Cyan
     Write-Host "----------------------------------------" -ForegroundColor DarkGray
     & $cliInstallScript
+    $cliInstallExitCode = $LASTEXITCODE
 
     # install.ps1이 현재 세션의 $env:Path를 이미 갱신했지만, 그 프로세스
     # 범위를 벗어나 이 스크립트로 돌아왔을 때도 반영되도록 한 번 더 읽는다.
@@ -193,11 +194,25 @@ if (Test-Path $cliInstallScript) {
     $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
     $env:Path = "$machinePath;$userPath"
 
+    # Get-Command ai(PATH 조회, 세션 상태에 따라 결과가 달라질 수 있음)만으로
+    # 성공을 판단하지 않는다. npm 전역 prefix를 직접 조회해 ai.cmd 파일이
+    # 실제로 디스크에 존재하는지를 증거로 확인한다.
+    $npmPrefix = ""
+    $npmCmdAvailable = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npmCmdAvailable) {
+        $npmPrefix = (npm config get prefix 2>$null).Trim()
+    }
+    $aiCmdPath = if ($npmPrefix) { Join-Path $npmPrefix "ai.cmd" } else { "" }
+    $aiCmdExists = ($aiCmdPath -and (Test-Path $aiCmdPath))
+
     $aiCmd = Get-Command ai -ErrorAction SilentlyContinue
-    if ($aiCmd) {
-        Add-AIBizSetupResult -Name "AI CLI (ai 명령)" -Success $true -Detail $aiCmd.Source
+
+    if ($aiCmdExists -and $aiCmd) {
+        Add-AIBizSetupResult -Name "AI CLI (ai 명령)" -Success $true -Detail "$aiCmdPath (PATH 인식: $($aiCmd.Source))"
+    } elseif ($aiCmdExists -and -not $aiCmd) {
+        Add-AIBizSetupResult -Name "AI CLI (ai 명령)" -Success $false -Detail "$aiCmdPath 파일은 존재하지만 이 세션에서 ai 명령이 인식되지 않음 - 새 터미널에서 다시 확인하세요"
     } else {
-        Add-AIBizSetupResult -Name "AI CLI (ai 명령)" -Success $false -Detail "설치 후에도 Get-Command ai가 실패함 - 새 터미널에서 다시 확인하세요"
+        Add-AIBizSetupResult -Name "AI CLI (ai 명령)" -Success $false -Detail "ai.cmd 파일이 생성되지 않음 (예상 경로: $(if ($aiCmdPath) { $aiCmdPath } else { '(npm prefix 확인 불가)' }), install.ps1 종료 코드: $cliInstallExitCode)"
     }
 } else {
     Add-AIBizSetupResult -Name "AI CLI (ai 명령)" -Success $false -Detail "packages/cli/install.ps1을 찾을 수 없음: $cliInstallScript"

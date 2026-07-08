@@ -17,7 +17,13 @@
 # 관리자 권한이 필요 없고, `npm uninstall -g @cnbiz/ai-business-os-cli`로
 # 언제든 완전히 제거할 수 있다.
 
-$ErrorActionPreference = "Stop"
+
+# "Stop"으로 두면 안 된다: 네이티브 실행 파일(npm 등)이 stderr에 한 줄이라도
+# 쓰면(예: "npm warn using --force ...") PowerShell 5.1이 이를 즉시 종료 오류로
+# 승격시켜 스크립트 전체가 그 시점에서 강제 종료된다 — ai.cmd 생성 코드까지
+# 도달하지 못하는 근본 원인이었다. 이 스크립트는 예외(try/catch)가 아니라
+# 명시적 $LASTEXITCODE 확인으로 성공 여부를 판단하므로 "Continue"로 충분하다.
+$ErrorActionPreference = "Continue"
 
 # Windows PowerShell 5.1의 콘솔 기본 코드페이지가 UTF-8이 아닌 경우 한글/이모지가
 # 깨져 보인다. 이 스크립트 안에서만 출력 인코딩을 UTF-8로 맞춘다.
@@ -140,8 +146,14 @@ Write-Host "------------------"
 
 function Invoke-NpmGlobalInstall {
     Write-Host "[install] npm install -g 실행 중..." -ForegroundColor Cyan
-    # 파이프를 거치면 $LASTEXITCODE가 유실될 수 있어, 네이티브 호출 직후 바로 캡처한다.
-    $npmOutput = & npm install -g "$cliRoot" 2>&1
+    # --force가 반드시 필요하다: npm은 package.json의 버전이 바뀌지 않았고
+    # node_modules 메타데이터가 이미 "설치됨"으로 기록되어 있으면 "up to date"로
+    # 판단해 bin shim(ai/ai.cmd/ai.ps1) 재생성을 건너뛴다. 이전에 shim 파일만
+    # 수동으로 삭제된 경우(재설치·정리 등) npm은 이를 감지하지 못하고 아무 파일도
+    # 만들지 않은 채 종료 코드 0을 반환한다 — 이것이 "설치 완료"가 출력되는데
+    # 실제로는 ai.cmd가 없는 상태의 근본 원인이다. --force로 매번 강제 재설치해
+    # shim을 무조건 다시 생성시킨다.
+    $npmOutput = & npm install -g "$cliRoot" --force 2>&1
     $exitCode = $LASTEXITCODE
     $npmOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
     return ($exitCode -eq 0)
@@ -175,6 +187,18 @@ Update-SessionPath
 
 $aiCmdPath = Join-Path $npmPrefix "ai.cmd"
 $aiShimExists = Test-Path $aiCmdPath
+
+if (-not $aiShimExists) {
+    # --force로 설치했는데도 shim이 없다면, npm이 내부적으로 참조하는
+    # node_modules 메타데이터 자체가 꼬여 있을 가능성이 있다. 한 번 완전히
+    # 제거한 뒤 처음부터 다시 설치해 확실히 재생성을 시도한다(최후 자동 복구,
+    # 그래도 없으면 아래에서 하드 실패 처리).
+    Write-Host "  ⚠️  ai.cmd가 생성되지 않았습니다. 완전 재설치로 복구를 시도합니다..." -ForegroundColor Yellow
+    & npm uninstall -g "@cnbiz/ai-business-os-cli" 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    Invoke-NpmGlobalInstall | Out-Null
+    $aiShimExists = Test-Path $aiCmdPath
+}
+
 Write-Step $aiShimExists "ai 실행 파일 생성 확인" $aiCmdPath
 
 if ($pathAdded) {
@@ -221,3 +245,5 @@ if ($overallOk) {
 }
 Write-Host "====================================" -ForegroundColor DarkCyan
 Write-Host ""
+
+if (-not $overallOk) { exit 1 }

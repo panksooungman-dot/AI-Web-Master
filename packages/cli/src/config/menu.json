@@ -3,14 +3,14 @@
   "exitKey": "0",
   "exitLabel": "종료",
   "items": [
-    { "key": "1", "icon": "🚀", "label": "개발 시작", "action": "devStart" },
-    { "key": "2", "icon": "📁", "label": "프로젝트 관리", "action": "projectManage" },
-    { "key": "3", "icon": "❤️", "label": "환경 점검", "action": "healthCheck" },
-    { "key": "4", "icon": "🌐", "label": "UI Explorer", "action": "uiExplorer" },
-    { "key": "5", "icon": "🤖", "label": "Claude Code", "action": "claude" },
-    { "key": "6", "icon": "💬", "label": "ChatGPT", "action": "chatgpt" },
-    { "key": "7", "icon": "🔄", "label": "Git 관리", "action": "gitManage" },
-    { "key": "8", "icon": "⚙", "label": "설정", "action": "settings" },
-    { "key": "9", "icon": "📖", "label": "도움말", "type": "help" }
+    { "key": "1", "icon": "🛠", "label": "설치 / 업데이트", "action": "install" },
+    { "key": "2", "icon": "🚀", "label": "개발 시작", "action": "devStart" },
+    { "key": "3", "icon": "📁", "label": "프로젝트 관리", "action": "projectManage" },
+    { "key": "4", "icon": "❤️", "label": "환경 점검", "action": "healthCheck" },
+    { "key": "5", "icon": "🌐", "label": "UI Explorer", "action": "uiExplorer" },
+    { "key": "6", "icon": "🤖", "label": "Claude Code", "action": "claude" },
+    { "key": "7", "icon": "💬", "label": "ChatGPT", "action": "chatgpt" },
+    { "key": "8", "icon": "🔄", "label": "Git 관리", "action": "gitManage" },
+    { "key": "9", "icon": "⚙", "label": "설정", "action": "settings" }
   ]
 }

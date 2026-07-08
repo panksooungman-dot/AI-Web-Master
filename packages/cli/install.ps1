@@ -181,7 +181,12 @@ if (-not $installOk) {
 
 # 6) npm 전역 bin 디렉터리를 실제로 조회해(가정하지 않음) PATH에 명시적으로 추가
 #    Windows에서 npm은 prefix 디렉터리 자체에 ai.cmd/ai.ps1/ai 셸 스크립트를 만든다.
-$npmPrefix = (npm config get prefix).Trim()
+#    --workspaces=false 필수: 이 스크립트를 호출한 프로세스의 cwd가 npm
+#    workspaces 멤버 폴더(예: ai-web-master 저장소의 packages/cli) 안이면,
+#    이 플래그 없이는 `npm config get prefix`가 ENOWORKSPACES로 실패한다
+#    (prefix는 워크스페이스와 무관한 전역 설정인데도 이 npm 버전은 cwd가
+#    워크스페이스 멤버 안일 때 이 명령을 거부한다 — 실제로 재현·확인됨).
+$npmPrefix = (npm config get prefix --workspaces=false).Trim()
 $pathAdded = Add-ToUserPath $npmPrefix
 Update-SessionPath
 

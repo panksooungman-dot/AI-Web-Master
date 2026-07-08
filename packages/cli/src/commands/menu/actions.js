@@ -24,10 +24,9 @@ const CHATGPT_URL = "https://chat.openai.com/";
 // menu.json만 수정해도 충분하다(type: "shell" 항목 참고,
 // src/commands/menu/index.js 참고).
 //
-// install()·gitSync()·saveUpload()는 더 이상 menu.json이 직접
-// 참조하는 최상위 action이 아니다(V5에서 각각 settings()·gitManage()
-// 하위 옵션으로 재배치됨) — 하지만 기존 동작은 그대로 남겨 아래에서
-// 재사용한다.
+// gitSync()·saveUpload()는 menu.json이 직접 참조하는 최상위 action이
+// 아니다(gitManage() 하위 옵션으로 재배치됨) — 하지만 기존 동작은
+// 그대로 남겨 아래에서 재사용한다.
 // ------------------------------------------------------------
 
 function install() {
@@ -43,9 +42,21 @@ function install() {
   console.log("");
   log.info(`[setup] ${setupScript} 실행 중...`);
   console.log("");
-  spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", setupScript], {
+  // stdio: "inherit"로 setup.ps1 자신의 진행 상황(단계별 ✔/✘ 출력)이
+  // 그대로 화면에 실시간으로 표시된다. 완료 후에는 setup.ps1이 반영하는
+  // 종료 코드(status)로 전체 설치 성공/실패를 다시 한번 명확히 알려준다.
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", setupScript], {
     stdio: "inherit",
   });
+
+  console.log("");
+  if (result.error) {
+    log.error("설치 / 업데이트", `powershell 실행 실패: ${result.error.message}`);
+  } else if (result.status === 0) {
+    log.ok("설치 / 업데이트", "완료되었습니다.");
+  } else {
+    log.error("설치 / 업데이트", `설치가 완료되지 않았습니다 (종료 코드: ${result.status}). 위 출력을 참고해 원인을 확인하세요.`);
+  }
 }
 
 async function devStart() {
@@ -225,7 +236,6 @@ async function settings() {
   console.log(`  등록된 프로젝트 : ${listProjects().length}건`);
   console.log("");
   console.log("  1. 설정 폴더 열기");
-  console.log("  2. 설치 / 업데이트 실행");
   console.log("  0. 메뉴로 돌아가기");
   console.log("");
 
@@ -233,12 +243,11 @@ async function settings() {
   if (choice === "1") {
     openInSystem(CONFIG_DIR);
     log.ok("설정 폴더", `열림 (${CONFIG_DIR})`);
-  } else if (choice === "2") {
-    install();
   }
 }
 
 module.exports = {
+  install,
   devStart,
   projectManage,
   healthCheck,

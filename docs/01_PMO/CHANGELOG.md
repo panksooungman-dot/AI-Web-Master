@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-08 (10)
+
+### 추가 (Added)
+
+- **AI Business OS CLI — 메뉴 런처에 "설치 / 업데이트" 최상위 항목 복원**: V5에서 "설정" 하위로 재배치됐던 `🛠 설치 / 업데이트`를 다시 최상위 1번으로 복원(새 컴퓨터에서도 메뉴만으로 설치를 진행할 수 있어야 한다는 목적에 맞춤). 나머지 항목은 한 칸씩 밀려 최종 순서는 1.설치/업데이트 2.개발 시작 3.프로젝트 관리 4.환경 점검 5.UI Explorer 6.Claude Code 7.ChatGPT 8.Git 관리 9.설정(도움말은 기존과 동일하게 `H` 단축키로 접근). "설정" 하위에 중복으로 있던 "설치 / 업데이트 실행" 옵션은 최상위와 중복되므로 제거
+  - `packages/cli/src/commands/menu/actions.js` — `install()`이 `spawnSync`의 결과(종료 코드)를 직접 확인하도록 개선. 기존에는 `scripts/setup.ps1`을 실행만 하고 결과를 확인하지 않았으나, 이제 종료 코드 0이면 "완료되었습니다.", 0이 아니면 "설치가 완료되지 않았습니다 (종료 코드: N)"을 명확히 출력. `install`을 다시 `module.exports`에 등록(menu.json이 최상위 action으로 참조)
+  - `packages/cli/src/config/menu.json` — 위 순서로 전면 재배열
+
+### 수정 (Fixed)
+
+- **실제로 재현된 버그: cwd가 npm workspaces 멤버 폴더 안일 때 `설치 / 업데이트`가 항상 실패하던 문제**: 메뉴의 "설치 / 업데이트"를 실제로 실행해 검증하던 중 발견. `scripts/setup.ps1`이 호출하는 `packages/cli/install.ps1`의 `npm config get prefix`가, 이 명령을 실행하는 프로세스의 현재 작업 폴더(cwd)가 npm workspaces 멤버 폴더(예: 이 저장소의 `packages/cli` 자체) 안에 있으면 `ENOWORKSPACES` 오류로 실패하고, 그 결과로 `$npmPrefix`가 `$null`이 되어 이후 모든 단계가 연쇄적으로 깨짐(`ai.cmd` 생성 확인 실패 → 설치 항목 전체 실패). `cwd`가 저장소 루트일 때는 재현되지 않고, 워크스페이스 "멤버" 폴더 안일 때만 재현됨을 직접 검증으로 확인 — 개발자가 `packages/cli`에서 작업하다 `ai`를 실행하는 실제 시나리오에서 발생할 수 있는 문제였음
+  - `packages/cli/install.ps1`·`scripts/setup.ps1` — 두 곳의 `npm config get prefix` 호출에 `--workspaces=false`를 추가해 cwd와 무관하게 항상 전역 prefix를 올바르게 조회하도록 수정
+
+### 검증 (Verified)
+
+- **버그 재현 및 수정 확인**: `D:\ai-web-master\packages\cli`(워크스페이스 멤버 폴더)를 cwd로 `npm config get prefix`를 직접 실행해 `ENOWORKSPACES` 실패를 재현 → `--workspaces=false` 추가 후 동일 위치에서 정상 값 반환 확인. 이 cwd에서 메뉴의 "설치 / 업데이트"를 실제로 실행해(네이티브 PowerShell 환경에서 직접 확인) 수정 전 실패 → 수정 후 "완료되었습니다." 성공 메시지와 함께 정상 종료(코드 0, 약 8~9초 소요)까지 재확인
+- **설치 성공 경로**: 실제 저장소 루트 기준으로도 메뉴를 통해 `scripts/setup.ps1`이 정상 실행되고 진행 상황이 그대로 출력되며 완료 메시지가 표시됨을 확인
+- **설치 실패 경로**: 의도적으로 `exit 1`을 반환하는 가짜 `scripts/setup.ps1`을 별도 스크래치 저장소에 만들어 실행 — 스크립트 자체 출력이 그대로 표시되고, `설치가 완료되지 않았습니다 (종료 코드: 1)`로 원인이 명확히 보고된 뒤 메인 메뉴로 복귀함을 확인
+- **회귀 테스트**: 스크래치 Git 저장소에서 전체 메뉴(1 설치/업데이트-저장소 없음 안내, 3 프로젝트 관리, 4 환경 점검, 5 UI Explorer, 7 ChatGPT, 8 Git 관리의 상태 확인/저장 및 업로드, 9 설정의 중복 옵션 제거 확인, H/R/잘못된 입력/0 종료)를 자동화 테스트로 재확인. 오류 복원력 테스트(동기 예외·미처리 비동기 거부, 새 번호로 갱신)도 재실행해 정상 동작 확인. `menu.json`에 임시 항목을 추가하는 확장성 테스트도 재확인 후 원복
+
+---
+
 ## 2026-07-08 (9)
 
 ### 변경 (Changed)

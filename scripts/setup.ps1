@@ -197,10 +197,13 @@ if (Test-Path $cliInstallScript) {
     # Get-Command ai(PATH 조회, 세션 상태에 따라 결과가 달라질 수 있음)만으로
     # 성공을 판단하지 않는다. npm 전역 prefix를 직접 조회해 ai.cmd 파일이
     # 실제로 디스크에 존재하는지를 증거로 확인한다.
+    # --workspaces=false 필수: 이 스크립트를 호출한 프로세스의 cwd가 npm
+    # workspaces 멤버 폴더(예: packages/cli) 안이면, 이 플래그 없이는
+    # `npm config get prefix`가 ENOWORKSPACES로 실패한다(실제로 재현·확인됨).
     $npmPrefix = ""
     $npmCmdAvailable = Get-Command npm -ErrorAction SilentlyContinue
     if ($npmCmdAvailable) {
-        $npmPrefix = (npm config get prefix 2>$null).Trim()
+        $npmPrefix = (npm config get prefix --workspaces=false 2>$null).Trim()
     }
     $aiCmdPath = if ($npmPrefix) { Join-Path $npmPrefix "ai.cmd" } else { "" }
     $aiCmdExists = ($aiCmdPath -and (Test-Path $aiCmdPath))
@@ -259,3 +262,12 @@ if ($failCount -eq 0) {
 Write-Host ""
 Write-Host $separator -ForegroundColor DarkCyan
 Write-Host ""
+
+# 메뉴 런처("ai" 명령의 "설치 / 업데이트" 항목)가 텍스트를 파싱하지 않고도
+# 설치 성공/실패를 판단할 수 있도록, 위에서 이미 계산된 $failCount를
+# 종료 코드로도 반영한다(체크 로직·출력 내용은 변경하지 않음).
+if ($failCount -eq 0) {
+    exit 0
+} else {
+    exit 1
+}

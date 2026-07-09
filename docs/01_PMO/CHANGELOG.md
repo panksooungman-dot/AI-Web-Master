@@ -4,6 +4,181 @@
 
 ---
 
+## 2026-07-09 (16)
+
+### 수정 (Fixed)
+
+- **AI Business OS CLI — `ai devmode`의 dev 서버 포트 자동 감지 실패 수정**: 실제 재현 결과 두 가지 원인이 함께 있었음
+  1. Windows에서 `spawn("powershell.exe", [...], { detached: true, stdio: "ignore" })`로 새 터미널 창을 직접 띄우면, 새 프로세스가 콘솔을 제대로 할당받지 못해 명령을 한 줄도 실행하지 못한 채 exit code 0으로 즉시 종료됨(실제로 stdout/stderr을 캡처해 재현 확인). 즉 새 터미널 창 자체가 뜨지 않아 `npm run dev`가 시작되지 않았음
+  2. 콘솔이 정상 할당되어도, Windows PowerShell의 `Tee-Object -FilePath`가 기본적으로 UTF-16LE(BOM `FF FE`)로 로그 파일을 쓰는데 CLI는 이를 `"utf-8"`로 읽고 있어 포트 정규식이 매칭되지 않았음
+  - `packages/cli/src/lib/devServer.js` — Windows 실행 방식을 `cmd.exe`의 `start "제목" powershell.exe -NoExit -Command "..."`(`shell: true`)로 교체해 콘솔이 정상 할당되도록 수정. 로그 파일 읽기를 BOM 유무로 인코딩(UTF-16LE/UTF-8)을 판별하는 `readLogFile()` 헬퍼로 교체
+
+### 추가 (Added)
+
+- **AI Business OS CLI ↔ Development OS — Dev Server 상태 공유**: `ai devmode`(CLI)가 시작한 dev 서버와 Development OS의 Dev Server Manager(`/developer` 카드)가 서로 다른 프로세스의 인메모리 상태만 사용해, CLI로 실제 서버를 띄워도 화면에는 항상 Stopped로 표시되던 문제 수정. 워크스페이스 경로 기준 `<workspacePath>/lib/data/devservers.json` 공유 상태 파일을 도입해 두 프로세스가 동일한 Status/PID/Port를 보도록 함
+  - `lib/devserver/manager.ts` — `getDevServerStatus()`/`isDevServerRunning()`/`startDevServer()`/`stopDevServer()`가 인메모리에 없으면 공유 상태 파일을 확인하도록 확장. 기록된 PID가 실제로 살아있는지(`process.kill(pid, 0)`) 검증해 죽은 프로세스가 남긴 stale한 "running" 상태는 자동으로 정리
+  - `packages/cli/src/lib/devServer.js` — 포트 감지 시 `netstat`으로 실제 리스닝 중인 프로세스의 PID를 찾아 동일한 스키마로 상태 파일에 기록
+
+### 검증 (Verified)
+
+- CLI의 `startDevServer("D:/ai-web-master")`를 실제로 실행 → 새 터미널 창에서 `npm run dev` 정상 기동, 포트 3000 정상 감지, `lib/data/devservers.json`에 `{pid, port:3000, status:"running"}` 정상 기록 확인
+- 그 상태로 뜬 실제 Next.js 서버의 `/api/devserver/status` API(카드가 호출하는 것과 동일)를 직접 조회 → `{"running":true,"status":"running","pid":...,"port":3000}` 정상 응답 확인, `netstat`으로 해당 PID가 실제 리스닝 프로세스와 일치함을 재확인
+- Playwright로 실제 브라우저에서 `http://localhost:3000/developer` 접속 → "🖥️ Development Server" 카드에 **Status: Running / Port: 3000 / PID: (실제 PID) / URL: http://localhost:3000** 정상 표시 확인
+- 테스트에 사용한 dev 서버·프로세스·상태 파일은 모두 종료·삭제 완료(`git status` 확인 결과 의도한 수정 파일만 존재)
+
+---
+
+## 2026-07-09 (15)
+
+### 변경 (Changed)
+
+- **AI Business OS CLI — 메뉴 런처를 State 기반 구조(SessionManager)로 재구성**: 기존에는 메인 메뉴 루프(`menu/index.js`)가 항목을 실행하다가 화면 전환이 필요한 기능(개발 시작·프로젝트 관리·Git 관리·설정)마다 그 함수 내부에서 또 자기만의 while 루프를 만들어 화면을 그리는 구조였다(루프 안에 루프가 중첩, 화면 전환 = 함수를 다시 호출). 이를 단일 루프 + State 전이 구조로 재구성해 화면 전환 로직을 한곳(`SessionManager.run()`)으로 모음
+  - `packages/cli/src/session/SessionManager.js`(신규) — 세션 전체를 관리하는 상태 기계. `run()`의 while 루프가 매 반복마다 현재 `this.state`에 해당하는 State 모듈의 `step()`을 한 번만 호출하고, `step()`이 반환한 다음 state 이름으로 `this.state`를 갱신. 기존 메뉴 루프의 안전망(uncaughtException/unhandledRejection 캡처, 종료 시 `process.exit(0)`)을 그대로 유지
+  - `packages/cli/src/session/ui.js`(신규) — `BOX_WIDTH`/`DIVIDER`/`THIN_DIVIDER` 등 화면 그리기 상수를 공용화(기존 `menu/index.js`에만 있던 것을 여러 State가 공유)
+  - `packages/cli/src/session/states/{mainMenuState,developmentOSState,projectState,gitState,settingsState}.js`(신규) — 5개 화면을 각각 독립된 State 모듈로 분리. `mainMenuState`는 `menu.json`의 각 항목이 `action`(1회성 함수, 기존과 동일)인지 `state`(화면 전환)인지 구분해 처리하도록 검증 로직 확장. `developmentOSState`는 `devmode()`가 반환하는 컨텍스트(project·workspacePath·port)를 `session.context`에 저장해 같은 화면에 머무는 동안 `devmode()`를 재실행하지 않고, "브라우저 다시 열기"·"Git 상태 새로고침" 하위 메뉴 제공
+  - `packages/cli/src/commands/menu/index.js` — `SessionManager`를 생성·실행하는 얇은 어댑터로 축소(223줄 → 9줄). `packages/cli/src/commands/menu/actions.js` — 화면 전환이 필요 없는 1회성 액션(설치/업데이트·환경 점검·UI Explorer·Claude Code·ChatGPT) 5개만 남기고 나머지(개발 시작·프로젝트 관리·Git 관리·설정)는 State로 이전
+  - `packages/cli/src/config/menu.json` — 화면 전환 항목은 `"action"` 대신 `"state"` 필드로 선언(예: `{"state": "developmentOS"}`)
+  - `packages/cli/src/commands/devmode.js` — `devmode()`가 열던 페이지를 Live Preview(`/`)에서 Development OS 화면(`/developer`)으로 변경하고, 함수 종료 시 `{ project, workspacePath, port }` 컨텍스트를 반환하도록 변경(기존엔 반환값 없음) — `developmentOSState`가 이 값으로 재실행 없이 하위 메뉴를 그릴 수 있도록 함
+
+### 검증 (Verified)
+
+- `packages/cli` 전체 JS 파일(`src/`, `bin/`) `node --check` 구문 검증 통과
+- 실사용자 레지스트리·현재 저장소를 건드리지 않도록 `USERPROFILE`을 스크래치 홈으로, cwd를 스크래치 Git 저장소로 완전히 격리한 환경에서 실제 타이핑을 지연 시뮬레이션(입력 사이 600ms 지연)한 자동화 테스트로 State 전이 전 구간 확인: 메인 메뉴 → `3`(프로젝트 관리, 등록된 프로젝트 목록 표시) → `0`(메인 메뉴로 복귀) → `8`(Git 관리) → `1`(상태 확인 — `Branch: master`, `Status: clean` 실제 조회값 정상 표시) → `0`(메인 메뉴로 복귀) → `0`(종료, "[menu] 종료합니다." 출력과 함께 정상 종료 코드 0)
+- 화면 전환이 함수 재호출이 아닌 State 반환으로만 이뤄짐을 확인(Git 관리 화면에 상태 확인 후에도 동일 State에 머무르며 하위 메뉴가 유지되고, `0` 입력 시에만 메인 메뉴 State로 실제 전이됨)
+- 개발 시작(`developmentOS`)·설정(`settings`) State 자체 상세 시나리오는 이번 회차에서 반복 검증하지 않음 — 기반 로직(`devmode()`, Git 상태 조회, 프로젝트 목록)은 기존에 이미 여러 차례 검증된 함수를 그대로 재사용하며, 이번 변경은 그 호출 방식(루프 재귀 → State 전이)만 바꾼 것이라 프로젝트 관리·Git 관리 State 검증으로 State 전이 메커니즘 자체의 정상 동작을 확인했다고 판단(Testing Policy: 통합 테스트 1회 원칙, 동일 유형 재검증 지양)
+- 테스트에 사용한 스크래치 Git 저장소·홈 디렉터리는 모두 삭제 완료
+
+### 변경 (Changed)
+
+- **Development OS — Dev Server Manager 안정화**: 신규 기능 추가 없이 기존 Start/Stop/Restart/Status를 안정화. 상태를 4단계(Starting/Running/Stopped/Error)로 세분화하고, 포트를 실행 로그에서 실제로 추출하며, 화면 정보 표시를 정리
+  - `lib/devserver/manager.ts` — `DevServerState`에 `status`("starting"|"running"|"error")·`port` 필드 추가. `startDevServer()`가 실행 요청 즉시 `status:"starting"`을 기록해 진행 중인 시작을 다른 요청·다른 탭에서도 즉시 확인 가능하게 하고, 실패 시에는 삭제 대신 `status:"error"`(+에러 메시지)로 남겨 Stop을 누르기 전까지 상태가 유지되도록 함. 중복 실행 방지 조건을 `starting`·`running` 모두 포함하도록 확장(기존엔 `running`만 체크). `watchPort()`(신규) — dev 서버 stdout을 최대 30초 동안 관찰해 `Local: http://localhost:3000` 류의 로그에서 포트를 정규식으로 추출, 감지 즉시 리스너 해제. `getDevServerStatus()` 응답에 `status`·`port`·(에러 시) `error` 추가(기존 `running`·`pid` 필드는 유지되어 하위 호환)
+  - `lib/devserver/client.ts` — `DevServerStatusResponse`에 `status`(`DevServerRunStatus`)·`port`·`error` 필드 추가
+  - `components/developer/DevServerManagerCard.tsx` — Status 배지를 4색(Starting=주황, Running=초록, Stopped=회색, Error=빨강)으로 표시. Start/Restart 성공 후 최대 30초 동안 2초 간격으로 상태를 재조회해 포트가 감지되는 즉시 화면에 반영(`pollUntilPortKnownOrSettled`). Error 상태는 페이지 새로고침 후에도 서버가 기억하고 있는 실제 상태이므로 메시지로 함께 노출. 정보 패널을 Status/Port/PID/URL/Branch/Git 변경 수 6개 항목의 2열 그리드로 재정렬(요청 4번). URL은 Running이고 포트를 알 때만 `http://localhost:{port}` 링크로 표시. Branch·Git 변경 수는 기존에 이미 구현되어 있던 `lib/projects/status.ts`의 `fetchGitStatus()`를 그대로 재사용(신규 Git 로직 없음)
+  - Command Engine(`lib/commandEngine/*`)은 이번 회차에서 수정하지 않음 — `executeBackground()`가 이미 반환하던 `process` 핸들에 Dev Server Manager가 직접 stdout 리스너를 붙이는 방식으로 구현해 엔진 자체는 그대로 유지(요청사항 "신규 기능 추가하지 않음" 충족)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`, `npm run lint` 통과
+- 저장소의 실제 Next.js dev 서버를 임시 기동해 실제 HTTP 요청으로 검증:
+  - **포트 감지**: `- Local: http://localhost:4321` 로그를 늦게(500ms 후) 출력하는 스크래치 프로젝트로 Start → 즉시 이어진 Status 조회에서 `port:4321` 정상 감지 확인
+  - **4단계 상태**: 초기 `status:"stopped"` → Start 요청이 진행 중인 동안 동시 Status 조회 시 `status:"starting"` 확인 → 완료 후 `status:"running"` → 실패하는 dev 스크립트로 별도 프로젝트를 Start해 `status:"error"`(+에러 메시지)가 Status 재조회에서도 유지됨을 확인 → Stop으로 `status:"stopped"`로 복귀됨을 확인
+  - **중복 실행 방지**: 실행 중인 프로젝트에 Start 재요청 → `{"success":false,"error":"이미 실행 중입니다."}` 즉시 반환 확인
+  - **화면 렌더링**: `/developer` 페이지 HTML에 Status·Port·PID·URL·Branch·Git 변경 수 6개 라벨 전부 정상 출력 확인
+- 테스트에 사용한 프로세스·dev 서버·스크래치 프로젝트는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음), `git status` 결과 의도한 변경 파일만 존재
+
+---
+
+## 2026-07-09 (13)
+
+### 추가 (Added)
+
+- **Development OS — Terminal Engine을 공용 Command Engine으로 확장**: 그동안 Dev Server 전용이던 실행 엔진(`lib/devserver/manager.ts`)을 Development OS의 모든 명령(빌드·테스트·린트, 패키지 설치, Git, 유틸리티)을 실행할 수 있는 공용 엔진(`lib/commandEngine/`)으로 분리·확장. 이번 회차는 엔진만 다루며 UI·API 라우트는 추가하지 않음(사용자 지시)
+  - `lib/commandEngine/types.ts`(신규) — `ExecuteOptions`/`ExecuteResult`(1회성 명령, stdout·stderr 분리 수집)·`BackgroundExecuteOptions`/`BackgroundExecuteResult`(dev 서버처럼 종료를 기다리지 않는 장기 실행 명령)·`TerminateResult`·`CommandRecord`/`CommandHistoryStore`(요구사항 5 — 명령 실행 이력 인터페이스) 타입 정의
+  - `lib/commandEngine/history.ts`(신규) — `CommandHistoryStore`의 기본 구현 `InMemoryCommandHistoryStore`(최근 200건, 최신순), 모듈 싱글턴 `commandHistoryStore`와 `getCommandHistory()` 노출(스토리지 교체가 필요해지면 인터페이스만 구현하면 되는 구조)
+  - `lib/commandEngine/commands.ts`(신규) — 요청된 4개 카테고리(Development: `npm run dev/build/test/lint` · Package: `npm install/update` · Git: `git status/pull/push` · Utility: `code .`/`explorer .`)를 선언적 카탈로그(`COMMAND_CATALOG`)로 정의. "기본 브라우저로 URL 열기"는 인자(URL)가 필요해 카탈로그 대신 `buildOpenUrlCommand(url)`(PowerShell `Start-Process`)로 별도 제공
+  - `lib/commandEngine/engine.ts`(신규) — `execute(command, options)`(1회성, 종료까지 대기하며 stdout/stderr 분리 수집 — 요구사항 4), `executeBackground(command, options)`(장기 실행, settleMs 동안 조기 종료가 없으면 성공 판정 후 해당 `ChildProcess` 핸들을 호출자에게 반환해 이후 종료 감지는 호출자가 직접 구독하도록 위임), `terminateProcessTree(pid)`(taskkill 기반, 이미 종료된 PID는 오류로 취급하지 않음 — 기존 Dev Server Manager의 로직을 그대로 이전), `runCatalogCommand(id, cwd)`(카탈로그 항목을 `background` 플래그에 따라 `execute`/`executeBackground`로 자동 분기), `openUrl(url, cwd)`. `lib/terminal/server.ts`의 기존 `buildShellInvocation()`을 그대로 재사용(PowerShell/CMD/Git Bash 실행 인자 구성 중복 없음). 모든 명령 실행은 완료 시 `commandHistoryStore`에 기록되고, 기존 `eventBus`(Logs Manager가 이미 구독 중인 terminal/git 카테고리)에도 동일하게 이벤트를 발행해 재사용
+  - `lib/devserver/manager.ts` — 내부 구현을 새 엔진 기반으로 교체(로컬에 있던 `spawn`+수동 settle 로직, `killProcessTree`를 각각 `executeBackground()`/`terminateProcessTree()` 호출로 대체). `startDevServer`/`stopDevServer`/`restartDevServer`/`getDevServerStatus`/`isDevServerRunning`의 시그니처·반환값·동작은 동일하게 유지(요구사항 2·6) — `/api/devserver/*` 4개 라우트와 `DevServerManagerCard.tsx`는 무수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트), `npm run lint`, `npm run build`(루트 전체, 43개 라우트 정상 생성) 모두 통과
+- 실제 HTTP 요청으로 신규 Command Engine 3개 카테고리를 검증(검증 전용 임시 API 라우트를 만들어 실행 후 삭제, 최종 변경분에는 포함되지 않음): **npm run build**(scratch 프로젝트, `execute()` 직접 호출) → `exitCode:0`, stdout에 `"build ok"` 캡처 확인 / **git status**(저장소 루트, 카탈로그 `git:status`) → `exitCode:0`, 실제 `git status` 출력(현재 변경 파일 목록)과 정확히 일치 / **code .**(저장소 루트, 카탈로그 `util:code`) → `exitCode:0`(실제 VS Code 창이 열림)
+- 리팩터링에 따른 회귀 여부 확인을 위해 Dev Server Manager의 Status→Start→Status→Restart→Status→Stop→Status를 1회 왕복 실행 — Start(`pid:624`)·Restart(`pid:20552`로 교체)·Stop 전부 이전과 동일하게 정상 동작함을 확인(요구사항 6 충족, 상세 반복 검증은 이전 회차에서 이미 완료되어 반복하지 않음)
+- 검증에 사용한 프로세스·dev 서버·스크래치 프로젝트·임시 API 라우트·`.next` 빌드 캐시는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음, `git status` 결과 의도한 변경 파일만 존재)
+
+---
+
+## 2026-07-09 (12)
+
+### 추가 (Added)
+
+- **Development OS — UI Explorer에 화면별 인라인 Preview(미리보기) 추가**: Dev Server Manager를 포함한 화면 전체를 UI Explorer에서 페이지 이동 없이 바로 확인·테스트할 수 있도록 개선(Backend/Terminal Engine 로직은 이번 변경에서 다루지 않음, UI 연결·표시만 다룸)
+  - `components/developer/UiMapExplorer.tsx` — 항목별 카드에 "미리보기" 토글 버튼 추가. 열면 카드 하단에 `<iframe src={entry.openUrl}>`가 인라인으로 표시되고("열기" 버튼은 페이지 이동, "미리보기"는 그 자리에서 확인). 항목별로 독립적으로 열고 닫을 수 있도록 `Set<string>` state로 관리
+  - `docs/UI_MAP.md` — "Development OS 인덱스"(`/developer`) 행을 "사용 중"으로 갱신하고 Dev Server Manager가 실제 프로세스를 제어함을 반영(이전 회차에 "UI만 구현"으로 적어둔 설명이 이후 Start/Stop/Restart 실구현으로 이미 낡아 있었음)
+  - Dev Server Manager 카드 자체(`components/developer/DevServerManagerCard.tsx`, `app/developer/page.tsx`)는 이전 회차에서 이미 요청사항(카드 추가, Status/Port/PID 실시간 표시, Start/Stop/Restart 연결, 마운트 시 자동 조회, 액션 후 자동 갱신, Running/Stopped 배지·필드 규칙, 기존 Card/Badge 재사용)을 모두 충족하고 있어 이번 회차에서는 수정하지 않음
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트), `npm run lint` 통과
+- 저장소의 실제 Next.js dev 서버를 임시 기동해 `/developer`(카드·Start/Stop/Restart 버튼·Stopped 배지 텍스트 렌더링) `/developer/ui-map`("미리보기" 버튼 렌더링) 페이지가 정상 응답함을 curl로 확인
+- Dev Server Manager가 실제로 호출하는 API 경로로 Start → Status → Restart → Status → Stop → Status 1회 왕복 확인: `pid:20340`(Start) → `running:true,pid:20340` → `pid:22444`(Restart) → `running:true,pid:22444` → Stop 성공 → `running:false,pid:null`. Start/Stop/Restart/Status 각 기능의 상세 반복 검증은 이전 회차(2026-07-09 (8)~(11))에서 이미 완료되어 이번 회차에서 반복하지 않음
+- 테스트에 사용한 프로세스·dev 서버·스크래치 폴더는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음)
+
+---
+
+## 2026-07-09 (11)
+
+### 추가 (Added)
+
+- **Development OS — Dev Server Manager Restart 기능 실제 구현**: Restart 버튼이 내부적으로 Stop → Start를 순차 실행해 새 PID로 개발 서버를 재시작하도록 구현
+  - `lib/devserver/manager.ts` — `restartDevServer(workspacePath)` 추가. `stopDevServer()` 실행 후 성공 시에만 `startDevServer()`로 이어감(Stop 실패 시 기존 프로세스가 살아있을 수 있어 중복 실행을 막기 위해 Start를 시도하지 않고 그대로 실패 반환)
+  - `app/api/devserver/restart/route.ts`(신규) — `POST { cwd }` → `restartDevServer()` 위임
+  - `lib/devserver/client.ts` — `restartDevServer(cwd)` 클라이언트 함수 추가(응답 형태가 Start와 동일해 `StartDevServerResponse` 재사용)
+  - `components/developer/DevServerManagerCard.tsx` — Restart 버튼을 실제 API에 연결, 완료 후 `refreshStatus()`로 Status·PID·Port를 실제 서버 상태 기준으로 즉시 갱신. Start/Stop/Restart 세 액션이 동시에 겹쳐 호출되지 않도록 `isBusy`(세 로딩 상태의 OR)로 버튼을 함께 잠금 처리(더 이상 쓰이지 않는 Mock PID 생성 함수 `generateMockPid` 제거)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트), `npm run lint` 통과
+- 저장소의 실제 Next.js dev 서버를 임시 기동 후 실제 HTTP 요청으로 검증: 아무것도 실행 중이지 않을 때 Restart(Stop no-op → Start, PID 956) → Status 일치, 실행 중일 때 Restart(PID 20088로 교체) → Status 일치 → Stop. 이어서 `Start → Restart → Stop`을 3회 반복 실행해 매 회 서로 다른 PID로 정상 재시작되고 Stop 후 `{running:false, pid:null}`로 정확히 돌아옴을 확인. Restart로 교체되기 전의 옛 PID(9252·21536·3096·956)가 `tasklist`에서 실제로 사라졌음을 확인해 이전 프로세스가 고아로 남지 않고 확실히 종료됨을 검증. 테스트에 사용한 프로세스·dev 서버·스크래치 폴더는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음)
+
+---
+
+## 2026-07-09 (10)
+
+### 추가 (Added)
+
+- **Development OS — Dev Server Manager Stop 기능 실제 구현**: Stop 버튼이 Start에서 추적해 둔 PID로 실제 개발 서버 프로세스를 종료하도록 구현
+  - `lib/devserver/manager.ts` — `stopDevServer(workspacePath)` 추가. `taskkill /F /T /PID <pid>`로 프로세스 트리 전체를 종료(PowerShell로 감싸 실행한 npm/pnpm/yarn/bun 자식 프로세스까지 함께 종료됨). 실행 중인 프로세스가 없으면(registry에 없음) 즉시 성공으로 처리(안전한 no-op), 이미 종료된 PID(`taskkill` 종료 코드 128)도 오류로 취급하지 않고 성공 처리. 그 외 실패(예: 권한 문제)는 registry에서 제거하지 않고 오류 메시지와 함께 실패 반환
+  - `app/api/devserver/stop/route.ts`(신규) — `POST { cwd }` → `stopDevServer()` 위임
+  - `lib/devserver/client.ts` — `stopDevServer(cwd)` 클라이언트 함수 추가
+  - `components/developer/DevServerManagerCard.tsx` — Stop 버튼을 실제 API에 연결, 종료 후 `refreshStatus()`로 실제 서버 상태를 다시 조회해 Status/PID/Port를 즉시 갱신(성공 시 Stopped·-·- 로 표시됨은 실제 상태 재조회의 결과)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트), `npm run lint` 통과
+- 저장소의 실제 Next.js dev 서버를 임시 기동 후 실제 HTTP 요청으로 검증: 실행 중인 프로세스가 없을 때 Stop → 오류 없이 성공, Start(PID 20996) → Status(running:true) → Stop → Status(running:false, pid:null) → Stop 재호출(이미 종료됨, 오류 없이 성공), Start→Stop→Start 반복(2회차 PID 22488도 동일하게 정상 동작). `tasklist`로 종료된 PID가 실제 OS 프로세스 목록에서도 사라졌음을 재확인(단순 registry 제거가 아닌 실제 프로세스 종료임을 확인). 테스트에 사용한 프로세스·dev 서버·스크래치 폴더는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음)
+
+---
+
+## 2026-07-09 (9)
+
+### 추가 (Added)
+
+- **Development OS — Dev Server Manager Status/PID를 실제 서버 상태 기준으로 표시**: 기존에는 Start 성공 시 응답값으로만 잠깐 Status/PID를 표시하고, 페이지를 새로고침하면 실제로는 프로세스가 계속 실행 중이어도 클라이언트 state가 초기화되어 항상 "Stopped/-"로 되돌아가던 문제를 수정. `lib/devserver/manager.ts`의 실행 중 프로세스 registry(Map)를 서버 측 단일 진실 공급원으로 삼아 조회하도록 변경
+  - `lib/devserver/manager.ts` — `getDevServerStatus(workspacePath)` 추가(registry에 있으면 `{running:true, pid}`, 없으면 `{running:false, pid:null}`)
+  - `app/api/devserver/status/route.ts`(신규) — `GET ?cwd=`으로 위 함수를 노출
+  - `lib/devserver/client.ts` — `fetchDevServerStatus(cwd)` 추가
+  - `components/developer/DevServerManagerCard.tsx` — `cwd`가 정해지면(마운트·Workspace 전환 시) 실제 상태를 조회해 Status/PID/Port에 반영, Start 성공 직후에도 재조회해 항상 서버의 실제 상태와 일치하도록 수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트), `npm run lint` 통과
+- 저장소의 실제 Next.js dev 서버를 임시 기동 후, 정상 `dev` 스크립트가 있는 스크래치 프로젝트로 (1) Start 이전 상태 조회 → `{running:false, pid:null}`, (2) Start 실행 → `{success:true, pid:19000}`, (3) Start 이후 상태 재조회 → `{running:true, pid:19000}`(Start 응답의 PID와 정확히 일치)까지 실제 HTTP 요청으로 확인. 테스트에 사용한 프로세스·dev 서버·스크래치 폴더는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음)
+
+---
+
+## 2026-07-09 (8)
+
+### 추가 (Added)
+
+- **Development OS — Dev Server Manager Start 버튼 실제 구현**: `/developer` 카드의 Start 버튼이 실제로 현재 프로젝트 경로에서 dev 서버를 실행하도록 구현(성공/실패 여부만 표시, 사용자 지시 범위)
+  - `lib/terminal/server.ts` — 기존 `buildShellInvocation()`(PowerShell/CMD/Git Bash 별 실행 인자 구성)을 export해 Dev Server Manager에서 재사용
+  - `lib/devserver/manager.ts`(신규) — `startDevServer(workspacePath)`. `lib/projects/detect.ts`의 `detectProjectFiles()`로 packageManager를 재사용 감지해 `npm run dev`/`pnpm dev`/`yarn dev`/`bun run dev` 중 실행. `package.json` 부재·`dev` 스크립트 부재·이미 실행 중인 경우를 사전에 걸러 즉시 실패 반환. 프로세스는 일반 `executeShellCommand()`처럼 종료를 기다리지 않고(dev 서버는 종료되지 않는 프로세스이므로) 2초 동안 조기 종료(`exit`)·실행 오류(`error`)가 없으면 "성공"으로 판정, 경로별로 실행 중인 프로세스를 모듈 싱글턴 Map에 기록(중복 실행 방지)
+  - `app/api/devserver/start/route.ts`(신규) — `POST { cwd }` → `startDevServer()` 위임
+  - `lib/devserver/client.ts`(신규) — 위 API를 호출하는 클라이언트 함수
+  - `components/developer/DevServerManagerCard.tsx` — Start 클릭 시 `useResolvedCwd()`(Terminal/GitHub Manager와 동일하게 현재 Workspace 기준 경로 재사용)로 얻은 cwd로 실제 API를 호출, 성공/실패 여부만 `StatusMessage`(초록/빨강)로 표시. 성공 시 Status/PID는 실제 응답값(spawn된 프로세스의 실제 PID)으로 갱신. Stop/Restart 버튼은 이번 범위에 포함되지 않아 기존 Mock 동작 그대로 유지(주의: 실제로 spawn된 프로세스를 Stop이 아직 종료시키지 못함 — 아래 다음 추천 작업 참고)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트), `npm run lint` 통과
+- 격리된 스크래치 프로젝트 2종(정상 `dev` 스크립트가 있는 프로젝트, `dev` 스크립트가 없는 프로젝트)을 만들고, 저장소의 실제 Next.js dev 서버를 임시로 기동해 `/api/devserver/start`에 실제 HTTP 요청으로 검증: (1) 정상 프로젝트 → `{success:true, pid:<실제 PID>}` 확인, 실제 프로세스가 살아있음을 `tasklist`로 확인, (2) `dev` 스크립트 없는 프로젝트 → `{success:false, error:"package.json에 dev 스크립트가 없습니다."}` 확인, (3) 이미 실행 중인 경로에 재요청 → `{success:false, error:"이미 실행 중입니다."}` 확인(중복 실행 방지 정상 동작). 검증에 사용한 프로세스·테스트용 dev 서버·스크래치 폴더는 모두 종료·삭제 완료(포트 3000 재확인 결과 LISTENING 없음)
+
+### 다음 추천 작업
+
+- Stop/Restart를 실제로 연결하지 않으면, Start로 spawn된 프로세스가 UI에서 Stop을 눌러도 종료되지 않고 백그라운드에 남습니다(현재는 서버 재시작 전까지 `lib/devserver/manager.ts`의 Map으로만 추적됨). Stop 구현 시 이 Map에서 프로세스를 찾아 종료하는 방식으로 이어서 구현 가능
+
+---
+
 ## 2026-07-09 (6)
 
 ### 수정 (Fixed)

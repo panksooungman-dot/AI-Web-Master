@@ -31,7 +31,7 @@ function resolveCdTarget(cwd: string, rawTarget: string): string {
   return path.resolve(cwd, target);
 }
 
-function buildShellInvocation(shell: Shell, command: string): { bin: string; args: string[] } {
+export function buildShellInvocation(shell: Shell, command: string): { bin: string; args: string[] } {
   if (shell === "CMD") {
     return { bin: "cmd.exe", args: ["/d", "/s", "/c", `chcp 65001>nul && ${command}`] };
   }

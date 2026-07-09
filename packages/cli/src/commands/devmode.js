@@ -105,15 +105,17 @@ async function devmode(args) {
     log.dim("   해결 : VS Code Command Palette > 'Shell Command: Install code command in PATH'");
   }
 
-  // 2) npm run dev 실행 + 3) 미리보기 열기 (실제 포트를 출력에서 자동 감지)
+  // 2) npm run dev 실행 + 3) Development OS 화면 열기 (실제 포트를 출력에서 자동 감지)
   const hasPackageJson = fs.existsSync(path.join(workspacePath, "package.json"));
+  let detectedPort = null;
   if (hasPackageJson) {
     log.info("[devmode] 새 터미널 창에서 'npm run dev'를 시작합니다 (포트 자동 감지 중)...");
     const { port } = await startDevServer(workspacePath);
+    detectedPort = port;
     if (port) {
       log.ok("Dev Server", `새 터미널 창에서 시작됨 (http://localhost:${port})`);
-      openInSystem(`http://localhost:${port}`);
-      log.ok("Live Preview", `열림 (http://localhost:${port})`);
+      openInSystem(`http://localhost:${port}/developer`);
+      log.ok("Development OS", `열림 (http://localhost:${port}/developer)`);
     } else {
       log.warn("Dev Server", "포트를 자동으로 감지하지 못했습니다 - 새로 열린 터미널 창을 확인하세요");
     }
@@ -163,6 +165,8 @@ async function devmode(args) {
   console.log("텍스트/이미지/색상/여백 저장이 그 자리에서 가능합니다.");
   console.log("----------------------------------------");
   console.log("");
+
+  return { project, workspacePath, port: detectedPort };
 }
 
 module.exports = { devmode };

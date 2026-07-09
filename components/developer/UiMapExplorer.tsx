@@ -18,9 +18,26 @@ interface UiMapExplorerProps {
   categories: string[];
 }
 
+function entryKey(entry: UiMapEntry): string {
+  return `${entry.category}-${entry.url}-${entry.name}`;
+}
+
 export function UiMapExplorer({ entries, categories }: UiMapExplorerProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("전체");
+  const [previewKeys, setPreviewKeys] = useState<Set<string>>(new Set());
+
+  const togglePreview = (key: string) => {
+    setPreviewKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -87,23 +104,54 @@ export function UiMapExplorer({ entries, categories }: UiMapExplorerProps) {
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {categoryEntries.map((entry) => (
-                    <Card key={`${entry.category}-${entry.url}-${entry.name}`}>
-                      <h3 className="text-lg font-bold mb-1">{entry.name}</h3>
-                      <p className="text-xs text-green-400 font-mono mb-3">{entry.url}</p>
-                      <p className="text-sm text-gray-400 mb-4">{entry.description}</p>
-                      {entry.openUrl ? (
-                        <Link
-                          href={entry.openUrl}
-                          className="inline-block rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-sm font-semibold transition-colors"
-                        >
-                          열기
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-gray-600">이동 불가</span>
-                      )}
-                    </Card>
-                  ))}
+                  {categoryEntries.map((entry) => {
+                    const key = entryKey(entry);
+                    const isPreviewOpen = previewKeys.has(key);
+
+                    return (
+                      <Card key={key}>
+                        <h3 className="text-lg font-bold mb-1">{entry.name}</h3>
+                        <p className="text-xs text-green-400 font-mono mb-3">{entry.url}</p>
+                        <p className="text-sm text-gray-400 mb-4">{entry.description}</p>
+                        {entry.openUrl ? (
+                          <div className="flex flex-wrap gap-2">
+                            <Link
+                              href={entry.openUrl}
+                              className="inline-block rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-sm font-semibold transition-colors"
+                            >
+                              열기
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => togglePreview(key)}
+                              className={`inline-block rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
+                                isPreviewOpen
+                                  ? "bg-gray-700 text-white"
+                                  : "border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800"
+                              }`}
+                            >
+                              {isPreviewOpen ? "미리보기 닫기" : "미리보기"}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-600">이동 불가</span>
+                        )}
+
+                        {isPreviewOpen && entry.openUrl && (
+                          <div
+                            className="mt-4 rounded-lg overflow-hidden border border-gray-800 bg-white"
+                            style={{ height: 480 }}
+                          >
+                            <iframe
+                              src={entry.openUrl}
+                              title={`${entry.name} 미리보기`}
+                              className="w-full h-full"
+                            />
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </section>

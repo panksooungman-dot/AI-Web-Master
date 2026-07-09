@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/developer/PageHeader";
 import { StatusMessage } from "@/components/developer/StatusMessage";
 import { UiMapExplorer, type UiMapEntry } from "@/components/developer/UiMapExplorer";
 
-const CATEGORY_ORDER = ["프로젝트 관리", "고객관리", "AI", "인증", "관리자", "설정"];
+const CATEGORY_ORDER = ["프로젝트 관리", "고객관리", "AI", "인증", "관리자", "개발자", "설정"];
 
 function stripMarkdown(text: string): string {
   return text.replace(/\*\*/g, "").replace(/`/g, "").trim();

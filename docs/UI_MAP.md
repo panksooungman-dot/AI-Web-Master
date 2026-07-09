@@ -73,7 +73,7 @@
 
 | 화면 이름 | URL | 파일 위치 | 메뉴 접근 | 사용 여부 | 기능 |
 |---|---|---|---|---|---|
-| Development OS 인덱스 | `/developer` | `app/developer/page.tsx` | ❌ 없음(`DeveloperNav`에도 자기 자신 링크 없음) | 부분 사용 | "위 메뉴에서 선택하세요" 안내 문구만 있는 빈 랜딩 페이지 |
+| Development OS 인덱스 | `/developer` | `app/developer/page.tsx` | ❌ 없음(`DeveloperNav`에도 자기 자신 링크 없음) | 사용 중 | 안내 문구 + Dev Server Manager 카드(현재 프로젝트에서 실제 `npm run dev` 등을 실행·PID 추적·종료·재시작. Status·Port·PID 실시간 조회, Start/Stop/Restart 버튼) |
 | Terminal | `/developer/terminal` | `app/developer/terminal/page.tsx` | ✅ `DeveloperNav` | 사용 중 | PowerShell 명령 실제 실행(`/api/terminal`), 현재 Workspace 기준 cwd 세션 유지, 명령 히스토리(↑/↓) |
 | GitHub 관리 | `/developer/github` | `app/developer/github/page.tsx` | ✅ `DeveloperNav` | 사용 중 | `git status`/`branch`/`remote`/`log` 조회, Commit/Push/Pull/Fetch 실행(Terminal API 재사용) |
 | Logs | `/developer/logs` | `app/developer/logs/page.tsx` | ✅ `DeveloperNav` | 사용 중 | Event Bus(Terminal/Git/Agent/Workflow) 실행 이력 조회(`/api/logs`), 검색/필터/Export |

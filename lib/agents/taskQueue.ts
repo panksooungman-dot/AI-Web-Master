@@ -103,6 +103,7 @@ class TaskQueue {
 
     eventBus.emit("agent", "task.started", { taskId: task.id, agentId: task.agentId });
 
+
     try {
       const agent = getAgent(task.agentId);
 

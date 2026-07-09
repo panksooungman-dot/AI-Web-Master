@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-07-09 (5)
+
+### 조사 (Investigated) — 사용자의 후속 재현: PATH는 정상인데 설치된 CLI가 구버전
+
+- 사용자가 새 컴퓨터에서 `Get-Command ai` 결과(`...\npm\ai.ps1`, 단일 경로)를 확인해 PATH 자체는 정상임을 직접 확인했고, 그럼에도 `ai --version`(당시엔 미지원)·`project`/`register`가 없다고 재보고. "PATH가 아니라 CLI 엔트리포인트·빌드 과정을 봐달라"는 요청에 따라 재조사
+  - `packages/cli/package.json`에 build/dist 단계가 없음을 재확인(스크립트 없음, TypeScript 컴파일·번들링 없음) — `bin/ai.js`가 `src/*.js`를 CommonJS로 직접 `require()`하는 순수 소스 배포 구조라 "dist가 최신인지"는 애초에 해당 사항이 없음
+  - `.npmignore`(루트·`packages/cli` 모두 없음), 루트 `.gitignore`에도 `packages/` 관련 제외 규칙이 없어 `files` 필드 기반 패키징을 방해할 요소가 없음을 재확인
+  - npm이 실제로 생성하는 `ai.ps1` 셸(전역 표준 템플릿)을 직접 열어 확인 — `$basedir/node_modules/@cnbiz/ai-business-os-cli/bin/ai.js`라는 **고정 경로**를 실행할 뿐, 별도 캐시·버전 판단 로직이 전혀 없음(즉 설치된 패키지 폴더의 실제 파일 내용이 오래됐다면 그것은 100% "그 경로에 실제로 설치된 내용 자체가 오래된 것"이며, 셸 자체의 문제일 수 없음)
+  - 결론: 소스에 build 단계가 없고 셸도 고정 경로 위임만 하므로, 남은 유일한 설명은 "그 컴퓨터에 실제로 설치된 패키지 파일 자체가 오래된 소스로부터 만들어졌다"는 것 — 가장 유력한 경로는 여전히 오래된 클론에서 `setup.ps1`을 실행한 경우
+
+### 추가 (Added)
+
+- **AI Business OS CLI — 설치된 패키지에 실제 커밋 해시를 새겨넣어 "설치된 코드가 어느 커밋인지" 원격 확인 없이 즉시 대조 가능하게 함**: 단순 semver 버전(`0.2.0`)만으로는 다음 기능 추가 전까지 신구 구분이 안 되는 근본적 한계가 있어, 설치 시점마다 바뀌는 정보(커밋 해시)를 설치된 패키지 안에 직접 남기도록 개선
+  - `packages/cli/src/buildInfo.js`(신규) — `module.exports = { commit: null }`. 소스에서 직접 실행할 때(설치 없이 `node bin/ai.js`)의 기본값
+  - `packages/cli/bin/ai.js` — `CLI_VERSION`에 `buildInfo.commit`이 있으면 `v0.2.0+<커밋 7자리>` 형태로 이어붙여 `ai --version`/`ai --help` 양쪽에 표시
+  - `packages/cli/install.ps1` — `npm install -g` 직전에 `src/buildInfo.js`를 현재 `git rev-parse --short HEAD` 값으로 잠깐 덮어써 패키징하고, 설치 성공/실패와 무관하게 `finally`에서 반드시 원래 내용으로 복원(소스 트리 git 상태를 깨끗하게 유지). 세 곳(기본 설치·사용자 prefix 재시도·shim 누락 시 자동 복구 재설치)에서 모두 이 커밋 해시가 적용되도록 `try/finally`로 install 구간 전체를 감쌈
+
+### 수정 (Fixed)
+
+- **위 기능을 실제로 검증하는 과정에서 직접 재현·발견한 버그**: `install.ps1`이 `src/buildInfo.js` 원본을 `Get-Content -Raw`로 읽었는데, Windows PowerShell 5.1의 `Get-Content` 기본 인코딩이 BOM 없는 UTF-8 파일의 한글을 시스템 코드페이지로 잘못 해석해, 복원 시 파일의 한글 주석이 깨진 상태로 저장되는 사고가 실제로 발생함(저장소의 실제 파일이 한 차례 깨졌다가 즉시 원본으로 복구·재검증됨 — 커밋에는 깨진 상태가 포함되지 않음). `[System.IO.File]::ReadAllText(path, UTF8Encoding($false))`로 읽기를 명시적 UTF-8로 교체해 근본 수정
+
+### 검증 (Verified)
+
+- 실제 저장소의 `packages/cli/src/buildInfo.js`를 대상으로, `install.ps1`이 하는 것과 동일한 "커밋 해시 삽입 → 격리된 npm prefix에 설치 → 원본 복원" 시퀀스를 그대로 실행(전역 npm/PATH는 건드리지 않도록 `--prefix`만 스크래치 경로로 격리, 소스 파일 자체는 실제 경로 사용)
+  - 삽입된 커밋 해시로 설치된 CLI의 `ai --version` → `0.2.0+eac5396`(당시 HEAD) 정확히 표시됨을 확인
+  - **인코딩 버그를 이 과정에서 실제로 재현**(첫 시도에서 한글 주석이 깨진 채 복원됨을 발견) → 원본을 MD5 해시로 정확히 복구 확인 → 인코딩을 명시적 UTF-8로 수정 → 재실행 시 복원된 파일이 원본과 바이트 단위로 완전히 동일함(`RESTORE_OK`)을 확인
+- `install.ps1` 전체 PowerShell 구문 검사(`Parser::ParseFile`) 통과, `bin/ai.js`·`buildInfo.js` `node --check` 통과
+- 이 컴퓨터에 이미 있던 실제 전역 설치(저장소로의 `npm link` 방식 Junction)는 이번 변경으로 건드리지 않음(테스트를 격리된 prefix로만 수행) — 사용자의 다음 설치/재설치부터 새 진단 기능이 적용됨
+
+---
+
 ## 2026-07-09 (4)
 
 ### 검증 (Verified) — 새 컴퓨터에서 `ai --help`에 프로젝트 명령이 안 보인다는 보고 조사

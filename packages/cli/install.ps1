@@ -159,49 +159,80 @@ function Invoke-NpmGlobalInstall {
     return ($exitCode -eq 0)
 }
 
-$installOk = Invoke-NpmGlobalInstall
+# 설치되는 패키지 안에 실제 git 커밋 해시를 새겨 넣는다("ai --version"이 이
+# 값을 함께 표시함 — src/buildInfo.js 참고). "설치는 됐다는데 새 기능이 없다"는
+# 문제를, 소스 저장소 없이 설치된 컴퓨터에서도 즉시 판별할 수 있게 하기 위함이다.
+# 소스 트리의 src/buildInfo.js는 패키징 직전에만 잠깐 덮어쓰고, 설치 성공/실패와
+# 무관하게 finally에서 반드시 원래 내용으로 복원해 로컬 git 상태를 깨끗하게 유지한다.
+$buildInfoPath = Join-Path $cliRoot "src\buildInfo.js"
+# Get-Content -Raw는 Windows PowerShell 5.1에서 시스템 기본 코드페이지로
+# 읽어 BOM 없는 UTF-8 파일의 한글이 깨질 수 있다(실제 재현·확인됨 — 복원 시
+# 소스 파일의 한글 주석이 깨진 상태로 저장되는 사고가 있었음). 반드시
+# .NET의 UTF8Encoding으로 직접 읽어 원본 바이트를 그대로 보존한다.
+$originalBuildInfo = if (Test-Path $buildInfoPath) { [System.IO.File]::ReadAllText($buildInfoPath, (New-Object System.Text.UTF8Encoding($false))) } else { $null }
+try {
+    $gitCommit = ""
+    try { $gitCommit = (git -C $cliRoot rev-parse --short HEAD 2>$null) } catch {}
+    if ($gitCommit) {
+        $gitCommit = $gitCommit.Trim()
+        $injected = "module.exports = { commit: `"$gitCommit`" };`n"
+        [System.IO.File]::WriteAllText($buildInfoPath, $injected, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "[install] 빌드 커밋 기록: $gitCommit" -ForegroundColor DarkGray
+    } else {
+        Write-Host "  ⚠️  git 커밋 해시를 확인하지 못해 버전에 커밋 정보가 포함되지 않습니다." -ForegroundColor Yellow
+    }
 
-if (-not $installOk) {
-    Write-Host "  ⚠️  기본 위치에 설치하지 못했습니다 (권한 문제일 수 있음). 사용자 전용 위치로 재시도합니다..." -ForegroundColor Yellow
-    $userNpmRoot = Join-Path $env:LOCALAPPDATA "ai-business-os\npm-global"
-    New-Item -ItemType Directory -Force -Path $userNpmRoot | Out-Null
-    npm config set prefix "$userNpmRoot" | Out-Null
-    Update-SessionPath
-    $env:Path = "$userNpmRoot;$env:Path"
     $installOk = Invoke-NpmGlobalInstall
-}
 
-Write-Step $installOk "전역 설치"
+    if (-not $installOk) {
+        Write-Host "  ⚠️  기본 위치에 설치하지 못했습니다 (권한 문제일 수 있음). 사용자 전용 위치로 재시도합니다..." -ForegroundColor Yellow
+        $userNpmRoot = Join-Path $env:LOCALAPPDATA "ai-business-os\npm-global"
+        New-Item -ItemType Directory -Force -Path $userNpmRoot | Out-Null
+        npm config set prefix "$userNpmRoot" | Out-Null
+        Update-SessionPath
+        $env:Path = "$userNpmRoot;$env:Path"
+        $installOk = Invoke-NpmGlobalInstall
+    }
+
+    Write-Step $installOk "전역 설치"
+
+    if ($installOk) {
+        # 6) npm 전역 bin 디렉터리를 실제로 조회해(가정하지 않음) PATH에 명시적으로 추가
+        #    Windows에서 npm은 prefix 디렉터리 자체에 ai.cmd/ai.ps1/ai 셸 스크립트를 만든다.
+        #    --workspaces=false 필수: 이 스크립트를 호출한 프로세스의 cwd가 npm
+        #    workspaces 멤버 폴더(예: ai-web-master 저장소의 packages/cli) 안이면,
+        #    이 플래그 없이는 `npm config get prefix`가 ENOWORKSPACES로 실패한다
+        #    (prefix는 워크스페이스와 무관한 전역 설정인데도 이 npm 버전은 cwd가
+        #    워크스페이스 멤버 안일 때 이 명령을 거부한다 — 실제로 재현·확인됨).
+        $npmPrefix = (npm config get prefix --workspaces=false).Trim()
+        $pathAdded = Add-ToUserPath $npmPrefix
+        Update-SessionPath
+
+        $aiCmdPath = Join-Path $npmPrefix "ai.cmd"
+        $aiShimExists = Test-Path $aiCmdPath
+
+        if (-not $aiShimExists) {
+            # --force로 설치했는데도 shim이 없다면, npm이 내부적으로 참조하는
+            # node_modules 메타데이터 자체가 꼬여 있을 가능성이 있다. 한 번 완전히
+            # 제거한 뒤 처음부터 다시 설치해 확실히 재생성을 시도한다(최후 자동 복구,
+            # 그래도 없으면 아래에서 하드 실패 처리).
+            Write-Host "  ⚠️  ai.cmd가 생성되지 않았습니다. 완전 재설치로 복구를 시도합니다..." -ForegroundColor Yellow
+            & npm uninstall -g "@cnbiz/ai-business-os-cli" 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+            Invoke-NpmGlobalInstall | Out-Null
+            $aiShimExists = Test-Path $aiCmdPath
+        }
+    }
+} finally {
+    # 설치 성공/실패와 무관하게 소스 트리는 항상 원래 상태로 복원한다(git 상태 청결 유지).
+    if ($null -ne $originalBuildInfo) {
+        [System.IO.File]::WriteAllText($buildInfoPath, $originalBuildInfo, (New-Object System.Text.UTF8Encoding($false)))
+    }
+}
 
 if (-not $installOk) {
     Write-Host ""
     Write-Host "설치에 실패했습니다. 위 로그를 확인하세요." -ForegroundColor Red
     exit 1
-}
-
-# 6) npm 전역 bin 디렉터리를 실제로 조회해(가정하지 않음) PATH에 명시적으로 추가
-#    Windows에서 npm은 prefix 디렉터리 자체에 ai.cmd/ai.ps1/ai 셸 스크립트를 만든다.
-#    --workspaces=false 필수: 이 스크립트를 호출한 프로세스의 cwd가 npm
-#    workspaces 멤버 폴더(예: ai-web-master 저장소의 packages/cli) 안이면,
-#    이 플래그 없이는 `npm config get prefix`가 ENOWORKSPACES로 실패한다
-#    (prefix는 워크스페이스와 무관한 전역 설정인데도 이 npm 버전은 cwd가
-#    워크스페이스 멤버 안일 때 이 명령을 거부한다 — 실제로 재현·확인됨).
-$npmPrefix = (npm config get prefix --workspaces=false).Trim()
-$pathAdded = Add-ToUserPath $npmPrefix
-Update-SessionPath
-
-$aiCmdPath = Join-Path $npmPrefix "ai.cmd"
-$aiShimExists = Test-Path $aiCmdPath
-
-if (-not $aiShimExists) {
-    # --force로 설치했는데도 shim이 없다면, npm이 내부적으로 참조하는
-    # node_modules 메타데이터 자체가 꼬여 있을 가능성이 있다. 한 번 완전히
-    # 제거한 뒤 처음부터 다시 설치해 확실히 재생성을 시도한다(최후 자동 복구,
-    # 그래도 없으면 아래에서 하드 실패 처리).
-    Write-Host "  ⚠️  ai.cmd가 생성되지 않았습니다. 완전 재설치로 복구를 시도합니다..." -ForegroundColor Yellow
-    & npm uninstall -g "@cnbiz/ai-business-os-cli" 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-    Invoke-NpmGlobalInstall | Out-Null
-    $aiShimExists = Test-Path $aiCmdPath
 }
 
 Write-Step $aiShimExists "ai 실행 파일 생성 확인" $aiCmdPath

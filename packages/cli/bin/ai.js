@@ -8,7 +8,8 @@ const { menu } = require("../src/commands/menu");
 const { project } = require("../src/commands/project");
 const { registerProject } = require("../src/commands/register");
 
-const CLI_VERSION = require("../package.json").version;
+const { commit: BUILD_COMMIT } = require("../src/buildInfo");
+const CLI_VERSION = require("../package.json").version + (BUILD_COMMIT ? `+${BUILD_COMMIT}` : "");
 
 function parseArgs(argv) {
   const args = {};

@@ -222,6 +222,30 @@ if (Test-Path $cliInstallScript) {
 }
 
 # ------------------------------------------------------------
+# 9. Project Registration — 첫 실행 경험(First Run) 개선
+#    이전에는 이 스크립트가 `ai` 명령만 설치하고 프로젝트는 등록하지
+#    않아서, 새 PC에서 설치 직후 `ai`를 실행하면 등록된 프로젝트가 하나도
+#    없어 아무것도 찾지 못했다(사용자가 직접 cd로 찾아다녀야 했음).
+#    이 저장소(ai-web-master) 자신을 전역 프로젝트 레지스트리
+#    (~/.ai-business-os/projects.json)에 자동 등록해, 설치 직후 `ai`/`ai project`를
+#    실행하면 등록된 프로젝트가 이것 하나뿐이므로 선택 없이 곧바로 열리게 한다
+#    (packages/cli/src/lib/projectPicker.js의 "1개면 자동 열기" 로직과 연결됨).
+#    ai.cmd의 실제 파일 경로($aiCmdPath, 8번 단계에서 확인됨)를 직접 호출해,
+#    이 PowerShell 세션이 아직 PATH를 인식하지 못한 상태여도 항상 동작하도록 한다.
+# ------------------------------------------------------------
+if ($aiCmdExists) {
+    & $aiCmdPath register --path $script:AIBizOSRoot | Out-Null
+    $registerExitCode = $LASTEXITCODE
+    if ($registerExitCode -eq 0) {
+        Add-AIBizSetupResult -Name "Project Registration" -Success $true -Detail $script:AIBizOSRoot
+    } else {
+        Add-AIBizSetupResult -Name "Project Registration" -Success $false -Detail "ai register 실행 실패 (종료 코드: $registerExitCode)"
+    }
+} else {
+    Add-AIBizSetupResult -Name "Project Registration" -Success $false -Detail "AI CLI가 설치되지 않아 건너뜀"
+}
+
+# ------------------------------------------------------------
 # 결과 출력
 # ------------------------------------------------------------
 $separator = "========================================="
@@ -250,6 +274,7 @@ if ($failCount -eq 0) {
     Write-Host ""
     Write-Host "Next Step" -ForegroundColor Yellow
     Write-Host ""
+    Write-Host "ai             새 터미널에서 실행 - 이 프로젝트가 자동으로 열립니다(cd 불필요)"
     Write-Host "ai doctor      개발 환경 재점검"
     Write-Host "ai devmode     VS Code + 실시간 미리보기 + Visual Editor 실행"
     Write-Host "health         (이 저장소 전용) 세부 환경 점검"

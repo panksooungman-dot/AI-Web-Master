@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-07-09 (3)
+
+### 수정 (Fixed)
+
+- **AI Business OS CLI — 새 컴퓨터 첫 실행(First Run) 시 `ai`가 프로젝트를 찾지 못하던 문제 수정**: 사용자가 새 컴퓨터에서 `setup.ps1` 설치 후 `ai`를 실행했을 때, 그동안 `setup.ps1`이 전역 `ai` 명령만 설치하고 프로젝트 레지스트리(`~/.ai-business-os/projects.json`)에는 아무것도 등록하지 않아 "최근 프로젝트" 목록이 항상 비어있던 것을 실제 재현 보고를 통해 확인. 아래 두 가지로 해결
+  - `packages/cli/src/commands/register.js`(신규) — `ai register --path <경로>`. 프롬프트 없이 지정된 경로를 프로젝트 레지스트리에 즉시 등록/갱신하는 비대화형 명령(설치 스크립트에서 안전하게 호출하기 위함). `packages/cli/bin/ai.js`에 라우팅 및 `--help` 안내 추가
+  - `scripts/setup.ps1` — 9번째 단계 "Project Registration" 추가. 8번(AI CLI 설치) 단계에서 확인된 `ai.cmd`의 실제 파일 경로를 직접 호출해 `ai register --path <이 저장소 루트>`를 실행, 이 저장소(ai-web-master) 자신을 자동 등록한다(PATH가 아직 이 세션에 반영되지 않았어도 항상 동작). 설치 완료 안내(Next Step)에도 `ai` 실행 시 이 프로젝트가 자동으로 열린다는 안내를 추가
+
+### 추가 (Added)
+
+- **AI Business OS CLI — 등록된 프로젝트가 1개뿐이면 선택 없이 자동으로 열기**: 기존에는 프로젝트가 1개만 등록되어 있어도 매번 "번호를 선택하세요(Enter=현재 폴더)"를 물었음 — 새 컴퓨터에서 프로젝트가 정확히 1개(방금 설치한 이 저장소)뿐인 가장 흔한 첫 실행 상황에서도 매번 Enter를 눌러야 했던 불필요한 단계였음
+  - `packages/cli/src/lib/projectPicker.js`(`pickProject()`) — 최근 프로젝트가 정확히 1개면 목록 표시·프롬프트 없이 곧바로 그 프로젝트로 `process.chdir()`(필요한 경우)하고 반환. 2개 이상일 때는 기존과 동일하게 번호 선택 목록을 표시(회귀 없음)
+
+### 검증 (Verified)
+
+- 실사용자 레지스트리(`~/.ai-business-os/projects.json`, 이 컴퓨터에는 아직 파일 자체가 없음을 사전 확인)를 건드리지 않도록 `USERPROFILE`을 스크래치 홈으로 오버라이드한 격리 환경에서 실제 `node bin/ai.js` 실행으로 검증(종료 후 스크래치 폴더 전부 삭제)
+- **`ai register` 등록·멱등성**: 프로젝트가 전혀 등록되지 않은 상태에서 관계없는 폴더(cwd)로부터 `ai register --path <projA>` 실행 → 프롬프트 없이 즉시 등록되고 `projects.json`에 반영됨을 확인. 동일 경로로 재실행해도 중복 항목 없이 `lastOpenedAt`만 갱신됨을 확인(setup.ps1을 여러 번 실행해도 안전)
+- **1개 프로젝트 자동 열기(cd 불필요)**: 등록된 프로젝트가 1개(projA)뿐인 상태에서, 그와 무관한 폴더에서 `ai project` 및 `ai menu`(= 맨 `ai`) 각각 실행 → "최근 프로젝트" 목록·선택 프롬프트가 전혀 나타나지 않고 "프로젝트 자동 열기" 로그와 함께 즉시 projA로 전환됨을 확인. `ai project`에서는 이어서 Repo(Git 브랜치·변경 건수)가 projA 기준으로 정확히 표시됨을 확인, `ai menu`에서는 메인 메뉴 배너가 즉시 projA로 표시됨을 확인
+- **2개 이상이면 선택 메뉴 유지(회귀 확인)**: 두 번째 프로젝트(projB)를 추가 등록한 뒤 다시 무관한 폴더에서 `ai project` 실행 → 이번엔 기존과 동일하게 번호 선택 목록(1·2번)이 정상적으로 다시 표시됨을 확인
+- `setup.ps1` 전체 PowerShell 구문 검사(`[System.Management.Automation.Language.Parser]::ParseFile`) 통과. 신규/수정 JS 파일(`bin/ai.js`, `commands/register.js`, `lib/projectPicker.js`) `node --check` 구문 검증 통과
+- **미실행 항목**: `setup.ps1` 9번 단계 자체(PowerShell에서 실제 `& $aiCmdPath register ...` 호출)는 8번 단계(AI CLI 설치)와 동일한 방식으로 실제 `ai register` 명령을 격리 환경에서 검증했으므로 전체 `setup.ps1`을 처음부터 재실행하는 통합 테스트는 반복하지 않음(Testing Policy: 통합 테스트 1회 원칙, 8번 단계 자체는 이전 세션에서 이미 전 구간 실행 검증됨)
+
+---
+
 ## 2026-07-09 (2)
 
 ### 추가 (Added)

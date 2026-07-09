@@ -29,6 +29,23 @@ async function pickProject() {
     return current;
   }
 
+  // 등록된 프로젝트가 정확히 하나뿐이면 선택 프롬프트 없이 곧바로 그
+  // 프로젝트를 사용한다 — 새 컴퓨터에 설치 직후(등록된 프로젝트가 1개뿐인
+  // 첫 실행 상황)에도 사용자가 매번 Enter/번호를 입력할 필요가 없도록 한다.
+  if (recent.length === 1) {
+    const only = recent[0];
+    if (normalizePath(only.workspacePath) !== normalizePath(cwd)) {
+      if (!fs.existsSync(only.workspacePath)) {
+        log.error("프로젝트 자동 열기", `경로를 찾을 수 없습니다: ${only.workspacePath}`);
+        return current;
+      }
+      process.chdir(only.workspacePath);
+      log.ok("프로젝트 자동 열기", `${only.name} (${only.workspacePath})`);
+    }
+    touchProject(only.id);
+    return only;
+  }
+
   console.log("");
   console.log("  최근 프로젝트");
   recent.forEach((p, i) => {

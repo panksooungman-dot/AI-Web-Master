@@ -6,6 +6,7 @@ const { devmode } = require("../src/commands/devmode");
 const { deploy } = require("../src/commands/deploy");
 const { menu } = require("../src/commands/menu");
 const { project } = require("../src/commands/project");
+const { registerProject } = require("../src/commands/register");
 
 function parseArgs(argv) {
   const args = {};
@@ -39,6 +40,7 @@ function printHelp() {
   console.log("               옵션: --name <이름> | --path <경로>");
   console.log("  ai deploy    현재(또는 --path) 프로젝트를 main 브랜치로 push");
   console.log("  ai doctor    개발 환경 점검");
+  console.log("  ai register  경로를 프로젝트 레지스트리에 등록 (--path, setup.ps1이 자동 호출)");
   console.log("");
 }
 
@@ -65,6 +67,9 @@ async function main() {
       break;
     case "project":
       await project(args);
+      break;
+    case "register":
+      await registerProject(args);
       break;
     case "-h":
     case "--help":

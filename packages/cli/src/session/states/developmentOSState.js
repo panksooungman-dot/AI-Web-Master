@@ -10,19 +10,22 @@ function buildUrl(port) {
   return port ? `http://localhost:${port}/developer` : null;
 }
 
-// devModeContext.port는 devmode() 진입 시점에 한 번 감지된 값이라, 이후
-// 서버가 재시작되거나(다른 포트로) devmode()의 감지 자체가 다른 인스턴스를
-// 잡았던 경우 실제 Running 상태와 어긋날 수 있다. Development OS 카드가
-// 읽는 것과 동일한 공유 상태 파일(lib/data/devservers.json)에서 현재
-// 실제 Running 포트를 다시 조회해, 포트를 추측/재감지하지 않고 그 값을
-// 우선 사용한다(공유 파일에 값이 없으면 devmode() 감지값으로 폴백).
-function resolveCurrentPort(devModeContext) {
+const NO_SERVER_LABEL = "실행 중인 Development OS 없음";
+
+// devModeContext.port는 devmode() 진입 시점에 한 번 감지된 값이라 이후
+// 서버가 종료·재시작되어도 갱신되지 않는다. 화면 표시("주소")와 "브라우저
+// 다시 열기"가 서로 다른 값을 볼 수 없도록, 이 함수 하나만을 두 곳 모두에서
+// 사용해 매번 공유 상태 파일(lib/data/devservers.json — Development OS
+// 카드가 읽는 것과 동일한 파일)에서 현재 실제 Running 상태를 다시 조회한다.
+// devModeContext.port로의 폴백은 없다 — 공유 상태에 없으면 서버가 없는
+// 것으로 간주한다.
+function resolveRunningUrl(devModeContext) {
   const running = getRunningDevServer(devModeContext.workspacePath);
-  return running?.port ?? devModeContext.port;
+  return buildUrl(running?.port ?? null);
 }
 
 function printScreen(devModeContext) {
-  const url = buildUrl(resolveCurrentPort(devModeContext));
+  const url = resolveRunningUrl(devModeContext);
 
   console.log("");
   console.log(color(DIVIDER, "cyan"));
@@ -30,7 +33,7 @@ function printScreen(devModeContext) {
   console.log(color(DIVIDER, "cyan"));
   console.log(`  ${color("프로젝트", "gray")} : ${devModeContext.project.name}`);
   console.log(`  ${color("경로", "gray")}     : ${devModeContext.workspacePath}`);
-  console.log(`  ${color("주소", "gray")}     : ${url ?? "감지 안 됨"}`);
+  console.log(`  ${color("주소", "gray")}     : ${url ?? NO_SERVER_LABEL}`);
   console.log(color(THIN_DIVIDER, "gray"));
   console.log(`  ${color("1", "boldYellow")}  🌐  브라우저 다시 열기`);
   console.log(`  ${color("2", "boldYellow")}  🔄  Git 상태 새로고침`);
@@ -80,11 +83,11 @@ const state = {
     }
 
     if (choice === "1") {
-      const url = buildUrl(resolveCurrentPort(devModeContext));
-      log.dim(`[Development OS] 열려는 URL: ${url ?? "(포트 미감지)"}`);
+      const url = resolveRunningUrl(devModeContext);
+      log.dim(`[Development OS] 열려는 URL: ${url ?? NO_SERVER_LABEL}`);
 
       if (!url) {
-        log.warn("Development OS", "포트를 감지하지 못해 열 수 없습니다.");
+        log.warn("Development OS", NO_SERVER_LABEL);
         return "developmentOS";
       }
 

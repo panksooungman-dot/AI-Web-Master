@@ -36,6 +36,11 @@ const STATUS_TONE: Record<DevServerRunStatus, BadgeTone> = {
 
 const PORT_POLL_INTERVAL_MS = 2000;
 const PORT_POLL_TIMEOUT_MS = 30000;
+// Start/Restart 직후의 pollUntilPortKnownOrSettled()는 그 순간에만 도는
+// 임시 폴링이라, 이후 실제 dev 서버 프로세스가 (터미널 종료 등으로) 외부에서
+// 죽으면 이 카드는 새로고침 전까지 죽은 PID를 계속 Running으로 표시했다.
+// 마운트되어 있는 동안 주기적으로 상태를 재조회해 자연 종료도 반영되게 한다.
+const STATUS_REFRESH_INTERVAL_MS = 5000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -75,6 +80,17 @@ export function DevServerManagerCard() {
       refreshStatus();
     });
   }, [refreshStatus]);
+
+  useEffect(() => {
+    if (!cwd) return;
+
+    const interval = setInterval(() => {
+      if (isBusy) return;
+      refreshStatus();
+    }, STATUS_REFRESH_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [cwd, isBusy, refreshStatus]);
 
   useEffect(() => {
     if (!cwd) return;

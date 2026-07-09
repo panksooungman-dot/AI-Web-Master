@@ -3,14 +3,26 @@ const { ask } = require("../../lib/prompt");
 const { openInSystem } = require("../../lib/system");
 const { isGitRepo, getStatusSummary } = require("../../lib/git");
 const { devmode } = require("../../commands/devmode");
+const { getRunningDevServer, probeUrl } = require("../../lib/devServer");
 const { DIVIDER, THIN_DIVIDER } = require("../ui");
 
 function buildUrl(port) {
   return port ? `http://localhost:${port}/developer` : null;
 }
 
+// devModeContext.port는 devmode() 진입 시점에 한 번 감지된 값이라, 이후
+// 서버가 재시작되거나(다른 포트로) devmode()의 감지 자체가 다른 인스턴스를
+// 잡았던 경우 실제 Running 상태와 어긋날 수 있다. Development OS 카드가
+// 읽는 것과 동일한 공유 상태 파일(lib/data/devservers.json)에서 현재
+// 실제 Running 포트를 다시 조회해, 포트를 추측/재감지하지 않고 그 값을
+// 우선 사용한다(공유 파일에 값이 없으면 devmode() 감지값으로 폴백).
+function resolveCurrentPort(devModeContext) {
+  const running = getRunningDevServer(devModeContext.workspacePath);
+  return running?.port ?? devModeContext.port;
+}
+
 function printScreen(devModeContext) {
-  const url = buildUrl(devModeContext.port);
+  const url = buildUrl(resolveCurrentPort(devModeContext));
 
   console.log("");
   console.log(color(DIVIDER, "cyan"));
@@ -68,13 +80,29 @@ const state = {
     }
 
     if (choice === "1") {
-      const url = buildUrl(devModeContext.port);
-      if (url) {
-        openInSystem(url);
-        log.ok("Development OS", `열림 (${url})`);
-      } else {
+      const url = buildUrl(resolveCurrentPort(devModeContext));
+      log.dim(`[Development OS] 열려는 URL: ${url ?? "(포트 미감지)"}`);
+
+      if (!url) {
         log.warn("Development OS", "포트를 감지하지 못해 열 수 없습니다.");
+        return "developmentOS";
       }
+
+      // PID가 살아있다는 것만으로는 실제로 이 URL이 응답하는지 보장하지
+      // 못한다(예: pid가 재사용됐거나 상태 파일이 아직 갱신 전인 경우).
+      // 열기 전에 실제 HTTP 요청으로 Running임을 확인하고, 응답이 없으면
+      // 죽은 URL을 그대로 여는 대신 Stopped로 보고한다.
+      const probe = await probeUrl(url);
+      if (!probe.reachable) {
+        log.warn(
+          "Development OS",
+          `Dev 서버가 응답하지 않습니다 (Stopped로 보입니다) - ${url} (${probe.error})`
+        );
+        return "developmentOS";
+      }
+
+      openInSystem(url);
+      log.ok("Development OS", `열림 (${url})`);
       return "developmentOS";
     }
 

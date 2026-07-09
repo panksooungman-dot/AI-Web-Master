@@ -184,6 +184,19 @@ export interface DevServerStatus {
 }
 
 export function getDevServerStatus(workspacePath: string, selfPort: number | null = null): DevServerStatus {
+  // 공유 상태 파일의 dead PID 정리는 self-workspace 여부와 무관하게 항상
+  // 먼저 수행한다. 기존에는 이 정리가 self-workspace 분기 아래(도달 불가능한
+  // 코드)에 있어, 이 워크스페이스가 self일 때는 실행 중이던 dev 서버가
+  // 외부에서 종료돼도 파일에는 "running"이 죽은 pid와 함께 영원히 남았다.
+  // 같은 파일을 읽는 CLI(`ai devmode`)의 getRunningDevServer() 등 다른
+  // 프로세스가 그 죽은 값을 그대로 신뢰해 종료된 포트로 브라우저를 여는
+  // 문제로 이어졌다.
+  let persisted = readPersistedState(workspacePath);
+  if (persisted?.status === "running" && persisted.pid !== null && !isPidAlive(persisted.pid)) {
+    writePersistedState(workspacePath, null);
+    persisted = null;
+  }
+
   if (isSelfWorkspace(workspacePath)) {
     return { running: true, status: "running", pid: process.pid, port: selfPort };
   }
@@ -203,13 +216,7 @@ export function getDevServerStatus(workspacePath: string, selfPort: number | nul
   // 이 프로세스가 직접 시작하지 않은 dev 서버(예: `ai devmode`로 CLI가
   // 별도 프로세스에서 시작한 경우)도 같은 워크스페이스라면 공유 상태
   // 파일에서 확인한다.
-  const persisted = readPersistedState(workspacePath);
   if (!persisted) {
-    return { running: false, status: "stopped", pid: null, port: null };
-  }
-
-  if (persisted.status === "running" && persisted.pid !== null && !isPidAlive(persisted.pid)) {
-    writePersistedState(workspacePath, null);
     return { running: false, status: "stopped", pid: null, port: null };
   }
 

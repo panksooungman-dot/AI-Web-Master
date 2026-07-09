@@ -1,5 +1,6 @@
 const { spawn, execSync } = require("node:child_process");
 const fs = require("node:fs");
+const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 
@@ -32,6 +33,57 @@ function normalizeWorkspaceKey(workspacePath) {
 
 function stateFilePath(projectPath) {
   return path.join(projectPath, "lib", "data", "devservers.json");
+}
+
+function isPidAlive(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// "브라우저 다시 열기" 등 이미 실행 중인 dev 서버의 URL이 필요한 곳에서
+// 포트를 다시 추측/재감지하지 않고, Development OS 카드와 동일하게 참조하는
+// 공유 상태 파일에서 현재 실제 Running 상태의 port/pid를 그대로 읽는다.
+function getRunningDevServer(projectPath) {
+  const file = stateFilePath(projectPath);
+  if (!fs.existsSync(file)) return null;
+
+  let all;
+  try {
+    all = JSON.parse(fs.readFileSync(file, "utf-8"));
+  } catch {
+    return null;
+  }
+
+  const state = all[normalizeWorkspaceKey(projectPath)];
+  if (!state || state.status !== "running" || !state.port) return null;
+  if (state.pid !== null && state.pid !== undefined && !isPidAlive(state.pid)) return null;
+
+  return { port: state.port, pid: state.pid };
+}
+
+// PID 생존 여부만으로는 "정말 이 URL이 지금 응답하는지"를 보장하지 못한다
+// (예: 죽은 pid가 재사용된 경우, 파일이 아직 갱신되지 않은 경우). 브라우저를
+// 열기 직전에 실제로 HTTP 요청을 보내 200/응답을 받는지, 아니면
+// ECONNREFUSED인지 직접 확인한다.
+function probeUrl(url, timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    const req = http.get(url, { timeout: timeoutMs }, (res) => {
+      res.resume();
+      resolve({ reachable: true, statusCode: res.statusCode });
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ reachable: false, error: "timeout" });
+    });
+    req.on("error", (err) => {
+      resolve({ reachable: false, error: err.code || err.message });
+    });
+  });
 }
 
 function persistDevServerState(projectPath, state) {
@@ -140,4 +192,4 @@ function startDevServer(projectPath) {
   });
 }
 
-module.exports = { startDevServer };
+module.exports = { startDevServer, getRunningDevServer, probeUrl };

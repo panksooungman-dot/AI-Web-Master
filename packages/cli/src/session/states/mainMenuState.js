@@ -75,10 +75,15 @@ function printMenu(config) {
   console.log(`  ${color("경로", "gray")}     : ${cwd}`);
   console.log(color(DIVIDER, "cyan"));
 
+  const labelWidth = Math.max(...config.items.map((item) => item.label.length), config.exitLabel.length);
+
   for (const item of config.items) {
-    console.log(`  ${color(item.key, "boldYellow")}  ${item.icon}  ${item.label}`);
+    const label = item.label.padEnd(labelWidth, " ");
+    console.log(`  ${color(item.key, "boldYellow")}  ${item.icon}  ${label}  ${color(`(${item.command || "-"})`, "gray")}`);
   }
-  console.log(`  ${color(config.exitKey, "boldYellow")}  🚪  ${config.exitLabel}`);
+  console.log(
+    `  ${color(config.exitKey, "boldYellow")}  🚪  ${config.exitLabel.padEnd(labelWidth, " ")}  ${color(`(${config.exitCommand || "-"})`, "gray")}`
+  );
 
   console.log(color(THIN_DIVIDER, "gray"));
   console.log("  번호 선택");
@@ -99,9 +104,9 @@ function printHelp(config) {
   console.log("  그 화면에서 '0'을 선택해야 메인 메뉴로 돌아옵니다.");
   console.log("");
   for (const item of config.items) {
-    console.log(`  ${item.key}  ${item.icon}  ${item.label}`);
+    console.log(`  ${item.key}  ${item.icon}  ${item.label}  (${item.command || "-"})`);
   }
-  console.log(`  ${config.exitKey}  🚪  ${config.exitLabel}`);
+  console.log(`  ${config.exitKey}  🚪  ${config.exitLabel}  (${config.exitCommand || "-"})`);
   console.log("");
   console.log("  단축키");
   console.log("    H : 이 도움말 표시");

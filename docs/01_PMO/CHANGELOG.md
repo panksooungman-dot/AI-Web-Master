@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-09 (2)
+
+### 추가 (Added)
+
+- **AI Business OS CLI — `ai project` 프로젝트 런처 신규 추가**: 이전 작업(2026-07-09)에서 대화형 메뉴 진입 시에만 동작하던 프로젝트 선택을, `cd` 없이 곧바로 "선택 → 이동 → VS Code/dev 서버 실행"까지 이어지는 독립 명령 `ai project`로 확장. `ai --help`에도 표시됨
+  - `packages/cli/src/lib/projectPicker.js`(신규) — 기존 `menu/projectSelect.js`에 있던 "현재 폴더 자동 인식·등록 → 최근 프로젝트 목록 표시 → 번호 선택 → `process.chdir()`" 핵심 로직을 `pickProject()`로 추출(중복 제거). `ai project`와 `ai`/`ai menu` 양쪽이 이 함수를 공유
+  - `packages/cli/src/commands/menu/projectSelect.js` — `pickProject()`를 호출하는 얇은 래퍼로 축소(동작 변경 없음)
+  - `packages/cli/src/commands/project.js`(신규) — `ai project` 명령. `pickProject()`로 선택받은 뒤 프로젝트명·경로·**Repo(Git 브랜치·변경 건수)**를 곧바로 화면에 표시(선택한 프로젝트로 전환됐음을 명확히 보여줌), "VS Code와 dev 서버를 실행할까요? (Y/n)"를 물어 Y(기본값)면 기존 `devmode()`를 그대로 재사용해 VS Code·`npm run dev`·실시간 미리보기·Visual Editor까지 이어서 실행
+  - `packages/cli/bin/ai.js` — `project` 명령 라우팅 추가, `--help` 출력에 `ai project` 안내 추가
+  - 레지스트리는 기존과 동일하게 사용자 홈 기준 전역 설정(`~/.ai-business-os/projects.json`)이라 별도 설정 없이 새 컴퓨터에서도 동일하게 동작함
+
+### 검증 (Verified)
+
+- 실사용자 레지스트리를 건드리지 않도록 `USERPROFILE`을 스크래치 홈으로 오버라이드한 격리 환경에서 실제 `node bin/ai.js` 실행으로 검증(종료 후 스크래치 폴더 전부 삭제)
+- `ai --help` 출력에 `ai project` 안내 문구가 정상 표시됨을 확인
+- `pickProject()` 추출(리팩터링) 이후 기존 `ai menu` 흐름(프로젝트 자동 인식·목록 표시·선택·메인 메뉴 진입·종료)이 회귀 없이 그대로 동작함을 재확인
+- `ai project`를 projB(현재 폴더)에서 실행 → 최근 목록에 B(현재 폴더)·A 표시 → "2"(A) 선택 → 화면에 "프로젝트: scratch-project-a", "경로: ...projA", **"Repo: master (clean)"**가 즉시 표시됨을 확인(시작 폴더는 B였음에도 A의 실제 Git 상태가 정확히 조회됨 — `chdir`가 정상 적용되었음을 재확인). "VS Code와 dev 서버를 실행할까요?" 프롬프트에서 "n" 입력 시 정상적으로 건너뛰고 종료됨을 확인
+- VS Code·새 터미널 창을 실제로 여는 "Y" 경로는, 동일한 `devmode({ path })` 호출을 이전 작업(`devStart()`)에서 이미 검증했고 파라미터 전달 방식이 동일하므로 사용자 화면에 실제 창을 띄우는 재검증은 생략(자동 테스트 정책상 반복 검증 지양)
+- 수정/신규 파일(`bin/ai.js`, `lib/projectPicker.js`, `commands/project.js`, `commands/menu/projectSelect.js`) 전체 `node --check` 구문 검증 통과
+
+---
+
 ## 2026-07-09
 
 ### 추가 (Added)

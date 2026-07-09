@@ -5,6 +5,7 @@ const { newProject } = require("../src/commands/new");
 const { devmode } = require("../src/commands/devmode");
 const { deploy } = require("../src/commands/deploy");
 const { menu } = require("../src/commands/menu");
+const { project } = require("../src/commands/project");
 
 function parseArgs(argv) {
   const args = {};
@@ -31,6 +32,8 @@ function printHelp() {
   console.log("");
   console.log("  ai           메뉴 실행 (번호로 모든 기능 선택)");
   console.log("  ai menu      메뉴 실행 (위와 동일)");
+  console.log("  ai project   프로젝트 런처 — 최근 프로젝트 선택 시 cd 없이 자동 이동,");
+  console.log("               Repo(브랜치) 표시, 필요하면 VS Code + dev 서버까지 실행");
   console.log("  ai new       새 프로젝트 생성");
   console.log("  ai devmode   VS Code + npm run dev + 실시간 미리보기 + Visual Editor 실행");
   console.log("               옵션: --name <이름> | --path <경로>");
@@ -59,6 +62,9 @@ async function main() {
     case "menu":
     case undefined:
       await menu();
+      break;
+    case "project":
+      await project(args);
       break;
     case "-h":
     case "--help":

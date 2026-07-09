@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-07-09
+
+### 추가 (Added)
+
+- **AI Business OS CLI — 프로젝트 자동 인식·최근 프로젝트 선택**: `ai` 실행 시 매번 프로젝트를 수동으로 `cd`해서 찾아다니던 것을, 현재 폴더를 자동 인식하고 최근 프로젝트 목록에서 번호로 골라 바로 그 프로젝트에서 실행할 수 있도록 개선
+  - `packages/cli/src/lib/projects.js` — `upsertProject()`(경로 기준으로 이미 등록된 프로젝트면 최근 사용 시각만 갱신, 없으면 신규 등록 — 중복 등록 방지), `getRecentProjects()`(최근 사용순 정렬), `normalizePath()`(Windows 경로 대소문자·구분자 차이를 흡수하는 비교용 정규화) 추가
+  - `packages/cli/src/lib/currentProject.js`(신규) — 현재 폴더가 "프로젝트"인지(package.json 존재 또는 Git 저장소) 판별하는 `detectCurrentProject()`. 프로젝트가 아닌 임의의 폴더(예: 바탕화면)는 레지스트리에 등록하지 않음
+  - `packages/cli/src/commands/menu/projectSelect.js`(신규) — `ai` 실행 시 1회 호출되는 `selectSessionProject()`. 현재 폴더 자동 인식·등록 → 최근 프로젝트 최대 8개를 번호와 함께 표시(현재 폴더는 "← 현재 폴더" 표시) → 번호 선택 시 해당 프로젝트 경로로 `process.chdir()` → 최근 사용 시각 갱신. 선택할 프로젝트가 전혀 없으면(레지스트리 비어있고 현재 폴더도 프로젝트가 아님) 프롬프트 없이 바로 진행
+  - `packages/cli/src/commands/menu/index.js` — `menu()` 시작 시(메인 메뉴 루프 진입 전) `selectSessionProject()` 호출. 이후 메뉴 상단 배너("프로젝트"·"경로")는 매 루프마다 `process.cwd()`를 다시 읽으므로 선택된 프로젝트가 자동으로 반영됨(Repo 표시 자동 변경). Git 상태·개발 시작 등 나머지 모든 메뉴 기능도 `process.cwd()`를 그대로 사용하므로 별도 수정 없이 선택된 프로젝트를 대상으로 자동 실행됨
+  - `packages/cli/src/commands/menu/actions.js` — `devStart()`가 이미 선택된 프로젝트 경로(`process.cwd()`)를 `devmode({ path })`로 명시 전달해, 기존에 `devmode`가 자체적으로 다시 묻던 프로젝트 선택 프롬프트가 메뉴 흐름에서 중복 표시되지 않도록 수정
+  - `ai new`·`ai devmode`·`ai deploy`·`ai doctor`(단독 실행)의 기존 동작은 변경하지 않음 — 프로젝트 선택 단계는 `ai`/`ai menu`(대화형 메뉴 진입) 시점에만 적용됨
+
+### 검증 (Verified)
+
+- 실제 사용자 레지스트리(`~/.ai-business-os/projects.json`)를 건드리지 않도록 `USERPROFILE` 환경변수를 스크래치 홈 디렉터리로 오버라이드한 격리 환경에서 실제 `node bin/ai.js menu`를 실행해 검증(스크래치 프로젝트 폴더 2개 생성 후 종료 시 전부 삭제)
+- **자동 인식·등록**: 등록된 프로젝트가 하나도 없는 상태에서 package.json이 있는 폴더(projA)에서 최초 실행 → 프로젝트 선택 화면에 자동으로 1개 항목("← 현재 폴더" 표시)이 나타나고, `projects.json`에 새 항목이 실제로 생성됨을 확인
+- **최근 프로젝트 선택 + 자동 실행 + Repo 표시 변경**: 다른 프로젝트 폴더(projB)에서 실행 → 최근 목록에 B(현재 폴더, 1번)·A(2번) 둘 다 표시됨을 확인. 번호 "2"(A) 선택 → 메뉴 상단 배너가 즉시 "프로젝트: scratch-project-a", "경로: ...projA"로 바뀜을 확인(실행 시작 폴더는 B였음에도 A로 전환) — `process.chdir()`가 실제로 적용되어 이후 모든 메뉴 기능이 A를 대상으로 동작함을 확인
+- **최근 사용 시각 갱신**: 위 선택 이후 `projects.json`에서 A의 `lastOpenedAt`이 B보다 최신으로 갱신됨을 확인(다음 실행 시 A가 목록 최상단에 오름)
+- **중복 등록 방지**: 동일 경로(A·B)에서 총 3회 실행했음에도 `projects.json`에 경로당 정확히 1개 항목만 유지됨을 확인(경로 기준 upsert 정상 동작)
+- **프로젝트가 아닌 폴더 처리**: package.json도 Git 저장소도 아닌 폴더에서 실행 → 레지스트리에 등록되지 않고(항목 수 2건 유지), 최근 목록(A·B)은 정상 표시되며 Enter 시 현재 폴더로 정상 진행됨을 확인
+- 수정한 5개 파일 전체 `node --check` 구문 검증 통과
+
+---
+
 ## 2026-07-08 (10)
 
 ### 추가 (Added)

@@ -4,6 +4,7 @@ const { spawnSync } = require("node:child_process");
 const { log, color } = require("../../lib/log");
 const { ask } = require("../../lib/prompt");
 const actions = require("./actions");
+const { selectSessionProject } = require("./projectSelect");
 
 const CONFIG_PATH = path.join(__dirname, "..", "..", "config", "menu.json");
 const CLI_VERSION = require("../../../package.json").version;
@@ -148,6 +149,9 @@ async function menu() {
   process.on("unhandledRejection", captureUnexpectedError);
 
   try {
+    currentLabel = "프로젝트 선택";
+    await selectSessionProject();
+
     let running = true;
 
     while (running) {

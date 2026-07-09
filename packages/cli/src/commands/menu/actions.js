@@ -60,7 +60,10 @@ function install() {
 }
 
 async function devStart() {
-  await devmode({});
+  // 메뉴 진입 시 이미 프로젝트 선택(projectSelect.js)이 끝나 process.cwd()가
+  // 선택된 프로젝트 경로로 이동해 있다. path를 명시해 devmode가 프로젝트
+  // 선택을 다시 묻지 않고 그 경로에서 곧바로 실행되도록 한다.
+  await devmode({ path: process.cwd() });
 }
 
 async function projectManage() {

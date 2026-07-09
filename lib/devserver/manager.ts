@@ -77,6 +77,14 @@ function writePersistedState(workspacePath: string, state: PersistedDevServerSta
   }
 }
 
+// Development OS 자신이 이 workspacePath에서 실행 중인 `next dev` 프로세스이므로,
+// 이 경우 dev 서버는 항상 "이미 실행 중"이다 — 관리 대상 프로젝트가 Development
+// OS 자기 자신일 때 Start를 누르면 같은 디렉터리에 새 next dev를 또 띄우려다
+// EADDRINUSE로 실패하던 문제를 사전에 막는다.
+function isSelfWorkspace(workspacePath: string): boolean {
+  return normalizeWorkspaceKey(workspacePath) === normalizeWorkspaceKey(process.cwd());
+}
+
 function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -175,7 +183,11 @@ export interface DevServerStatus {
   error?: string;
 }
 
-export function getDevServerStatus(workspacePath: string): DevServerStatus {
+export function getDevServerStatus(workspacePath: string, selfPort: number | null = null): DevServerStatus {
+  if (isSelfWorkspace(workspacePath)) {
+    return { running: true, status: "running", pid: process.pid, port: selfPort };
+  }
+
   const state = servers.get(workspacePath);
 
   if (state) {
@@ -211,6 +223,10 @@ export function getDevServerStatus(workspacePath: string): DevServerStatus {
 }
 
 export async function startDevServer(workspacePath: string): Promise<StartResult> {
+  if (isSelfWorkspace(workspacePath)) {
+    return { success: false, error: "이미 실행 중입니다." };
+  }
+
   const existing = servers.get(workspacePath) ?? readPersistedState(workspacePath);
 
   if (existing && (existing.status === "starting" || existing.status === "running")) {

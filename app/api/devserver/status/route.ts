@@ -12,5 +12,7 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json(getDevServerStatus(cwd));
+  const selfPort = Number(new URL(request.url).port) || null;
+
+  return NextResponse.json(getDevServerStatus(cwd, selfPort));
 }

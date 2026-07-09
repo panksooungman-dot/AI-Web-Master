@@ -39,13 +39,25 @@ function normalizePath(workspacePath) {
   return path.resolve(workspacePath).replace(/\\/g, "/").toLowerCase();
 }
 
-// 같은 경로(workspacePath)의 프로젝트가 이미 등록되어 있으면 최근 사용
-// 시각만 갱신하고, 없으면 새로 등록한다. `ai` 실행 시 현재 폴더를 매번
-// 이 함수로 등록/갱신해 "최근 프로젝트 목록"이 항상 최신 상태를 반영하게 한다.
+// 두 프로젝트가 "같은 프로젝트"인지 판단하는 유일한 기준. 경로(workspacePath)가
+// 아니라 이름(name)으로 판단한다 — 프로젝트가 다른 컴퓨터·다른 드라이브·다른
+// 사용자 폴더로 옮겨져도 이름(package.json의 name, 또는 폴더명)은 그대로이므로,
+// 경로가 바뀌어도 같은 프로젝트로 인식해 레지스트리 항목을 갱신할 수 있어야
+// 한다. 이 기준을 별도 함수로 분리해, 앞으로 경로가 또 바뀌어도(예: 다음 컴퓨터
+// 이전) upsertProject()가 자동으로 같은 로직으로 갱신하도록 한다.
+function isSameProject(a, b) {
+  return a.name === b.name;
+}
+
+// 같은 프로젝트(이름 동일)가 이미 등록되어 있으면 새 항목을 추가하지 않고
+// 그 항목의 workspacePath를 최신 경로로 덮어쓴다(예: D:\AI-Web-Master →
+// C:\Users\cnbiz\AI-Web-Master로 자동 갱신). 기존 경로 값은 이 대입으로
+// 그 자리에서 사라지므로 별도의 삭제 처리가 필요 없다. 같은 이름의 프로젝트가
+// 전혀 없으면 새로 등록한다. `ai` 실행 시 현재 폴더를 매번 이 함수로
+// 등록/갱신해 "최근 프로젝트 목록"이 항상 최신 경로를 반영하게 한다.
 function upsertProject(entry) {
   const projects = listProjects();
-  const target = normalizePath(entry.workspacePath);
-  const index = projects.findIndex((p) => normalizePath(p.workspacePath) === target);
+  const index = projects.findIndex((p) => isSameProject(p, entry));
 
   if (index === -1) {
     const project = {
@@ -64,7 +76,11 @@ function upsertProject(entry) {
     return project;
   }
 
-  projects[index] = { ...projects[index], lastOpenedAt: new Date().toISOString() };
+  projects[index] = {
+    ...projects[index],
+    workspacePath: entry.workspacePath.replace(/\\/g, "/"),
+    lastOpenedAt: new Date().toISOString(),
+  };
   saveProjects(projects);
   return projects[index];
 }
@@ -87,6 +103,7 @@ module.exports = {
   addProject,
   touchProject,
   upsertProject,
+  isSameProject,
   getRecentProjects,
   normalizePath,
 };

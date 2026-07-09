@@ -274,11 +274,37 @@ export async function startDevServer(workspacePath: string): Promise<StartResult
     startedAt,
   });
 
-  child.on("exit", () => {
+  // Start() 응답(성공 판정)은 짧은 settleMs 이후 확정되므로, 그 뒤에 프로세스가
+  // 실제로는 실패(포트 충돌·Next.js 단일 인스턴스 락 등)하는 경우가 있다. 이때
+  // 원인 없이 상태를 그냥 지워버리면 "Start 성공 메시지는 떴는데 카드는 계속
+  // Stopped"로 보여 상태 갱신이 안 되는 것처럼 오인된다. 실제 종료 원인을
+  // 남겨 status를 error로 명확히 전환한다.
+  let outputTail = "";
+  const appendOutput = (data: Buffer) => {
+    outputTail = (outputTail + data.toString()).slice(-2000);
+  };
+  child.stdout?.on("data", appendOutput);
+  child.stderr?.on("data", appendOutput);
+
+  child.on("exit", (code) => {
     const state = servers.get(workspacePath);
     if (state && state.process === child) {
-      servers.delete(workspacePath);
-      writePersistedState(workspacePath, null);
+      const message = outputTail.trim() || `프로세스가 예기치 않게 종료되었습니다 (종료 코드 ${code}).`;
+      servers.set(workspacePath, {
+        process: null,
+        pid: null,
+        port: null,
+        status: "error",
+        startedAt: state.startedAt,
+        error: message,
+      });
+      writePersistedState(workspacePath, {
+        pid: null,
+        port: null,
+        status: "error",
+        startedAt: state.startedAt,
+        error: message,
+      });
     }
   });
 

@@ -247,6 +247,36 @@ if ($pathAdded) {
 $aiCmd = Get-Command ai -ErrorAction SilentlyContinue
 Write-Step ([bool]$aiCmd) "현재 세션에서 ai 인식" $(if ($aiCmd) { $aiCmd.Source } else { "PATH는 등록됐지만 이 세션에는 아직 반영되지 않음 (새 터미널에서는 정상 동작)" })
 
+# 6-0) PowerShell 함수 등록 — "ai" 실행 파일(ai.cmd)만으로는 부모 PowerShell
+#      세션의 작업 위치를 바꿀 수 없다(자식 프로세스는 자신의 cwd만 바꿀 수
+#      있음 — OS 프로세스 모델의 근본 제약). 그래서 $PROFILE에 "ai"라는 이름의
+#      함수를 등록해, 이 함수가 실제 ai.cmd를 실행한 뒤 그 결과(선택된 프로젝트
+#      경로)를 넘겨받아 함수 자신이(= 이 세션 자신이) Set-Location 하도록
+#      한다(shell/ai-function.ps1 참고). $PROFILE은 시작 시에만 읽히므로
+#      새 PowerShell 창을 열어야 적용된다.
+$aiFunctionScriptPath = Join-Path $npmPrefix "node_modules\@cnbiz\ai-business-os-cli\shell\ai-function.ps1"
+if (Test-Path $aiFunctionScriptPath) {
+    $aiProfilePath = $PROFILE.CurrentUserCurrentHost
+    if (-not $aiProfilePath) { $aiProfilePath = $PROFILE }
+
+    if (-not (Test-Path $aiProfilePath)) {
+        $aiProfileDir = Split-Path $aiProfilePath -Parent
+        if (-not (Test-Path $aiProfileDir)) {
+            New-Item -ItemType Directory -Path $aiProfileDir -Force | Out-Null
+        }
+        New-Item -ItemType File -Path $aiProfilePath -Force | Out-Null
+    }
+
+    $aiProfileContent = Get-Content $aiProfilePath -Raw -ErrorAction SilentlyContinue
+    if (-not ($aiProfileContent -and $aiProfileContent.Contains($aiFunctionScriptPath))) {
+        $aiDotSourceBlock = "`n# AI Business OS CLI - ai 실행 시 프로젝트 경로로 자동 이동(Set-Location)`n. `"$aiFunctionScriptPath`"`n"
+        Add-Content -Path $aiProfilePath -Value $aiDotSourceBlock -Encoding utf8
+    }
+    Write-Step $true "PowerShell 함수 (ai cd 자동 이동)" "$aiProfilePath (새 PowerShell 창부터 적용됨)"
+} else {
+    Write-Step $false "PowerShell 함수 (ai cd 자동 이동)" "$aiFunctionScriptPath 를 찾을 수 없음"
+}
+
 # 6-1) 중복 설치 감지 — PATH에 ai 명령이 이 위치 말고 다른 곳에도 있으면,
 #      실제로 실행되는 것은 PATH상 먼저 나오는 쪽이다. 방금 이 스크립트가
 #      설치/갱신한 위치($npmPrefix)가 아닌 다른 오래된 설치가 앞서 있으면
@@ -290,6 +320,10 @@ if ($overallOk) {
         Write-Host "   새 PowerShell 창을 열고 확인하세요: ai doctor" -ForegroundColor Yellow
         Write-Host ""
     }
+    Write-Host "⚠️  'ai' 실행 시 프로젝트 폴더로 자동 이동(cd)하는 기능은 PowerShell" -ForegroundColor Yellow
+    Write-Host "   프로필에 새로 등록된 함수입니다 - 반드시 새 PowerShell 창을 열어야" -ForegroundColor Yellow
+    Write-Host "   적용됩니다(이 창에서는 계속 예전처럼 이동 없이 실행됩니다)." -ForegroundColor Yellow
+    Write-Host ""
     Write-Host "다음 단계:" -ForegroundColor Cyan
     Write-Host "  ai new         새 프로젝트 생성"
     Write-Host "  ai devmode     VS Code + 실시간 미리보기 + Visual Editor 바로 실행"

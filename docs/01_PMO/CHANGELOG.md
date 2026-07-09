@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-07-09 (6)
+
+### 수정 (Fixed)
+
+- **AI Business OS CLI — 프로젝트 재등록 시 경로가 이름 기준으로 갱신되도록 수정**: 실제 새 컴퓨터 재현·값 단위 추적으로 확인된 원인 — `upsertProject()`(`packages/cli/src/lib/projects.js`)가 프로젝트 동일성을 **경로 문자열**로만 판단해, `D:\AI-Web-Master`에서 `C:\Users\cnbiz\AI-Web-Master`로 재등록해도 기존 항목을 덮어쓰지 못하고 별개 항목으로 추가되어 옛 경로가 레지스트리에 계속 남아있었음
+  - `isSameProject(a, b)`(신규, 이름 기준 비교)를 분리해 "동일 프로젝트"의 기준을 명시적인 함수로 만들고, `upsertProject()`가 경로가 아닌 이 기준으로 기존 항목을 찾아 **workspacePath만 덮어쓰도록** 수정(새 항목 추가 안 함 → 중복 없음, 옛 경로 값은 대입으로 자연히 사라짐)
+  - 더 이상 쓰이지 않게 된 `updateProjectPath()`(이전 시도에서 추가했던 경로-한정 갱신 함수)는 제거
+
+### 추가 (Added)
+
+- **AI Business OS CLI — `ai` 실행 시 PowerShell 세션 자체가 프로젝트 폴더로 이동(Set-Location)**: 기존에는 `ai`가 일반 실행 파일(`ai.cmd`/`ai.ps1`)이라, 내부에서 아무리 `process.chdir()`을 해도 그 효과가 자식 프로세스 자신에게만 미치고 사용자가 실제로 타이핑하는 부모 PowerShell 세션은 전혀 이동하지 않았음(자식 프로세스가 부모 셸의 cwd를 바꿀 수 없다는 OS 프로세스 모델의 근본적 제약 — 버그가 아니라 구조적 한계로 확인). `nvm`/`pyenv`/`conda activate`처럼 **PowerShell 함수**로 `ai`를 다시 감싸는 방식으로 해결
+  - `packages/cli/shell/ai-function.ps1`(신규) — `$PROFILE`에 등록되는 `ai` 함수. 실제 CLI(`ai.cmd`, 확장자 명시로 자기 자신을 다시 호출하는 재귀 방지)를 실행한 뒤, CLI가 남긴 최종 작업 경로를 임시 파일에서 읽어 `Set-Location`으로 **이 PowerShell 세션 자신**을 이동시킴
+  - `packages/cli/bin/ai.js` — `AI_PWSH_CWD_FILE` 환경변수(PowerShell 함수가 실행 직전에 지정)가 있으면, 프로세스가 어떻게 종료되든(`process.on("exit")`, `menu()`의 명시적 `process.exit(0)` 포함) 그 순간의 `process.cwd()`(이미 `pickProject()`가 chdir해 둔 값)를 그 파일에 기록. 환경변수가 없으면(함수 없이 `ai.cmd` 직접 실행 등) 아무 동작도 하지 않아 기존 사용 방식과 100% 호환
+  - `packages/cli/package.json` — `files`에 `shell` 추가(npm 패키징에 포함되도록)
+  - `packages/cli/install.ps1` — 새 단계(6-0) 추가: 설치된 패키지 안의 `shell/ai-function.ps1` 경로를 계산해 `$PROFILE`에 dot-source 줄을 추가(기존 `scripts/setup.ps1`의 프로필 등록 패턴과 동일, 중복 삽입 방지). `$PROFILE`은 PowerShell 시작 시에만 읽히므로 설치 완료 안내에 "새 PowerShell 창을 열어야 적용됨" 안내 추가
+
+### 검증 (Verified)
+
+- **재등록 이름 매칭 수정**: 격리 환경에서 `old-D`(경로 A, 이름 `ai-web-master`) 등록 → `old-D` 폴더를 삭제하지 않은 채로 `new-C`(경로 B, 같은 이름)로 재등록 → `projects.json`에 **항목이 여전히 1개**로 유지되고 `workspacePath`만 B로 갱신됨을 확인. `ai register` 없이 그냥 `third-E` 폴더에서 `ai` 실행(자동 감지)만으로도 동일하게 3번째 경로로 갱신됨을 확인(연속 이동 정상 수렴). 이름이 다른 프로젝트는 별도 항목으로 정상 유지됨(회귀 없음)
+- **PowerShell cd 기능**: 실제 `npm install -g <경로> --force`로 격리된 npm prefix에 설치(`shell/ai-function.ps1` 포함 확인) → 새 PowerShell 프로세스에서 해당 함수를 dot-source(실제 설치 시 `$PROFILE`에 등록되는 것과 동일한 파일) → 프로젝트를 1개만 등록 → **무관한 폴더**(`...\Users-cnbiz`)로 이동 후 `ai` 실행(표준입력으로 메뉴 종료 "0" 전달) → 실행 완료 후 **`$PWD.Path`가 실제로 `...\AI-Web-Master`로 바뀌어 있음을 확인**(요청하신 "PS C:\Users\...> → ai → PS C:\...\AI-Web-Master>" 시나리오와 정확히 일치)
+- **회귀 확인**: `AI_PWSH_CWD_FILE` 환경변수 없이 `ai.cmd`를 직접 실행(함수 없는 환경, 예: cmd.exe)해도 `--version`/`--help` 정상 동작함을 확인 — 기존 사용 방식에 영향 없음
+- `install.ps1`·`shell/ai-function.ps1` PowerShell 구문 검사(`Parser::ParseFile`) 통과, `bin/ai.js` `node --check` 통과, `npm pack --dry-run`으로 `shell/ai-function.ps1`이 패키징 대상에 포함됨을 확인
+
+---
+
 ## 2026-07-09 (5)
 
 ### 조사 (Investigated) — 사용자의 후속 재현: PATH는 정상인데 설치된 CLI가 구버전

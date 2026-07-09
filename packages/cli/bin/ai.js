@@ -8,6 +8,8 @@ const { menu } = require("../src/commands/menu");
 const { project } = require("../src/commands/project");
 const { registerProject } = require("../src/commands/register");
 
+const CLI_VERSION = require("../package.json").version;
+
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
@@ -27,7 +29,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log("AI Business OS CLI");
+  console.log(`AI Business OS CLI  v${CLI_VERSION}`);
   console.log("");
   console.log("사용법: ai <command> [옵션]");
   console.log("");
@@ -75,6 +77,13 @@ async function main() {
     case "--help":
     case "help":
       printHelp();
+      break;
+    case "-v":
+    case "--version":
+    case "version":
+      // 설치된 CLI가 최신 코드인지 빠르게 대조하기 위한 용도(예: 새 컴퓨터에서
+      // 설치 후 이 값이 예상보다 낮으면 재설치/재클론이 필요하다는 신호).
+      console.log(CLI_VERSION);
       break;
     default:
       printHelp();

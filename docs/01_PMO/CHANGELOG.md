@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-07-09 (4)
+
+### 검증 (Verified) — 새 컴퓨터에서 `ai --help`에 프로젝트 명령이 안 보인다는 보고 조사
+
+- 사용자가 실제 새 컴퓨터에서 `setup.ps1` 설치 후 `ai --help`에 `ai project`/`ai register`가 표시되지 않는다고 보고. 아래 절차로 원인 조사
+  - `npm pack --dry-run`으로 `packages/cli`가 패키징하는 실제 파일 목록을 확인 — `src/commands/project.js`·`src/commands/register.js`·`src/lib/projectPicker.js` 등 신규 파일 전부 포함됨을 확인(패키징 누락 아님)
+  - `setup.ps1`/`install.ps1`이 실제로 실행하는 `npm install -g "<packages/cli 경로>" --force` 명령을, 실사용자 npm 전역 환경을 건드리지 않도록 격리된 npm prefix에 그대로 재현해 두 시나리오로 검증: (1) 완전히 새로운 설치 → `ai --help`에 `ai project`/`ai register` 정상 표시, (2) 이 세션 이전 커밋(`73429c7`, project/register 없음)을 먼저 설치한 뒤 최신 코드로 재설치(업그레이드 시나리오, `git archive`로 구버전 소스 추출해 재현) → 정확히 최신 코드로 갱신되어 두 명령이 나타남을 확인
+  - 이 컴퓨터에 이미 설치되어 있던 실제 전역 `ai`(`%APPDATA%\npm`)도 재확인 — `npm link` 방식(저장소로의 디렉터리 Junction)이라 항상 최신 소스를 그대로 반영하고 있었고, 실제로 `ai --help`에도 정상 표시됨을 확인
+  - **결론**: 코드 연결·패키징·`npm install -g --force`를 통한 설치/업그레이드 메커니즘 자체는 정상 동작함을 재현 검증으로 확인. 새 컴퓨터에서 재현된 문제의 가장 유력한 원인은 그 컴퓨터의 저장소 클론이 최신 커밋 이전 상태에서 `setup.ps1`을 실행했을 가능성(설치 스크립트는 항상 로컬 클론에 있는 코드 그대로를 패키징하므로, 클론이 오래되면 오래된 코드가 설치되는 것은 설계상 당연한 동작) — 사용자가 즉시 스스로 판별할 수 있도록 아래 진단 기능을 추가
+
+### 추가 (Added)
+
+- **AI Business OS CLI — 설치된 버전 확인 명령 및 중복 설치 감지**: "설치는 됐는데 새 기능이 안 보인다"는 상황을 사용자가 직접, 즉시 진단할 수 있도록 개선
+  - `packages/cli/package.json` — 버전 `0.1.0` → `0.2.0`(프로젝트 런처·자동 등록 등 이번 기능 묶음 반영, 이후 버전 비교의 기준점)
+  - `packages/cli/bin/ai.js` — `ai --version`/`ai -v`(신규) 추가: 설치된 CLI의 실제 버전만 출력. `ai --help` 첫 줄에도 버전(`AI Business OS CLI  v0.2.0`) 표시 — 새 컴퓨터에서 이 값이 예상보다 낮으면 재클론/재설치가 필요하다는 신호로 바로 알 수 있음
+  - `packages/cli/install.ps1` — ① 최종 점검에 `ai --version` 실행 추가(설치 로그에 버전이 항상 남음). ② **중복 설치 감지**: `Get-Command ai -All`로 PATH상에 `ai` 명령이 여러 곳에 있는지 확인해, 방금 설치/갱신한 위치가 PATH 우선순위상 맨 앞이 아니면("오래된 설치가 대신 실행될 수 있음") 발견된 모든 경로와 함께 명시적으로 경고
+
+### 검증 (Verified)
+
+- 격리된 npm prefix에 재설치 후 `ai --version` 실행 → `0.2.0` 정상 출력, `ai -h`의 첫 줄에도 `v0.2.0` 반영 확인
+- 중복 설치 감지 로직을 별도 스크립트로 추출해 검증: PATH 앞쪽에 구버전 위치, 뒤쪽에 신버전 위치를 두고 `Get-Command ai -All` 기반 로직 실행 → "PATH에서 ai 명령이 N곳에서 발견", 우선순위 1번 표시(`→`), "방금 설치/갱신한 위치가 최우선이 아님" 경고까지 의도대로 정확히 동작함을 확인
+- `install.ps1` 전체 PowerShell 구문 검사(`Parser::ParseFile`) 통과, `bin/ai.js` `node --check` 통과
+
+---
+
 ## 2026-07-09 (3)
 
 ### 수정 (Fixed)

@@ -216,12 +216,31 @@ if ($pathAdded) {
 $aiCmd = Get-Command ai -ErrorAction SilentlyContinue
 Write-Step ([bool]$aiCmd) "현재 세션에서 ai 인식" $(if ($aiCmd) { $aiCmd.Source } else { "PATH는 등록됐지만 이 세션에는 아직 반영되지 않음 (새 터미널에서는 정상 동작)" })
 
+# 6-1) 중복 설치 감지 — PATH에 ai 명령이 이 위치 말고 다른 곳에도 있으면,
+#      실제로 실행되는 것은 PATH상 먼저 나오는 쪽이다. 방금 이 스크립트가
+#      설치/갱신한 위치($npmPrefix)가 아닌 다른 오래된 설치가 앞서 있으면
+#      "설치는 성공했는데 새 기능이 안 보인다"는 문제(구버전이 계속
+#      실행됨)로 이어질 수 있어 여기서 명시적으로 경고한다.
+$allAiCmds = @(Get-Command ai -All -ErrorAction SilentlyContinue)
+if ($allAiCmds.Count -gt 1) {
+    Write-Host "  ⚠️  PATH에서 ai 명령이 ${($allAiCmds.Count)}곳에서 발견되었습니다 — 맨 위가 실제로 실행됩니다:" -ForegroundColor Yellow
+    for ($i = 0; $i -lt $allAiCmds.Count; $i++) {
+        $marker = if ($i -eq 0) { "→" } else { " " }
+        Write-Host "     $marker $($allAiCmds[$i].Source)" -ForegroundColor DarkGray
+    }
+    if ($allAiCmds[0].Source -notlike "*$npmPrefix*") {
+        Write-Host "     방금 설치/갱신한 위치($npmPrefix)가 최우선이 아닙니다 — 오래된 설치가 대신 실행될 수 있습니다." -ForegroundColor Yellow
+        Write-Host "     조치: 위 목록에서 필요 없는 이전 설치를 제거하거나(npm uninstall -g, 또는 해당 폴더 삭제) PATH 순서를 조정하세요." -ForegroundColor DarkGray
+    }
+}
+
 # 7) 최종 점검 — PATH 조회에 의존하지 않고 방금 확인한 전체 경로로 직접 실행해
 #    "파일이 실제로 존재하고 실행 가능한가"를 증거로 남긴다.
 if ($aiShimExists) {
     Write-Host ""
-    Write-Host "최종 점검 (ai --help / ai doctor)" -ForegroundColor Cyan
+    Write-Host "최종 점검 (ai --version / ai --help / ai doctor)" -ForegroundColor Cyan
     Write-Host "----------------------------------"
+    & "$aiCmdPath" --version
     & "$aiCmdPath" --help
     & "$aiCmdPath" doctor
 } else {

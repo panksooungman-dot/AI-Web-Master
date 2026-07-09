@@ -1,6 +1,6 @@
 {
   "name": "@cnbiz/ai-business-os-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI Business OS 전역 CLI — 어떤 프로젝트에서도 devmode(VS Code + 실시간 미리보기 + Visual Editor)를 실행합니다.",
   "private": true,
   "bin": {

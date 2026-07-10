@@ -1,0 +1,77 @@
+{
+  "name": "ai-business-os-marketplace",
+  "displayName": "AI Business OS Marketplace",
+  "description": "Reusable Agents, Prompts, Skills, Templates, and Workflows for AI Business OS.",
+  "version": "1.1.0",
+  "author": "AI Business OS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/ai-business-os"
+  },
+  "homepage": "https://github.com/your-org/ai-business-os",
+  "categories": [
+    "agents",
+    "prompts",
+    "skills",
+    "templates",
+    "workflows"
+  ],
+  "packages": {
+    "agents": {
+      "path": "agents",
+      "count": 0,
+      "description": "Reusable AI Agent packages."
+    },
+    "prompts": {
+      "path": "prompts",
+      "count": 0,
+      "description": "Reusable Prompt packages."
+    },
+    "skills": {
+      "path": "skills",
+      "count": 0,
+      "description": "Reusable Skill packages."
+    },
+    "templates": {
+      "path": "templates",
+      "count": 0,
+      "description": "Reusable project starter templates."
+    },
+    "workflows": {
+      "path": "workflows",
+      "count": 0,
+      "description": "Reusable workflow packages."
+    }
+  },
+  "compatibility": {
+    "aiBusinessOS": ">=1.1.0",
+    "node": ">=20",
+    "typescript": ">=5.0"
+  },
+  "standards": {
+    "versioning": "Semantic Versioning",
+    "documentation": "Markdown",
+    "license": "MIT"
+  },
+  "maintainers": [
+    {
+      "name": "AI Business OS Team",
+      "role": "Maintainer"
+    }
+  ],
+  "keywords": [
+    "ai",
+    "business",
+    "os",
+    "marketplace",
+    "agents",
+    "prompts",
+    "skills",
+    "templates",
+    "workflows",
+    "mcp"
+  ],
+  "lastUpdated": "2026-07-11",
+  "status": "active"
+}

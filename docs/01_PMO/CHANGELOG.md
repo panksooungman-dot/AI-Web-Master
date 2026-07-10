@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-07-10
+
+### 추가 (Added)
+
+- **구조 리팩터링 — 가이드 노트 및 로드맵 반영**: `agents/README.md`·`prompts/README.md`·`memory/README.md`·`orchestration/README.md` 신규 작성 — 각 디렉터리를 의도적으로 비워두었음을 알리고 정식 문서 위치(`docs/05_AI/`·`docs/09_WORK_HISTORY/`)를 안내
+- `docs/01_PMO/PROJECT_ROADMAP.md`에 **Phase 5: AI Business OS Productization (Planned)** 신설. `marketplace/`·`mcp/`·`examples/`·`docs/getting-started.md`·`docs/installation.md`·`docs/faq.md`를 "중복 문서"가 아닌 "별도 계획된 제품 인프라"로 재분류(오너: Human Lead 최종 승인, 세부 담당 추후 지정), 폴더·파일은 유지
+
+### 변경 (Changed)
+
+- `docs/README.md` — 빈 파일이었던 것을 `docs/00_COMPANY/DOCUMENT_INDEX.md`로 안내하는 경량 인덱스로 교체
+
+### 삭제 (Removed)
+
+- 오늘(2026-07-10) 스캐폴딩 과정에서 생성된 **0바이트 중복 파일 33개** 삭제, 디렉터리 자체는 삭제하지 않음
+  - `agents/*.md`(10) — `skills/experts/*`(실 콘텐츠)와 이름 중복
+  - `prompts/*.md`(7) — `docs/05_AI/PROMPTS.md`(실 콘텐츠)와 개념 중복
+  - `orchestration/*.md`(5) — `docs/05_AI/WORKFLOW.md`(실 콘텐츠)와 개념 중복
+  - `memory/*.md`(6) — `docs/09_WORK_HISTORY/*`(실 콘텐츠, 운영 중)와 개념 중복
+  - 루트 `CHANGELOG.md`·`ROADMAP.md`(2) — `docs/01_PMO/{CHANGELOG,PROJECT_ROADMAP}.md`(실 콘텐츠)와 이름 중복
+  - `docs/architecture.md`·`docs/roadmap.md`·`docs/release-notes.md`(3) — `docs/02_DEVELOPMENT/ARCHITECTURE.md`·`docs/01_PMO/PROJECT_ROADMAP.md`·`docs/01_PMO/CHANGELOG.md`(실 콘텐츠)와 이름·개념 중복
+
+### 검증 (Verified)
+
+- 삭제 대상 33개 파일 전부 삭제 직전 0바이트 상태 재확인, 삭제 후 `docs/05_AI/**`·`docs/09_WORK_HISTORY/**`·`skills/**`·`docs/01_PMO/CHANGELOG.md`·`docs/02_DEVELOPMENT/ARCHITECTURE.md` 등 실 콘텐츠 문서는 전부 무변경 확인
+- 최상위 디렉터리(`skills`·`agents`·`prompts`·`memory`·`orchestration`·`app`·`packages`·`components`·`docs`·`examples`·`cli`·`mcp`·`marketplace`·`.github`·`scripts`) 전수 Role Matrix 검토 완료. 루트 `cli/`(4개 파일, 0바이트)는 `packages/cli`(실제 구현된 CLI)와 여전히 중복으로 확인되어 삭제 후보로 남음(미실행, 승인 대기). `skills/` 내 카테고리 인덱스 stub 14개도 미해결로 남음(미실행, 승인 대기)
+- `scripts/create-*.ps1`·`scripts/init-ai-business-os.ps1`(10개)이 전부 0바이트임을 확인 — `skills/` 실 콘텐츠는 이 스크립트들이 아닌 별도 경로로 작성된 것으로 추정(재현성 격차, 별도 후속 조치 필요)
+- `git status`로 모든 변경(삭제 33건·신규 4건·수정 2건)이 미스테이징 상태임을 확인 — 커밋·푸시는 미실행(사용자 승인 대기)
+
+---
+
 ## 2026-07-09 (16)
 
 ### 수정 (Fixed)

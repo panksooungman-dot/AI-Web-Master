@@ -56,6 +56,25 @@
 - 다중 프로젝트 이식 패턴
 - Cursor SDK / Automations 통합
 
+### Phase 5: AI Business OS Productization (Planned)
+
+> 2026-07-10 구조 리팩터링 세션에서 GO 결정. AI Business OS(스킬·에이전트 체계)를
+> CNBIZ Website 납품과 별도로 독립 배포 가능한 제품/스타터킷으로 패키징하는 단계.
+> 아래 항목은 현재 폴더만 존재하고 콘텐츠는 비어 있는 상태 — 착수 시점 미정.
+
+| 항목 | 목적 | 오너 | 상태 |
+|------|------|------|------|
+| `marketplace/` | 배포용 매니페스트(`manifest.json`)·에셋·릴리스 노트 | Human Lead(최종 승인), 세부 담당 추후 지정 | 🔲 Planned |
+| `mcp/` | MCP(Model Context Protocol) 서버·툴 구현 | Human Lead(최종 승인), 세부 담당 추후 지정 | 🔲 Planned |
+| `examples/` | 데모·스타터 프로젝트(`ai-project`·`api-project`·`web-project`) | Human Lead(최종 승인), 세부 담당 추후 지정 | 🔲 Planned |
+| `docs/getting-started.md` | 배포 대상 사용자용 온보딩 문서 | Human Lead(최종 승인), 세부 담당 추후 지정 | 🔲 Planned |
+| `docs/installation.md` | 배포 대상 사용자용 설치 문서 | Human Lead(최종 승인), 세부 담당 추후 지정 | 🔲 Planned |
+| `docs/faq.md` | 배포 대상 사용자용 FAQ | Human Lead(최종 승인), 세부 담당 추후 지정 | 🔲 Planned |
+
+이 6개 항목은 2026-07-10 구조 분석에서 "중복 문서"가 아닌 "별도 계획된 제품 인프라"로
+재분류되었으며, 폴더·파일은 삭제하지 않고 유지한다. 착수 승인·담당자 지정 전까지는
+Phase 4 완료 이후 순번으로 대기한다.
+
 ---
 
 ## Architecture Evolution

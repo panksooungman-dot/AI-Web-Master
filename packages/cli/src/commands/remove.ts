@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
+import { findProjectRoot } from "../utils/config.js";
 
 export async function removeCommand(packageName: string): Promise<void> {
   if (!packageName) {
@@ -12,7 +13,8 @@ export async function removeCommand(packageName: string): Promise<void> {
   console.log(chalk.cyan("\n🗑 AI Business OS Remove"));
   console.log(chalk.gray("--------------------------------"));
 
-  const packagesDir = path.join(process.cwd(), "packages");
+  const projectRoot = await findProjectRoot();
+  const packagesDir = path.join(projectRoot, "packages");
   const packageDir = path.join(packagesDir, packageName);
 
   try {

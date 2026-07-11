@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
+import { findProjectRoot } from "../utils/config.js";
 
 export async function searchCommand(keyword: string): Promise<void> {
   if (!keyword) {
@@ -12,29 +13,30 @@ export async function searchCommand(keyword: string): Promise<void> {
   console.log(chalk.cyan("\n🔍 AI Business OS Search"));
   console.log(chalk.gray("--------------------------------"));
 
-  const packagesDir = path.join(process.cwd(), "packages");
+  // 프로젝트 루트 찾기
+  const projectRoot = await findProjectRoot();
+
+  // packages 디렉터리
+  const packagesDir = path.join(projectRoot, "packages");
 
   if (!(await fs.pathExists(packagesDir))) {
     console.log(chalk.red("❌ Packages directory not found."));
     process.exit(1);
   }
 
-  const categories = await fs.readdir(packagesDir);
+  const entries = await fs.readdir(packagesDir);
   const results: string[] = [];
 
-  for (const category of categories) {
-    const categoryPath = path.join(packagesDir, category);
+  for (const entry of entries) {
+    const entryPath = path.join(packagesDir, entry);
+    const stat = await fs.stat(entryPath);
 
-    const stat = await fs.stat(categoryPath);
+    if (!stat.isDirectory()) {
+      continue;
+    }
 
-    if (!stat.isDirectory()) continue;
-
-    const items = await fs.readdir(categoryPath);
-
-    for (const item of items) {
-      if (item.toLowerCase().includes(keyword.toLowerCase())) {
-        results.push(`${category}/${item}`);
-      }
+    if (entry.toLowerCase().includes(keyword.toLowerCase())) {
+      results.push(entry);
     }
   }
 

@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
+import { findProjectRoot } from "../utils/config.js";
 
 export async function publishCommand(packageName: string): Promise<void> {
   if (!packageName) {
@@ -12,7 +13,7 @@ export async function publishCommand(packageName: string): Promise<void> {
   console.log(chalk.cyan("\n🚀 AI Business OS Publisher"));
   console.log(chalk.gray("--------------------------------"));
 
-  const projectRoot = process.cwd();
+  const projectRoot = await findProjectRoot();
 
   const packagesDir = path.join(projectRoot, "packages");
   const sourceDir = path.join(packagesDir, packageName);

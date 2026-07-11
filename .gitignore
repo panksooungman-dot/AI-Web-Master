@@ -47,3 +47,6 @@ apps/cnbiz-web/lib/data/
 
 # Playwright MCP QA artifacts (screenshots, snapshots, console logs)
 /.playwright-mcp/
+
+# AI Business OS CLI
+packages/cli/dist/

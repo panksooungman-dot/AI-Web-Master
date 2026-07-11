@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { execSync } from "child_process";
 import chalk from "chalk";
+import { findProjectRoot } from "../utils/config.js";
 
 export async function doctorCommand(): Promise<void> {
   console.log(chalk.cyan("\n🩺 AI Business OS Doctor"));
@@ -33,7 +34,8 @@ export async function doctorCommand(): Promise<void> {
 
   console.log(chalk.gray("--------------------------------"));
 
-  const projectRoot = process.cwd();
+  // 프로젝트 루트 찾기
+  const projectRoot = await findProjectRoot();
 
   const requiredDirectories = [
     "packages",
@@ -45,7 +47,7 @@ export async function doctorCommand(): Promise<void> {
     "marketplace",
     "memory",
     "orchestration",
-    ".github"
+    ".github",
   ];
 
   console.log(chalk.cyan("📂 Project Structure"));
@@ -56,7 +58,7 @@ export async function doctorCommand(): Promise<void> {
     if (exists) {
       console.log(chalk.green(`✅ ${dir}`));
     } else {
-      console.log(chalk.yellow(`⚠️  ${dir} (missing)`));
+      console.log(chalk.yellow(`⚠️ ${dir} (missing)`));
     }
   }
 

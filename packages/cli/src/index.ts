@@ -2,6 +2,15 @@
 
 import { Command } from "commander";
 
+import { initCommand } from "./commands/init.js";
+import { addCommand } from "./commands/add.js";
+import { installCommand } from "./commands/install.js";
+import { doctorCommand } from "./commands/doctor.js";
+import { searchCommand } from "./commands/search.js";
+import { removeCommand } from "./commands/remove.js";
+import { updateCommand } from "./commands/update.js";
+import { publishCommand } from "./commands/publish.js";
+
 const program = new Command();
 
 program
@@ -11,75 +20,65 @@ program
 
 program
   .command("init")
+  .argument("[project]", "Project name")
   .description("Initialize a new AI Business OS project")
-  .action(() => {
-    console.log("🚀 Initializing AI Business OS...");
+  .action(async (project?: string) => {
+    await initCommand(project);
   });
 
 program
   .command("add")
   .argument("<package>", "Package name")
   .description("Add a package")
-  .action((pkg: string) => {
-    console.log(`📦 Adding package: ${pkg}`);
+  .action(async (pkg: string) => {
+    await addCommand(pkg);
   });
 
 program
   .command("install")
   .argument("<package>", "Package name")
   .description("Install a package")
-  .action((pkg: string) => {
-    console.log(`⬇️ Installing package: ${pkg}`);
+  .action(async (pkg: string) => {
+    await installCommand(pkg);
   });
 
 program
   .command("doctor")
-  .description("Run environment diagnostics")
-  .action(() => {
-    console.log("🩺 AI Business OS Doctor");
-    console.log("------------------------");
-    console.log("✅ Node.js detected");
-    console.log("✅ npm detected");
-    console.log("✅ Git detected");
-    console.log("✅ Environment healthy");
-  });
-
-program
-  .command("publish")
-  .description("Publish a package to the Marketplace")
-  .action(() => {
-    console.log("🚀 Publishing package...");
+  .description("Check the development environment")
+  .action(async () => {
+    await doctorCommand();
   });
 
 program
   .command("search")
   .argument("<keyword>", "Search keyword")
-  .description("Search Marketplace packages")
-  .action((keyword: string) => {
-    console.log(`🔍 Searching: ${keyword}`);
+  .description("Search available packages")
+  .action(async (keyword: string) => {
+    await searchCommand(keyword);
   });
 
 program
   .command("remove")
   .argument("<package>", "Package name")
   .description("Remove an installed package")
-  .action((pkg: string) => {
-    console.log(`🗑 Removing package: ${pkg}`);
+  .action(async (pkg: string) => {
+    await removeCommand(pkg);
   });
 
 program
   .command("update")
   .argument("<package>", "Package name")
   .description("Update an installed package")
-  .action((pkg: string) => {
-    console.log(`⬆️ Updating package: ${pkg}`);
+  .action(async (pkg: string) => {
+    await updateCommand(pkg);
   });
 
 program
-  .helpCommand("help", "Display help information");
+  .command("publish")
+  .argument("<package>", "Package name")
+  .description("Publish a package")
+  .action(async (pkg: string) => {
+    await publishCommand(pkg);
+  });
 
-program.parse(process.argv);
-
-if (process.argv.length <= 2) {
-  program.outputHelp();
-}
+program.parseAsync(process.argv);

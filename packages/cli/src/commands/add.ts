@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
+import { findProjectRoot } from "../utils/config.js";
 
 export async function addCommand(packageName: string): Promise<void> {
   if (!packageName) {
@@ -9,7 +10,7 @@ export async function addCommand(packageName: string): Promise<void> {
     process.exit(1);
   }
 
-  const projectRoot = process.cwd();
+  const projectRoot = await findProjectRoot();
   const packagesDir = path.join(projectRoot, "packages");
 
   try {

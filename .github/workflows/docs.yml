@@ -1,0 +1,68 @@
+name: Documentation Validation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  documentation:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check Markdown Files
+        run: |
+          echo "Searching Markdown files..."
+          find . -name "*.md"
+
+      - name: Verify Required Documentation
+        run: |
+          REQUIRED=(
+            "README.md"
+            "agents/README.md"
+            "prompts/README.md"
+            "skills/README.md"
+            "memory/README.md"
+            "orchestration/README.md"
+            "examples/README.md"
+            "mcp/README.md"
+            "marketplace/README.md"
+            "tests/README.md"
+          )
+
+          for FILE in "${REQUIRED[@]}"; do
+            if [ ! -f "$FILE" ]; then
+              echo "Missing: $FILE"
+              exit 1
+            fi
+          done
+
+          echo "All required documentation exists."
+
+      - name: Check Empty Markdown Files
+        run: |
+          EMPTY=$(find . -name "*.md" -size 0)
+
+          if [ -n "$EMPTY" ]; then
+            echo "Empty Markdown files detected:"
+            echo "$EMPTY"
+            exit 1
+          fi
+
+          echo "No empty Markdown files found."
+
+      - name: Documentation Summary
+        run: |
+          echo "Documentation validation completed successfully."

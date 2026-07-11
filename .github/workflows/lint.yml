@@ -1,0 +1,63 @@
+name: Code Quality
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint Project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json found. Skipping dependency installation."
+          fi
+
+      - name: Check Markdown Files
+        run: |
+          COUNT=$(find . -name "*.md" | wc -l)
+          echo "Markdown files found: $COUNT"
+
+      - name: Run ESLint
+        run: |
+          if [ -f package.json ]; then
+            npm run lint --if-present
+          else
+            echo "No package.json found. Skipping ESLint."
+          fi
+
+      - name: Check Formatting
+        run: |
+          if [ -f package.json ]; then
+            npm run format:check --if-present
+          else
+            echo "No package.json found. Skipping formatting check."
+          fi
+
+      - name: Lint Summary
+        run: |
+          echo "Lint workflow completed successfully."

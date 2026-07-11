@@ -1,6 +1,6 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { isGitRepo } = require("./git");
+import fs from "node:fs";
+import path from "node:path";
+import { isGitRepo } from "./git.js";
 
 function readPackageName(cwd) {
   const pkgPath = path.join(cwd, "package.json");
@@ -33,4 +33,4 @@ function detectCurrentProject(cwd = process.cwd()) {
   };
 }
 
-module.exports = { detectCurrentProject };
+export { detectCurrentProject };

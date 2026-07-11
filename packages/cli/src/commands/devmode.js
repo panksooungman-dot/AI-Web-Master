@@ -1,14 +1,14 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { spawnSync } = require("node:child_process");
-const { log } = require("../lib/log");
-const { listProjects, touchProject } = require("../lib/projects");
-const { getStatusSummary } = require("../lib/git");
-const { commandExists, getVersion } = require("../lib/tools");
-const { startDevServer } = require("../lib/devServer");
-const { installDevInspector } = require("../lib/devInspectorInstall");
-const { ask } = require("../lib/prompt");
-const { openInSystem } = require("../lib/system");
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { log } from "../lib/log.js";
+import { listProjects, touchProject } from "../lib/projects.js";
+import { getStatusSummary } from "../lib/git.js";
+import { commandExists, getVersion } from "../lib/tools.js";
+import { startDevServer } from "../lib/devServer.js";
+import { installDevInspector } from "../lib/devInspectorInstall.js";
+import { ask } from "../lib/prompt.js";
+import { openInSystem } from "../lib/system.js";
 
 function currentDirProject() {
   return {
@@ -169,4 +169,4 @@ async function devmode(args) {
   return { project, workspacePath, port: detectedPort };
 }
 
-module.exports = { devmode };
+export { devmode };

@@ -4,4 +4,4 @@ const BOX_WIDTH = 50;
 const DIVIDER = "=".repeat(BOX_WIDTH);
 const THIN_DIVIDER = "─".repeat(BOX_WIDTH);
 
-module.exports = { BOX_WIDTH, DIVIDER, THIN_DIVIDER };
+export { BOX_WIDTH, DIVIDER, THIN_DIVIDER };

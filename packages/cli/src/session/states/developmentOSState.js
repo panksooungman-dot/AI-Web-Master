@@ -1,10 +1,10 @@
-const { log, color } = require("../../lib/log");
-const { ask } = require("../../lib/prompt");
-const { openInSystem } = require("../../lib/system");
-const { isGitRepo, getStatusSummary } = require("../../lib/git");
-const { devmode } = require("../../commands/devmode");
-const { getRunningDevServer, probeUrl } = require("../../lib/devServer");
-const { DIVIDER, THIN_DIVIDER } = require("../ui");
+import { log, color } from "../../lib/log.js";
+import { ask } from "../../lib/prompt.js";
+import { openInSystem } from "../../lib/system.js";
+import { isGitRepo, getStatusSummary } from "../../lib/git.js";
+import { devmode } from "../../commands/devmode.js";
+import { getRunningDevServer, probeUrl } from "../../lib/devServer.js";
+import { DIVIDER, THIN_DIVIDER } from "../ui.js";
 
 function buildUrl(port) {
   return port ? `http://localhost:${port}/developer` : null;
@@ -119,4 +119,4 @@ const state = {
   },
 };
 
-module.exports = state;
+export default state;

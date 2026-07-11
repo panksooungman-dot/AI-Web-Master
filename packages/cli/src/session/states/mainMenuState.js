@@ -1,13 +1,23 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { spawnSync } = require("node:child_process");
-const { log, color } = require("../../lib/log");
-const { ask } = require("../../lib/prompt");
-const { DIVIDER, THIN_DIVIDER } = require("../ui");
-const actions = require("../../commands/menu/actions");
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { log, color } from "../../lib/log.js";
+import { ask } from "../../lib/prompt.js";
+import { DIVIDER, THIN_DIVIDER } from "../ui.js";
+import * as actions from "../../commands/menu/actions.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CONFIG_PATH = path.join(__dirname, "..", "..", "config", "menu.json");
-const CLI_VERSION = require("../../../package.json").version;
+
+function getPackageVersion() {
+  const pkgPath = path.join(__dirname, "..", "..", "..", "package.json");
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  return pkg.version;
+}
+
+const CLI_VERSION = getPackageVersion();
 
 // menu.json 항목이 전이할 수 있는 State 이름 목록(SessionManager의
 // states/ 폴더와 일치해야 한다).
@@ -211,4 +221,4 @@ const state = {
   },
 };
 
-module.exports = state;
+export default state;

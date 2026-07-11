@@ -1,4 +1,4 @@
-const { spawn } = require("node:child_process");
+import { spawn } from "node:child_process";
 
 // URL이든 폴더 경로든 OS 기본 프로그램(브라우저·탐색기)으로 연다.
 // Windows의 `start`, macOS의 `open`, Linux의 `xdg-open`은 대상이 URL이든
@@ -13,4 +13,4 @@ function openInSystem(target) {
   }
 }
 
-module.exports = { openInSystem };
+export { openInSystem };

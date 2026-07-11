@@ -1,6 +1,9 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // __dirname 기준(이 CLI 패키지가 실제로 설치된 위치 기준) — 특정 저장소가
 // 로컬에 클론되어 있는지 여부와 무관하게 항상 올바른 경로를 가리킨다.
@@ -155,4 +158,4 @@ function installDevInspector(projectPath, log) {
   log.info("[devmode] Visual Editor 연결 완료.");
 }
 
-module.exports = { installDevInspector };
+export { installDevInspector };

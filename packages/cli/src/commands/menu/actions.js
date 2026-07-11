@@ -1,12 +1,12 @@
-const path = require("node:path");
-const { spawnSync } = require("node:child_process");
-const { log } = require("../../lib/log");
-const { openInSystem } = require("../../lib/system");
-const { commandExists } = require("../../lib/tools");
-const { findProjectFile } = require("../../lib/paths");
-const { doctor } = require("../doctor");
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { log } from "../../lib/log.js";
+import { openInSystem } from "../../lib/system.js";
+import { commandExists } from "../../lib/tools.js";
+import { findProjectFile } from "../../lib/paths.js";
+import { doctorCommand } from "../doctor.js";
 
-const UI_EXPLORER_URL = "http://localhost:3000/developer/ui-explorer";
+const UI_EXPLORER_URL = "http://localhost:3000/developer/ui-map";
 const CHATGPT_URL = "https://chat.openai.com/";
 
 // ------------------------------------------------------------
@@ -50,8 +50,8 @@ function install() {
   }
 }
 
-function healthCheck() {
-  doctor();
+async function healthCheck() {
+  await doctorCommand();
 }
 
 function uiExplorer() {
@@ -86,10 +86,4 @@ function chatgpt() {
   log.ok("ChatGPT", `열림 (${CHATGPT_URL})`);
 }
 
-module.exports = {
-  install,
-  healthCheck,
-  uiExplorer,
-  claude,
-  chatgpt,
-};
+export { install, healthCheck, uiExplorer, claude, chatgpt };

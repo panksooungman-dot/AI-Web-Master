@@ -1,4 +1,4 @@
-const { spawnSync } = require("node:child_process");
+import { spawnSync } from "node:child_process";
 
 function run(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
@@ -47,4 +47,4 @@ function getStatusSummary(cwd) {
   return summary;
 }
 
-module.exports = { run, isGitRepo, getBranch, getStatusSummary };
+export { run, isGitRepo, getBranch, getStatusSummary };

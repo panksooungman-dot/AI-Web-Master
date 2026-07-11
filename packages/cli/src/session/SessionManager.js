@@ -1,10 +1,10 @@
-const { log } = require("../lib/log");
-const { selectSessionProject } = require("../commands/menu/projectSelect");
-const mainMenuState = require("./states/mainMenuState");
-const developmentOSState = require("./states/developmentOSState");
-const projectState = require("./states/projectState");
-const gitState = require("./states/gitState");
-const settingsState = require("./states/settingsState");
+import { log } from "../lib/log.js";
+import { selectSessionProject } from "../commands/menu/projectSelect.js";
+import mainMenuState from "./states/mainMenuState.js";
+import developmentOSState from "./states/developmentOSState.js";
+import projectState from "./states/projectState.js";
+import gitState from "./states/gitState.js";
+import settingsState from "./states/settingsState.js";
 
 const STATES = {
   mainMenu: mainMenuState,
@@ -89,4 +89,4 @@ class SessionManager {
   }
 }
 
-module.exports = { SessionManager };
+export { SessionManager };

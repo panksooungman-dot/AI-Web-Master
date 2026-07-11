@@ -1,6 +1,6 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 // 현재 작업 디렉터리가 속한 Git 저장소의 루트를 찾는다. 저장소가 아니면 null.
 function findRepoRoot(cwd = process.cwd()) {
@@ -26,4 +26,4 @@ function findProjectFile(relativePath, cwd = process.cwd()) {
   return null;
 }
 
-module.exports = { findRepoRoot, findProjectFile };
+export { findRepoRoot, findProjectFile };

@@ -1,5 +1,5 @@
-const { log } = require("../../lib/log");
-const { pickProject } = require("../../lib/projectPicker");
+import { log } from "../../lib/log.js";
+import { pickProject } from "../../lib/projectPicker.js";
 
 // `ai`/`ai menu` 대화형 메뉴 진입 시 한 번 호출된다. 핵심 로직은
 // lib/projectPicker.js(pickProject)를 `ai project` 런처와 공유한다.
@@ -11,4 +11,4 @@ async function selectSessionProject() {
   return pickProject();
 }
 
-module.exports = { selectSessionProject };
+export { selectSessionProject };

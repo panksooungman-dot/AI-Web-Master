@@ -1,6 +1,6 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { PROJECTS_FILE, ensureConfigDir } = require("./config");
+import fs from "node:fs";
+import path from "node:path";
+import { PROJECTS_FILE, ensureConfigDir } from "./config.js";
 
 function listProjects() {
   ensureConfigDir();
@@ -97,7 +97,7 @@ function getRecentProjects(limit = 8) {
     .slice(0, limit);
 }
 
-module.exports = {
+export {
   listProjects,
   saveProjects,
   addProject,

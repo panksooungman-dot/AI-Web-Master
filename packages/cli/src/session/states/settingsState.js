@@ -1,8 +1,8 @@
-const { log } = require("../../lib/log");
-const { ask } = require("../../lib/prompt");
-const { openInSystem } = require("../../lib/system");
-const { CONFIG_DIR } = require("../../lib/config");
-const { listProjects } = require("../../lib/projects");
+import { log } from "../../lib/log.js";
+import { ask } from "../../lib/prompt.js";
+import { openInSystem } from "../../lib/system.js";
+import { CONFIG_DIR } from "../../lib/config.js";
+import { listProjects } from "../../lib/projects.js";
 
 function printScreen() {
   console.log("");
@@ -34,4 +34,4 @@ const state = {
   },
 };
 
-module.exports = state;
+export default state;

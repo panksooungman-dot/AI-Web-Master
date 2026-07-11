@@ -6,4 +6,4 @@
 // 버전 번호만으로는 다음 기능 추가 전까지 구분이 안 되는 문제를 보완).
 // git 저장소 밖에서 소스를 직접 실행하는 경우(node bin/ai.js) 등에는
 // 아래 기본값(commit: null)이 그대로 쓰인다.
-module.exports = { commit: null };
+export const commit = null;

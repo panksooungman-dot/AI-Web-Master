@@ -1,8 +1,8 @@
-const { spawn, execSync } = require("node:child_process");
-const fs = require("node:fs");
-const http = require("node:http");
-const os = require("node:os");
-const path = require("node:path");
+import { spawn, execSync } from "node:child_process";
+import fs from "node:fs";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 
 /**
  * 새 터미널 창에서 npm run dev를 실행하고, 출력에서 실제 바인딩된 포트를
@@ -192,4 +192,4 @@ function startDevServer(projectPath) {
   });
 }
 
-module.exports = { startDevServer, getRunningDevServer, probeUrl };
+export { startDevServer, getRunningDevServer, probeUrl };

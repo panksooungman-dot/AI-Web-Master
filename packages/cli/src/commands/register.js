@@ -1,8 +1,8 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { log } = require("../lib/log");
-const { detectCurrentProject } = require("../lib/currentProject");
-const { upsertProject } = require("../lib/projects");
+import fs from "node:fs";
+import path from "node:path";
+import { log } from "../lib/log.js";
+import { detectCurrentProject } from "../lib/currentProject.js";
+import { upsertProject } from "../lib/projects.js";
 
 // 대화형 프롬프트 없이 지정된 경로(--path, 없으면 cwd)를 프로젝트
 // 레지스트리에 즉시 등록/갱신한다. `scripts/setup.ps1`이 CLI 설치 직후
@@ -23,4 +23,4 @@ async function registerProject(args) {
   log.ok("프로젝트 등록", `${project.name} (${project.workspacePath})`);
 }
 
-module.exports = { registerProject };
+export { registerProject };

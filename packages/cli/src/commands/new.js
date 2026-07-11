@@ -1,9 +1,9 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const readline = require("node:readline");
-const { spawnSync } = require("node:child_process");
-const { log } = require("../lib/log");
-const { addProject } = require("../lib/projects");
+import fs from "node:fs";
+import path from "node:path";
+import readline from "node:readline";
+import { spawnSync } from "node:child_process";
+import { log } from "../lib/log.js";
+import { addProject } from "../lib/projects.js";
 
 function ask(rl, question, defaultValue = "") {
   return new Promise((resolve) => {
@@ -77,4 +77,4 @@ async function newProject(args) {
   console.log("");
 }
 
-module.exports = { newProject };
+export { newProject };

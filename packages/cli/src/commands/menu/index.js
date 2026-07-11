@@ -1,4 +1,4 @@
-const { SessionManager } = require("../../session/SessionManager");
+import { SessionManager } from "../../session/SessionManager.js";
 
 // `ai`/`ai menu`의 진입점. 실제 대화형 루프·화면 전환 로직은 전부
 // SessionManager(State 기반 구조, src/session/)로 옮겨졌다 — 이 함수는
@@ -8,4 +8,4 @@ async function menu() {
   await session.run();
 }
 
-module.exports = { menu };
+export { menu };

@@ -8,7 +8,7 @@
     { "key": "2", "icon": "🚀", "label": "개발 시작", "state": "developmentOS", "command": "ai devmode" },
     { "key": "3", "icon": "📁", "label": "프로젝트 관리", "state": "project", "command": "ai project" },
     { "key": "4", "icon": "❤️", "label": "환경 점검", "action": "healthCheck", "command": "ai doctor" },
-    { "key": "5", "icon": "🌐", "label": "UI Explorer", "action": "uiExplorer", "command": "http://localhost:3000/developer/ui-explorer" },
+    { "key": "5", "icon": "🌐", "label": "UI Explorer", "action": "uiExplorer", "command": "http://localhost:3000/developer/ui-map" },
     { "key": "6", "icon": "🤖", "label": "Claude Code", "action": "claude", "command": "claude" },
     { "key": "7", "icon": "💬", "label": "ChatGPT", "action": "chatgpt", "command": "https://chat.openai.com/" },
     { "key": "8", "icon": "🔄", "label": "Git 관리", "state": "git", "command": "-" },

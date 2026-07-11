@@ -38,4 +38,4 @@ const log = {
   },
 };
 
-module.exports = { log, color };
+export { log, color };

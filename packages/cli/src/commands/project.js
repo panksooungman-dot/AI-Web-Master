@@ -1,8 +1,8 @@
-const { log } = require("../lib/log");
-const { ask } = require("../lib/prompt");
-const { pickProject } = require("../lib/projectPicker");
-const { getStatusSummary } = require("../lib/git");
-const { devmode } = require("./devmode");
+import { log } from "../lib/log.js";
+import { ask } from "../lib/prompt.js";
+import { pickProject } from "../lib/projectPicker.js";
+import { getStatusSummary } from "../lib/git.js";
+import { devmode } from "./devmode.js";
 
 // AI Business OS 프로젝트 런처 — `ai project`
 // 최근 프로젝트 목록에서 선택하면 cd 없이 그 프로젝트 폴더로 자동
@@ -38,4 +38,4 @@ async function project(args) {
   await devmode({ ...args, path: workspacePath });
 }
 
-module.exports = { project };
+export { project };

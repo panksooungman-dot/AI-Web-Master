@@ -1,8 +1,8 @@
-const fs = require("node:fs");
-const { log, color } = require("./log");
-const { ask } = require("./prompt");
-const { detectCurrentProject } = require("./currentProject");
-const { getRecentProjects, upsertProject, touchProject, normalizePath } = require("./projects");
+import fs from "node:fs";
+import { log, color } from "./log.js";
+import { ask } from "./prompt.js";
+import { detectCurrentProject } from "./currentProject.js";
+import { getRecentProjects, upsertProject, touchProject, normalizePath } from "./projects.js";
 
 // "프로젝트 자동 인식 + 최근 목록 선택 + 이동" 핵심 로직. `ai project`(런처)와
 // `ai`/`ai menu`(대화형 메뉴 진입 시)가 공유한다.
@@ -80,4 +80,4 @@ async function pickProject() {
   return selected;
 }
 
-module.exports = { pickProject };
+export { pickProject };

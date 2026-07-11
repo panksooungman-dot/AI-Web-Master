@@ -1,6 +1,6 @@
-const { log } = require("../../lib/log");
-const { ask } = require("../../lib/prompt");
-const { isGitRepo, getStatusSummary, run } = require("../../lib/git");
+import { log } from "../../lib/log.js";
+import { ask } from "../../lib/prompt.js";
+import { isGitRepo, getStatusSummary, run } from "../../lib/git.js";
 
 function showGitStatus() {
   const cwd = process.cwd();
@@ -114,4 +114,4 @@ const state = {
   },
 };
 
-module.exports = state;
+export default state;

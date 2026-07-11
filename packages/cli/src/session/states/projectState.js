@@ -1,7 +1,7 @@
-const { log } = require("../../lib/log");
-const { ask } = require("../../lib/prompt");
-const { listProjects } = require("../../lib/projects");
-const { newProject } = require("../../commands/new");
+import { log } from "../../lib/log.js";
+import { ask } from "../../lib/prompt.js";
+import { listProjects } from "../../lib/projects.js";
+import { newProject } from "../../commands/new.js";
 
 function printScreen() {
   const projects = listProjects();
@@ -40,4 +40,4 @@ const state = {
   },
 };
 
-module.exports = state;
+export default state;

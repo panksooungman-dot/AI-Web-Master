@@ -1,7 +1,7 @@
-const path = require("node:path");
-const { log } = require("../lib/log");
-const { getStatusSummary, run } = require("../lib/git");
-const { ask } = require("../lib/prompt");
+import path from "node:path";
+import { log } from "../lib/log.js";
+import { getStatusSummary, run } from "../lib/git.js";
+import { ask } from "../lib/prompt.js";
 
 async function deploy(args) {
   const cwd = args.path ? path.resolve(args.path) : process.cwd();
@@ -47,4 +47,4 @@ async function deploy(args) {
   }
 }
 
-module.exports = { deploy };
+export { deploy };

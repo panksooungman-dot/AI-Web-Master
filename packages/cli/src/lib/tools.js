@@ -1,4 +1,4 @@
-const { spawnSync } = require("node:child_process");
+import { spawnSync } from "node:child_process";
 
 const isWin = process.platform === "win32";
 
@@ -19,4 +19,4 @@ function getVersion(cmd, args = ["--version"]) {
   return (result.stdout || result.stderr || "").trim().split("\n")[0];
 }
 
-module.exports = { commandExists, getVersion };
+export { commandExists, getVersion };

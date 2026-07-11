@@ -1,4 +1,4 @@
-const readline = require("node:readline");
+import readline from "node:readline";
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -10,4 +10,4 @@ function ask(question) {
   });
 }
 
-module.exports = { ask };
+export { ask };

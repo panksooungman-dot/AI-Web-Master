@@ -22,7 +22,8 @@ const TEXT_EXTENSIONS = new Set([
   ".css",
   ".txt",
   ".yml",
-  ".yaml"
+  ".yaml",
+  ".svg"
 ]);
 
 export interface TemplateVariables {

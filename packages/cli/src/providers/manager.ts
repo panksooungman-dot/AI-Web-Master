@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { createProvider, listProviderIds } from "./registry.js";
 import type { AIProvider } from "./provider.js";
-import { ProviderError, type ProviderConfig, type ProvidersFile } from "./types.js";
+import { ProviderError, type ChatMessage, type ProviderConfig, type ProvidersFile } from "./types.js";
 
 function configFile(cwd: string): string {
   return path.join(cwd, ".runtime", "config", "providers.json");
@@ -110,6 +110,56 @@ export class ProviderManager {
     const raw = config.providers[id] ?? {};
     return createProvider(id, resolveConfig(raw));
   }
+
+  /**
+   * Resolve → chat → simulate 폴백을 한 곳에서 처리하는 공용 헬퍼.
+   * Agent Runtime(runtime/executor.ts)과 Website Builder Content Engine(website/content.ts)이
+   * 동일한 이 메서드를 재사용한다 — provider 호출/시뮬레이션 로직이 두 곳에 중복되지 않는다.
+   * 명시적으로 요청된 provider(`options.providerId`)가 실패하면 감추지 않고 그대로 던진다.
+   */
+  async complete(options: CompleteOptions): Promise<CompleteResult> {
+    const resolvedProviderId = await this.resolveProviderId(options.providerId);
+
+    if (!resolvedProviderId) {
+      return { text: `[simulated] ${options.fallbackLabel} — no LLM connected yet.`, simulated: true };
+    }
+
+    const messages: ChatMessage[] = [
+      { role: "system", content: options.systemPrompt },
+      { role: "user", content: options.userPrompt }
+    ];
+
+    try {
+      const provider = await this.getProvider(resolvedProviderId);
+      const response = await provider.chat({ messages });
+      return { text: response.content, provider: response.provider, model: response.model, simulated: false };
+    } catch (error) {
+      if (options.providerId) {
+        throw error;
+      }
+      const reason = error instanceof Error ? error.message : String(error);
+      return {
+        text: `[simulated] ${options.fallbackLabel} — provider "${resolvedProviderId}" unavailable (${reason}).`,
+        simulated: true
+      };
+    }
+  }
+}
+
+export interface CompleteOptions {
+  /** 명시적으로 요청된 provider id. 생략 시 providers.json의 default를 사용한다. */
+  providerId?: string;
+  systemPrompt: string;
+  userPrompt: string;
+  /** provider가 없거나 실패했을 때 [simulated] 메시지에 포함되는 설명. */
+  fallbackLabel: string;
+}
+
+export interface CompleteResult {
+  text: string;
+  provider?: string;
+  model?: string;
+  simulated: boolean;
 }
 
 export function getProviderManager(cwd: string = process.cwd()): ProviderManager {

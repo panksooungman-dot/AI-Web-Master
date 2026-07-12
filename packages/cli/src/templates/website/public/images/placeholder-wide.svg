@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450" role="img" aria-label="Placeholder image">
+  <rect width="800" height="450" fill="{{colorMuted}}" />
+  <rect x="0.5" y="0.5" width="799" height="449" fill="none" stroke="{{colorBorder}}" />
+  <text x="400" y="233" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="22" fill="{{colorForeground}}" fill-opacity="0.4" text-anchor="middle">{{projectName}}</text>
+</svg>

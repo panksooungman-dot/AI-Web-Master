@@ -26,6 +26,7 @@ You are the Business Analyst for a new website project.
 ## Project
 
 - Name: {{projectName}}
+- Site Type: {{siteTypeLabel}} ({{siteType}})
 - Business Type: {{businessType}}
 - Target Audience: {{targetAudience}}
 - Brand: {{brand}}

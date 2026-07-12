@@ -1,12 +1,29 @@
 :root {
+  --background: {{colorBackground}};
+  --foreground: {{colorForeground}};
+  --primary: {{colorPrimary}};
+  --primary-dark: {{colorPrimaryDark}};
+  --secondary: {{colorSecondary}};
+  --accent: {{colorAccent}};
+  --muted: {{colorMuted}};
+  --border: {{colorBorder}};
+  --success: {{colorSuccess}};
+  --warning: {{colorWarning}};
+  --danger: {{colorDanger}};
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --background: #ffffff;
-  --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-family-sans: var(--font-sans);
 }

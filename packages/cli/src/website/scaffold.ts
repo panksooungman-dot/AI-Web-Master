@@ -3,16 +3,13 @@ import { getMemory } from "../memory/manager.js";
 import type { MemoryRecord } from "../memory/types.js";
 import { generateWebsiteProject } from "../generators/website.js";
 import { executeTool } from "../tools/manager.js";
+import { generateSiteContent, type SiteContent } from "./content.js";
+import { PALETTES, isWebsiteType, siteTypeLabel, type WebsiteInputs, type WebsiteType } from "./types.js";
 import { WEBSITE_PIPELINE_AGENTS } from "./agents.js";
 import { WEBSITE_WORKFLOW_NAME } from "./workflow.js";
 
-export interface WebsiteInputs {
-  projectName: string;
-  businessType: string;
-  targetAudience: string;
-  brand: string;
-  language: string;
-}
+export type { WebsiteInputs } from "./types.js";
+export { WEBSITE_TYPES } from "./types.js";
 
 const LANGUAGE_CODES: Record<string, string> = {
   english: "en",
@@ -35,88 +32,30 @@ export function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "") || "website";
 }
 
+/** `--site-type`가 없거나 목록에 없으면 범용 타입("website")으로 폴백한다. */
+export function resolveSiteType(value: string | undefined): WebsiteType {
+  if (value && isWebsiteType(value.trim().toLowerCase())) {
+    return value.trim().toLowerCase() as WebsiteType;
+  }
+  return "website";
+}
+
+function firstLetter(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed[0].toUpperCase() : "W";
+}
+
 function stepMessage(memory: MemoryRecord, agent: string): string {
   const step = memory.steps[agent];
   const message = step?.output?.message;
   return typeof message === "string" ? message : "";
 }
 
-function isSimulated(text: string): boolean {
-  return text.startsWith("[simulated]");
-}
-
-function lines(text: string): string[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 /**
- * Website Builder Workflow의 결과(Memory)를 읽어 실제 Next.js 프로젝트를 생성한다.
- * - 실제 LLM(provider)로 실행되어 시뮬레이션이 아닌 콘텐츠가 있으면 그것을 사용하고,
- *   시뮬레이션된 경우(provider 미설정)에는 사용자가 입력한 구조적 정보(프로젝트명/업종/
- *   타겟 고객)로 합리적인 기본값을 구성한다 — Agent Runtime의 "시뮬레이션 폴백"과
- *   동일한 정신이다.
- * - 정적 프로젝트 스캐폴딩은 Generator(generateWebsiteProject)를 재사용하고,
- *   Memory 기반의 동적 PLANNING.md는 Tool System(filesystem)으로 기록한다.
+ * Website Builder Workflow(8단계 Planning Agent)의 결과를 사람이 읽는 문서로 남긴다.
+ * 실제 페이지 콘텐츠는 이 문서가 아니라 Content Engine(content.ts, Provider Layer 직접
+ * 호출)이 만든다 — 이 문서는 파이프라인이 무엇을 계획했는지 보여주는 부산물이다.
  */
-export async function scaffoldWebsiteProject(
-  cwd: string,
-  targetDir: string,
-  inputs: WebsiteInputs
-): Promise<{ targetDir: string; files: string[] }> {
-  const memory = await getMemory(cwd, WEBSITE_WORKFLOW_NAME);
-
-  const pageCopy = stepMessage(memory, "page-generator");
-  const seoText = stepMessage(memory, "seo-generator");
-
-  const pageCopyLines = lines(pageCopy);
-  const seoLines = lines(seoText);
-
-  const heroHeadline =
-    !isSimulated(pageCopy) && pageCopyLines[0] ? pageCopyLines[0] : `Welcome to ${inputs.projectName}`;
-  const heroSubheadline =
-    !isSimulated(pageCopy) && pageCopyLines[1]
-      ? pageCopyLines[1]
-      : `${inputs.businessType} for ${inputs.targetAudience}, by ${inputs.brand}.`;
-  const seoTitle =
-    !isSimulated(seoText) && seoLines[0] ? seoLines[0] : `${inputs.projectName} | ${inputs.businessType}`;
-  const seoDescription =
-    !isSimulated(seoText) && seoLines[1]
-      ? seoLines[1]
-      : `${inputs.projectName} is a ${inputs.businessType} serving ${inputs.targetAudience}.`;
-
-  const result = await generateWebsiteProject({
-    targetDir,
-    variables: {
-      projectName: inputs.projectName,
-      projectSlug: slugify(inputs.projectName),
-      businessType: inputs.businessType,
-      targetAudience: inputs.targetAudience,
-      brand: inputs.brand,
-      language: inputs.language,
-      languageCode: languageCode(inputs.language),
-      heroHeadline,
-      heroSubheadline,
-      seoTitle,
-      seoDescription
-    }
-  });
-
-  const planningDocument = buildPlanningDocument(inputs, memory);
-
-  // Tool System 재사용 — Memory 기반 동적 문서는 filesystem 도구로 기록한다.
-  await executeTool("filesystem", {
-    action: "write",
-    path: "PLANNING.md",
-    content: planningDocument,
-    cwd: targetDir
-  });
-
-  return { targetDir, files: [...result.files, path.join(targetDir, "PLANNING.md")] };
-}
-
 function buildPlanningDocument(inputs: WebsiteInputs, memory: MemoryRecord): string {
   const output: string[] = [
     "# Planning Artifacts",
@@ -126,6 +65,7 @@ function buildPlanningDocument(inputs: WebsiteInputs, memory: MemoryRecord): str
     "## Inputs",
     "",
     `- Project Name: ${inputs.projectName}`,
+    `- Site Type: ${siteTypeLabel(inputs.siteType)} (${inputs.siteType})`,
     `- Business Type: ${inputs.businessType}`,
     `- Target Audience: ${inputs.targetAudience}`,
     `- Brand: ${inputs.brand}`,
@@ -143,4 +83,114 @@ function buildPlanningDocument(inputs: WebsiteInputs, memory: MemoryRecord): str
   }
 
   return output.join("\n");
+}
+
+interface SiteConfigData {
+  projectName: string;
+  projectSlug: string;
+  siteType: WebsiteType;
+  siteTypeLabel: string;
+  businessType: string;
+  targetAudience: string;
+  brand: string;
+  language: string;
+  languageCode: string;
+  url: string;
+  seoTitle: string;
+  seoDescription: string;
+  contactEmail: string;
+}
+
+export interface ScaffoldResult {
+  targetDir: string;
+  files: string[];
+  content: SiteContent;
+  contentSimulated: boolean;
+}
+
+/**
+ * Website Builder Workflow의 결과(Memory)를 문서로 남기고, Content Engine + Generator를
+ * 재사용해 실제 Next.js 프로젝트를 생성한다.
+ * - 콘텐츠: Content Engine(generateSiteContent, Provider Layer 재사용)
+ * - 정적 스캐폴딩: Generator(generateWebsiteProject → generateFromTemplate) 단일 호출.
+ *   모든 동적 값(색상 팔레트·siteConfig·content)은 `{{var}}` 치환 변수로만 전달되며,
+ *   파일을 개별적으로 다시 쓰는 별도 로직은 두지 않는다(요구사항 9 — 중복 실행 로직 없음).
+ * - PLANNING.md만 Tool System(filesystem)으로 별도 기록한다(Memory 기반 부산물이라
+ *   템플릿 변수로 표현하기보다 그대로 기록하는 것이 더 정확하다).
+ */
+export async function scaffoldWebsiteProject(
+  cwd: string,
+  targetDir: string,
+  inputs: WebsiteInputs,
+  providerId?: string
+): Promise<ScaffoldResult> {
+  const memory = await getMemory(cwd, WEBSITE_WORKFLOW_NAME);
+
+  const { content, simulated } = await generateSiteContent(cwd, inputs, providerId);
+  const palette = PALETTES[inputs.siteType];
+
+  const siteConfig: SiteConfigData = {
+    projectName: inputs.projectName,
+    projectSlug: inputs.projectSlug,
+    siteType: inputs.siteType,
+    siteTypeLabel: siteTypeLabel(inputs.siteType),
+    businessType: inputs.businessType,
+    targetAudience: inputs.targetAudience,
+    brand: inputs.brand,
+    language: inputs.language,
+    languageCode: languageCode(inputs.language),
+    url: `https://${inputs.projectSlug}.example.com`,
+    seoTitle: content.seo.title,
+    seoDescription: content.seo.description,
+    contactEmail: content.contact.email
+  };
+
+  const result = await generateWebsiteProject({
+    targetDir,
+    variables: {
+      projectName: inputs.projectName,
+      projectSlug: inputs.projectSlug,
+      businessType: inputs.businessType,
+      targetAudience: inputs.targetAudience,
+      brand: inputs.brand,
+      language: inputs.language,
+      languageCode: languageCode(inputs.language),
+      siteType: inputs.siteType,
+      siteTypeLabel: siteTypeLabel(inputs.siteType),
+      seoTitle: content.seo.title,
+      seoDescription: content.seo.description,
+      siteUrl: siteConfig.url,
+      initial: firstLetter(inputs.brand || inputs.projectName),
+      colorPrimary: palette.primary,
+      colorPrimaryDark: palette.primaryDark,
+      colorSecondary: palette.secondary,
+      colorAccent: palette.accent,
+      colorBackground: palette.background,
+      colorForeground: palette.foreground,
+      colorMuted: palette.muted,
+      colorBorder: palette.border,
+      colorSuccess: palette.success,
+      colorWarning: palette.warning,
+      colorDanger: palette.danger,
+      siteConfigJson: JSON.stringify(siteConfig, null, 2),
+      contentJson: JSON.stringify(content, null, 2)
+    }
+  });
+
+  const planningDocument = buildPlanningDocument(inputs, memory);
+
+  // Tool System 재사용 — Memory 기반 동적 문서는 filesystem 도구로 기록한다.
+  await executeTool("filesystem", {
+    action: "write",
+    path: "PLANNING.md",
+    content: planningDocument,
+    cwd: targetDir
+  });
+
+  return {
+    targetDir,
+    files: [...result.files, path.join(targetDir, "PLANNING.md")],
+    content,
+    contentSimulated: simulated
+  };
 }

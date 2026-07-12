@@ -43,38 +43,16 @@ export async function executeAgent(
   const toolNote = agent.tools.length > 0 ? ` Tools available: ${agent.tools.map((tool) => tool.id).join(", ")}.` : "";
 
   const manager = getProviderManager(context.cwd);
-  const resolvedProviderId = await manager.resolveProviderId(options.providerId);
+  const completion = await manager.complete({
+    providerId: options.providerId,
+    systemPrompt: renderedPrompt,
+    userPrompt: context.variables.task ?? "Proceed with your role as defined in the system prompt.",
+    fallbackLabel: `"${agent.metadata.name}" received a ${renderedPrompt.length}-char prompt.${toolNote}`
+  });
 
-  let output: string;
-  let providerUsed: string | undefined;
-  let modelUsed: string | undefined;
-
-  if (resolvedProviderId) {
-    try {
-      const provider = await manager.getProvider(resolvedProviderId);
-      const response = await provider.chat({
-        messages: [
-          { role: "system", content: renderedPrompt },
-          {
-            role: "user",
-            content: context.variables.task ?? "Proceed with your role as defined in the system prompt."
-          }
-        ]
-      });
-      output = response.content;
-      providerUsed = response.provider;
-      modelUsed = response.model;
-    } catch (error) {
-      if (options.providerId) {
-        // 사용자가 명시적으로 provider를 요청했다면 실패를 숨기지 않는다.
-        throw error;
-      }
-      // 기본 provider가 설정돼 있었지만 실패한 경우(예: API 키 없음) — 기존 MVP 시뮬레이션으로 폴백.
-      output = `[simulated] "${agent.metadata.name}" received a ${renderedPrompt.length}-char prompt.${toolNote} Provider "${resolvedProviderId}" unavailable (${error instanceof Error ? error.message : String(error)}) — execution simulated instead.`;
-    }
-  } else {
-    output = `[simulated] "${agent.metadata.name}" received a ${renderedPrompt.length}-char prompt.${toolNote} No LLM connected yet — execution simulated successfully.`;
-  }
+  const output = completion.text;
+  const providerUsed = completion.provider;
+  const modelUsed = completion.model;
 
   await updateStep(context.cwd, agent.metadata.name, agent.metadata.name, {
     status: "completed",

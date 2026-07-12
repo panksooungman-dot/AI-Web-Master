@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-07-12
+
+### 추가 (Added)
+
+- **AI Business OS CLI — Website Builder v2 (`ai website create`)**: 기존에는 홈페이지 1개(정적 Hero 섹션)만 생성하던 `ai website create`를 프로덕션급 Next.js 사이트 생성기로 확장
+  - `--site-type <type>`(신규) — website·landing·portfolio·corporate·agency·dental·hospital·restaurant·shopping·blog·education 11종 지원(`packages/cli/src/website/types.ts`). 타입마다 색상 팔레트(Primary/Secondary/Accent)와 콘텐츠 어휘(feature/service 제목 등)가 다르게 적용됨. 목록에 없는 값은 경고 후 "website"(범용)로 폴백
+  - **페이지 11종 고정 생성**(사이트 타입과 무관하게 항상 전체 생성): Home·About·Services·Products·Pricing·FAQ·Blog·Contact·Privacy·Terms·404
+  - **Content Engine**(`packages/cli/src/website/content.ts`, 신규) — Provider Layer를 재사용해 페이지별 카피(헤드라인·기능·후기·플랜·FAQ·블로그 요약 등)를 생성. Provider 미설정/실패 시에도 결정론적 기본 콘텐츠로 항상 유효한 프로젝트가 생성되도록 폴백(AI 응답은 JSON 파싱 실패 시에도 예외 없이 기본값 유지)
+  - **디자인 시스템**: `styles/tokens.ts`(원시 토큰)·`styles/theme.ts`(시맨틱 테마)·`styles/theme.css`(Tailwind 4 `@theme` 매핑, `packages/design-system/theme.css`와 동일한 컨벤션)
+  - **재사용 컴포넌트 12종**: Header·Navbar·Footer·Hero·Features·CTA·Testimonials·Pricing·FAQ·ContactForm·Newsletter·JsonLd(+ 공용 Container)
+  - **SEO**: `app/robots.ts`·`app/sitemap.ts`(11개 라우트)·`app/opengraph-image.tsx`(next/og 동적 소셜 이미지)·`app/icon.svg`·`public/manifest.json`·페이지별 Metadata·Organization JSON-LD
+  - **자산**: `public/logo.svg`·`app/icon.svg`(브랜드 이니셜 기반)·`public/images/placeholder-{wide,square,portrait}.svg`
+  - **배포 파일**: `.env.example`(`NEXT_PUBLIC_SITE_URL` 등)·`vercel.json`·확장된 `README.md`
+  - **API 라우트**: `app/api/contact`·`app/api/newsletter` — 서버 측 유효성 검사 + honeypot, 이메일 제공자 미연동 시 콘솔 로그로 폴백
+  - **재사용 원칙 준수**: 신규 실행 로직을 추가하지 않고 기존 Generator(`generateFromTemplate`)·Workflow Engine(8단계 Planning 파이프라인, 변경 없이 유지)·Prompt Engine·Tool System을 그대로 재사용. `providers/manager.ts`에 `ProviderManager.complete()` 헬퍼를 신설해 `runtime/executor.ts`(Agent Runtime)와 Content Engine이 provider 호출·시뮬레이션 폴백 로직을 공유하도록 리팩터링(중복 제거)
+
+### 변경 (Changed)
+
+- `packages/cli/tsconfig.json` — `src/templates/**`를 `exclude`에 추가. 템플릿 파일은 `{{var}}` 플레이스홀더를 포함한 산출물 소스(빌드 시 `dist/templates`로 그대로 복사, `tsc` 대상 아님)인데 `.ts` 확장자 신규 템플릿 파일(`lib/content.ts`·`lib/site-config.ts`)이 CLI 자체 컴파일에 포함되어 실제 컴파일 오류가 발생한 것을 확인하고 수정
+- `generators/template.ts` — 템플릿 변수 치환 대상 확장자에 `.svg` 추가(로고·아이콘·placeholder 이미지에 브랜드 색상·이니셜을 주입하기 위함)
+
+### 검증 (Verified)
+
+- `packages/cli` `npx tsc --noEmit` 통과(신규 템플릿 제외 설정 이후)
+- `ai website create --site-type dental ...`로 실제 프로젝트 생성 → 생성된 42개 파일 전수 확인, 미치환 `{{var}}` 잔존 없음(정상적인 JSX 이중 중괄호만 존재) 확인
+- 생성된 프로젝트에서 `npm install`(실패 없음) → `npm run build`(Next.js 16.2.9, 11개 페이지 + `/api/contact`·`/api/newsletter` + `robots.txt`·`sitemap.xml`·`opengraph-image`·`icon.svg` 전부 정상 빌드) → `npm run lint`(경고 없음) → `npm run start` 후 전체 라우트(홈·About·Services·Products·Pricing·FAQ·Blog·Contact·Privacy·Terms·404·robots.txt·sitemap.xml·manifest.json·icon.svg) curl로 200/404 정상 확인, `/api/contact`·`/api/newsletter` 실제 POST 응답 확인, 치과(dental) 팔레트(`#0ea5e9`)가 `manifest.json`의 `theme_color`에 정확히 반영됨을 확인
+- `--site-type`에 목록에 없는 값을 준 경우 경고 메시지와 함께 "website"(범용, `#2563eb`) 팔레트로 정상 폴백됨을 별도로 확인
+- 검증에 사용한 스크래치 프로젝트 2개·프로세스는 모두 삭제·종료 완료(`git status` 결과 `packages/cli/dist`는 `.gitignore` 대상으로 정상 제외됨을 확인)
+
+---
+
 ## 2026-07-10
 
 ### 추가 (Added)

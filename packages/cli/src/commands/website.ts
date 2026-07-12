@@ -2,6 +2,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { ask } from "../lib/prompt.js";
 import { buildWebsite } from "../website/builder.js";
+import { WEBSITE_TYPES, siteTypeLabel } from "../website/types.js";
 import { WorkflowError } from "../workflow/types.js";
 import { RuntimeError } from "../runtime/types.js";
 import { ProviderError } from "../providers/types.js";
@@ -10,6 +11,7 @@ import { ToolError } from "../tools/types.js";
 
 export interface WebsiteCreateOptions {
   name?: string;
+  siteType?: string;
   type?: string;
   audience?: string;
   brand?: string;
@@ -17,6 +19,8 @@ export interface WebsiteCreateOptions {
   out?: string;
   provider?: string;
 }
+
+const SITE_TYPE_LIST = WEBSITE_TYPES.join(", ");
 
 async function resolveInputs(options: WebsiteCreateOptions): Promise<{
   projectName: string;
@@ -34,21 +38,29 @@ async function resolveInputs(options: WebsiteCreateOptions): Promise<{
   return { projectName, businessType, targetAudience, brand, language };
 }
 
-/** `ai website create` — 8단계 AI 파이프라인으로 실제 Next.js 프로젝트를 생성한다. */
+/** `ai website create` — Content Engine + 8단계 Planning 파이프라인으로 실제 Next.js 프로젝트를 생성한다. */
 async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void> {
-  console.log(chalk.cyan("\n🌐 AI Business OS Website Builder"));
+  console.log(chalk.cyan("\n🌐 AI Business OS Website Builder v2"));
   console.log(chalk.gray("--------------------------------"));
 
   const inputs = await resolveInputs(options);
+  const siteTypeInput = options.siteType;
 
   if (!inputs.projectName || !inputs.businessType || !inputs.targetAudience || !inputs.brand || !inputs.language) {
     console.log(chalk.red("❌ Project Name, Business Type, Target Audience, Brand, and Language are all required."));
     process.exit(1);
   }
 
+  if (siteTypeInput && !WEBSITE_TYPES.includes(siteTypeInput.trim().toLowerCase() as (typeof WEBSITE_TYPES)[number])) {
+    console.log(
+      chalk.yellow(`⚠ Unknown site type "${siteTypeInput}" — falling back to "website" (general). Valid types: ${SITE_TYPE_LIST}`)
+    );
+  }
+
   try {
     const result = await buildWebsite({
       inputs,
+      siteType: siteTypeInput,
       providerId: options.provider,
       outDir: options.out
     });
@@ -60,6 +72,17 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
 
     console.log(chalk.green("\n✅ Project generated successfully."));
     console.log(chalk.gray(`📁 ${result.targetDir}`));
+    console.log(chalk.gray(`🏷  Site Type: ${siteTypeLabel(result.siteType)} (${result.siteType})`));
+    console.log(chalk.gray(`📄 Pages: Home, About, Services, Products, Pricing, FAQ, Blog, Contact, Privacy, Terms, 404`));
+
+    if (result.contentSimulated) {
+      console.log(
+        chalk.yellow(
+          "⚠ No LLM provider connected — content was generated deterministically. Run `ai provider set <id>` to enable AI-written copy on the next run."
+        )
+      );
+    }
+
     console.log();
     console.log(chalk.yellow("Next steps:"));
     console.log(chalk.yellow(`  cd ${result.targetDir}`));
@@ -86,13 +109,17 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
 
 /** `ai website create` 명령을 구성한다. */
 export function buildWebsiteCommand(): Command {
-  const website = new Command("website").description("AI 파이프라인으로 Next.js 웹사이트 프로젝트 생성");
+  const website = new Command("website").description("AI 파이프라인으로 프로덕션급 Next.js 웹사이트 프로젝트 생성");
 
   website
     .command("create")
-    .description("Business Analyst→Site Planner→...→Project Generator 8단계 파이프라인 실행 후 Next.js 프로젝트 생성")
+    .description(
+      "Business Analyst→Site Planner→...→Project Generator 8단계 계획 파이프라인 + Content Engine 실행 후 " +
+        "11개 페이지·디자인 시스템·SEO·자산·배포 파일을 갖춘 Next.js 프로젝트 생성"
+    )
     .option("--name <name>", "Project Name")
-    .option("--type <type>", "Business Type")
+    .option("--site-type <type>", `Website Type (${SITE_TYPE_LIST}) — default: website`)
+    .option("--type <type>", "Business Type (free text, e.g. \"dental clinic\")")
     .option("--audience <audience>", "Target Audience")
     .option("--brand <brand>", "Brand")
     .option("--language <language>", "Language")

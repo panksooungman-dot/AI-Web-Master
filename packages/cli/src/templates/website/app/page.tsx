@@ -1,14 +1,24 @@
+import { Hero } from "@/components/Hero";
+import { Features } from "@/components/Features";
+import { Testimonials } from "@/components/Testimonials";
+import { CTA } from "@/components/CTA";
+import { Newsletter } from "@/components/Newsletter";
+import { content } from "@/lib/content";
+
 export default function Home() {
   return (
-    <section className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-24 text-center">
-      <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">{{heroHeadline}}</h1>
-      <p className="max-w-2xl text-lg text-foreground/70">{{heroSubheadline}}</p>
-      <a
-        href="#contact"
-        className="rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-      >
-        Get in touch
-      </a>
-    </section>
+    <>
+      <Hero
+        kicker={content.home.kicker}
+        title={content.home.headline}
+        subtitle={content.home.subheadline}
+        primaryCta={{ label: content.home.ctaLabel, href: "/contact" }}
+        secondaryCta={{ label: "View Pricing", href: "/pricing" }}
+      />
+      <Features items={content.home.features} />
+      <Testimonials items={content.home.testimonials} />
+      <CTA title={content.home.ctaTitle} subtitle={content.home.ctaSubtitle} />
+      <Newsletter title={content.home.newsletterTitle} subtitle={content.home.newsletterSubtitle} />
+    </>
   );
 }

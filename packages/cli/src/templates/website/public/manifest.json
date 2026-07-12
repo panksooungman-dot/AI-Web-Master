@@ -1,0 +1,16 @@
+{
+  "name": "{{projectName}}",
+  "short_name": "{{projectName}}",
+  "description": "{{seoDescription}}",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "{{colorBackground}}",
+  "theme_color": "{{colorPrimary}}",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "{{name}}",
+  "type": "agent",
+  "version": "{{version}}",
+  "description": "{{description}}",
+  "author": "{{author}}",
+  "createdAt": "{{createdAt}}",
+  "tools": []
+}

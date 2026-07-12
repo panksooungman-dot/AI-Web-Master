@@ -9,7 +9,7 @@
     "ai": "./bin/ai.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').cpSync('src/config','dist/config',{recursive:true})\"",
+    "build": "tsc && node -e \"const fs=require('fs'); fs.rmSync('dist/config',{recursive:true,force:true}); fs.rmSync('dist/templates',{recursive:true,force:true}); fs.cpSync('src/config','dist/config',{recursive:true}); fs.cpSync('src/templates','dist/templates',{recursive:true})\"",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "clean": "rimraf dist"

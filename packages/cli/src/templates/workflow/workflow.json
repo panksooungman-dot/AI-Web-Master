@@ -1,0 +1,9 @@
+{
+  "name": "{{name}}",
+  "version": "{{version}}",
+  "steps": [
+    { "agent": "business-analyst" },
+    { "agent": "ui-designer" },
+    { "agent": "frontend-engineer" }
+  ]
+}

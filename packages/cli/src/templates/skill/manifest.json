@@ -1,0 +1,8 @@
+{
+  "name": "{{name}}",
+  "type": "skill",
+  "version": "{{version}}",
+  "description": "{{description}}",
+  "author": "{{author}}",
+  "createdAt": "{{createdAt}}"
+}

@@ -1,51 +1,75 @@
-import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
-import { findProjectRoot } from "../utils/config.js";
+import {
+  getMarketplaceProvider,
+  isPackageType,
+  MarketplaceError,
+  TYPE_DIR_NAMES,
+  type PackageType
+} from "../marketplace/index.js";
 
-export async function installCommand(packageName: string): Promise<void> {
-  if (!packageName) {
+export interface InstallOptions {
+  type?: string;
+}
+
+/**
+ * `ai install <name> [--type agent|workflow|skill]` — 마켓플레이스의 패키지를
+ * 현재 프로젝트(cwd)의 agents/·workflows/·skills/ 폴더로 설치한다.
+ */
+export async function installCommand(name: string, options: InstallOptions = {}): Promise<void> {
+  if (!name) {
     console.log(chalk.red("❌ Package name is required."));
-    console.log(chalk.yellow("Usage: ai install <package>"));
+    console.log(chalk.yellow("Usage: ai install <name> [--type agent|workflow|skill]"));
     process.exit(1);
   }
 
-  const projectRoot = await findProjectRoot();
-
-  const marketplaceDir = path.join(projectRoot, "marketplace");
-  const sourceDir = path.join(marketplaceDir, packageName);
-
-  const packagesDir = path.join(projectRoot, "packages");
-  const targetDir = path.join(packagesDir, packageName);
-
-  console.log(chalk.cyan("\n📦 AI Business OS Installer"));
+  console.log(chalk.cyan("\n📦 AI Business OS Marketplace Installer"));
   console.log(chalk.gray("--------------------------------"));
 
-  try {
-    await fs.ensureDir(packagesDir);
+  let type: PackageType | undefined;
 
-    if (!(await fs.pathExists(sourceDir))) {
-      console.log(
-        chalk.red(`❌ Package "${packageName}" was not found in Marketplace.`)
-      );
+  if (options.type) {
+    if (!isPackageType(options.type)) {
+      console.log(chalk.red(`❌ Invalid --type "${options.type}". Use agent, workflow, or skill.`));
       process.exit(1);
     }
+    type = options.type;
+  }
 
-    if (await fs.pathExists(targetDir)) {
-      console.log(
-        chalk.yellow(`⚠️ Package "${packageName}" is already installed.`)
-      );
+  const provider = getMarketplaceProvider();
+  const allEntries = await provider.list();
+  const matches = allEntries.filter((entry) => entry.name === name && (!type || entry.type === type));
+
+  if (matches.length === 0) {
+    console.log(chalk.red(`❌ Package "${name}" was not found in the marketplace.`));
+    process.exit(1);
+  }
+
+  if (matches.length > 1) {
+    console.log(
+      chalk.red(`❌ Multiple packages named "${name}" found: ${matches.map((m) => m.type).join(", ")}.`)
+    );
+    console.log(chalk.yellow(`   Use --type to disambiguate, e.g. ai install ${name} --type ${matches[0].type}`));
+    process.exit(1);
+  }
+
+  const entry = matches[0];
+  const targetDir = path.join(process.cwd(), TYPE_DIR_NAMES[entry.type], entry.name);
+
+  try {
+    await provider.install(entry.type, entry.name, targetDir);
+
+    console.log(chalk.green(`✅ Package "${entry.name}" (${entry.type}) installed successfully.`));
+    console.log(chalk.gray(`📦 v${entry.version} — ${entry.description}`));
+    console.log(chalk.gray(`📁 ${targetDir}`));
+  } catch (error) {
+    if (error instanceof MarketplaceError && error.code === "DUPLICATE_PACKAGE") {
+      console.log(chalk.yellow(`⚠️ ${error.message}`));
       return;
     }
 
-    await fs.copy(sourceDir, targetDir);
-
-    console.log(chalk.green("✅ Package installed successfully."));
-    console.log(chalk.gray(`📦 ${packageName}`));
-    console.log(chalk.gray(`📁 ${targetDir}`));
-  } catch (error) {
-    console.error(chalk.red("❌ Installation failed."));
-    console.error(error);
+    console.log(chalk.red(`❌ Failed to install "${name}".`));
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
     process.exit(1);
   }
 }

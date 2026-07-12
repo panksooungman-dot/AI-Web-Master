@@ -6,6 +6,14 @@ import fs from "node:fs";
 import { Command } from "commander";
 
 import { initCommand } from "./commands/init.js";
+import { buildCreateCommand } from "./commands/create.js";
+import { runCommand } from "./commands/run.js";
+import { buildWorkflowCommand } from "./commands/workflow.js";
+import { buildMemoryCommand } from "./commands/memory.js";
+import { buildOrchestratorCommand } from "./commands/orchestrator.js";
+import { buildProviderCommand } from "./commands/provider.js";
+import { buildToolsCommand } from "./commands/tools.js";
+import { buildWebsiteCommand } from "./commands/website.js";
 import { addCommand } from "./commands/add.js";
 import { installCommand } from "./commands/install.js";
 import { doctorCommand } from "./commands/doctor.js";
@@ -71,6 +79,24 @@ program
     await registerProject(options);
   });
 
+program.addCommand(buildCreateCommand());
+
+program
+  .command("run")
+  .argument("<agent-name>", "Agent name")
+  .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama). 생략 시 기본 provider 또는 시뮬레이션")
+  .description("Agent Runtime 실행 (provider 설정 시 실제 LLM 호출, 없으면 시뮬레이션)")
+  .action(async (name: string, options: { provider?: string }) => {
+    await runCommand(name, options);
+  });
+
+program.addCommand(buildWorkflowCommand());
+program.addCommand(buildMemoryCommand());
+program.addCommand(buildOrchestratorCommand());
+program.addCommand(buildProviderCommand());
+program.addCommand(buildToolsCommand());
+program.addCommand(buildWebsiteCommand());
+
 program
   .command("init")
   .argument("[project]", "Project name")
@@ -90,9 +116,10 @@ program
 program
   .command("install")
   .argument("<package>", "Package name")
-  .description("Install a package")
-  .action(async (pkg: string) => {
-    await installCommand(pkg);
+  .option("--type <type>", "agent | workflow | skill")
+  .description("마켓플레이스의 패키지를 현재 프로젝트에 설치")
+  .action(async (pkg: string, options: { type?: string }) => {
+    await installCommand(pkg, options);
   });
 
 program
@@ -104,10 +131,11 @@ program
 
 program
   .command("search")
-  .argument("<keyword>", "Search keyword")
-  .description("Search available packages")
-  .action(async (keyword: string) => {
-    await searchCommand(keyword);
+  .argument("[keyword]", "Search keyword (name/description 부분 일치)")
+  .option("--type <type>", "agent | workflow | skill")
+  .description("마켓플레이스에 게시된 패키지 검색")
+  .action(async (keyword: string | undefined, options: { type?: string }) => {
+    await searchCommand(keyword, options);
   });
 
 program
@@ -128,9 +156,9 @@ program
 
 program
   .command("publish")
-  .argument("<package>", "Package name")
-  .description("Publish a package")
-  .action(async (pkg: string) => {
+  .argument("[package]", "Package name (생략 시 agents/·workflows/·skills/의 모든 로컬 패키지를 게시)")
+  .description("생성된 Agent/Workflow/Skill을 마켓플레이스에 게시")
+  .action(async (pkg?: string) => {
     await publishCommand(pkg);
   });
 

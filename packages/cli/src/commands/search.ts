@@ -1,55 +1,49 @@
-import fs from "fs-extra";
-import path from "path";
 import chalk from "chalk";
-import { findProjectRoot } from "../utils/config.js";
+import { getMarketplaceProvider, isPackageType, type PackageType } from "../marketplace/index.js";
 
-export async function searchCommand(keyword: string): Promise<void> {
-  if (!keyword) {
-    console.log(chalk.red("❌ Search keyword is required."));
-    console.log(chalk.yellow("Usage: ai search <keyword>"));
-    process.exit(1);
-  }
+export interface SearchOptions {
+  type?: string;
+}
 
-  console.log(chalk.cyan("\n🔍 AI Business OS Search"));
+/**
+ * `ai search [keyword] [--type agent|workflow|skill]` — marketplace/index.json을
+ * 읽어 게시된 패키지를 나열한다. keyword는 name/description에 대한 부분 일치.
+ */
+export async function searchCommand(keyword?: string, options: SearchOptions = {}): Promise<void> {
+  console.log(chalk.cyan("\n🔍 AI Business OS Marketplace Search"));
   console.log(chalk.gray("--------------------------------"));
 
-  // 프로젝트 루트 찾기
-  const projectRoot = await findProjectRoot();
+  let type: PackageType | undefined;
 
-  // packages 디렉터리
-  const packagesDir = path.join(projectRoot, "packages");
-
-  if (!(await fs.pathExists(packagesDir))) {
-    console.log(chalk.red("❌ Packages directory not found."));
-    process.exit(1);
+  if (options.type) {
+    if (!isPackageType(options.type)) {
+      console.log(chalk.red(`❌ Invalid --type "${options.type}". Use agent, workflow, or skill.`));
+      process.exit(1);
+    }
+    type = options.type;
   }
 
-  const entries = await fs.readdir(packagesDir);
-  const results: string[] = [];
-
-  for (const entry of entries) {
-    const entryPath = path.join(packagesDir, entry);
-    const stat = await fs.stat(entryPath);
-
-    if (!stat.isDirectory()) {
-      continue;
-    }
-
-    if (entry.toLowerCase().includes(keyword.toLowerCase())) {
-      results.push(entry);
-    }
-  }
+  const provider = getMarketplaceProvider();
+  const results = await provider.list({ type, keyword });
 
   if (results.length === 0) {
-    console.log(chalk.yellow(`⚠️ No packages found for "${keyword}".`));
+    console.log(chalk.yellow("⚠️ No packages found in the marketplace."));
+    console.log(chalk.yellow("   Run `ai publish` to add packages first."));
     return;
   }
 
   console.log(chalk.green(`✅ Found ${results.length} package(s):\n`));
 
-  results.forEach((pkg, index) => {
-    console.log(`${index + 1}. ${pkg}`);
-  });
+  results
+    .slice()
+    .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
+    .forEach((entry, index) => {
+      console.log(
+        `${index + 1}. [${entry.type}] ${chalk.bold(entry.name)}@${entry.version} — ${entry.description} ${chalk.gray(
+          `(${entry.author})`
+        )}`
+      );
+    });
 
   console.log(chalk.gray("\n--------------------------------"));
   console.log(chalk.green("Search completed.\n"));

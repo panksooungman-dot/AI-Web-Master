@@ -1,53 +1,57 @@
-import fs from "fs-extra";
-import path from "path";
 import chalk from "chalk";
-import { findProjectRoot } from "../utils/config.js";
+import { discoverLocalPackages, getMarketplaceProvider, readManifest, MarketplaceError } from "../marketplace/index.js";
 
-export async function publishCommand(packageName: string): Promise<void> {
-  if (!packageName) {
-    console.log(chalk.red("❌ Package name is required."));
-    console.log(chalk.yellow("Usage: ai publish <package>"));
-    process.exit(1);
-  }
-
-  console.log(chalk.cyan("\n🚀 AI Business OS Publisher"));
+/**
+ * `ai publish [name]` — cwd의 agents/·workflows/·skills/ 폴더에서
+ * (ai create로) 생성된 패키지를 감지해 marketplace/index.json에 등록하고
+ * 패키지 파일을 marketplace/<type>s/<name>으로 복사한다.
+ * name을 생략하면 발견된 모든 로컬 패키지를 대상으로 한다.
+ */
+export async function publishCommand(name?: string): Promise<void> {
+  console.log(chalk.cyan("\n🚀 AI Business OS Marketplace Publisher"));
   console.log(chalk.gray("--------------------------------"));
 
-  const projectRoot = await findProjectRoot();
+  const discovered = await discoverLocalPackages();
+  const candidates = name ? discovered.filter((pkg) => pkg.name === name) : discovered;
 
-  const packagesDir = path.join(projectRoot, "packages");
-  const sourceDir = path.join(packagesDir, packageName);
-
-  const marketplaceDir = path.join(projectRoot, "marketplace");
-  const targetDir = path.join(marketplaceDir, packageName);
-
-  try {
-    if (!(await fs.pathExists(sourceDir))) {
-      console.log(
-        chalk.red(`❌ Package "${packageName}" does not exist.`)
-      );
+  if (candidates.length === 0) {
+    if (name) {
+      console.log(chalk.red(`❌ Package "${name}" was not found in agents/, workflows/, or skills/.`));
       process.exit(1);
     }
 
-    await fs.ensureDir(marketplaceDir);
+    console.log(chalk.yellow("⚠️ No generated packages found (agents/, workflows/, skills/)."));
+    console.log(chalk.yellow("   Run `ai create agent|workflow|skill <name>` first."));
+    return;
+  }
 
-    if (await fs.pathExists(targetDir)) {
-      console.log(
-        chalk.yellow(`⚠️ Package "${packageName}" already exists in Marketplace.`)
-      );
-      console.log(chalk.yellow("Updating existing package..."));
+  const provider = getMarketplaceProvider();
+  let publishedCount = 0;
+  let hadFailure = false;
 
-      await fs.remove(targetDir);
+  for (const pkg of candidates) {
+    try {
+      const manifest = await readManifest(pkg.dir);
+      const entry = await provider.publish(pkg.dir, manifest);
+      publishedCount += 1;
+      console.log(chalk.green(`✅ Published ${entry.type}/${entry.name}@${entry.version}`));
+      console.log(chalk.gray(`   ${entry.description}`));
+    } catch (error) {
+      if (error instanceof MarketplaceError && error.code === "ALREADY_PUBLISHED") {
+        console.log(chalk.yellow(`⚠️ ${error.message}`));
+        continue;
+      }
+
+      hadFailure = true;
+      console.log(chalk.red(`❌ Failed to publish "${pkg.name}" (${pkg.type}).`));
+      console.error(chalk.red(error instanceof Error ? error.message : String(error)));
     }
+  }
 
-    await fs.copy(sourceDir, targetDir);
+  console.log(chalk.gray("--------------------------------"));
+  console.log(chalk.green(`Marketplace: ${publishedCount} package(s) published.`));
 
-    console.log(chalk.green("✅ Package published successfully."));
-    console.log(chalk.gray(`📦 ${packageName}`));
-    console.log(chalk.gray(`📁 ${targetDir}`));
-  } catch (error) {
-    console.error(chalk.red("❌ Publish failed."));
-    console.error(error);
+  if (hadFailure) {
     process.exit(1);
   }
 }

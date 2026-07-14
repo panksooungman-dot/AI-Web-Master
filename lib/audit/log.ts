@@ -16,7 +16,8 @@ export type AuditAction =
   | "website.generate"
   | "ai.task"
   | "build.run"
-  | "design.generate";
+  | "design.generate"
+  | "design.storyboard.generate";
 
 export interface AuditEntry {
   id: string;

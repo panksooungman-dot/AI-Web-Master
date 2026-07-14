@@ -15,7 +15,13 @@ export function MetricsWidget() {
       .then((res) => res.json())
       .then((json: { counters: MetricsCounters }) => setCounters(json.counters))
       .catch(() =>
-        setCounters({ buildCount: 0, websiteGenerationCount: 0, aiTaskCount: 0, marketplaceInstallCount: 0 })
+        setCounters({
+          buildCount: 0,
+          websiteGenerationCount: 0,
+          aiTaskCount: 0,
+          marketplaceInstallCount: 0,
+          storyboardGenerationCount: 0,
+        })
       );
   }, []);
 
@@ -48,6 +54,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Marketplace Installs</span>
             <span className="text-gray-200">{counters.marketplaceInstallCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Storyboards Generated</span>
+            <span className="text-gray-200">{counters.storyboardGenerationCount}</span>
           </li>
         </ul>
       )}

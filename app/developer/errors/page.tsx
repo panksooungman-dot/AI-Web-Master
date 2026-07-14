@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "ai.task": "AI Task",
   "build.run": "Build",
   "design.generate": "Design Plan",
+  "design.storyboard.generate": "Storyboard",
 };
 
 /**

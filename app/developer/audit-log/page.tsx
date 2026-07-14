@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "ai.task": "AI Task",
   "build.run": "Build",
   "design.generate": "Design Plan",
+  "design.storyboard.generate": "Storyboard",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -33,6 +34,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "ai.task": "accent",
   "build.run": "neutral",
   "design.generate": "purple",
+  "design.storyboard.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -46,6 +48,7 @@ const FILTERS: ("All" | AuditAction)[] = [
   "ai.task",
   "build.run",
   "design.generate",
+  "design.storyboard.generate",
 ];
 
 export default function AuditLogPage() {

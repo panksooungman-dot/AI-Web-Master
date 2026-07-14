@@ -5,6 +5,7 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import Link from "next/link";
 import type { DesignPlanRecord } from "@/lib/design/types";
 
 interface PlansResponse {
@@ -81,6 +82,11 @@ export default function DesignRequirementsPage() {
         icon="📐"
         title="Design — Requirements"
         description="Design Automation Phase 1: Requirement Analysis·Feature List·Site Map·User Flow·Screen List를 자동 생성합니다."
+        actions={
+          <Link href="/developer/design/storyboard" className="text-xs text-blue-400 hover:underline self-center">
+            Storyboard →
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

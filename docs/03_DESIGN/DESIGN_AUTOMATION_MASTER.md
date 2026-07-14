@@ -1,10 +1,10 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1 Implemented
+> Status: Phase 1-2 Implemented
 > Priority: High
 > Owner: AI Business OS
-> Last Updated: 2026-07-14
+> Last Updated: 2026-07-15
 
 ---
 
@@ -32,7 +32,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | Design Automation Phase | 산출물 | 근거 |
 |---|---|---|
 | **Phase 1(이 저장소 구현 완료)** | Requirement Analysis, Feature List, Site Map, User Flow, Screen List | `DESIGN_WORKFLOW.md` Phase 2("요구사항 분석")+Phase 3("기획") 통합, `CLAUDE_DESIGN_INTEGRATION.md` 7번("Requirement Analysis")·5번("Claude Code 역할") |
-| Phase 2(미구현) | Storyboard | `DESIGN_WORKFLOW.md` Phase 4, `CLAUDE_DESIGN_INTEGRATION.md` 8번 |
+| **Phase 2(이 저장소 구현 완료)** | Storyboard(Screen Flow, User Journey, Navigation Flow, Page Sequence, Screen Description) | `DESIGN_WORKFLOW.md` Phase 4, `CLAUDE_DESIGN_INTEGRATION.md` 8번 |
 | Phase 3(미구현) | Wireframe | `DESIGN_WORKFLOW.md` Phase 5 |
 | Phase 4(미구현) | Prototype | `DESIGN_WORKFLOW.md` Phase 6 |
 | Phase 5(미구현) | Claude Design 연동 + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7 |
@@ -72,3 +72,43 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   `docs/REPOSITORY_INDEX.md`의 `## Design Automation Phase 1` 참고.
 - 미구현(Phase 2 이후로 명시적으로 남겨둔 것): Storyboard, Wireframe, Prototype, Claude
   Design 연동, Figma Import/Export, Design Sync, 고객 승인 Workflow.
+
+---
+
+# 4. Phase 2 구현 요약 — Storyboard Generator (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 1이 만든 Design Plan(Site Map·Screen List)을 입력으로 Screen Flow·User
+  Journey·Navigation Flow·Page Sequence·Screen Description 5종을 생성하는 "Storyboard
+  Generator". Phase 1과 완전히 동일한 원칙 재사용 — `lib/ai/bridge.ts`의 `chatViaCli()`로
+  AI에게 JSON 생성을 요청하고, Provider 미설정이거나 응답 파싱에 실패하면 결정론적 기본값
+  (`buildDefaultStoryboard()`, Phase 1 Screen List의 순서를 그대로 화면 흐름으로 변환)으로
+  전부-아니면-전무 폴백. Audit Log·Metrics도 새 저장소 없이 기존 인프라만 재사용.
+- 문서와의 차이점(명세에 없던 구현 세부사항):
+  - 요구사항이 예시로 든 API 응답 `{ storyboardId, projectId, screens, flow }`는 그대로
+    포함하되(`screens`=`screenDescriptions`, `flow`=`screenFlow`, `projectId`=이 Storyboard가
+    생성된 Phase 1 Design Plan의 `id`), Dashboard가 필요로 하는 나머지 3종
+    (userJourneys/navigationFlow/pageSequence)은 `storyboard` 필드 아래 전체 레코드로 추가
+    포함했다 — 스펙을 축소하지 않고 확장한 것이라 호환성에 영향 없음.
+  - "Developer → Design → Storyboard"라는 계층 요구를 새로운 중첩 네비게이션 메뉴로
+    만들지 않고, 기존 `/developer/design`(Requirements) 페이지와 신규
+    `/developer/design/storyboard` 페이지 사이의 상호 링크(각 페이지 헤더의 "Storyboard →"
+    / "← Requirements")로 구현했다 — `DeveloperNav`는 여전히 평평한(flat) 목록이라(Marketplace의
+    Installed/Updates 하위 페이지들도 같은 방식) 이 관례를 그대로 따랐고, 새 항목 추가 없이
+    기존 "Design" 링크 하나만 재사용해 breaking change 없이 확장했다.
+  - Metrics는 기존 `aiTaskCount`를 재사용하는 대신, `MetricsCounters`에 `storyboardGenerationCount`
+    필드를 추가(같은 `lib/data/metrics.json` 파일, 같은 `readMetrics()`/`incrementMetric()` 함수
+    — 새 저장소가 아니라 기존 레지스트리에 필드 하나를 additive하게 얹은 것)했다. Phase 1의
+    `design.generate`가 이미 `aiTaskCount`를 쓰고 있어, 여기에 Storyboard까지 합치면 "몇 번의
+    AI 호출이 있었는지"와 "Storyboard가 몇 번 만들어졌는지"를 구분할 수 없어지는 문제를
+    피하기 위한 선택 — 요구사항의 "Increment storyboard generation count"(카운트 이름을 못박음)
+    문구와도 더 정확히 일치한다.
+- Evidence: `lib/design/{storyboard,storyboard-generator}.ts`,
+  `app/api/design/storyboard/{route.ts,[id]/route.ts}`, `app/developer/design/storyboard/page.tsx`,
+  `lib/audit/log.ts`(`design.storyboard.generate` 추가), `lib/metrics/registry.ts`
+  (`storyboardGenerationCount` 추가)
+- 테스트: `tests/design/storyboard-{generator,registry,integration}.test.ts`(24개) — 상세는
+  `docs/REPOSITORY_INDEX.md`의 `## Design Automation Phase 2` 참고.
+- 미구현(Phase 3 이후로 명시적으로 남겨둔 것): Wireframe, Prototype, Claude Design 연동,
+  Figma Import/Export, Design Sync, 고객 승인 Workflow.

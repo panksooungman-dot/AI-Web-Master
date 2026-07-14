@@ -21,6 +21,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       websiteGenerationCount: 0,
       aiTaskCount: 0,
       marketplaceInstallCount: 0,
+      storyboardGenerationCount: 0,
     });
   });
 
@@ -51,5 +52,14 @@ describe("Metrics — lib/metrics/registry.ts", () => {
 
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "metrics.json"), "utf-8"));
     expect(raw.websiteGenerationCount).toBe(1);
+  });
+
+  it("incrementMetric() increments storyboardGenerationCount (Design Automation Phase 2) independently of other counters", () => {
+    incrementMetric("storyboardGenerationCount", undefined, baseDir);
+    incrementMetric("storyboardGenerationCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.storyboardGenerationCount).toBe(2);
+    expect(counters.aiTaskCount).toBe(0);
   });
 });

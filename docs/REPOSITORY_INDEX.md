@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — Design Automation Phase 1 반영)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-15 — Design Automation Phase 2 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
 > **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
 
@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 38 files / 249 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 신규 21개 포함) |
+| `npm test`(Vitest) | ✅ 41 files / 274 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 21개 + Design Automation Phase 2 신규 25개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1(`## Design Automation Phase 1` 참고) 반영 이후 재실행한 결과다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1·Phase 2(`## Design Automation Phase 2` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -332,6 +332,30 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ---
 
+## Design Automation Phase 2
+
+**Status: ✅ Implemented (Storyboard Generator, built on top of Phase 1) — 2026-07-15**
+
+- Description: Phase 1의 Design Plan(Site Map·Screen List)을 입력으로 Screen Flow·User
+  Journey·Navigation Flow·Page Sequence·Screen Description 5종("Storyboard")을 생성. Phase 1과
+  완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백, DI 가능한
+  `chatFn`)을 그대로 따른다. 새 기능은 기존 API·타입을 하나도 변경하지 않고 추가만 했다.
+- **생성 파이프라인**(`lib/design/{storyboard,storyboard-generator}.ts`, 신규 — 요구사항이 지정한 두 파일명 그대로: `storyboard.ts`=타입+registry, `storyboard-generator.ts`=생성 로직) — 입력은 Phase 1 `DesignPlanRecord`(`planId`로 조회) → `chatViaCli()`로 AI에게 JSON 생성 요청 → 파싱 실패/Provider 미설정 시 `buildDefaultStoryboard()`(Phase 1 Screen List 순서를 그대로 Screen Flow/Navigation/Page Sequence로 변환)로 폴백. `lib/data/design-storyboards.json`에 기존 registry 패턴으로 저장.
+- **API**(`app/api/design/storyboard/{route.ts,[id]/route.ts}`, 신규) — 스펙이 명시한 `POST /api/design/storyboard`·`GET /api/design/storyboard/:id` 그대로. 응답은 스펙의 `{storyboardId, projectId, screens, flow}`를 포함하되(`screens`=`screenDescriptions`, `flow`=`screenFlow`, `projectId`=이 Storyboard가 생성된 Phase 1 Plan의 `id`), Dashboard가 필요로 하는 나머지 3종(userJourneys/navigationFlow/pageSequence)을 `storyboard` 필드 아래 전체 레코드로 추가 포함(스펙 확장, 축소 아님). `GET /api/design/storyboard`(목록, 신규 추가)도 함께 제공.
+- **Dashboard**(`/developer/design/storyboard`, 신규) — Plan 선택 → Generate → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey를 요구사항 4번 계층 그대로 표시, Export JSON/Export Markdown 버튼(클라이언트 사이드 blob 다운로드, Logs 페이지의 기존 Export 패턴 재사용). `/developer/design`(Requirements)과 상호 링크("Storyboard →" / "← Requirements")로 연결 — `DeveloperNav`는 변경하지 않고 기존 "Design" 링크 하나만 재사용(Marketplace의 Installed/Updates 하위 페이지와 동일한 관례).
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 `"design.storyboard.generate"` 추가(기존 9개 값 무변경).
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에 `storyboardGenerationCount` 필드 추가(같은 `lib/data/metrics.json` 파일, 새 저장소 아님). `aiTaskCount`를 재사용하지 않은 이유: Phase 1의 `design.generate`가 이미 `aiTaskCount`를 쓰고 있어 합치면 "AI 호출 횟수"와 "Storyboard 생성 횟수"를 구분할 수 없어짐 — 요구사항의 "Increment storyboard generation count" 문구와 더 정확히 일치하는 선택.
+- 명세와 실제 구현의 차이(명세에 없던 세부사항, `DESIGN_AUTOMATION_MASTER.md` 4번에도 기록):
+  - API 응답에 `storyboard`(전체 레코드) 필드 추가 — 스펙의 4개 필드는 그대로 유지하면서 확장.
+  - "Developer → Design → Storyboard" 계층을 중첩 네비게이션 메뉴 대신 두 페이지 간 상호 링크로 구현.
+  - `aiTaskCount` 대신 신규 `storyboardGenerationCount` 필드 사용.
+- **알려진 제약**(Phase 1과 동일): 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트 밖에서 예외를 던져 불가능 — 통합 테스트는 라우트 바로 아래 계층(storyboard-generator+storyboard registry 실 연동)까지 다루고, 라우트 자체는 수동 curl/Playwright E2E로 검증.
+- Evidence: `lib/design/{storyboard,storyboard-generator}.ts`, `app/api/design/storyboard/{route.ts,[id]/route.ts}`, `app/developer/design/storyboard/page.tsx`, `lib/audit/log.ts`(`design.storyboard.generate` 추가), `lib/metrics/registry.ts`(`storyboardGenerationCount` 추가), `components/developer/dashboard/MetricsWidget.tsx`·`app/developer/metrics/page.tsx`(새 카운터 표시)
+- 테스트(신규 25개): `tests/design/storyboard-generator.test.ts`(14개 — `buildDefaultStoryboard()`/`parseStoryboardContent()`의 all-or-nothing 검증·`generateStoryboard()`의 성공/실패 폴백), `tests/design/storyboard-registry.test.ts`(6개), `tests/design/storyboard-integration.test.ts`(4개 — generator+registry 실 fs 연동 3개 + 실제 CLI 서브프로세스를 통한 end-to-end 폴백 검증 1개), `tests/metrics/registry.test.ts`(`storyboardGenerationCount` 1개 추가 + 기존 테스트 1개 갱신)
+- 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(41 files / 274 tests 전부 통과, 회귀 없음). 실 E2E: 검증 전용 임시 계정으로 로그인 → Phase 1에서 실제 Design Plan 생성 → Storyboard 페이지에서 그 Plan을 선택해 실제 Storyboard 생성 → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey가 모두 정상 렌더링됨을 확인(실제 브라우저 한글 타이핑, mojibake 없음) → Export JSON·Export Markdown 버튼이 실제 파일 다운로드를 트리거하고 Markdown 내용이 올바른 형식임을 확인 → `/api/audit?action=design.storyboard.generate`(정상 기록)·`/api/metrics`(`storyboardGenerationCount:1`이 `aiTaskCount:1`과 독립적으로 집계됨)·`GET /api/design/storyboard/:id`(정상 응답)·`GET /api/design/storyboard/does-not-exist`(404)를 모두 확인. 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제.
+
+---
+
 ## Authentication
 
 **Status: ✅ Implemented (Development OS scope) — 2026-07-14**
@@ -412,8 +436,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 38개 테스트 파일·249개 테스트 케이스(2026-07-14 Design Automation Phase 1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 신규 21개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
-  - **Design Automation Phase 1(신규)** — `tests/design/generator.test.ts`(12개) + `tests/design/registry.test.ts`(5개) + `tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개), 자세한 내용은 `## Design Automation Phase 1` 참고.
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 41개 테스트 파일·274개 테스트 케이스(2026-07-15 Design Automation Phase 2 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 21개·Design Automation Phase 2 신규 25개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+  - **Design Automation Phase 2(신규)** — `tests/design/storyboard-generator.test.ts`(14개) + `tests/design/storyboard-registry.test.ts`(6개) + `tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`storyboardGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 2` 참고.
+  - **Design Automation Phase 1** — `tests/design/generator.test.ts`(12개) + `tests/design/registry.test.ts`(5개) + `tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개), 자세한 내용은 `## Design Automation Phase 1` 참고.
   - **Operations & Observability v1.1** — `tests/audit/log.test.ts`(7개, record/list/필터/정렬/500건 상한 트리밍) + `tests/metrics/registry.test.ts`(5개) + `tests/backup/registry.test.ts`(5개, export/import 왕복·부분 번들) + `tests/health/checks.test.ts`(`getSystemInfo()` 1개 추가) + `tests/auth/session.test.ts`(`countActiveSessions()` 2개 추가), 자세한 내용은 `## Operations & Observability v1.1` 참고.
   - **AI Provider Integration v1.1** — `tests/ai-platform-cli/{provider-retry,streaming}.test.ts`(17개) + `tests/providers/status.test.ts`(기존 5개 유지, OpenAI/Gemini 라이브 체크로 갱신), 자세한 내용은 `## AI Provider Integration v1.1` 참고.
   - **CLI startup** — 빌드된 `packages/cli/bin/ai.js`를 실제 하위 프로세스로 실행해 `--version`/`--help`/미등록 명령 처리를 검증(`dist/`가 없으면 skip). 루트 `pretest` 스크립트가 `npm test` 실행 전 CLI를 자동 빌드.

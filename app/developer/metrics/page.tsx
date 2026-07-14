@@ -56,6 +56,9 @@ export default function MetricsPage() {
           <Card title="Marketplace Installs">
             <p className="text-3xl font-bold text-gray-100">{summary.counters.marketplaceInstallCount}</p>
           </Card>
+          <Card title="Storyboard Generation Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.storyboardGenerationCount}</p>
+          </Card>
 
           <Card title="Provider Usage" className="sm:col-span-2 lg:col-span-2">
             {summary.providerUsage ? (

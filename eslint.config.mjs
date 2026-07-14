@@ -8,15 +8,17 @@ const eslintConfig = defineConfig([
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    "**/.next/**",
+    "**/out/**",
+    "**/build/**",
+    "**/next-env.d.ts",
+    // Generated test coverage reports.
+    "**/coverage/**",
     // Standalone CommonJS utility scripts (not part of the Next.js app source).
     "*.cjs",
     // Separate workspace projects (apps/cnbiz-web, packages/*) — each lints itself.
-    "apps/**",
-    "packages/**",
+    "**/apps/**",
+    "**/packages/**",
   ]),
 ]);
 

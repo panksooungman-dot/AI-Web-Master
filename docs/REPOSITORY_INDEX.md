@@ -1,7 +1,24 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — AI Platform v1 반영)
-> 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다. 이전 감사 보고서(`docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md` 등)는 내용을 참고하지 않았으나, 이번 갱신에서 이 파일들이 더 이상 "로컬 미추적 상태"가 아니라 **git에 커밋되어 저장소의 일부가 되었음**을 확인했다(커밋 `b2c0b6a`). `AI-Web-Master/`(이 저장소 자체의 중첩 복제본)도 실제로는 훨씬 이전 커밋(`b954508`)부터 이미 broken gitlink(모드 `160000`, `.gitmodules` 없음)로 추적되고 있었음을 이번에 재확인했다 — 이전 버전 문서에서 "git 미추적"이라 기술한 것은 부정확했다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션 참고.
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — v1.0.0 Release Candidate 정리 반영)
+> 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
+> **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
+
+---
+
+## Release Status — v1.0.0
+
+**전체 판정: ✅ Release Candidate 준비 완료**
+
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ 통과 |
+| `npm run build`(루트) | ✅ 통과 |
+| `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
+| `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
+| `npm test`(Vitest) | ✅ 30 files / 188 tests 전부 통과 |
+
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지된다.
 
 ---
 
@@ -304,11 +321,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - `docs/07_KNOWLEDGE/`(2), `docs/08_PLANS/`(9 — 아래 참고)
   - `docs/09_WORK_HISTORY/`(5) — `CURRENT_CONTEXT.md`, `WORK_HISTORY.md` + `sessions/`
   - `docs/99_ARCHIVE/`(1)
-- **`docs/08_PLANS/상가분양센터/`(7개 파일, 936KB, HTML/PDF/md)**: CNBIZ/AI Business OS와 무관한 것으로 보이는 별도 프로젝트("상가분양센터"=상업용 부동산 분양 센터) 화면 구조도·사용자 스토리보드·"의뢰자미팅용" 문서. 커밋 `b954508`에서 함께 추가됨. 다른 고객사 자료가 이 저장소에 잘못 포함됐을 가능성이 있어 `Remaining TODO`에 별도로 기록.
-- **`docs/` 최상위(번호 폴더 밖) 느슨한 파일 22개가 git에 커밋되어 있음**: 두 그룹으로 나뉜다.
-  - 정상 운영 문서로 보이는 것: `README.md`, `UI_MAP.md`, `PROJECT_PAGES.md`, `faq.md`, `getting-started.md`, `installation.md`(`docs/01_PMO/CHANGELOG.md`의 2026-07-05/07-09/07-10 기록과 일치, Phase 5 계획 문서로 의도적으로 유지 중인 것들 포함).
-  - 이전 감사 산출물로 보이는 것(커밋 `deaeb45`, `b2c0b6a`에서 추가): `AGENT_AUDIT.md`, `CLI_AUDIT.md`, `CODE_QUALITY.md`, `DASHBOARD_AUDIT.md`, `FEATURE_MATRIX.md`, `IMPLEMENTATION_STATUS.md`, `PROJECT_AUDIT.md`, `PROJECT_STATUS.md`, `PROJECT_STATUS_CURRENT.md`, `REPOSITORY_AUDIT_COMPLETE.md`, `ROADMAP.md`, `TECH_DEBT.md`, `TODO_CURRENT.md`, `WEBSITE_BUILDER_AUDIT.md`, `WORKFLOW_AUDIT.md` — 이번 인덱스 작성·갱신에 이 파일들의 **내용**은 소스로 사용하지 않았다(사용자 요청 사항). 다만 이전 버전 문서에서 이들을 "git 미추적"이라 기술한 것은 부정확했음을 이번에 확인·정정한다 — 실제로는 커밋되어 저장소 히스토리에 포함되어 있다.
-- **`docs.zip`(240KB)·`docs_extract/`(70개 파일, 598KB)**: `docs/` 스냅샷을 압축한 것과 그 압축 해제본으로 추정되며, 둘 다 커밋 `b2c0b6a`에서 함께 추가됨(git 미추적 로컬 파일이 아니라 이제 저장소에 커밋된 상태).
+- **`docs/08_PLANS/상가분양센터/`(7개 파일, 936KB, HTML/PDF/md)**: CNBIZ/AI Business OS와 무관한 것으로 보이는 별도 프로젝트("상가분양센터"=상업용 부동산 분양 센터) 화면 구조도·사용자 스토리보드·"의뢰자미팅용" 문서. **v1.0.0 클린업(2026-07-14)에서도 소유권 미확인으로 삭제하지 않고 그대로 유지**(`Remaining TODO` 참고, 실수로 함께 삭제될 뻔했으나 즉시 복구·재확인함).
+- ~~`docs/` 최상위(번호 폴더 밖) 느슨한 파일 22개가 git에 커밋되어 있음~~ — **부분 해결(v1.0.0, 2026-07-14)**: 이전 감사 산출물로 추정되던 14개(`AGENT_AUDIT.md`, `CLI_AUDIT.md`, `CODE_QUALITY.md`, `DASHBOARD_AUDIT.md`, `FEATURE_MATRIX.md`, `IMPLEMENTATION_STATUS.md`, `PROJECT_AUDIT.md`, `PROJECT_STATUS.md`, `PROJECT_STATUS_CURRENT.md`, `REPOSITORY_AUDIT_COMPLETE.md`, `ROADMAP.md`, `TECH_DEBT.md`, `TODO_CURRENT.md`, `WEBSITE_BUILDER_AUDIT.md`, `WORKFLOW_AUDIT.md`)를 `git rm`했다 — 이 인덱스 문서(`REPOSITORY_INDEX.md`)가 유일한 최신 소스. 정상 운영 문서로 남긴 것: `README.md`, `UI_MAP.md`, `PROJECT_PAGES.md`, `faq.md`, `getting-started.md`, `installation.md`(Phase 5 계획 문서로 의도적 유지), `RELEASE_CHECKLIST.md`·`RELEASE_NOTES_v1.0.md`(신규).
+- ~~`docs.zip`(240KB)·`docs_extract/`(70개 파일, 598KB)~~ — **해결됨(v1.0.0, 2026-07-14)**: `docs/` 스냅샷 압축본과 그 해제본으로 확인되어 `git rm`. `tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`(디렉터리 덤프 텍스트)와 `test-project/`(CLI 테스트 스크래치), `backup.bat`/`start-wor.bat`(구식 배치 스크립트, `ai devmode`/`ai deploy`로 대체됨)도 함께 제거했다.
 
 ---
 
@@ -358,7 +373,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
      - 수정: `apps/cnbiz-web/proxy.ts`(신규, no-op passthrough) 추가 — Next.js가 자기 자신에 가장 가까운 파일을 우선 사용하도록 만들어 루트 파일로의 폴백을 차단. Authentication 로직·`proxy.ts`(루트)는 무변경.
   3. **`.next/dev/types/routes.d.ts` 손상**: 이전 세션에서 강제 종료한 dev 서버가 쓰다 만 파일이 남아있었음(소스 아님, gitignore 대상 빌드 캐시) — `.next/` 삭제 후 재생성으로 해결, 소스 변경 없음.
 - Evidence: `tsconfig.json`(`exclude` 재귀 패턴), `apps/cnbiz-web/proxy.ts`(신규, no-op)
-- 검증: `npx tsc --noEmit`(루트, 0 errors) · `npm run build`(루트, 46개 라우트 정상 생성, `Proxy (Middleware)` 정상 표시) · `apps/cnbiz-web`의 `npm run build`(9개 라우트 정상 생성) · `npm run test`(62/62 통과, Authentication 26개 포함, 무변경) 전부 확인. `npm run lint`는 이번 작업 범위(build/tsc) 밖이며, `AI-Web-Master/`(동일한 broken gitlink) 내부 파일에서 나는 기존 lint 오류 3건은 그대로 남아있음(별도 승인 필요 항목, 아래 Remaining TODO 참고).
+- 검증(2026-07-14 최초): `npx tsc --noEmit`(루트, 0 errors) · `npm run build`(루트, 46개 라우트 정상 생성, `Proxy (Middleware)` 정상 표시) · `apps/cnbiz-web`의 `npm run build`(9개 라우트 정상 생성) · `npm run test`(62/62 통과, Authentication 26개 포함, 무변경) 전부 확인.
+- **v1.0.0 클린업(2026-07-14) 갱신**: 원인이었던 `AI-Web-Master/`(broken gitlink) 자체를 저장소에서 제거했고, `eslint.config.mjs`의 `globalIgnores`도 재귀 패턴으로 교체해 lint 오류 0건을 달성함(`## Remaining TODO` 참고). 클린업 이후 `npx tsc --noEmit`·`npm run build`(루트+`apps/cnbiz-web`)·`npm run lint`·`npm test`(188/188) 전부 재검증 통과(`docs/RELEASE_CHECKLIST.md` 참고).
 
 ---
 
@@ -368,9 +384,10 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - **Authentication — signup 백엔드 및 일부 내부 API 미보호**: 로그인/로그아웃/세션은 구현 완료(`## Authentication` 참고)했으나, `/signup`은 여전히 정적 폼(범위 밖)이고 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등 다른 내부 API는 `packages/cli`(`ai devmode` 등)가 세션 없이 직접 호출하는 구조라 의도적으로 미보호 상태.
 - **테스트 커버리지가 아직 얕음**: Website Builder/Workflow Engine/Utilities/Agent Runtime/Authentication 중 순수 로직 일부만 커버. Orchestrator·Provider 실제 호출·Development OS Workflow Engine(`lib/workflows`)·API 라우트·Dashboard 컴포넌트는 여전히 테스트 없음.
 - **`lint.yml`에는 아직 build 스텝이 없음**: 빌드 검증은 `test.yml`에만 추가됨(`release.yml`은 태그 push 시에만 build 실행) — `lint.yml`도 별도로 build를 검증할지는 정책 결정 필요.
-- **`eslint.config.mjs`의 `globalIgnores`도 `tsconfig.json`과 동일한 비재귀 패턴 버그가 있음**: `"apps/**"`·`"packages/**"`·`"*.cjs"`가 최상위 경로만 매칭해, `AI-Web-Master/`(broken gitlink) 내부 파일 3건이 `npm run lint`에서 계속 오류로 잡힘(`Build Status` 참고). 이번 작업은 build/tsc만 범위였기 때문에 `eslint.config.mjs`는 의도적으로 손대지 않음 — 저장소 루트 클린업(TODO 항목 참고)과 함께, 혹은 별도로 재귀 패턴(`"**/apps/**"` 등)으로 교체할지 결정 필요.
-- **⚠ 다른 프로젝트로 추정되는 자료가 이 저장소에 커밋되어 있음(`docs/08_PLANS/상가분양센터/`, 7개 파일, 936KB)**: CNBIZ/AI Business OS와 무관해 보이는 상업용 부동산 분양 관련 UI/UX 구조도·스토리보드·"의뢰자미팅용" 문서가 커밋 `b954508`에 포함됨. 다른 고객사 자료 유출/오염 가능성이 있어 삭제 여부와 별개로 **사용자 확인이 우선 필요**.
-- **저장소 루트 정리 필요(git에 이미 커밋된 상태, 로컬 미추적 파일이 아님)**: 이전 버전 문서와 달리 이제 아래 항목들은 모두 git 히스토리에 실제로 포함되어 있음이 확인됨 — 자기 자신의 중첩 복제본(`AI-Web-Master/`, `.gitmodules` 없이 커밋된 broken gitlink, 모드 `160000`, 커밋 `b954508`), 이전 감사 산출물(`docs.zip`, `docs_extract/`70개 파일, `docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md`, `docs/{AGENT,CLI,PROJECT,WEBSITE_BUILDER,WORKFLOW}_AUDIT.md` 등 커밋 `deaeb45`/`b2c0b6a`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`, 커밋 `b954508`/`1148f3a`), 스크래치 프로젝트(`test-project/`, 커밋 `4e7900d`). 로컬 파일 삭제가 아니라 `git rm`(+커밋)이 필요하며, 저장소 히스토리에서 완전히 없애려면 히스토리 재작성 여부까지 사용자 승인이 필요(문서 관리 규칙).
+- ~~`eslint.config.mjs`의 `globalIgnores`도 `tsconfig.json`과 동일한 비재귀 패턴 버그가 있음~~ — **해결됨(v1.0.0, 2026-07-14)**: `"apps/**"`·`"packages/**"`·`"next-env.d.ts"`·`"build/**"`·`".next/**"`·`"out/**"`를 전부 재귀 패턴(`"**/apps/**"` 등)으로 교체하고 `"**/coverage/**"` 무시를 추가했다. 원인이었던 `AI-Web-Master/`(broken gitlink) 자체도 이번 클린업에서 제거됨.
+- **⚠ 다른 프로젝트로 추정되는 자료가 이 저장소에 커밋되어 있음(`docs/08_PLANS/상가분양센터/`, 7개 파일, 936KB)**: CNBIZ/AI Business OS와 무관해 보이는 상업용 부동산 분양 관련 UI/UX 구조도·스토리보드·"의뢰자미팅용" 문서. v1.0.0 클린업에서도 **의도적으로 삭제하지 않았다** — 사용자 확인이 우선 필요하다는 판단은 여전히 유효.
+- ~~저장소 루트 정리 필요~~ — **해결됨(v1.0.0, 2026-07-14)**: 자기 자신의 중첩 복제본(`AI-Web-Master/`, broken gitlink), 이전 감사 산출물(`docs.zip`, `docs_extract/`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`, `typescript-files.txt`), 스크래치 프로젝트(`test-project/`), 구식 배치 스크립트(`backup.bat`, `start-wor.bat`), `docs/` 최상위 구 감사 문서 14종을 전부 `git rm`했다(히스토리 재작성은 하지 않음 — 과거 커밋에는 여전히 남아 있으나 HEAD 기준 작업 트리에는 없음). `docs/08_PLANS/상가분양센터/`만 소유권 미확인으로 예외 유지.
+- **⚠ 루트 `app/{about,services,portfolio,contact}`(v1 레거시 CNBIZ 마케팅 페이지)가 Development OS와 같은 Next.js 앱에 여전히 공존**: `apps/cnbiz-web`(v2)로 실제 서비스가 이전되어 `WBS.md` 기준 2026-07-01부로 동결됐음에도, 루트 앱에서 인증 없이 계속 공개 상태로 서빙되고 있음(`proxy.ts`의 보호 대상은 `/developer/**`·`/projects/**`뿐). v1.0.0 클린업은 stabilization에 집중하기 위해 이 삭제를 범위에서 제외했다 — 별도 승인 후 제거 여부 결정 필요.
 - **Agent Runtime / Workflow Engine 이원화**: Development OS(`lib/agents`, `lib/workflows`)와 CLI(`packages/cli/src/runtime`, `packages/cli/src/workflow`)에 유사한 개념이 각각 독립적으로 구현되어 있어 장기적으로 개념 통합 여부에 대한 결정이 필요(현재는 의도적으로 별개 애플리케이션이라 문제는 아님).
 - **Marketplace v1 — 메커니즘은 정상이지만 실제 게시된 패키지는 여전히 0개**: `ai marketplace publish`(또는 Dashboard의 Publish)를 아무도 실행하지 않아 `marketplace/manifest.json` 5개 카테고리가 여전히 `count: 0`. Install/Remove/Update 로직 자체는 2026-07-14에 수정·검증 완료(`## Marketplace` 참고) — 남은 건 실제 콘텐츠뿐.
 - **Marketplace v1 — 온라인 레지스트리 Provider 없음**: `LocalMarketplaceProvider`(파일시스템 기반)만 존재. `getMarketplaceProvider()`가 향후 다른 Provider로 교체 가능하도록 인터페이스로 분리되어 있으나 실제 구현은 없음.
@@ -384,13 +401,13 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ## Recommended Next Tasks
 
-1. **`docs/08_PLANS/상가분양센터/` 소유권 확인(최우선)** — 다른 고객사 자료로 추정되는 문서가 이 저장소에 커밋되어 있음을 사용자에게 즉시 확인하고, 필요 시 `git rm`(및 민감도에 따라 히스토리 제거) 여부를 결정.
-2. **저장소 루트 클린업 승인 요청** — `AI-Web-Master/`(broken gitlink)·`docs.zip`/`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`·`test-project/`가 이미 git에 커밋되어 있음을 반영해, `git rm` 대상과 히스토리 재작성 필요 여부를 사용자와 함께 확정.
+> v1.0.0 클린업(2026-07-14)에서 처리된 항목(구 저장소 루트 정리, eslint 비재귀 패턴)은 목록에서 제거했다. 아래는 v1.0.0 이후에도 남아 있는 항목이다.
+
+1. **`docs/08_PLANS/상가분양센터/` 소유권 확인** — v1.0.0 클린업에서도 삭제하지 않고 보류. 다른 고객사 자료로 추정되는 문서가 이 저장소에 남아 있음을 사용자에게 확인하고, `git rm`(및 민감도에 따라 히스토리 제거) 여부를 결정.
+2. **루트 `app/{about,services,portfolio,contact}`(v1 레거시 CNBIZ 마케팅 페이지) 제거 여부 결정** — `apps/cnbiz-web`(v2)로 이미 대체됐으나 루트 앱에 인증 없이 공존 중. 삭제 승인 시 별도 작업으로 제거.
 3. **테스트 커버리지 확장** — Orchestrator(`packages/cli/src/orchestrator`), Development OS Workflow Engine(`lib/workflows/engine.ts`), Provider 시뮬레이션 폴백 경로(`packages/cli/src/providers/manager.ts`) 등 아직 다루지 않은 영역에 순서대로 테스트 추가.
 4. **Marketplace 실 데이터 채우기** — Install/Remove/Update/Publish 메커니즘은 이제 CLI·Dashboard 양쪽에서 검증 완료(`## Marketplace` 참고)했으므로, 실제 `ai marketplace publish`로 agent/workflow/skill을 최소 1개 이상 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신 — 남은 유일한 작업.
 5. **Authentication — 다른 내부 API 보호 여부 결정** — `/developer/**`·`/projects/**`는 보호되지만 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등은 `packages/cli` 호환을 위해 의도적으로 미보호 상태. CLI 쪽에도 세션 전달(예: API 토큰) 방식을 도입해 이 API들까지 보호 범위를 넓힐지, 현재 상태를 유지할지 결정 필요.
-6. **`eslint.config.mjs`의 비재귀 ignore 패턴 수정** — `tsconfig.json`과 동일한 버그가 `globalIgnores`에도 있어 `AI-Web-Master/` 내부 파일이 `npm run lint`에서 계속 오류로 잡힘(`Remaining TODO` 참고). 저장소 루트 클린업(#2)과 함께 처리하거나 선행 처리.
-7. ~~OpenAI/Gemini 연결 상태의 실제 API 검증 여부 결정~~ — **해결됨(2026-07-14, AI Platform v1)**: `.validate()`가 `.models()`를 실제로 호출하는 라이브 헬스체크로 교체됨. 단, `/developer/ai`의 Provider Status 그리드 자체(`lib/providers/status.ts`)는 이번 작업 범위 밖이라 여전히 env var 존재 여부만 판단 — CLI의 `ai provider test`/`ai models`는 실제 라이브 체크를 사용.
-8. **온라인 Marketplace Provider 도입 여부 결정** — 현재는 `LocalMarketplaceProvider`(파일시스템)만 존재. 여러 프로젝트/팀 간 패키지 공유가 필요해지면 HTTP 기반 Provider를 `MarketplaceProvider` 인터페이스에 맞춰 추가하는 방향으로 확장 가능(인터페이스는 이미 이를 염두에 두고 분리되어 있음).
-9. **AI Platform v1 — 실제 API 키로 검증 필요** — 이번 검증은 이 환경에 실제 Provider API 키가 없어 전부 시뮬레이션 폴백 경로로만 확인됨(`## AI Platform v1` 참고). 실제 Anthropic/OpenAI/Gemini/OpenRouter 키가 준비되면 `ai provider set-key`·`ai chat`·`ai prompt execute`의 실제 응답·토큰 사용량 기록을 재확인 권장.
-10. **`lib/providers/status.ts`(Dashboard Provider Status 그리드)와 `packages/cli/src/providers/manager.ts`(AI Platform v1) 통합 여부 결정** — 현재 두 곳 모두 "Provider 연결 상태"를 별도로 계산한다(`ProviderStatusWidget`은 두 결과를 병합해서 보여줄 뿐, 내부 로직은 여전히 둘). 장기적으로 하나로 합칠지는 별도 결정 필요.
+6. **온라인 Marketplace Provider 도입 여부 결정** — 현재는 `LocalMarketplaceProvider`(파일시스템)만 존재. 여러 프로젝트/팀 간 패키지 공유가 필요해지면 HTTP 기반 Provider를 `MarketplaceProvider` 인터페이스에 맞춰 추가하는 방향으로 확장 가능(인터페이스는 이미 이를 염두에 두고 분리되어 있음).
+7. **AI Platform v1 — 실제 API 키로 검증 필요** — 이번 검증은 이 환경에 실제 Provider API 키가 없어 전부 시뮬레이션 폴백 경로로만 확인됨(`## AI Platform v1` 참고). 실제 Anthropic/OpenAI/Gemini/OpenRouter 키가 준비되면 `ai provider set-key`·`ai chat`·`ai prompt execute`의 실제 응답·토큰 사용량 기록을 재확인 권장.
+8. **`lib/providers/status.ts`(Dashboard Provider Status 그리드)와 `packages/cli/src/providers/manager.ts`(AI Platform v1) 통합 여부 결정** — 현재 두 곳 모두 "Provider 연결 상태"를 별도로 계산한다(`ProviderStatusWidget`은 두 결과를 병합해서 보여줄 뿐, 내부 로직은 여전히 둘). 장기적으로 하나로 합칠지는 별도 결정 필요.

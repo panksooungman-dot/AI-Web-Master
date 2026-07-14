@@ -40,6 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# CLI website generator ships its own template copy of this file — must stay tracked
+!packages/cli/src/templates/**/next-env.d.ts
 
 # local workspace registry (machine-specific paths) / local contact submission log
 /lib/data/
@@ -53,7 +55,7 @@ apps/cnbiz-web/lib/data/
 /.runtime/
 
 # Playwright MCP QA artifacts (screenshots, snapshots, console logs)
-/.playwright-mcp/
+.playwright-mcp/
 
 # AI Business OS CLI
 packages/cli/dist/

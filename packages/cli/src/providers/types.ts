@@ -14,6 +14,7 @@ export interface ChatResponse {
   provider: string;
   model: string;
   content: string;
+  usage?: { inputTokens?: number; outputTokens?: number };
 }
 
 /** providers.json의 각 provider 항목 (env 변수 치환이 이미 끝난 상태) */

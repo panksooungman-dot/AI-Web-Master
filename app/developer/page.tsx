@@ -6,6 +6,8 @@ import { ActiveWorkflowsWidget } from "@/components/developer/dashboard/ActiveWo
 import { MarketplaceWidget } from "@/components/developer/dashboard/MarketplaceWidget";
 import { RecentActivityWidget } from "@/components/developer/dashboard/RecentActivityWidget";
 import { SystemHealthWidget } from "@/components/developer/dashboard/SystemHealthWidget";
+import { ProviderStatusWidget } from "@/components/developer/dashboard/ProviderStatusWidget";
+import { TokenUsageWidget } from "@/components/developer/dashboard/TokenUsageWidget";
 
 export default function DeveloperPage() {
   return (
@@ -21,6 +23,8 @@ export default function DeveloperPage() {
         <RunningTasksWidget />
         <ActiveWorkflowsWidget />
         <MarketplaceWidget />
+        <ProviderStatusWidget />
+        <TokenUsageWidget />
         <RecentActivityWidget />
         <SystemHealthWidget />
         <DevServerManagerCard />

@@ -28,7 +28,15 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
     name: "Anthropic",
 
     async validate(): Promise<boolean> {
-      return apiKey.length > 0;
+      if (!apiKey) {
+        return false;
+      }
+      try {
+        await this.models();
+        return true;
+      } catch {
+        return false;
+      }
     },
 
     async models(): Promise<string[]> {
@@ -63,7 +71,10 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
           max_tokens: request.maxTokens ?? 1024,
           temperature: request.temperature
         })
-      })) as { content?: { type: string; text?: string }[] };
+      })) as {
+        content?: { type: string; text?: string }[];
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
 
       const text = data.content?.find((block) => block.type === "text")?.text;
 
@@ -71,7 +82,11 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
         throw new ProviderError("INVALID_RESPONSE", "anthropic", "Anthropic response did not include text content.");
       }
 
-      return { provider: "anthropic", model, content: text };
+      const usage = data.usage
+        ? { inputTokens: data.usage.input_tokens, outputTokens: data.usage.output_tokens }
+        : undefined;
+
+      return { provider: "anthropic", model, content: text, usage };
     }
   };
 }

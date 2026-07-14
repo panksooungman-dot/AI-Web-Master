@@ -5,54 +5,62 @@ export interface PromptVersion {
   version: number;
   content: string;
   createdAt: string;
+  variables?: string[];
 }
 
 export interface PromptRecord {
   id: string;
   name: string;
   description: string;
+  category: string;
   versions: PromptVersion[];
   createdAt: string;
   updatedAt: string;
 }
 
-const REGISTRY_PATH = path.join(process.cwd(), "lib", "data", "prompts.json");
+const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
+const DEFAULT_CATEGORY = "General";
 
-function ensureRegistryFile(): void {
-  const dir = path.dirname(REGISTRY_PATH);
+function registryPath(baseDir: string): string {
+  return path.join(baseDir, "prompts.json");
+}
 
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+function ensureRegistryFile(baseDir: string): void {
+  if (!fs.existsSync(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true });
   }
 
-  if (!fs.existsSync(REGISTRY_PATH)) {
-    fs.writeFileSync(REGISTRY_PATH, "[]", "utf-8");
+  const file = registryPath(baseDir);
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, "[]", "utf-8");
   }
 }
 
-function readRegistry(): PromptRecord[] {
-  ensureRegistryFile();
+function readRegistry(baseDir: string): PromptRecord[] {
+  ensureRegistryFile(baseDir);
 
   try {
-    const raw = fs.readFileSync(REGISTRY_PATH, "utf-8");
+    const raw = fs.readFileSync(registryPath(baseDir), "utf-8");
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as PromptRecord[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // 기존(카테고리 도입 이전) 레코드에는 category가 없을 수 있어 기본값으로 보정한다.
+    return (parsed as PromptRecord[]).map((record) => ({ category: DEFAULT_CATEGORY, ...record }));
   } catch {
     return [];
   }
 }
 
-function writeRegistry(records: PromptRecord[]): void {
-  ensureRegistryFile();
-  fs.writeFileSync(REGISTRY_PATH, JSON.stringify(records, null, 2), "utf-8");
+function writeRegistry(records: PromptRecord[], baseDir: string): void {
+  ensureRegistryFile(baseDir);
+  fs.writeFileSync(registryPath(baseDir), JSON.stringify(records, null, 2), "utf-8");
 }
 
-export function listPrompts(): PromptRecord[] {
-  return readRegistry();
+export function listPrompts(baseDir: string = DEFAULT_BASE_DIR): PromptRecord[] {
+  return readRegistry(baseDir);
 }
 
-export function getPrompt(id: string): PromptRecord | undefined {
-  return readRegistry().find((prompt) => prompt.id === id);
+export function getPrompt(id: string, baseDir: string = DEFAULT_BASE_DIR): PromptRecord | undefined {
+  return readRegistry(baseDir).find((prompt) => prompt.id === id);
 }
 
 export function getLatestVersion(prompt: PromptRecord): PromptVersion {
@@ -62,7 +70,10 @@ export function getLatestVersion(prompt: PromptRecord): PromptVersion {
 export function createPrompt(
   name: string,
   description: string,
-  content: string
+  content: string,
+  category: string = DEFAULT_CATEGORY,
+  variables?: string[],
+  baseDir: string = DEFAULT_BASE_DIR
 ): PromptRecord {
   const now = new Date().toISOString();
 
@@ -70,20 +81,26 @@ export function createPrompt(
     id: `prompt-${Date.now()}`,
     name,
     description,
-    versions: [{ version: 1, content, createdAt: now }],
+    category: category || DEFAULT_CATEGORY,
+    versions: [{ version: 1, content, createdAt: now, variables }],
     createdAt: now,
     updatedAt: now,
   };
 
-  const records = readRegistry();
+  const records = readRegistry(baseDir);
   records.push(record);
-  writeRegistry(records);
+  writeRegistry(records, baseDir);
 
   return record;
 }
 
-export function addPromptVersion(id: string, content: string): PromptRecord | undefined {
-  const records = readRegistry();
+export function addPromptVersion(
+  id: string,
+  content: string,
+  variables?: string[],
+  baseDir: string = DEFAULT_BASE_DIR
+): PromptRecord | undefined {
+  const records = readRegistry(baseDir);
   const index = records.findIndex((prompt) => prompt.id === id);
 
   if (index === -1) return undefined;
@@ -93,11 +110,11 @@ export function addPromptVersion(id: string, content: string): PromptRecord | un
 
   records[index] = {
     ...records[index],
-    versions: [...records[index].versions, { version: nextVersion, content, createdAt: now }],
+    versions: [...records[index].versions, { version: nextVersion, content, createdAt: now, variables }],
     updatedAt: now,
   };
 
-  writeRegistry(records);
+  writeRegistry(records, baseDir);
 
   return records[index];
 }

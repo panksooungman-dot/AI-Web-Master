@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { createProvider, listProviderIds } from "./registry.js";
 import type { AIProvider } from "./provider.js";
+import { recordUsage } from "./usage.js";
 import { ProviderError, type ChatMessage, type ProviderConfig, type ProvidersFile } from "./types.js";
 
 function configFile(cwd: string): string {
@@ -14,7 +15,8 @@ const DEFAULT_CONFIG: ProvidersFile = {
     anthropic: { apiKey: "${ANTHROPIC_API_KEY}" },
     openai: { apiKey: "${OPENAI_API_KEY}" },
     gemini: { apiKey: "${GEMINI_API_KEY}" },
-    ollama: { host: "${OLLAMA_HOST}" }
+    ollama: { host: "${OLLAMA_HOST}" },
+    openrouter: { apiKey: "${OPENROUTER_API_KEY}" }
   }
 };
 
@@ -97,6 +99,24 @@ export class ProviderManager {
     await writeProvidersConfig(this.cwd, config);
   }
 
+  /**
+   * 요구사항 — API Key Management(쓰기 경로). 지정한 provider의 설정 항목(예: apiKey/host)을
+   * 부분 갱신한다. 기존 값은 patch에 없는 키는 그대로 유지된다.
+   */
+  async setProviderConfig(id: string, patch: Record<string, string>): Promise<void> {
+    if (!listProviderIds().includes(id)) {
+      throw new ProviderError(
+        "NOT_FOUND",
+        id,
+        `Unknown provider "${id}". Available: ${listProviderIds().join(", ")}`
+      );
+    }
+
+    const config = await readProvidersConfig(this.cwd);
+    config.providers[id] = { ...(config.providers[id] ?? {}), ...patch };
+    await writeProvidersConfig(this.cwd, config);
+  }
+
   /** id 생략 시 config의 default를 사용한다. 둘 다 없으면 null(호출자가 시뮬레이션으로 폴백 가능). */
   async resolveProviderId(id?: string): Promise<string | null> {
     if (id) {
@@ -132,7 +152,22 @@ export class ProviderManager {
     try {
       const provider = await this.getProvider(resolvedProviderId);
       const response = await provider.chat({ messages });
-      return { text: response.content, provider: response.provider, model: response.model, simulated: false };
+
+      await recordUsage(this.cwd, {
+        provider: response.provider,
+        model: response.model,
+        inputTokens: response.usage?.inputTokens ?? 0,
+        outputTokens: response.usage?.outputTokens ?? 0,
+        simulated: false
+      });
+
+      return {
+        text: response.content,
+        provider: response.provider,
+        model: response.model,
+        simulated: false,
+        usage: response.usage
+      };
     } catch (error) {
       if (options.providerId) {
         throw error;
@@ -160,6 +195,7 @@ export interface CompleteResult {
   provider?: string;
   model?: string;
   simulated: boolean;
+  usage?: { inputTokens?: number; outputTokens?: number };
 }
 
 export function getProviderManager(cwd: string = process.cwd()): ProviderManager {

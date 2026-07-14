@@ -9,8 +9,18 @@ function stringField(body: Record<string, unknown>, key: string): string {
   return typeof body[key] === "string" ? body[key].trim() : "";
 }
 
-export async function GET() {
-  return NextResponse.json({ prompts: listPrompts() });
+function stringArrayField(body: Record<string, unknown>, key: string): string[] | undefined {
+  const value = body[key];
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const category = searchParams.get("category");
+  const prompts = listPrompts();
+  const filtered = category ? prompts.filter((prompt) => prompt.category === category) : prompts;
+  return NextResponse.json({ prompts: filtered });
 }
 
 export async function POST(request: Request) {
@@ -24,6 +34,8 @@ export async function POST(request: Request) {
     const name = stringField(body, "name");
     const description = stringField(body, "description");
     const content = stringField(body, "content");
+    const category = stringField(body, "category") || "General";
+    const variables = stringArrayField(body, "variables");
 
     if (!name || !content) {
       return NextResponse.json(
@@ -32,7 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const prompt = createPrompt(name, description, content);
+    const prompt = createPrompt(name, description, content, category, variables);
 
     return NextResponse.json({ success: true, prompt });
   } catch (error) {

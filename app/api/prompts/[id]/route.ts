@@ -27,6 +27,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body: unknown = await request.json();
     const content =
       isRecord(body) && typeof body.content === "string" ? body.content.trim() : "";
+    const variables =
+      isRecord(body) && Array.isArray(body.variables)
+        ? body.variables.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : undefined;
 
     if (!content) {
       return NextResponse.json(
@@ -35,7 +39,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
-    const prompt = addPromptVersion(id, content);
+    const prompt = addPromptVersion(id, content, variables);
 
     if (!prompt) {
       return NextResponse.json(

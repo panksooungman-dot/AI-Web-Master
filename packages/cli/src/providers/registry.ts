@@ -3,6 +3,7 @@ import { createOpenAIProvider } from "./openai.js";
 import { createAnthropicProvider } from "./anthropic.js";
 import { createGeminiProvider } from "./gemini.js";
 import { createOllamaProvider } from "./ollama.js";
+import { createOpenRouterProvider } from "./openrouter.js";
 import { ProviderError, type ProviderConfig } from "./types.js";
 
 export type ProviderFactory = (config: ProviderConfig) => AIProvider;
@@ -12,7 +13,8 @@ const FACTORIES: Record<string, ProviderFactory> = {
   anthropic: createAnthropicProvider,
   openai: createOpenAIProvider,
   gemini: createGeminiProvider,
-  ollama: createOllamaProvider
+  ollama: createOllamaProvider,
+  openrouter: createOpenRouterProvider
 };
 
 export function listProviderIds(): string[] {

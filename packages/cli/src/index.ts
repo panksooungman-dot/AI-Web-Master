@@ -15,6 +15,10 @@ import { buildProviderCommand } from "./commands/provider.js";
 import { buildToolsCommand } from "./commands/tools.js";
 import { buildWebsiteCommand } from "./commands/website.js";
 import { buildMarketplaceCommand } from "./commands/marketplace.js";
+import { buildPromptCommand } from "./commands/prompt.js";
+import { buildTaskCommand } from "./commands/task.js";
+import { chatCommand } from "./commands/chat.js";
+import { modelsCommand } from "./commands/models.js";
 import { addCommand } from "./commands/add.js";
 import { installCommand } from "./commands/install.js";
 import { doctorCommand } from "./commands/doctor.js";
@@ -98,6 +102,28 @@ program.addCommand(buildProviderCommand());
 program.addCommand(buildToolsCommand());
 program.addCommand(buildWebsiteCommand());
 program.addCommand(buildMarketplaceCommand());
+program.addCommand(buildPromptCommand());
+program.addCommand(buildTaskCommand());
+
+program
+  .command("chat")
+  .argument("[message]", "AI에게 보낼 메시지")
+  .option("--system <text>", "system prompt (생략 시 기본값)")
+  .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama|openrouter). 생략 시 기본 provider")
+  .option("--json", "JSON 형식으로 출력")
+  .description("AI Provider와 1회성 대화를 실행 (ProviderManager.complete() 재사용)")
+  .action(async (message: string | undefined, options: { system?: string; provider?: string; json?: boolean }) => {
+    await chatCommand(message, options);
+  });
+
+program
+  .command("models")
+  .argument("[provider]", "Provider id (생략 시 기본 provider)")
+  .option("--json", "JSON 형식으로 출력")
+  .description("Provider의 사용 가능한 모델 목록 조회 (= ai provider models)")
+  .action(async (provider: string | undefined, options: { json?: boolean }) => {
+    await modelsCommand(provider, options);
+  });
 
 program
   .command("init")

@@ -61,6 +61,18 @@ class TaskQueue {
     );
   }
 
+  /**
+   * 실패한 Task와 동일한 agentId/prompt/context로 새 Task를 큐에 등록한다.
+   * 새 실행 로직 없이 기존 enqueue()를 재사용하며, 원본 Task는 변경하지 않는다.
+   * Failed 상태가 아닌 Task는 재시도 대상이 아니므로 null을 반환한다.
+   */
+  retry(id: string): AgentTask | null {
+    const task = this.tasks.get(id);
+    if (!task || task.status !== "Failed") return null;
+
+    return this.enqueue(task.agentId, task.prompt, task.context);
+  }
+
   cancel(id: string): boolean {
     const task = this.tasks.get(id);
     if (!task) return false;

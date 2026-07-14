@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/developer/terminal", label: "Terminal" },
   { href: "/developer/github", label: "GitHub" },
   { href: "/developer/ai", label: "AI Workspace" },
+  { href: "/developer/prompts", label: "Prompt Library" },
   { href: "/developer/workflows", label: "Workflow Center" },
   { href: "/developer/websites", label: "Website Builder" },
   { href: "/developer/marketplace", label: "Marketplace" },

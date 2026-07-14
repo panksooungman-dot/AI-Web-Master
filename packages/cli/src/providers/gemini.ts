@@ -19,7 +19,15 @@ export function createGeminiProvider(config: ProviderConfig): AIProvider {
     name: "Google Gemini",
 
     async validate(): Promise<boolean> {
-      return apiKey.length > 0;
+      if (!apiKey) {
+        return false;
+      }
+      try {
+        await this.models();
+        return true;
+      } catch {
+        return false;
+      }
     },
 
     async models(): Promise<string[]> {
@@ -64,7 +72,10 @@ export function createGeminiProvider(config: ProviderConfig): AIProvider {
             }
           })
         }
-      )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      )) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+      };
 
       const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("");
 
@@ -72,7 +83,11 @@ export function createGeminiProvider(config: ProviderConfig): AIProvider {
         throw new ProviderError("INVALID_RESPONSE", "gemini", "Gemini response did not include content.");
       }
 
-      return { provider: "gemini", model, content: text };
+      const usage = data.usageMetadata
+        ? { inputTokens: data.usageMetadata.promptTokenCount, outputTokens: data.usageMetadata.candidatesTokenCount }
+        : undefined;
+
+      return { provider: "gemini", model, content: text, usage };
     }
   };
 }

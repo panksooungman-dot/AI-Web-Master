@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { StatusMessage } from "@/components/developer/StatusMessage";
+import { useAuth } from "@/lib/auth/AuthContext";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
@@ -12,6 +16,7 @@ import {
   type Shell,
 } from "@/lib/settings/store";
 import { runTerminalCommand } from "@/lib/terminal/client";
+import type { ProviderStatus } from "@/lib/providers/status";
 
 const ABOUT_INFO = {
   appVersion: "0.1.0",
@@ -84,6 +89,11 @@ export default function SettingsManagerPage() {
 
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const [providers, setProviders] = useState<ProviderStatus[] | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   useEffect(() => {
     queueMicrotask(() => {
       try {
@@ -97,8 +107,24 @@ export default function SettingsManagerPage() {
       } catch {
         // 저장된 값이 손상된 경우 기본값을 유지한다.
       }
+
+      fetch("/api/providers")
+        .then((res) => res.json())
+        .then((data: { providers: ProviderStatus[] }) => setProviders(data.providers ?? []))
+        .catch(() => setProviders([]));
     });
   }, []);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    await logout();
+    router.push("/login");
+  };
+
+  const connectedProviderCount = providers?.filter((p) =>
+    ["Installed", "Connected", "Configured"].includes(p.status)
+  ).length;
 
   const updateGeneral = (patch: Partial<Settings["general"]>) => {
     setSettings((prev) => ({ ...prev, general: { ...prev.general, ...patch } }));
@@ -255,6 +281,35 @@ export default function SettingsManagerPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="Profile">
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-gray-500">Email</span>
+              <span className="text-gray-200">{user?.email ?? "-"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-gray-500">User ID</span>
+              <span className="font-mono text-xs text-gray-400">{user?.id ?? "-"}</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Authentication">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-gray-500">Session</span>
+              <Badge tone={user ? "success" : "neutral"}>{user ? "Active" : "None"}</Badge>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="self-start rounded bg-red-900/60 hover:bg-red-800 px-4 py-2 text-sm text-red-200 transition-colors disabled:opacity-50"
+            >
+              {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+            </button>
+          </div>
+        </Card>
+
         <Card title="General">
           <div className="flex flex-col gap-4">
             <Field label="Theme">
@@ -364,7 +419,17 @@ export default function SettingsManagerPage() {
           </div>
         </Card>
 
-        <Card title="AI">
+        <Card title="AI Providers">
+          <div className="mb-4 flex items-center justify-between gap-3 rounded border border-gray-800 p-3 text-sm">
+            <span className="text-gray-400">
+              연결된 Provider: {connectedProviderCount ?? "확인 중..."}
+              {providers && ` / ${providers.length}`}
+            </span>
+            <Link href="/developer/ai" className="text-blue-400 hover:underline">
+              AI Workspace에서 자세히 보기 →
+            </Link>
+          </div>
+
           <div className="flex flex-col gap-4">
             <Field label="Claude Code Path">
               <input

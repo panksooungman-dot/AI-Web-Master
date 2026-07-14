@@ -31,25 +31,28 @@ export interface CreateProjectInput {
   gitRemoteUrl?: string;
 }
 
-const REGISTRY_PATH = path.join(process.cwd(), "lib", "data", "projects.json");
+const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
 
-function ensureRegistryFile(): void {
-  const dir = path.dirname(REGISTRY_PATH);
+function registryPath(baseDir: string): string {
+  return path.join(baseDir, "projects.json");
+}
 
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+function ensureRegistryFile(baseDir: string): void {
+  if (!fs.existsSync(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true });
   }
 
-  if (!fs.existsSync(REGISTRY_PATH)) {
-    fs.writeFileSync(REGISTRY_PATH, "[]", "utf-8");
+  const file = registryPath(baseDir);
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, "[]", "utf-8");
   }
 }
 
-function readRegistry(): ProjectRecord[] {
-  ensureRegistryFile();
+function readRegistry(baseDir: string): ProjectRecord[] {
+  ensureRegistryFile(baseDir);
 
   try {
-    const raw = fs.readFileSync(REGISTRY_PATH, "utf-8");
+    const raw = fs.readFileSync(registryPath(baseDir), "utf-8");
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as ProjectRecord[]) : [];
   } catch {
@@ -57,20 +60,23 @@ function readRegistry(): ProjectRecord[] {
   }
 }
 
-function writeRegistry(records: ProjectRecord[]): void {
-  ensureRegistryFile();
-  fs.writeFileSync(REGISTRY_PATH, JSON.stringify(records, null, 2), "utf-8");
+function writeRegistry(baseDir: string, records: ProjectRecord[]): void {
+  ensureRegistryFile(baseDir);
+  fs.writeFileSync(registryPath(baseDir), JSON.stringify(records, null, 2), "utf-8");
 }
 
-export function listProjects(): ProjectRecord[] {
-  return readRegistry();
+export function listProjects(baseDir: string = DEFAULT_BASE_DIR): ProjectRecord[] {
+  return readRegistry(baseDir);
 }
 
-export function getProject(id: string): ProjectRecord | undefined {
-  return readRegistry().find((project) => project.id === id);
+export function getProject(id: string, baseDir: string = DEFAULT_BASE_DIR): ProjectRecord | undefined {
+  return readRegistry(baseDir).find((project) => project.id === id);
 }
 
-export function createProject(input: CreateProjectInput): ProjectRecord {
+export function createProject(
+  input: CreateProjectInput,
+  baseDir: string = DEFAULT_BASE_DIR
+): ProjectRecord {
   const record: ProjectRecord = {
     id: `project-${Date.now()}`,
     name: input.name,
@@ -87,21 +93,35 @@ export function createProject(input: CreateProjectInput): ProjectRecord {
     gitRemoteUrl: input.gitRemoteUrl,
   };
 
-  const records = readRegistry();
+  const records = readRegistry(baseDir);
   records.push(record);
-  writeRegistry(records);
+  writeRegistry(baseDir, records);
 
   return record;
 }
 
-export function touchProjectOpened(id: string): ProjectRecord | undefined {
-  const records = readRegistry();
+export function touchProjectOpened(
+  id: string,
+  baseDir: string = DEFAULT_BASE_DIR
+): ProjectRecord | undefined {
+  const records = readRegistry(baseDir);
   const index = records.findIndex((project) => project.id === id);
 
   if (index === -1) return undefined;
 
   records[index] = { ...records[index], lastOpenedAt: new Date().toISOString() };
-  writeRegistry(records);
+  writeRegistry(baseDir, records);
 
   return records[index];
+}
+
+/** Removes the project record only — does not touch its workspace folder on disk. */
+export function deleteProject(id: string, baseDir: string = DEFAULT_BASE_DIR): boolean {
+  const records = readRegistry(baseDir);
+  const remaining = records.filter((project) => project.id !== id);
+
+  if (remaining.length === records.length) return false;
+
+  writeRegistry(baseDir, remaining);
+  return true;
 }

@@ -120,6 +120,9 @@ export default function ProjectsPage() {
   const [activeRun, setActiveRun] = useState<WorkflowRun | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const [isImporting, setIsImporting] = useState(false);
   const [importName, setImportName] = useState("");
   const [importCompany, setImportCompany] = useState("");
@@ -436,6 +439,32 @@ export default function ProjectsPage() {
     }
 
     router.push(`/projects/${project.id}`);
+  };
+
+  const handleDelete = async (project: ProjectRecord) => {
+    if (deletingId) return;
+    if (!window.confirm(`"${project.name}" 프로젝트를 삭제할까요? Workspace 폴더는 삭제되지 않습니다.`)) {
+      return;
+    }
+
+    setDeletingId(project.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      const data = (await res.json()) as { success: boolean; error?: string };
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제 실패");
+        return;
+      }
+
+      setProjects((prev) => prev.filter((p) => p.id !== project.id));
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "요청 실패");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const hasFailedStep = activeRun?.status === "Failed";
@@ -802,6 +831,8 @@ export default function ProjectsPage() {
         </Card>
       )}
 
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
+
       {isLoading ? (
         <LoadingText />
       ) : loadError ? (
@@ -833,12 +864,21 @@ export default function ProjectsPage() {
                   ? new Date(project.lastOpenedAt).toLocaleString()
                   : "-"}
               </p>
-              <button
-                onClick={() => openProject(project)}
-                className="self-start mt-2 rounded bg-blue-600 hover:bg-blue-700 px-3 py-1 text-sm transition-colors"
-              >
-                Open
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => openProject(project)}
+                  className="self-start rounded bg-blue-600 hover:bg-blue-700 px-3 py-1 text-sm transition-colors"
+                >
+                  Open
+                </button>
+                <button
+                  onClick={() => handleDelete(project)}
+                  disabled={deletingId === project.id}
+                  className="self-start rounded bg-red-900/60 hover:bg-red-800 px-3 py-1 text-sm text-red-200 transition-colors disabled:opacity-50"
+                >
+                  {deletingId === project.id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </Card>
           ))}
         </div>

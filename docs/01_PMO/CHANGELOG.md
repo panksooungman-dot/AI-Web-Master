@@ -4,6 +4,57 @@
 
 ---
 
+## 2026-07-14 (3)
+
+### 추가 (Added)
+
+- **Dashboard v1 — AI Business OS 운영 통제 센터**: `/developer` 하위를 10개 모듈(Dashboard Home·Project Manager·AI Workspace·Website Builder·Workflow Center·GitHub·Marketplace·Settings·Logs·Health)로 구성된 실제 대시보드로 전환. 기존 컴포넌트(`Card`/`Badge`/`StatusMessage`/`PageHeader`/`DeveloperNav`)와 API를 최대한 재사용하고, `Authentication`(전날 구현)의 `/developer/**` 보호 범위 안에 그대로 포함됨(별도 `proxy.ts` 변경 불필요)
+  - **Dashboard Home**(`app/developer/page.tsx` 재작성) — Projects·Running AI Tasks·Active Workflows·Marketplace Packages·Recent Activity·System Health 6개 위젯(`components/developer/dashboard/*Widget.tsx`, 신규). 전부 기존 API(`/api/projects`·`/api/agents/tasks`·`/api/workflows/runs`·`/api/marketplace`·`/api/logs`·`/api/health`)를 그대로 소비, 신규 백엔드 로직 없음
+  - **Project Manager** — `lib/projects/registry.ts`에 `deleteProject()` 추가(+ 기존 함수들에 테스트용 `baseDir?` 파라미터 추가), `DELETE /api/projects/[id]`(신규), `app/projects/page.tsx`에 Delete 버튼
+  - **AI Workspace**(`app/developer/ai/page.tsx` 재작성) — 기존에 하드코딩된 가짜 Ollama/ChatGPT 상태를 실데이터로 교체. `lib/providers/status.ts`(신규): Claude Code/Cursor는 기존 `lib/agents/registry.ts`의 `isAvailable()` 재사용, Local AI(Ollama)는 실제 `fetch(".../api/tags")` 연결 확인, OpenAI/Gemini는 API 키 env var 존재 여부로 "Configured" 판단(`packages/cli`의 `ProviderManager.configured`와 동일 의미론, 해당 패키지는 import하지 않음 — 새 의존성 없음). `GET /api/providers`(신규)
+  - **Website Builder**(`app/developer/websites/page.tsx`, 신규) — `lib/websites/{types,registry}.ts`(신규, `lib/data/websites.json`), `GET/POST /api/websites`(신규). `ai website create` CLI를 `lib/commandEngine/engine.ts`의 `execute()`로 실제 child process 실행(새 npm 의존성 없이 `node packages/cli/dist/index.js ...` 직접 호출). 결과를 `lib/websites/registry.ts`에 이력으로 기록
+  - **Workflow Center**(`app/developer/workflows/page.tsx`, 신규) — 신규 백엔드 없음. 기존 `/api/workflows`·`/api/workflows/runs*`(run/pause/resume/cancel/retry)를 그대로 소비하는 UI만 추가
+  - **Marketplace**(`app/developer/marketplace/page.tsx`, 신규) — `lib/marketplace/registry.ts`(신규): 저장소 루트의 실제 `marketplace/manifest.json`을 읽어 카탈로그 요약을 제공하고, 설치 추적은 별도 `lib/data/marketplace-installed.json`에 기록. `packages/cli/src/marketplace/*`(원격 remove/update의 디렉터리 규칙 불일치 버그 있음, 확인됨)는 재사용하지 않고 새 fs-JSON 레지스트리로 구현. `GET/POST/DELETE /api/marketplace*`(신규)
+  - **Settings**(`app/developer/settings/page.tsx` 확장) — Profile·Authentication 카드 신규(`useAuth()` 재사용), 기존 AI 카드에 `/api/providers` 요약 링크 추가(로직 재사용, 중복 없음)
+  - **Logs**(`app/developer/logs/page.tsx` 확장) — 기존 Terminal/Git/AI/System 4개 필터에 cross-cutting "Errors" 필터 추가(백엔드 변경 없음)
+  - **Health**(`app/developer/health/page.tsx`, 신규) — `lib/health/checks.ts`(신규): Git Status는 기존 `lib/commandEngine/commands.ts`의 `git:status` 카탈로그 재사용(신규 `dev:coverage` 카탈로그 항목도 추가), Disk Usage는 Node 내장 `fs.statfsSync`(신규 의존성 없음). Build/Tests/Coverage는 수동 "Run Now" 버튼으로 실제 `npm run build`/`test`/`coverage` 실행 후 `lib/data/health-checks.json`에 캐시(페이지 로드 시 자동 실행 안 함). `vitest.config.ts`의 `coverage.reporter`에 `"json-summary"` 추가해 실제 커버리지 %를 파싱. `GET /api/health`, `POST /api/health/run`(신규)
+  - **GitHub** — 변경 없음(기존 구현이 요구사항을 이미 충족)
+  - `components/developer/DeveloperNav.tsx` — Dashboard·Workflow Center·Website Builder·Marketplace·Health 5개 항목 추가(기존 8개 → 13개), AI 항목명을 "AI Workspace"로 변경
+  - 테스트(신규, 27개): `tests/{projects,providers,websites,marketplace,health}/*.test.ts` — 전부 `fs.mkdtempSync` 임시 디렉터리 격리 또는 순수 함수 검증. 실제 `npm run build`/`test`나 CLI 서브프로세스 실행은 유닛 테스트로 만들지 않음(느림·재귀 위험)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit` 0 errors, `npm run lint` 0 errors(기존 broken gitlink 관련 무관 오류 3건만 잔존), `npm run build`(55개 라우트 정상 생성), `npm run test` 88/88 통과(Authentication 26개 포함, 회귀 없음)
+- 실행 중인 dev 서버에 curl로 End-to-End 확인: 비로그인 시 `/developer/workflows` 등 신규 페이지도 `/login`으로 정상 리다이렉트, 로그인 후 신규 페이지 9개 전부 200
+- `/api/providers`가 실제 상태를 반환함을 확인(Claude Code/Cursor Installed, Ollama Unreachable(미실행), OpenAI/Gemini Not Configured(env var 없음)) — 가짜 데이터 없음
+- `/api/health`가 실제 `git status` 출력(현재 변경 파일 목록)을 반환함을 확인
+- Marketplace install/remove 왕복 확인(`POST`/`DELETE /api/marketplace/[name]`)
+- **Website Builder 실 E2E**: `POST /api/websites`로 실제 `ai website create` 실행 → 8단계 Planning 파이프라인 로그 확인 → `.generated-websites/e2e-test-site/`에 완전한 Next.js 프로젝트(app/components/lib/package.json 등) 생성 확인, `.gitignore`(`/.generated-websites/` 신규 추가) 정상 적용 확인. 검증에 사용한 출력 폴더는 삭제 완료
+- 테스트에 사용한 계정·세션·설치 추적·웹사이트 이력 데이터(`lib/data/{users,sessions,marketplace-installed,websites,health-checks}.json`)는 검증 후 삭제 완료. **단, 기존 실 데이터인 `lib/data/projects.json`은 삭제하지 않고 보존**(에이전트 자동화 정책상 세션에서 생성하지 않은 파일은 삭제 금지 확인됨)
+- ~~정리하지 못한 산출물~~ — **후속 정리 완료(아래 2026-07-14 (4) 참고)**
+- `docs/REPOSITORY_INDEX.md` — `## Dashboard`·`## Marketplace`·`## Website Builder v2`·`## API Routes`·`## Tests`·`## Remaining TODO`·`## Recommended Next Tasks` 갱신
+
+---
+
+## 2026-07-14 (4)
+
+### 수정 (Fixed)
+
+- **Dashboard v1 E2E 검증 산출물 정리** (`2026-07-14 (3)`에서 미해결로 남겼던 항목): 사용자가 세 산출물 각각의 분류 기준을 직접 지정 — (1) `agents/` 하위 미추적 8개 디렉터리는 이번 E2E 실행분만 삭제, git으로 이미 추적 중인 기존 `agents/*.md` 10개 파일은 무변경 보존, (2) `workflows/website-builder/`는 E2E 생성 샘플로 확인되어 삭제(CLI가 다음 `ai website create` 실행 시 필요하면 자동 재생성), (3) `.runtime/`은 내용 확인 결과 agent memory/history·workflow 실행 로그 등 순수 캐시성 데이터로 확인되어 삭제 + `.gitignore`에 `/.runtime/` 추가
+  - `git ls-files agents/`로 사전 확인 후 미추적 8개 디렉터리(`agents/{business-analyst,component-generator,page-generator,project-generator,qa,seo-generator,site-planner,ui-designer}/`, 총 64개 파일)만 삭제
+  - `workflows/`(git 추적 파일 0개 확인) 전체 삭제 — `workflows/website-builder/{manifest.json,README.md,workflow.json,steps/README.md}`
+  - `.runtime/`(git 추적 파일 0개, 내용 전수 확인) 전체 삭제 — `.runtime/config/providers.json`(플레이스홀더 기본 설정), `.runtime/history/*.json`(8개), `.runtime/memory/*.json`(8개), `.runtime/workflow/history.json`, `.runtime/workflow/logs/website-builder.log`
+  - `.gitignore`에 `/.runtime/` 추가(재발 방지)
+
+### 검증 (Verified)
+
+- 삭제 전 `git ls-files agents/ workflows/ .runtime/`로 세 경로 모두 삭제 대상에 git 추적 파일이 없음을 확인(기존 `agents/*.md` 10개는 별도 경로라 영향 없음)
+- 삭제 후 `find agents -maxdepth 1`로 기존 10개 파일(`README.md`·`ai-engineer.md`·`backend-engineer.md`·`business-analyst.md`·`devops-engineer.md`·`frontend-engineer.md`·`product-manager.md`·`qa-engineer.md`·`solution-architect.md`·`technical-writer.md`)이 그대로 남아있음을 확인
+- `npx tsc --noEmit`(0 errors), `npm run test`(88/88 통과) 재확인 — 정리 작업이 코드에 영향 없음을 확인
+- `docs/REPOSITORY_INDEX.md`의 `## Remaining TODO`·`## Recommended Next Tasks`에서 해당 항목을 해결됨으로 갱신
+
+---
+
 ## 2026-07-14 (2)
 
 ### 수정 (Fixed)

@@ -45,6 +45,13 @@ next-env.d.ts
 /lib/data/
 apps/cnbiz-web/lib/data/
 
+# Website Builder dashboard output (generated Next.js projects, not repo source)
+/.generated-websites/
+
+# AI Business OS CLI runtime cache/state/logs (agent memory, history, execution logs —
+# regenerated on demand, not persistent data)
+/.runtime/
+
 # Playwright MCP QA artifacts (screenshots, snapshots, console logs)
 /.playwright-mcp/
 

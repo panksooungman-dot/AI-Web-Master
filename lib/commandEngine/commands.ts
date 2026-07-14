@@ -13,6 +13,7 @@ export const COMMAND_CATALOG: CommandDefinition[] = [
   { id: "dev:dev", label: "npm run dev", category: "development", command: "npm run dev", background: true },
   { id: "dev:build", label: "npm run build", category: "development", command: "npm run build" },
   { id: "dev:test", label: "npm test", category: "development", command: "npm test" },
+  { id: "dev:coverage", label: "npm run coverage", category: "development", command: "npm run coverage" },
   { id: "dev:lint", label: "npm run lint", category: "development", command: "npm run lint" },
   { id: "pkg:install", label: "npm install", category: "package", command: "npm install" },
   { id: "pkg:update", label: "npm update", category: "package", command: "npm update" },

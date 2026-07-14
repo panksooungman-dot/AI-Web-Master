@@ -1,14 +1,28 @@
+import { PageHeader } from "@/components/developer/PageHeader";
 import { DevServerManagerCard } from "@/components/developer/DevServerManagerCard";
+import { ProjectsWidget } from "@/components/developer/dashboard/ProjectsWidget";
+import { RunningTasksWidget } from "@/components/developer/dashboard/RunningTasksWidget";
+import { ActiveWorkflowsWidget } from "@/components/developer/dashboard/ActiveWorkflowsWidget";
+import { MarketplaceWidget } from "@/components/developer/dashboard/MarketplaceWidget";
+import { RecentActivityWidget } from "@/components/developer/dashboard/RecentActivityWidget";
+import { SystemHealthWidget } from "@/components/developer/dashboard/SystemHealthWidget";
 
 export default function DeveloperPage() {
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-2">Development OS</h1>
-      <p className="text-gray-400 mb-6">
-        위 메뉴에서 관리할 도구를 선택하세요.
-      </p>
+      <PageHeader
+        icon="🏠"
+        title="Dashboard"
+        description="AI Business OS의 운영 현황을 한눈에 확인합니다."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ProjectsWidget />
+        <RunningTasksWidget />
+        <ActiveWorkflowsWidget />
+        <MarketplaceWidget />
+        <RecentActivityWidget />
+        <SystemHealthWidget />
         <DevServerManagerCard />
       </div>
     </div>

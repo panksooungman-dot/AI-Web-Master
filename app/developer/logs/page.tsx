@@ -8,7 +8,7 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 
 type LogCategory = "Terminal" | "Git" | "AI" | "System";
 type LogStatus = "Success" | "Error" | "Info" | "Warning";
-type FilterOption = "All" | LogCategory;
+type FilterOption = "All" | LogCategory | "Errors";
 
 interface LogItem {
   id: string;
@@ -36,7 +36,7 @@ const STATUS_TONES: Record<LogStatus, BadgeTone> = {
   Warning: "warning",
 };
 
-const FILTERS: FilterOption[] = ["All", "Terminal", "Git", "AI", "System"];
+const FILTERS: FilterOption[] = ["All", "Terminal", "Git", "AI", "System", "Errors"];
 
 export default function LogsManagerPage() {
   const [logs, setLogs] = useState<LogItem[]>([]);
@@ -61,7 +61,12 @@ export default function LogsManagerPage() {
   }, []);
 
   const filteredLogs = logs.filter((log) => {
-    const matchesFilter = activeFilter === "All" || log.category === activeFilter;
+    const matchesFilter =
+      activeFilter === "All"
+        ? true
+        : activeFilter === "Errors"
+          ? log.status === "Error"
+          : log.category === activeFilter;
     const matchesSearch = log.message.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });

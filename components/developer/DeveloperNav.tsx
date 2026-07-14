@@ -5,12 +5,17 @@ import { usePathname } from "next/navigation";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 const NAV_LINKS = [
+  { href: "/developer", label: "Dashboard" },
   { href: "/projects", label: "프로젝트 관리" },
   { href: "/developer/workspace", label: "Workspace" },
   { href: "/developer/terminal", label: "Terminal" },
   { href: "/developer/github", label: "GitHub" },
-  { href: "/developer/ai", label: "AI" },
+  { href: "/developer/ai", label: "AI Workspace" },
+  { href: "/developer/workflows", label: "Workflow Center" },
+  { href: "/developer/websites", label: "Website Builder" },
+  { href: "/developer/marketplace", label: "Marketplace" },
   { href: "/developer/logs", label: "Logs" },
+  { href: "/developer/health", label: "Health" },
   { href: "/developer/settings", label: "Settings" },
   { href: "/developer/ui-map", label: "UI Explorer" },
 ];

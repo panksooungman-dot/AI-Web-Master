@@ -1,8 +1,7 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14
-> 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다. 이전 감사 보고서(`docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md` 등)는 참고하지 않았다.
-> 저장소 루트에는 이 저장소 자체의 중첩 복제본(`AI-Web-Master/`, 별도 `.git` 보유, git 미추적)과 임시 산출물(`docs.zip`, `docs_extract/`, `tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`)이 존재하나, 이 문서의 범위(현재 저장소 소스)에서 제외했다.
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — 커밋 상태 재확인)
+> 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다. 이전 감사 보고서(`docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md` 등)는 내용을 참고하지 않았으나, 이번 갱신에서 이 파일들이 더 이상 "로컬 미추적 상태"가 아니라 **git에 커밋되어 저장소의 일부가 되었음**을 확인했다(커밋 `b2c0b6a`). `AI-Web-Master/`(이 저장소 자체의 중첩 복제본)도 실제로는 훨씬 이전 커밋(`b954508`)부터 이미 broken gitlink(모드 `160000`, `.gitmodules` 없음)로 추적되고 있었음을 이번에 재확인했다 — 이전 버전 문서에서 "git 미추적"이라 기술한 것은 부정확했다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션 참고.
 
 ---
 
@@ -233,10 +232,14 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - `docs/04_OPERATIONS/`(5)
   - `docs/05_AI/`(12) — `AGENTS.md`, `TOKEN_POLICY.md`, `WORKFLOW.md`, `PROMPTS.md` 등 + `docs/05_AI/skills/`
   - `docs/06_TEMPLATES/`(10)
-  - `docs/07_KNOWLEDGE/`(2), `docs/08_PLANS/`(2)
+  - `docs/07_KNOWLEDGE/`(2), `docs/08_PLANS/`(9 — 아래 참고)
   - `docs/09_WORK_HISTORY/`(5) — `CURRENT_CONTEXT.md`, `WORK_HISTORY.md` + `sessions/`
   - `docs/99_ARCHIVE/`(1)
-- 이 문서 작성 시점에 저장소 루트에 git 미추적 상태로 존재하는 이전 감사 산출물(`docs/PROJECT_STATUS.md`, `docs/PROJECT_STATUS_CURRENT.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md`, `docs.zip`, `docs_extract/`)은 이번 인덱스 작성에 소스로 사용하지 않았다(요청 사항).
+- **`docs/08_PLANS/상가분양센터/`(7개 파일, 936KB, HTML/PDF/md)**: CNBIZ/AI Business OS와 무관한 것으로 보이는 별도 프로젝트("상가분양센터"=상업용 부동산 분양 센터) 화면 구조도·사용자 스토리보드·"의뢰자미팅용" 문서. 커밋 `b954508`에서 함께 추가됨. 다른 고객사 자료가 이 저장소에 잘못 포함됐을 가능성이 있어 `Remaining TODO`에 별도로 기록.
+- **`docs/` 최상위(번호 폴더 밖) 느슨한 파일 22개가 git에 커밋되어 있음**: 두 그룹으로 나뉜다.
+  - 정상 운영 문서로 보이는 것: `README.md`, `UI_MAP.md`, `PROJECT_PAGES.md`, `faq.md`, `getting-started.md`, `installation.md`(`docs/01_PMO/CHANGELOG.md`의 2026-07-05/07-09/07-10 기록과 일치, Phase 5 계획 문서로 의도적으로 유지 중인 것들 포함).
+  - 이전 감사 산출물로 보이는 것(커밋 `deaeb45`, `b2c0b6a`에서 추가): `AGENT_AUDIT.md`, `CLI_AUDIT.md`, `CODE_QUALITY.md`, `DASHBOARD_AUDIT.md`, `FEATURE_MATRIX.md`, `IMPLEMENTATION_STATUS.md`, `PROJECT_AUDIT.md`, `PROJECT_STATUS.md`, `PROJECT_STATUS_CURRENT.md`, `REPOSITORY_AUDIT_COMPLETE.md`, `ROADMAP.md`, `TECH_DEBT.md`, `TODO_CURRENT.md`, `WEBSITE_BUILDER_AUDIT.md`, `WORKFLOW_AUDIT.md` — 이번 인덱스 작성·갱신에 이 파일들의 **내용**은 소스로 사용하지 않았다(사용자 요청 사항). 다만 이전 버전 문서에서 이들을 "git 미추적"이라 기술한 것은 부정확했음을 이번에 확인·정정한다 — 실제로는 커밋되어 저장소 히스토리에 포함되어 있다.
+- **`docs.zip`(240KB)·`docs_extract/`(70개 파일, 598KB)**: `docs/` 스냅샷을 압축한 것과 그 압축 해제본으로 추정되며, 둘 다 커밋 `b2c0b6a`에서 함께 추가됨(git 미추적 로컬 파일이 아니라 이제 저장소에 커밋된 상태).
 
 ---
 
@@ -262,7 +265,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 - Description: `.github/workflows/`에 5개 워크플로(`docs.yml`, `lint.yml`, `test.yml`, `security.yml`, `release.yml`)가 존재. `test.yml`을 실존하지 않던 `test:unit`/`test:integration`/`test:e2e` 스크립트 호출에서 실제 Vitest 스위트로 교체 완료.
   - `test.yml`(갱신) — `npm ci` → `npm run build --if-present`(루트 Next.js 앱 빌드) → `npm test`(Vitest 스위트 실행, `pretest`가 `@ai-business-os/cli` 빌드를 자동 수행) → `npm run coverage`(v8 커버리지 리포트 생성 후 아티팩트 업로드). 테스트 실패 시 해당 스텝이 0이 아닌 종료 코드를 반환해 워크플로 전체가 실패하도록 구성(별도 continue-on-error 없음). Node 20 매트릭스 유지.
-  - **검증 방법**: 실제 GitHub Actions 실행 없이, `git archive HEAD`로 커밋된 상태를 추출한 뒤 이번 작업의 미커밋 변경분(신규 테스트·설정 파일)을 덧씌우고 `.git` 디렉터리만 별도로 생성(`actions/checkout@v4`와 동일 조건)한 격리된 스크래치 디렉터리에서 `npm ci`·`npm run build --if-present`·`npm test`·`npm run coverage`를 실제로 순서대로 실행 — 4단계 전부 종료 코드 0, 36개 테스트 전수 통과, `coverage/` 아티팩트 생성까지 확인. 저장소 루트에 git 미추적 상태로 남아있는 자기 자신의 중첩 복제본(`AI-Web-Master/`)이 로컬 `npm run build`를 오염시켜 처음에는 실패했으나, 이는 실제 CI의 클린 체크아웃에는 존재하지 않는 로컬 전용 산출물이라 별도 조치 없이 스크래치 검증(격리된 클린 트리)으로 우회 확인함.
+  - **검증 방법**: 실제 GitHub Actions 실행 없이, `git archive HEAD`로 커밋된 상태를 추출한 뒤 당시 미커밋 변경분(신규 테스트·설정 파일)을 덧씌우고 `.git` 디렉터리만 별도로 생성(`actions/checkout@v4`와 동일 조건)한 격리된 스크래치 디렉터리에서 `npm ci`·`npm run build --if-present`·`npm test`·`npm run coverage`를 실제로 순서대로 실행 — 4단계 전부 종료 코드 0, 36개 테스트 전수 통과, `coverage/` 아티팩트 생성까지 확인. 검증 당시 로컬 워킹 디렉터리에 물리적으로 체크아웃되어 있던 `AI-Web-Master/`(중첩 복제본 실 파일)가 로컬 `npm run build`를 오염시켜 처음에는 실패했으나, `git archive`는 gitlink(`AI-Web-Master`는 `.gitmodules` 없이 커밋된 broken gitlink, `Documentation`/`Remaining TODO` 참고)의 실제 파일 내용을 포함하지 않으므로 `actions/checkout@v4` 기준 클린 체크아웃에는 이 문제가 재현되지 않음을 확인.
   - `lint.yml` — `npm run lint --if-present`(실질 동작, 이번 작업 범위 밖)
   - `security.yml` — `npm audit` + 시크릿 패턴 스캔(실질 동작, 이번 작업 범위 밖)
   - `docs.yml` — 필수 문서 파일 존재·빈 마크다운 파일 여부 검사(실질 동작, 이번 작업 범위 밖)
@@ -278,14 +281,16 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - **Authentication 완전 미구현**: `/login`·`/signup`이 정적 폼뿐이며 세션·토큰 발급 로직 없음.
 - **테스트 커버리지가 아직 얕음**: Website Builder/Workflow Engine/Utilities/Agent Runtime 중 순수 로직 일부만 커버. Orchestrator·Provider 실제 호출·Development OS Workflow Engine(`lib/workflows`)·API 라우트·Dashboard 컴포넌트는 여전히 테스트 없음.
 - **`lint.yml`에는 아직 build 스텝이 없음**: 빌드 검증은 `test.yml`에만 추가됨(`release.yml`은 태그 push 시에만 build 실행) — `lint.yml`도 별도로 build를 검증할지는 정책 결정 필요.
-- **저장소 루트 정리 필요(코드 아님, 위생 문제)**: git 미추적 상태의 대형/중복 산출물 다수 존재 — 자기 자신의 전체 중첩 복제본(`AI-Web-Master/`, 별도 `.git` 보유), 이전 감사 산출물(`docs.zip`, `docs_extract/`, `docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`), 스크래치 프로젝트(`test-project/`, 일부만 git 추적됨). 삭제는 사용자 승인 필요(문서 관리 규칙).
+- **⚠ 다른 프로젝트로 추정되는 자료가 이 저장소에 커밋되어 있음(`docs/08_PLANS/상가분양센터/`, 7개 파일, 936KB)**: CNBIZ/AI Business OS와 무관해 보이는 상업용 부동산 분양 관련 UI/UX 구조도·스토리보드·"의뢰자미팅용" 문서가 커밋 `b954508`에 포함됨. 다른 고객사 자료 유출/오염 가능성이 있어 삭제 여부와 별개로 **사용자 확인이 우선 필요**.
+- **저장소 루트 정리 필요(git에 이미 커밋된 상태, 로컬 미추적 파일이 아님)**: 이전 버전 문서와 달리 이제 아래 항목들은 모두 git 히스토리에 실제로 포함되어 있음이 확인됨 — 자기 자신의 중첩 복제본(`AI-Web-Master/`, `.gitmodules` 없이 커밋된 broken gitlink, 모드 `160000`, 커밋 `b954508`), 이전 감사 산출물(`docs.zip`, `docs_extract/`70개 파일, `docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md`, `docs/{AGENT,CLI,PROJECT,WEBSITE_BUILDER,WORKFLOW}_AUDIT.md` 등 커밋 `deaeb45`/`b2c0b6a`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`, 커밋 `b954508`/`1148f3a`), 스크래치 프로젝트(`test-project/`, 커밋 `4e7900d`). 로컬 파일 삭제가 아니라 `git rm`(+커밋)이 필요하며, 저장소 히스토리에서 완전히 없애려면 히스토리 재작성 여부까지 사용자 승인이 필요(문서 관리 규칙).
 - **Agent Runtime / Workflow Engine 이원화**: Development OS(`lib/agents`, `lib/workflows`)와 CLI(`packages/cli/src/runtime`, `packages/cli/src/workflow`)에 유사한 개념이 각각 독립적으로 구현되어 있어 장기적으로 개념 통합 여부에 대한 결정이 필요(현재는 의도적으로 별개 애플리케이션이라 문제는 아님).
 
 ---
 
 ## Recommended Next Tasks
 
-1. **테스트 커버리지 확장** — Orchestrator(`packages/cli/src/orchestrator`), Development OS Workflow Engine(`lib/workflows/engine.ts`), Provider 시뮬레이션 폴백 경로(`packages/cli/src/providers/manager.ts`) 등 아직 다루지 않은 영역에 순서대로 테스트 추가.
-2. **Marketplace 실 데이터 채우기 또는 범위 재확정** — 로컬 Provider가 이미 동작하므로, 실제 `ai publish`로 최소 1개 이상의 agent/workflow/skill을 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신하거나, Phase 5(Productization) 착수 시점까지 보류할지 명시적으로 결정.
-3. **저장소 루트 클린업 승인 요청** — `AI-Web-Master/`(중첩 전체 복제본), `docs.zip`/`docs_extract/`, `tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`, `test-project/` 처리 방침을 사용자에게 확인 후 정리(문서 관리 규칙상 삭제 전 승인 필요).
-4. **Authentication 범위 결정** — `/login`·`/signup`이 실제 기능으로 필요한지, 아니면 Development OS 범위 밖(CNBIZ Website에는 해당 없음)이라 제거 대상인지 확정.
+1. **`docs/08_PLANS/상가분양센터/` 소유권 확인(최우선)** — 다른 고객사 자료로 추정되는 문서가 이 저장소에 커밋되어 있음을 사용자에게 즉시 확인하고, 필요 시 `git rm`(및 민감도에 따라 히스토리 제거) 여부를 결정.
+2. **저장소 루트 클린업 승인 요청** — `AI-Web-Master/`(broken gitlink)·`docs.zip`/`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`·`test-project/`가 이미 git에 커밋되어 있음을 반영해, `git rm` 대상과 히스토리 재작성 필요 여부를 사용자와 함께 확정.
+3. **테스트 커버리지 확장** — Orchestrator(`packages/cli/src/orchestrator`), Development OS Workflow Engine(`lib/workflows/engine.ts`), Provider 시뮬레이션 폴백 경로(`packages/cli/src/providers/manager.ts`) 등 아직 다루지 않은 영역에 순서대로 테스트 추가.
+4. **Marketplace 실 데이터 채우기 또는 범위 재확정** — 로컬 Provider가 이미 동작하므로, 실제 `ai publish`로 최소 1개 이상의 agent/workflow/skill을 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신하거나, Phase 5(Productization) 착수 시점까지 보류할지 명시적으로 결정.
+5. **Authentication 범위 결정** — `/login`·`/signup`이 실제 기능으로 필요한지, 아니면 Development OS 범위 밖(CNBIZ Website에는 해당 없음)이라 제거 대상인지 확정.

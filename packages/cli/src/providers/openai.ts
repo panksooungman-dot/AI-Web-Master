@@ -1,5 +1,11 @@
-import { providerFetchJson, type AIProvider } from "./provider.js";
-import { ProviderError, type ChatRequest, type ChatResponse, type ProviderConfig } from "./types.js";
+import { providerFetchJson, providerFetchSseStream, type AIProvider } from "./provider.js";
+import {
+  ProviderError,
+  type ChatRequest,
+  type ChatResponse,
+  type ChatStreamChunk,
+  type ProviderConfig
+} from "./types.js";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 const BASE_URL = "https://api.openai.com/v1";
@@ -73,6 +79,48 @@ export function createOpenAIProvider(config: ProviderConfig): AIProvider {
         : undefined;
 
       return { provider: "openai", model, content, usage };
+    },
+
+    async *chatStream(request: ChatRequest): AsyncGenerator<ChatStreamChunk> {
+      requireApiKey();
+
+      const model = request.model ?? DEFAULT_MODEL;
+
+      const stream = providerFetchSseStream("openai", `${BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          messages: request.messages,
+          temperature: request.temperature,
+          max_tokens: request.maxTokens,
+          stream: true
+        })
+      });
+
+      for await (const event of stream) {
+        if (event.data === "[DONE]") {
+          yield { delta: "", done: true, model };
+          return;
+        }
+
+        let parsed: { choices?: { delta?: { content?: string } }[] };
+        try {
+          parsed = JSON.parse(event.data);
+        } catch {
+          continue;
+        }
+
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) {
+          yield { delta, done: false, model };
+        }
+      }
+
+      yield { delta: "", done: true, model };
     }
   };
 }

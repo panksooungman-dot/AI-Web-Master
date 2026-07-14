@@ -8,6 +8,8 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
   });
 
   it("returns exactly the 5 required providers with the required fields", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockRejectedValue(new Error("connection refused"))
@@ -32,10 +34,11 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
     }
   });
 
-  it("openai/gemini report 'Not Configured' with no model when their API key env vars are unset", async () => {
+  it("openai/gemini report 'Not Configured' with no model when their API key env vars are unset (no live call made)", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     vi.stubEnv("GEMINI_API_KEY", "");
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
+    const fetchMock = vi.fn().mockRejectedValue(new Error("should not be called"));
+    vi.stubGlobal("fetch", fetchMock);
 
     const providers = await getProviderStatuses();
     const openai = providers.find((p) => p.id === "openai");
@@ -45,12 +48,25 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
     expect(openai?.model).toBeNull();
     expect(gemini?.status).toBe("Not Configured");
     expect(gemini?.model).toBeNull();
+    // 키가 없으면 실제 API를 호출하지 않고 즉시 판정한다 (불필요한 네트워크 호출 없음).
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("openai/gemini report 'Configured' with a default model when their API key env vars are set", async () => {
+  it("openai/gemini report 'Configured' with a real model name when the live models call succeeds", async () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
     vi.stubEnv("GEMINI_API_KEY", "test-key");
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("api.openai.com")) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: [{ id: "gpt-4o-mini" }] }) });
+        }
+        if (url.includes("generativelanguage.googleapis.com")) {
+          return Promise.resolve({ ok: true, json: async () => ({ models: [{ name: "models/gemini-1.5-flash" }] }) });
+        }
+        return Promise.reject(new Error("connection refused"));
+      })
+    );
 
     const providers = await getProviderStatuses();
     const openai = providers.find((p) => p.id === "openai");
@@ -62,7 +78,32 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
     expect(gemini?.model).toBe("gemini-1.5-flash");
   });
 
+  it("openai/gemini report 'Unreachable' (not 'Configured') when a key is set but the live call fails", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-invalid-key");
+    vi.stubEnv("GEMINI_API_KEY", "invalid-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("api.openai.com") || url.includes("generativelanguage.googleapis.com")) {
+          return Promise.resolve({ ok: false, status: 401, json: async () => ({}) });
+        }
+        return Promise.reject(new Error("connection refused"));
+      })
+    );
+
+    const providers = await getProviderStatuses();
+    const openai = providers.find((p) => p.id === "openai");
+    const gemini = providers.find((p) => p.id === "gemini");
+
+    expect(openai?.status).toBe("Unreachable");
+    expect(openai?.model).toBeNull();
+    expect(gemini?.status).toBe("Unreachable");
+    expect(gemini?.model).toBeNull();
+  });
+
   it("ollama reports 'Connected' with the first model name when the local API responds", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -79,6 +120,8 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
   });
 
   it("ollama reports 'Unreachable' when the local API is not running", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
 
     const providers = await getProviderStatuses();
@@ -89,6 +132,8 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
   });
 
   it("claude-code and cursor come from the real agent registry (isAvailable-driven, not hardcoded)", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
 
     const providers = await getProviderStatuses();

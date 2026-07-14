@@ -3,7 +3,13 @@ import path from "path";
 import { createProvider, listProviderIds } from "./registry.js";
 import type { AIProvider } from "./provider.js";
 import { recordUsage } from "./usage.js";
-import { ProviderError, type ChatMessage, type ProviderConfig, type ProvidersFile } from "./types.js";
+import {
+  ProviderError,
+  type ChatMessage,
+  type ChatStreamChunk,
+  type ProviderConfig,
+  type ProvidersFile
+} from "./types.js";
 
 function configFile(cwd: string): string {
   return path.join(cwd, ".runtime", "config", "providers.json");
@@ -180,6 +186,87 @@ export class ProviderManager {
       return {
         text: `[simulated] ${options.fallbackLabel} — provider "${resolvedProviderId}" unavailable (${reason}).`,
         simulated: true
+      };
+    }
+  }
+
+  /**
+   * complete()의 스트리밍 버전 — resolve → chatStream → simulate 폴백 로직을 공유한다.
+   * provider가 chatStream을 지원하지 않으면(gemini/ollama/openrouter) 일반 chat()을 호출해
+   * 결과를 단일 청크로 yield한다(호출자 입장에서는 항상 스트림 인터페이스로 소비 가능).
+   * 명시적으로 요청된 provider(`options.providerId`)가 실패하면 감추지 않고 그대로 던진다.
+   */
+  async *streamComplete(options: CompleteOptions): AsyncGenerator<ChatStreamChunk & { provider?: string; model?: string }> {
+    const resolvedProviderId = await this.resolveProviderId(options.providerId);
+
+    if (!resolvedProviderId) {
+      yield { delta: `[simulated] ${options.fallbackLabel} — no LLM connected yet.`, done: true };
+      return;
+    }
+
+    const messages: ChatMessage[] = [
+      { role: "system", content: options.systemPrompt },
+      { role: "user", content: options.userPrompt }
+    ];
+
+    try {
+      const provider = await this.getProvider(resolvedProviderId);
+
+      if (!provider.chatStream) {
+        const response = await provider.chat({ messages });
+
+        await recordUsage(this.cwd, {
+          provider: response.provider,
+          model: response.model,
+          inputTokens: response.usage?.inputTokens ?? 0,
+          outputTokens: response.usage?.outputTokens ?? 0,
+          simulated: false
+        });
+
+        yield {
+          delta: response.content,
+          done: true,
+          provider: response.provider,
+          model: response.model,
+          usage: response.usage
+        };
+        return;
+      }
+
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let model = provider.id;
+
+      for await (const chunk of provider.chatStream({ messages })) {
+        if (chunk.model) {
+          model = chunk.model;
+        }
+        if (chunk.usage) {
+          inputTokens = chunk.usage.inputTokens ?? inputTokens;
+          outputTokens = chunk.usage.outputTokens ?? outputTokens;
+        }
+
+        yield { ...chunk, provider: provider.id };
+
+        if (chunk.done) {
+          await recordUsage(this.cwd, {
+            provider: provider.id,
+            model,
+            inputTokens,
+            outputTokens,
+            simulated: false
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      if (options.providerId) {
+        throw error;
+      }
+      const reason = error instanceof Error ? error.message : String(error);
+      yield {
+        delta: `[simulated] ${options.fallbackLabel} — provider "${resolvedProviderId}" unavailable (${reason}).`,
+        done: true
       };
     }
   }

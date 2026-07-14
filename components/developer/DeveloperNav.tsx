@@ -17,6 +17,10 @@ const NAV_LINKS = [
   { href: "/developer/marketplace", label: "Marketplace" },
   { href: "/developer/logs", label: "Logs" },
   { href: "/developer/health", label: "Health" },
+  { href: "/developer/audit-log", label: "Audit Log" },
+  { href: "/developer/metrics", label: "Metrics" },
+  { href: "/developer/backup", label: "Backup" },
+  { href: "/developer/errors", label: "Error Report" },
   { href: "/developer/settings", label: "Settings" },
   { href: "/developer/ui-map", label: "UI Explorer" },
 ];

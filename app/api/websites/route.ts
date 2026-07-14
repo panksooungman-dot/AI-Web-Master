@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 import { execute } from "@/lib/commandEngine/engine";
 import { createWebsiteRecord, listWebsites } from "@/lib/websites/registry";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
+import { incrementMetric } from "@/lib/metrics/registry";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -98,6 +101,15 @@ export async function POST(request: Request) {
     simulatedContent,
     error: result.success ? undefined : result.error ?? (result.stderr.trim() || "생성 실패"),
   });
+
+  const actor = await getCurrentActorEmail();
+  recordAuditEvent({
+    action: "website.generate",
+    actor,
+    success: result.success,
+    detail: result.success ? `"${name}" (${siteType}) 생성됨` : record.error ?? "생성 실패",
+  });
+  incrementMetric("websiteGenerationCount");
 
   if (!result.success) {
     return NextResponse.json(

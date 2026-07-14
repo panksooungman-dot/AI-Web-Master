@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { runHealthCheck, writeHealthCacheEntry, type HealthCheckId } from "@/lib/health/checks";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
+import { incrementMetric } from "@/lib/metrics/registry";
 
 const VALID_CHECKS: HealthCheckId[] = ["build", "test", "coverage"];
 
@@ -27,6 +30,17 @@ export async function POST(request: Request) {
 
   const result = await runHealthCheck(check as HealthCheckId, process.cwd());
   writeHealthCacheEntry(check as HealthCheckId, result);
+
+  if (check === "build") {
+    const actor = await getCurrentActorEmail();
+    recordAuditEvent({
+      action: "build.run",
+      actor,
+      success: result.success,
+      detail: result.success ? "빌드 성공" : result.summary,
+    });
+    incrementMetric("buildCount");
+  }
 
   return NextResponse.json({ success: true, result });
 }

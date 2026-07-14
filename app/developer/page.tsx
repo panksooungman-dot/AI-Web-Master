@@ -8,6 +8,7 @@ import { RecentActivityWidget } from "@/components/developer/dashboard/RecentAct
 import { SystemHealthWidget } from "@/components/developer/dashboard/SystemHealthWidget";
 import { ProviderStatusWidget } from "@/components/developer/dashboard/ProviderStatusWidget";
 import { TokenUsageWidget } from "@/components/developer/dashboard/TokenUsageWidget";
+import { MetricsWidget } from "@/components/developer/dashboard/MetricsWidget";
 
 export default function DeveloperPage() {
   return (
@@ -25,6 +26,7 @@ export default function DeveloperPage() {
         <MarketplaceWidget />
         <ProviderStatusWidget />
         <TokenUsageWidget />
+        <MetricsWidget />
         <RecentActivityWidget />
         <SystemHealthWidget />
         <DevServerManagerCard />

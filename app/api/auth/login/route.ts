@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { login } from "@/lib/auth/auth";
 import { sessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { recordAuditEvent } from "@/lib/audit/log";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
   const result = login(email, password);
 
   if ("error" in result) {
+    recordAuditEvent({ action: "auth.login", actor: email, success: false, detail: result.error });
     return NextResponse.json({ success: false, error: result.error }, { status: 401 });
   }
 
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
     result.session.id,
     sessionCookieOptions(result.session.expiresAt)
   );
+
+  recordAuditEvent({ action: "auth.login", actor: result.user.email, success: true, detail: "로그인 성공" });
 
   return NextResponse.json({ success: true, user: result.user });
 }

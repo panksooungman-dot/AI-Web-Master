@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-14 (10)
+
+### 추가 (Added)
+
+- **Operations & Observability v1.1**: v1.0 릴리스·Production Validation 완료 이후 핵심 기능은 변경하지 않고 운영 가시성만 보강. 기존 API·타입은 하나도 수정하지 않고 전부 새 파일 추가 또는 기존 모듈에 새 export를 얹는 방식(additive)으로만 구현
+  - **Audit Log**(`lib/audit/log.ts`, 신규) — Login/Logout/Marketplace publish·install·remove/Website 생성/AI Task 실행(+ Build 실행)을 `lib/data/audit-log.json`에 영구 기록(500건 상한, 오래된 항목부터 트리밍) — 기존 `eventBus.ts`(인메모리 200건, 재시작 시 소실)와 달리 디스크에 남는다. `lib/audit/actor.ts`(신규)가 `app/api/auth/me/route.ts`와 동일한 패턴(`next/headers`의 `cookies()` + 기존 `getCurrentUser()`)으로 actor를 구함. `/developer/audit-log`(신규) + `GET /api/audit`
+  - **Metrics**(`lib/metrics/registry.ts`, 신규) — Build/Website 생성/AI Task/Marketplace 설치 4개 영구 카운터(`lib/data/metrics.json`) + 기존 `lib/ai/bridge.ts`의 `listUsageViaCli()`를 그대로 재사용한 Provider usage. `/developer/metrics`(신규) + `GET /api/metrics` + Dashboard Home의 `MetricsWidget`(9번째 위젯)
+  - **Health Dashboard 확장**(`lib/health/checks.ts`) — 신규 export `getSystemInfo()`로 CPU(코어·모델·부하율)·Memory·Node version·Server Uptime·Active Sessions 추가. CPU 부하율은 Windows에서 `os.loadavg()`가 항상 `[0,0,0]`을 반환하는 제약 때문에 `os.cpus()` tick을 100ms 간격으로 직접 샘플링(신규 의존성 없음). Active Sessions는 `lib/auth/session.ts`에 신규 export `countActiveSessions()` 추가. 기존 Git/Disk/Build/Tests/Coverage는 무변경
+  - **Backup**(`lib/backup/registry.ts`, 신규) — Provider 설정(`.runtime/config/providers.json`, 비밀값이 아닌 `${ENV_VAR}` 참조만 담아 안전)·Prompt(`lib/data/prompts.json`)·Workflow(`lib/data/workflows.json`)를 하나의 JSON으로 export/import. 부분 번들 복원 지원(있는 섹션만 복원). `/developer/backup`(신규) + `GET /api/backup/export`·`POST /api/backup/import`
+  - **Error Report**(`/developer/errors`, 신규) — 새 저장소 없이 Audit Log에서 `success:false`만 필터링(`GET /api/errors`)
+  - `DeveloperNav`에 Audit Log·Metrics·Backup·Error Report 4개 링크 추가
+  - 테스트(신규 20개): `tests/audit/log.test.ts`(7개)·`tests/metrics/registry.test.ts`(5개)·`tests/backup/registry.test.ts`(5개)·`tests/health/checks.test.ts`(1개 추가)·`tests/auth/session.test.ts`(2개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(90개 라우트 정상 생성) · `npm test`(35 files / 228 tests 전부 통과, 신규 20개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → `/api/audit`에 로그인 이벤트 실제 기록 확인 → `/api/metrics`가 카운터+실제 Provider usage를 반환함을 확인 → `/api/backup/export`가 configuration/prompts/workflows를 정상 반환함을 확인 → 존재하지 않는 패키지로 marketplace install 실패를 유발해 `/api/errors`에 그 실패가 나타나고 `marketplaceInstallCount`가 실패에도 불구하고 증가함을 확인 → `/api/health`의 `system` 필드(CPU 8코어·실제 모델명·Memory·Node v24.18.0·Uptime·Active Sessions)가 실제 머신 값을 반환함을 확인. Playwright로 Audit Log·Metrics·Backup·Error Report·Health(확장분) 5개 페이지 전부 렌더링·실데이터 표시·Export 파일 다운로드까지 확인
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, `.runtime/`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Operations & Observability v1.1`(신규 섹션) · `## Dashboard`·`## Tests` 갱신
+
+---
+
 ## 2026-07-14 (9)
 
 ### 추가 (Added)

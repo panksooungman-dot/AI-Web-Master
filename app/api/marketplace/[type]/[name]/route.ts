@@ -7,6 +7,9 @@ import {
   updatePackage,
   type PackageType,
 } from "@/lib/marketplace/registry";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
+import { incrementMetric } from "@/lib/metrics/registry";
 
 interface RouteParams {
   params: Promise<{ type: string; name: string }>;
@@ -52,6 +55,16 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const result = await installPackage(name, type);
+  const actor = await getCurrentActorEmail();
+
+  recordAuditEvent({
+    action: "marketplace.install",
+    actor,
+    success: result.success,
+    detail: result.success ? `${type}/${name} 설치됨` : result.error ?? "설치 실패",
+  });
+  incrementMetric("marketplaceInstallCount");
+
   return NextResponse.json(result, { status: result.success ? 200 : 400 });
 }
 
@@ -65,6 +78,15 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   }
 
   const result = await removePackage(name, type);
+  const actor = await getCurrentActorEmail();
+
+  recordAuditEvent({
+    action: "marketplace.remove",
+    actor,
+    success: result.success,
+    detail: result.success ? `${type}/${name} 제거됨` : result.error ?? "제거 실패",
+  });
+
   return NextResponse.json(result, { status: result.success ? 200 : 400 });
 }
 

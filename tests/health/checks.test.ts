@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getDiskUsage, readHealthCache, writeHealthCacheEntry } from "../../lib/health/checks";
+import { getDiskUsage, getSystemInfo, readHealthCache, writeHealthCacheEntry } from "../../lib/health/checks";
 
 describe("Health — checks (lib/health/checks.ts)", () => {
   describe("getDiskUsage()", () => {
@@ -12,6 +12,25 @@ describe("Health — checks (lib/health/checks.ts)", () => {
       expect(usage.totalBytes).toBeGreaterThan(0);
       expect(usage.freeBytes).toBeGreaterThanOrEqual(0);
       expect(usage.usedBytes).toBe(usage.totalBytes - usage.freeBytes);
+    });
+  });
+
+  describe("getSystemInfo()", () => {
+    it("returns coherent CPU/memory/disk/node/uptime/session data for the real machine", async () => {
+      const info = await getSystemInfo(process.cwd());
+
+      expect(info.cpu.cores).toBeGreaterThan(0);
+      expect(info.cpu.model.length).toBeGreaterThan(0);
+      expect(info.cpu.loadPercent).toBeGreaterThanOrEqual(0);
+      expect(info.cpu.loadPercent).toBeLessThanOrEqual(100);
+
+      expect(info.memory.totalBytes).toBeGreaterThan(0);
+      expect(info.memory.usedBytes).toBe(info.memory.totalBytes - info.memory.freeBytes);
+
+      expect(info.disk.totalBytes).toBeGreaterThan(0);
+      expect(info.nodeVersion).toBe(process.version);
+      expect(info.uptimeSeconds).toBeGreaterThanOrEqual(0);
+      expect(info.activeSessions).toBeGreaterThanOrEqual(0);
     });
   });
 

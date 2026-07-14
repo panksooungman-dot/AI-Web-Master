@@ -78,6 +78,19 @@ export function getValidSession(
   return live.find((record) => record.id === sessionId) ?? null;
 }
 
+/** 요구사항 — Health Dashboard의 "Active sessions". 만료된 세션은 집계에서 제외(부작용으로 정리도 함께 수행). */
+export function countActiveSessions(baseDir: string = DEFAULT_BASE_DIR): number {
+  const records = readRegistry(baseDir);
+  const now = Date.now();
+  const live = records.filter((record) => new Date(record.expiresAt).getTime() > now);
+
+  if (live.length !== records.length) {
+    writeRegistry(baseDir, live);
+  }
+
+  return live.length;
+}
+
 export function destroySession(sessionId: string, baseDir: string = DEFAULT_BASE_DIR): void {
   const records = readRegistry(baseDir);
   const remaining = records.filter((record) => record.id !== sessionId);

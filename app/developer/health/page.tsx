@@ -5,12 +5,20 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
-import type { CheckResult, DiskUsageResult, GitStatusResult, HealthCache, HealthCheckId } from "@/lib/health/checks";
+import type { CheckResult, DiskUsageResult, GitStatusResult, HealthCache, HealthCheckId, SystemInfo } from "@/lib/health/checks";
 
 interface HealthResponse {
   git: GitStatusResult;
   disk: DiskUsageResult;
   cache: HealthCache;
+  system: SystemInfo;
+}
+
+function formatUptime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours}h ${minutes}m ${secs}s`;
 }
 
 const RUNNABLE_CHECKS: { id: HealthCheckId; label: string }[] = [
@@ -168,6 +176,59 @@ export default function HealthPage() {
               <li className="flex items-center justify-between gap-3">
                 <span className="text-gray-500">Free</span>
                 <span className="text-gray-300">{formatGB(data.disk.freeBytes)}</span>
+              </li>
+            </ul>
+          </Card>
+
+          <Card title="CPU">
+            <ul className="flex flex-col gap-1.5 text-sm">
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Cores</span>
+                <span className="text-gray-300">{data.system.cpu.cores}</span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Load</span>
+                <span className="text-gray-300">{data.system.cpu.loadPercent}%</span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500 truncate">Model</span>
+                <span className="text-xs text-gray-400 truncate max-w-[60%]" title={data.system.cpu.model}>
+                  {data.system.cpu.model}
+                </span>
+              </li>
+            </ul>
+          </Card>
+
+          <Card title="Memory">
+            <ul className="flex flex-col gap-1.5 text-sm">
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Total</span>
+                <span className="text-gray-300">{formatGB(data.system.memory.totalBytes)}</span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Used</span>
+                <span className="text-gray-300">{formatGB(data.system.memory.usedBytes)}</span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Free</span>
+                <span className="text-gray-300">{formatGB(data.system.memory.freeBytes)}</span>
+              </li>
+            </ul>
+          </Card>
+
+          <Card title="System">
+            <ul className="flex flex-col gap-1.5 text-sm">
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Node Version</span>
+                <span className="font-mono text-xs text-gray-300">{data.system.nodeVersion}</span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Server Uptime</span>
+                <span className="text-gray-300">{formatUptime(data.system.uptimeSeconds)}</span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-gray-500">Active Sessions</span>
+                <span className="text-gray-300">{data.system.activeSessions}</span>
               </li>
             </ul>
           </Card>

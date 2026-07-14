@@ -1,7 +1,9 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { runCatalogCommand } from "@/lib/commandEngine/engine";
 import type { BackgroundExecuteResult, ExecuteResult } from "@/lib/commandEngine/types";
+import { countActiveSessions } from "@/lib/auth/session";
 
 export interface GitStatusResult {
   branch: string | null;
@@ -51,6 +53,76 @@ export function getDiskUsage(cwd: string): DiskUsageResult {
   const freeBytes = stats.bfree * stats.bsize;
 
   return { totalBytes, freeBytes, usedBytes: totalBytes - freeBytes };
+}
+
+export interface CpuInfo {
+  cores: number;
+  model: string;
+  loadPercent: number;
+}
+
+export interface MemoryInfo {
+  totalBytes: number;
+  freeBytes: number;
+  usedBytes: number;
+}
+
+export interface SystemInfo {
+  cpu: CpuInfo;
+  memory: MemoryInfo;
+  disk: DiskUsageResult;
+  nodeVersion: string;
+  /** 이 Next.js 서버 프로세스의 uptime(초) — OS 전체 uptime이 아니다. */
+  uptimeSeconds: number;
+  activeSessions: number;
+}
+
+function sampleCpuTimes(): { idle: number; total: number } {
+  let idle = 0;
+  let total = 0;
+
+  for (const cpu of os.cpus()) {
+    for (const key of Object.keys(cpu.times) as (keyof typeof cpu.times)[]) {
+      total += cpu.times[key];
+    }
+    idle += cpu.times.idle;
+  }
+
+  return { idle, total };
+}
+
+/**
+ * os.loadavg()는 Windows에서 항상 [0,0,0]을 반환해 사용할 수 없다(Node 문서에 명시된 제약).
+ * 대신 os.cpus()의 누적 tick을 두 시점에서 샘플링해 그 구간의 실제 사용률을 계산한다
+ * (Node 내장 모듈만 사용, 신규 의존성 없음).
+ */
+async function getCpuLoadPercent(sampleMs = 100): Promise<number> {
+  const start = sampleCpuTimes();
+  await new Promise((resolve) => setTimeout(resolve, sampleMs));
+  const end = sampleCpuTimes();
+
+  const idleDiff = end.idle - start.idle;
+  const totalDiff = end.total - start.total;
+
+  return totalDiff <= 0 ? 0 : Math.round((1 - idleDiff / totalDiff) * 100);
+}
+
+/** 요구사항 — Health Dashboard: CPU·Memory·Disk·Node version·Uptime·Active sessions. */
+export async function getSystemInfo(cwd: string): Promise<SystemInfo> {
+  const cpus = os.cpus();
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+
+  const loadPercent = await getCpuLoadPercent();
+
+  return {
+    cpu: { cores: cpus.length, model: cpus[0]?.model ?? "unknown", loadPercent },
+    memory: { totalBytes: totalMem, freeBytes: freeMem, usedBytes: totalMem - freeMem },
+    disk: getDiskUsage(cwd),
+    nodeVersion: process.version,
+    uptimeSeconds: Math.round(process.uptime()),
+    activeSessions: countActiveSessions(),
+  };
 }
 
 const CATALOG_ID: Record<HealthCheckId, string> = {

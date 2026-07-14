@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — Production Validation 결과 반영)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — Operations & Observability v1.1 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
 > **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
 
@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 32 files / 208 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation 신규 Timeout 테스트 2개 포함) |
+| `npm test`(Vitest) | ✅ 35 files / 228 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 테스트 2개 + Operations & Observability v1.1 신규 20개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1과 그 후속 Production Validation(`## Production Validation` 참고) 반영 이후 재실행한 결과다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1(`## Operations & Observability v1.1` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -187,7 +187,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 - Description: `/developer`가 실제 운영 현황을 보여주는 Dashboard Home(위젯 6종)으로 개편되었고, `/developer` 하위 10개 모듈 전체가 인증 보호 하에 동작한다. 기존 Workspace·Terminal·GitHub·Settings·Logs·UI Map Explorer는 그대로 재사용하고, AI Manager는 실데이터 기반으로 재작성했으며, Workflow Center·Website Builder·Marketplace·Health 4개 모듈을 신규 구현했다. `/projects`에는 Delete Project를 추가해 CRUD를 완성했다.
 - 모듈별 상태:
-  - **Dashboard Home**(`/developer`) — Projects·Running AI Tasks·Active Workflows·Marketplace Packages·Provider Status·Token Usage·Recent Activity·System Health 8개 위젯(뒤 2개는 AI Platform v1, `## AI Platform v1` 참고). 전부 기존/신규 API를 그대로 소비(`components/developer/dashboard/*Widget.tsx`).
+  - **Dashboard Home**(`/developer`) — Projects·Running AI Tasks·Active Workflows·Marketplace Packages·Provider Status·Token Usage·Metrics·Recent Activity·System Health 9개 위젯(Metrics는 Operations & Observability v1.1 신규, `## Operations & Observability v1.1` 참고). 전부 기존/신규 API를 그대로 소비(`components/developer/dashboard/*Widget.tsx`).
   - **Project Manager**(`/projects`) — 기존 List/Recent/Open/Create/Details에 Delete 추가(`lib/projects/registry.ts`의 `deleteProject()`, `DELETE /api/projects/[id]`).
   - **AI Workspace**(`/developer/ai`) — 기존에는 Ollama/ChatGPT 카드가 하드코딩된 가짜 상태였음. `lib/providers/status.ts`(신규)로 Claude Code/Cursor(기존 `lib/agents/registry.ts` `isAvailable()` 재사용)·Local AI(Ollama, 실제 `fetch` 연결 확인)·OpenAI/Gemini 5종 모두 실제 상태로 교체. OpenAI/Gemini는 최초엔 env var 존재 여부만으로 "Configured"를 판정했으나, **AI Provider Integration v1.1(2026-07-14, `## AI Provider Integration v1.1` 참고)에서 실제 모델 목록 엔드포인트를 호출하는 라이브 헬스체크로 교체** — 키가 없으면 "Not Configured"(호출 없음), 키가 있고 호출이 성공하면 "Configured"(+ 실제 모델명), 키가 있어도 호출이 실패하면 "Unreachable"을 반환한다(`packages/cli`의 `{openai,gemini}.validate()`와 동일한 "실제로 호출해본다" 원칙이나, 이 위젯은 페이지 로드마다 그려지므로 CLI를 서브프로세스로 띄우지 않고 Ollama처럼 짧은 타임아웃의 직접 `fetch`만 사용).
   - **Website Builder**(`/developer/websites`, 신규) — `ai website create` CLI를 `lib/commandEngine/engine.ts`의 `execute()`로 실제 실행(child process, 새 npm 의존성 없음). 생성 이력은 `lib/websites/registry.ts`(`lib/data/websites.json`)에 기록. 실제 E2E 검증: 8단계 Planning 파이프라인 실행 → `.generated-websites/<slug>`에 완전한 Next.js 프로젝트 생성 확인.
@@ -196,8 +196,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - **Marketplace**(`/developer/marketplace`) — Dashboard v1에서는 자체 설치 추적 JSON(`lib/data/marketplace-installed.json`)이었으나, Marketplace v1(2026-07-14, `## Marketplace` 참고)에서 실제 CLI 패키지 시스템과 직접 통신하도록 전면 재구성됨. 4개 화면(Browse/Installed/Updates/Package Details)으로 확장.
   - **Settings**(`/developer/settings`) — Profile·Authentication 카드 신규 추가(`useAuth()` 재사용), 기존 AI 카드에 `/api/providers`(AI Workspace와 동일 엔드포인트, 로직 재사용) 요약 링크 추가. Theme(General 하위)·Workspace는 기존 그대로 요건 충족.
   - **Logs**(`/developer/logs`) — 기존 Terminal/Git/AI/System 4개 필터에 cross-cutting "Errors" 필터 1개만 추가(백엔드 변경 없음).
-  - **Health**(`/developer/health`, 신규) — `lib/health/checks.ts`(신규)가 Git Status(기존 `lib/commandEngine/commands.ts`의 `git:status` 카탈로그 재사용)·Disk Usage(Node 내장 `fs.statfsSync`, 신규 의존성 없음)는 실시간으로, Build/Tests/Coverage는 수동 "Run Now" 버튼으로 실제 `npm run build`/`test`/`coverage`를 실행(동일 command engine 재사용)해 `lib/data/health-checks.json`에 캐시. Coverage 비율 파싱을 위해 `vitest.config.ts`의 `coverage.reporter`에 `"json-summary"` 추가.
-- Evidence: `app/developer/{page,workspace,terminal,github,ai,workflows,websites,marketplace,logs,health,settings,ui-map}/page.tsx`, `app/projects/{page.tsx,[id]/page.tsx}`, `components/developer/dashboard/*.tsx`, `lib/{providers,websites,marketplace,health}/*.ts`, `app/api/{providers,websites,marketplace,health}/**/route.ts`, `app/api/projects/[id]/route.ts`(DELETE), `components/developer/DeveloperNav.tsx`(13개 항목으로 확장)
+  - **Health**(`/developer/health`, 신규) — `lib/health/checks.ts`(신규)가 Git Status(기존 `lib/commandEngine/commands.ts`의 `git:status` 카탈로그 재사용)·Disk Usage(Node 내장 `fs.statfsSync`, 신규 의존성 없음)는 실시간으로, Build/Tests/Coverage는 수동 "Run Now" 버튼으로 실제 `npm run build`/`test`/`coverage`를 실행(동일 command engine 재사용)해 `lib/data/health-checks.json`에 캐시. Coverage 비율 파싱을 위해 `vitest.config.ts`의 `coverage.reporter`에 `"json-summary"` 추가. **Operations & Observability v1.1(2026-07-14)에서 CPU·Memory·Node version·Server Uptime·Active Sessions 5개 항목 추가**(`## Operations & Observability v1.1` 참고, 기존 Git/Disk/Build/Tests/Coverage는 무변경).
+- Evidence: `app/developer/{page,workspace,terminal,github,ai,workflows,websites,marketplace,logs,health,settings,ui-map}/page.tsx`, `app/projects/{page.tsx,[id]/page.tsx}`, `components/developer/dashboard/*.tsx`, `lib/{providers,websites,marketplace,health}/*.ts`, `app/api/{providers,websites,marketplace,health}/**/route.ts`, `app/api/projects/[id]/route.ts`(DELETE), `components/developer/DeveloperNav.tsx`(Operations & Observability v1.1 이후 17개 항목)
 - 테스트: `tests/{projects,providers,websites,marketplace,health}/*.test.ts`(신규, 총 27개 테스트) — 모두 `fs.mkdtempSync` 임시 디렉터리 격리 또는 순수 함수 검증, 실제 `npm run build`/`test`(느리고 재귀적)나 실제 CLI 서브프로세스는 유닛 테스트에서 실행하지 않음(수동 curl E2E로 별도 확인).
 - 인증: 모든 신규 라우트는 이미 존재하는 `/developer/**` 보호 범위 안에 들어가므로 `proxy.ts` 변경 없이 자동으로 보호됨(확인 완료).
 - 별도 대시보드는 CLI 쪽에는 없음(CLI는 터미널 메뉴 UI만 제공, `packages/cli/src/session/`).
@@ -288,6 +288,29 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ---
 
+## Operations & Observability v1.1
+
+**Status: ✅ Implemented — Audit Log, Metrics, Health 확장, Backup, Error Report — 2026-07-14**
+
+- Description: v1.0 릴리스·Production Validation 완료 이후, 핵심 기능 변경 없이 운영 가시성만 보강한 후속 작업. 새 저장소를 최소한으로 늘리고(감사 로그 1개, 카운터 1개, export/import 브릿지 1개), 기존 API/타입은 하나도 변경하지 않았다 — 전부 새 파일 추가 또는 기존 모듈에 새 export를 얹는 방식(additive)으로만 구현.
+- **Audit Log**(`lib/audit/log.ts`, 신규) — Login/Logout/Marketplace publish·install·remove/Website 생성/AI Task 실행을 기록(요구사항 5종) + Build 실행(Metrics의 "Build count" 계산 겸 Error Report 노출을 위해 추가). `lib/data/audit-log.json`에 append, `eventBus.ts`(200건 상한의 인메모리 히스토리, 서버 재시작 시 소실)와 달리 **디스크에 영구 저장**되며 500건 상한으로 오래된 항목부터 트리밍. `lib/audit/actor.ts`(신규)가 `next/headers`의 `cookies()` + 기존 `getCurrentUser()`로 actor(로그인 이메일)를 구한다(`app/api/auth/me/route.ts`와 동일한 패턴 재사용, `lib/auth/*`는 무변경). `/developer/audit-log`(신규) + `GET /api/audit`(신규, action/limit 필터).
+- **Metrics**(`lib/metrics/registry.ts`, 신규) — Build count·Website generation count·AI task count·Marketplace installs 4개 영구 카운터(`lib/data/metrics.json`, 성공/실패와 무관하게 실행될 때마다 +1) + Provider usage(기존 `lib/ai/bridge.ts`의 `listUsageViaCli()`를 그대로 재사용, 중복 계측 없음). Audit Log가 500건 상한의 롤링 윈도우라 누적 카운터로는 부적합하다는 점을 확인하고 별도 영구 저장소로 분리했다. `/developer/metrics`(신규) + `GET /api/metrics`(신규) + Dashboard Home의 `MetricsWidget`(신규, 9번째 위젯).
+- **Health Dashboard 확장**(`lib/health/checks.ts`) — 기존 `getGitStatus()`/`getDiskUsage()`/`runHealthCheck()`/`readHealthCache()`/`writeHealthCacheEntry()`는 시그니처·동작 모두 무변경. `getSystemInfo(cwd)`(신규 export)만 추가해 CPU(코어 수·모델·부하율)·Memory·Disk(기존 `getDiskUsage()` 재사용)·Node version(`process.version`)·Server Uptime(`process.uptime()`)·Active Sessions를 반환. CPU 부하율은 Windows에서 `os.loadavg()`가 항상 `[0,0,0]`을 반환하는 Node의 알려진 제약 때문에, `os.cpus()`의 누적 tick을 100ms 간격으로 두 번 샘플링해 직접 계산(신규 의존성 없음). Active Sessions는 `lib/auth/session.ts`에 신규 export `countActiveSessions()`를 추가해 구함(기존 `getValidSession()`/`createSession()`/`destroySession()`은 무변경). `GET /api/health` 응답에 `system` 필드만 추가(기존 `git`/`disk`/`cache` 필드는 그대로).
+- **Backup**(`lib/backup/registry.ts`, 신규) — Export configuration(`.runtime/config/providers.json` — 실제 비밀값이 아닌 `${ENV_VAR}` 참조 템플릿만 담고 있어 내보내도 안전, `packages/cli/src/providers/manager.ts` 참고)·prompts(`lib/data/prompts.json`)·workflows(`lib/data/workflows.json`)를 하나의 JSON 번들로 내보내고, 부분 번들도 허용하는 Import를 지원(있는 섹션만 복원, 없는 섹션은 기존 상태 유지). 각 모듈을 다시 구현하지 않고 그 모듈들이 실제로 쓰는 고정 파일 경로를 직접 읽고 쓴다(`lib/marketplace/registry.ts`의 `getCatalogSummary()`가 `marketplace/manifest.json`을 직접 읽는 것과 동일한 원칙). `/developer/backup`(신규, Export 버튼은 파일 다운로드, Import는 파일 선택 후 업로드) + `GET /api/backup/export`·`POST /api/backup/import`(신규).
+- **Error Report**(`/developer/errors`, 신규) — 별도 에러 저장소를 새로 만들지 않고 Audit Log에서 `success:false`인 항목만 필터링해 보여준다(`GET /api/errors`, 신규) — 로그인 실패·Marketplace 실패·Website 생성 실패·AI Task 실패·Build 실패가 한 곳에 모인다.
+- **DeveloperNav**(`components/developer/DeveloperNav.tsx`) — Health 다음에 Audit Log·Metrics·Backup·Error Report 4개 링크 추가(13개 → 17개 항목).
+- Evidence:
+  - 신규 lib: `lib/audit/{log,actor}.ts`, `lib/metrics/registry.ts`, `lib/backup/registry.ts`
+  - 기존 lib에 추가된 export(무변경 유지): `lib/health/checks.ts`(`getSystemInfo()`, `CpuInfo`/`MemoryInfo`/`SystemInfo` 타입), `lib/auth/session.ts`(`countActiveSessions()`)
+  - 신규 페이지: `app/developer/{audit-log,metrics,backup,errors}/page.tsx`, `components/developer/dashboard/MetricsWidget.tsx`
+  - 신규 API: `app/api/audit/route.ts`, `app/api/metrics/route.ts`, `app/api/backup/{export,import}/route.ts`, `app/api/errors/route.ts`
+  - Audit Log·Metric 기록 훅(모두 additive, 각 라우트의 기존 로직·응답 형식은 무변경): `app/api/auth/{login,logout}/route.ts`, `app/api/marketplace/{publish,[type]/[name]}/route.ts`, `app/api/websites/route.ts`, `app/api/agents/run/route.ts`, `app/api/ai/chat/route.ts`, `app/api/health/run/route.ts`
+  - 테스트(신규 20개): `tests/audit/log.test.ts`(7개 — record/list/필터/정렬/500건 상한 트리밍), `tests/metrics/registry.test.ts`(5개), `tests/backup/registry.test.ts`(5개 — export/import 왕복, 부분 번들), `tests/health/checks.test.ts`(`getSystemInfo()` 1개 추가), `tests/auth/session.test.ts`(`countActiveSessions()` 2개 추가)
+  - 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(90개 라우트 정상 생성, 신규 페이지 4개·API 5개 포함) · `npm test`(35 files / 228 tests 전부 통과, 회귀 없음). 실제 E2E: 검증 전용 임시 계정으로 로그인 → `/api/audit`(로그인 이벤트 실제 기록 확인) → `/api/metrics`(카운터 + 실제 Provider usage 확인) → `/api/backup/export`(configuration/prompts/workflows 빈 상태로 정상 응답) → 존재하지 않는 패키지로 marketplace install 실패 유발 → `/api/errors`에 그 실패가 실제로 나타남 + `marketplaceInstallCount`가 실패에도 불구하고 1 증가함을 확인 → `/api/health`의 `system` 필드(CPU 8코어·실제 모델명·Memory·Node v24.18.0·Uptime·Active Sessions)가 실제 머신 값을 반환함을 확인. Playwright로 5개 신규/확장 페이지(Audit Log·Metrics·Backup·Error Report·Health) 전부 렌더링과 실데이터 표시를 확인, Backup의 Export 버튼이 실제 파일 다운로드를 트리거함을 확인. 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, `.runtime/`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제.
+- 남은 제약(정직하게 기록): CPU 부하율은 100ms 샘플링 스냅샷이라 순간값이며 지속 추이를 보여주지 않는다. Metrics 카운터는 성공/실패를 구분하지 않고 "실행 횟수"만 센다(성공률이 필요하면 Audit Log를 함께 참고해야 함). Backup import는 파일 전체를 덮어쓰는 복원(restore) 방식이라 병합(merge)은 지원하지 않는다.
+
+---
+
 ## Authentication
 
 **Status: ✅ Implemented (Development OS scope) — 2026-07-14**
@@ -368,8 +391,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai}/`에 추가. 32개 테스트 파일·206개 테스트 케이스(2026-07-14 AI Provider Integration v1.1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 신규 17개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
-  - **AI Provider Integration v1.1(신규)** — `tests/ai-platform-cli/{provider-retry,streaming}.test.ts`(17개) + `tests/providers/status.test.ts`(기존 5개 유지, OpenAI/Gemini 라이브 체크로 갱신), 자세한 내용은 `## AI Provider Integration v1.1` 참고.
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup}/`에 추가. 35개 테스트 파일·228개 테스트 케이스(2026-07-14 Operations & Observability v1.1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 신규 20개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+  - **Operations & Observability v1.1(신규)** — `tests/audit/log.test.ts`(7개, record/list/필터/정렬/500건 상한 트리밍) + `tests/metrics/registry.test.ts`(5개) + `tests/backup/registry.test.ts`(5개, export/import 왕복·부분 번들) + `tests/health/checks.test.ts`(`getSystemInfo()` 1개 추가) + `tests/auth/session.test.ts`(`countActiveSessions()` 2개 추가), 자세한 내용은 `## Operations & Observability v1.1` 참고.
+  - **AI Provider Integration v1.1** — `tests/ai-platform-cli/{provider-retry,streaming}.test.ts`(17개) + `tests/providers/status.test.ts`(기존 5개 유지, OpenAI/Gemini 라이브 체크로 갱신), 자세한 내용은 `## AI Provider Integration v1.1` 참고.
   - **CLI startup** — 빌드된 `packages/cli/bin/ai.js`를 실제 하위 프로세스로 실행해 `--version`/`--help`/미등록 명령 처리를 검증(`dist/`가 없으면 skip). 루트 `pretest` 스크립트가 `npm test` 실행 전 CLI를 자동 빌드.
   - **Website Builder(CLI)** — `website/types.ts`(11개 사이트 타입·팔레트·카피)·`website/scaffold.ts`(`slugify()`/`resolveSiteType()`)·`website/content.ts`(Content Generator, 신규)의 실제 로직 검증.
   - **Workflow Engine** — `workflow/validator.ts`의 `validateWorkflowJson()`이 정상/비정상 `workflow.json`을 올바른 `WorkflowError` 코드로 구분하는지 검증.
@@ -381,7 +405,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - **AI Platform v1(신규)** — `tests/ai-platform-cli/{openrouter,provider-config,usage,prompt-library,task-ledger}.test.ts`(CLI 로직, 23개) + `tests/prompts/{registry,render}.test.ts`(Next.js Prompt Library, 11개) + `tests/agents/taskQueue-retry.test.ts`(Task Queue `retry()`, 실제 `shell` Agent로 검증, 3개) + `tests/ai/bridge.test.ts`(Dashboard↔CLI bridge, `execute()` mock, 6개), 자세한 내용은 `## AI Platform v1` 참고.
   - 이 작업 과정에서 실제로 발견·수정한 버그: `next build`의 TypeScript 타입체크가 루트 `tsconfig.json`(`exclude`가 비재귀 패턴이라 저장소 내 중첩 복제본까지 스캔)에서 빌드 실패 — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"` 재귀 패턴으로 교체(자세한 내용은 `## Build Status` 참고). Marketplace의 `remove`/`update` 명령이 애초에 한 번도 `install`과 맞물려 동작한 적이 없었던 버그도 이 과정에서 발견·수정(`## Marketplace` 참고). AI Platform v1 작업 중에는 `ProviderManager.readProvidersConfig()`가 파일이 없을 때 모듈 스코프 `DEFAULT_CONFIG` 객체를 참조로 반환해 쓰기 경로가 이를 영구 오염시키는 버그를 발견·수정(`## AI Platform v1` 참고).
   - 나머지 영역(Workflow/Agent Runtime의 실행 경로 자체, Orchestrator)은 아직 테스트 없음.
-- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
+- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
 
 ---
 

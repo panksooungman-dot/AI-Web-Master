@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { taskQueue } from "@/lib/agents/taskQueue";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
+import { incrementMetric } from "@/lib/metrics/registry";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -31,6 +34,10 @@ export async function POST(request: Request) {
     }
 
     const task = taskQueue.enqueue(agentId, prompt, { cwd, workspaceId, workspaceName });
+
+    const actor = await getCurrentActorEmail();
+    recordAuditEvent({ action: "ai.task", actor, success: true, detail: `Agent "${agentId}" 작업 큐 등록` });
+    incrementMetric("aiTaskCount");
 
     return NextResponse.json({ success: true, task });
   } catch (error) {

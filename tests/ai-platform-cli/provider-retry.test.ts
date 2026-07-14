@@ -16,6 +16,27 @@ function sseResponse(chunks: string[], status = 200): Response {
   return new Response(status === 200 ? body : null, { status });
 }
 
+/**
+ * Simulates a real fetch() that respects AbortSignal — resolves after `delayMs`, or rejects
+ * with a DOMException named "AbortError" the moment the caller's AbortController fires (exactly
+ * how undici/browser fetch behaves), so `fetchJsonOnce()`'s `setTimeout(() => controller.abort())`
+ * has something real to trigger against. Returns a plain implementation function usable with
+ * both `vi.stubGlobal("fetch", ...)` and `vi.fn().mockImplementationOnce(...)`.
+ */
+function slowFetchRespectingAbort(
+  delayMs: number,
+  response: Response
+): (url: string, init?: RequestInit) => Promise<Response> {
+  return (_url: string, init?: RequestInit) =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve(response.clone()), delayMs);
+      init?.signal?.addEventListener("abort", () => {
+        clearTimeout(timer);
+        reject(new DOMException("The operation was aborted.", "AbortError"));
+      });
+    });
+}
+
 describe("AI Provider — shared retry/SSE helpers (packages/cli/src/providers/provider.ts)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -96,6 +117,38 @@ describe("AI Provider — shared retry/SSE helpers (packages/cli/src/providers/p
       ).rejects.toBeInstanceOf(ProviderError);
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("aborts and reports TIMEOUT when the provider never responds within timeoutMs", async () => {
+      // Never resolves — the AbortController's own setTimeout(timeoutMs) must fire and reject.
+      const fetchMock = vi.fn(slowFetchRespectingAbort(60_000, new Response(JSON.stringify({ ok: true }))));
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(
+        providerFetchJson("test", "https://example.com/api", {}, /* timeoutMs */ 20, { retries: 0, baseDelayMs: 1 })
+      ).rejects.toMatchObject({ code: "TIMEOUT" });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("TIMEOUT is retryable — recovers on a later attempt that responds before the timeout", async () => {
+      const fetchMock = vi
+        .fn()
+        // 1st attempt: never responds within the 20ms timeout → TIMEOUT, retried.
+        .mockImplementationOnce(
+          slowFetchRespectingAbort(60_000, new Response(JSON.stringify({ ok: "never seen" })))
+        )
+        // 2nd attempt: responds immediately, well within the timeout.
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await providerFetchJson("test", "https://example.com/api", {}, /* timeoutMs */ 20, {
+        retries: 1,
+        baseDelayMs: 1
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });
 

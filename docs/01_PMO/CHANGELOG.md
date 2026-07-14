@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-07-14 (9)
+
+### 추가 (Added)
+
+- **Production Validation — AI Business OS v1.0 RC + AI Provider Integration v1.1을 실 서비스 관점에서 검증**: 새 기능은 추가하지 않고, 4개 트랙(Provider·Marketplace·Website Builder·Dashboard)을 실제 CLI 실행·실제 브라우저 로그인 세션·실제 파일시스템 검증으로 확인. 전체 근거는 `docs/PRODUCTION_VALIDATION.md`(신규)
+  - **Provider Validation**: 이 환경에 실 API 키(OpenAI/Anthropic/Gemini/OpenRouter)와 로컬 Ollama가 없어(직접 확인), 사용자 확인을 거쳐 재시도·타임아웃은 mock으로 실 검증하고 Health Check/Chat/Streaming의 실제 vendor 응답은 미검증 상태로 명시적으로 남김. `tests/ai-platform-cli/provider-retry.test.ts`에 `TIMEOUT` 코드 경로(`AbortController` 실제 만료 → 재시도 가능) 전용 테스트 2개 신규 추가
+  - **Marketplace Validation**: `agents/changelog-writer`(신규) — 이 저장소의 `docs/01_PMO/CHANGELOG.md` 작성 규칙(추가/변경/수정/검증 섹션, 날짜 헤딩, "왜" 중심 서술)을 따르는 CHANGELOG 초안 작성 Agent를 placeholder 없이 실 콘텐츠로 작성해 마켓플레이스에 실제로 게시(`marketplace/agents/changelog-writer/`, `marketplace/index.json`). publish/search/install/update/remove 전체 라이프사이클을 스크래치 디렉터리에서 실제 실행해 검증(재설치 시 `DUPLICATE_PACKAGE`, 미설치 제거 시 `NOT_FOUND` 등 의도된 실패 경로 포함)
+  - **Website Builder Validation**: `ai website create`로 SaaS(→`landing` 매핑)/Restaurant/Dental Clinic/Portfolio/E-commerce 5개 사이트를 스크래치 디렉터리에 생성 후 각각 `npm install`/`npm run build`/`npm run lint` 전부 통과 확인(18개 라우트, 경고 0건). 파이프라인 자체의 버그는 발견되지 않음
+  - **Dashboard Validation**: 검증 전용 임시 계정으로 실제 로그인 세션을 만들어 Login/Provider Status/Marketplace/Website Builder/AI Workspace 5개 화면을 Playwright로 확인, 전부 실 데이터 기준 정상 동작(Marketplace 화면에 방금 게시한 `changelog-writer`가 실제로 표시됨)
+
+### 수정 (Fixed)
+
+- **`marketplace/manifest.json`의 카테고리별 `count`가 `ai marketplace publish` 실행 후에도 자동 갱신되지 않던 문제**: `publishPackages()`는 `marketplace/index.json`만 갱신하고 카탈로그 설명용 정적 메타데이터인 `marketplace/manifest.json`은 건드리지 않는 것이 기존 설계임을 확인. 실제 게시 후 `count`가 실제와 어긋나 있어(agents: 0 → 실제 1) 정적 값만 수동으로 교정(자동 동기화 로직 추가는 새 기능이라 이번 범위에서 제외)
+- **`tests/marketplace/registry.test.ts`가 저장소의 실제 `marketplace/manifest.json`이 "항상 count 0"이라고 하드코딩되어 있던 문제**: 실제로 패키지를 게시하자마자 깨지는 테스트였음을 이번 검증에서 발견 — 특정 개수를 단언하는 대신 "실제 파일을 읽어 coherent한 구조를 만드는지"만 검증하도록 견고하게 수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(64개 라우트 정상 생성) · `npm test`(32 files / 208 tests 전부 통과, 신규 Timeout 테스트 2개 포함, 회귀 없음)
+- Website Builder 검증 중 재현된 기존 문서화된 부수 효과(Planning Agent 스캐폴딩이 `--out`과 무관하게 `process.cwd()` 기준 실 저장소에 생성됨, `docs/01_PMO/CHANGELOG.md` 2026-07-14 (3)/(4) 참고)를 검증 후 수동으로 정리(코드 수정 없음), dev 서버·임시 로그인 계정(`lib/data/*`, 전부 `.gitignore` 대상)도 검증 후 전부 종료·삭제
+- `docs/PRODUCTION_VALIDATION.md`(신규) · `docs/REPOSITORY_INDEX.md`(`## Production Validation` 신규 섹션, `## AI Provider Integration v1.1`·`## Marketplace`·`## Remaining TODO`·`## Recommended Next Tasks` 갱신) 작성/갱신
+
+---
+
 ## 2026-07-14 (8)
 
 ### 추가 (Added)

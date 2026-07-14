@@ -1,0 +1,11 @@
+[
+  {
+    "name": "changelog-writer",
+    "type": "agent",
+    "version": "1.0.0",
+    "description": "Drafts a docs/01_PMO/CHANGELOG.md entry (추가/변경/수정/검증) from a summary of completed work or a git diff, following this repo's exact CHANGELOG conventions.",
+    "author": "AI Business OS",
+    "createdAt": "2026-07-14T11:34:07.651Z",
+    "publishedAt": "2026-07-14T11:35:41.415Z"
+  }
+]

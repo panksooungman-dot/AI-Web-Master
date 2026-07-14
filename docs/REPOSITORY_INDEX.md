@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — AI Provider Integration v1.1 반영)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — Production Validation 결과 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
 > **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
 
@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 32 files / 206 tests 전부 통과 (AI Provider Integration v1.1 신규 17개 포함) |
+| `npm test`(Vitest) | ✅ 32 files / 208 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation 신규 Timeout 테스트 2개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1(`## AI Provider Integration v1.1` 참고) 반영 이후 재실행한 결과다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1과 그 후속 Production Validation(`## Production Validation` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -220,7 +220,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - Dashboard 브리지: `lib/marketplace/registry.ts`(재작성, CLI shell-out), `app/api/marketplace/{route.ts,installed/route.ts,publish/route.ts,[type]/[name]/route.ts}`(재작성/신규), `app/developer/marketplace/{page.tsx,installed/page.tsx,updates/page.tsx,[type]/[name]/page.tsx}`, `components/developer/marketplace/MarketplaceTabs.tsx`, `components/developer/dashboard/MarketplaceWidget.tsx`(실데이터로 갱신)
   - 테스트(신규, 49개): `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(38개, CLI 로직을 `packages/cli/src/**/*.ts`에서 직접 import, subprocess 미사용), `tests/marketplace/{registry,cli-bridge}.test.ts`(11개, `execute()` mock으로 브리지 함수의 명령 조합·JSON 파싱·에러 전파 검증)
   - 검증: CLI `ai marketplace publish/search/install/update/remove --json` 스크래치 디렉터리에서 전체 라이프사이클 실행 확인(설치된 manifest.json에 버전 기록됨, update가 no-op→실제 적용까지 정확히 동작), Dashboard도 로그인 상태에서 동일 라이프사이클(publish→search→install→details→update→remove)을 실제 HTTP 요청으로 재확인. 테스트에 사용한 스크래치 패키지·`marketplace/index.json`·`marketplace/agents/e2e-dashboard-test/`·인증 테스트 계정은 검증 후 전부 삭제(사전에 `git ls-files`로 각 경로가 미추적임을 확인한 뒤 삭제).
-- 여전히 남은 것: 실제로 `ai publish`(또는 대시보드의 Publish)를 실행하기 전까지는 저장소의 실제 `marketplace/manifest.json` 5개 카테고리가 여전히 `count: 0`이다 — 메커니즘은 이제 정상 동작하지만, 아직 아무도 실제 패키지를 게시하지 않았을 뿐이다.
+- ~~여전히 남은 것: ... count: 0~~ — **해결됨(Production Validation, 2026-07-14)**: `agents/changelog-writer`를 실제로 생성·게시해 `agents` 카테고리 `count`가 `1`이 됨(`marketplace/manifest.json`). 나머지 4개 카테고리(prompts/skills/templates/workflows)는 여전히 `count: 0` — 카탈로그를 더 채우는 것은 `## Recommended Next Tasks`에 남겨둔다. 상세는 `## Production Validation`·`docs/PRODUCTION_VALIDATION.md` 참고.
 
 ---
 
@@ -268,8 +268,23 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - `packages/cli/src/providers/anthropic.ts`·`openai.ts`(`chatStream()` 구현), `packages/cli/src/providers/manager.ts`(`streamComplete()`)
   - `packages/cli/src/commands/chat.ts`(`--stream` 플래그, `streamChat()`), `packages/cli/src/index.ts`(`ai chat --stream` 등록)
   - `lib/providers/status.ts`(`checkLiveApiProvider()`, `checkOpenAI()`, `checkGemini()`)
-  - 테스트(신규 17개, 기존 `tests/providers/status.test.ts` 갱신 포함): `tests/ai-platform-cli/provider-retry.test.ts`(9개 — `providerFetchJson()`/`providerFetchSseStream()`의 재시도·비재시도 조건, SSE 청크 경계 분할 파싱), `tests/ai-platform-cli/streaming.test.ts`(8개 — Anthropic/OpenAI `chatStream()` 파싱, `ProviderManager.streamComplete()`의 simulate 폴백·명시적 provider 실패 전파·non-streaming provider(gemini) 폴백·streaming provider(anthropic) 청크·사용량 기록), `tests/providers/status.test.ts`(기존 5개 유지 + OpenAI/Gemini 라이브 체크 케이스 갱신 — 이 과정에서 "키 없으면 fetch가 전혀 호출되지 않는다"고 잘못 단언하던 기존 assertion 버그를 발견·수정: `getProviderStatuses()`가 Ollama 체크도 병렬로 항상 `fetch`하므로, "OpenAI/Gemini URL로는 호출되지 않는다"로 단언 범위를 좁혔다).
-  - 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(루트, 64개 라우트 정상 생성) · `npm test`(32 files / 206 tests 전부 통과, 회귀 없음).
+  - 테스트(신규 19개 — 최초 17개 + Production Validation에서 추가한 Timeout 2개, 기존 `tests/providers/status.test.ts` 갱신 포함): `tests/ai-platform-cli/provider-retry.test.ts`(11개 — `providerFetchJson()`/`providerFetchSseStream()`의 재시도·비재시도 조건, SSE 청크 경계 분할 파싱, `TIMEOUT` 코드 경로가 실제 `AbortController.abort()` 발동으로 발생하고 재시도 가능함을 검증하는 2개 포함), `tests/ai-platform-cli/streaming.test.ts`(8개 — Anthropic/OpenAI `chatStream()` 파싱, `ProviderManager.streamComplete()`의 simulate 폴백·명시적 provider 실패 전파·non-streaming provider(gemini) 폴백·streaming provider(anthropic) 청크·사용량 기록), `tests/providers/status.test.ts`(기존 5개 유지 + OpenAI/Gemini 라이브 체크 케이스 갱신 — 이 과정에서 "키 없으면 fetch가 전혀 호출되지 않는다"고 잘못 단언하던 기존 assertion 버그를 발견·수정: `getProviderStatuses()`가 Ollama 체크도 병렬로 항상 `fetch`하므로, "OpenAI/Gemini URL로는 호출되지 않는다"로 단언 범위를 좁혔다).
+  - 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(루트, 64개 라우트 정상 생성) · `npm test`(32 files / 208 tests 전부 통과, 회귀 없음).
+  - **Production Validation(2026-07-14) 후속**: 이 provider 계층을 실 서비스 관점에서 검증한 결과는 `## Production Validation` 및 `docs/PRODUCTION_VALIDATION.md` 참고 — 재시도·타임아웃은 실 검증(mock), Health Check·Chat·Streaming의 실제 vendor 응답은 이 환경에 API 키가 없어 미검증 상태로 명시적으로 남아 있다.
+
+---
+
+## Production Validation
+
+**Status: ✅ Completed (v1.0 RC + AI Provider Integration v1.1) — 2026-07-14**
+
+- Description: v1.0 RC와 AI Provider Integration v1.1 완료 이후, 실 서비스 관점에서 4개 트랙(Provider·Marketplace·Website Builder·Dashboard)을 실제 CLI 실행·실제 브라우저 로그인 세션·실제 파일시스템 검증으로 확인. 새 기능은 추가하지 않고, 검증 중 실제로 발견된 문제만 최소 범위로 수정했다. 전체 근거·표·상세 결과는 `docs/PRODUCTION_VALIDATION.md`에 있고, 이 섹션은 요약만 다룬다.
+- **Provider Validation** — 이 환경에 실 API 키(OpenAI/Anthropic/Gemini/OpenRouter)와 로컬 Ollama가 전혀 없어(직접 확인), 사용자 확인을 거쳐 재시도·타임아웃은 mock으로 검증하고 Health Check/Chat/Streaming의 실제 vendor 응답은 미검증 상태로 명시적으로 남김. 검증 중 `TIMEOUT` 코드 경로(`AbortController` 실제 만료) 전용 테스트가 없던 것을 발견해 2개 추가(`tests/ai-platform-cli/provider-retry.test.ts`).
+- **Marketplace Validation** — `agents/changelog-writer`(신규, 실 콘텐츠 — 이 저장소의 CHANGELOG 작성 규칙을 따르는 Agent)를 실제로 생성·게시해 `marketplace/manifest.json`의 `count`가 최초로 `0`이 아닌 값을 갖게 됨(Recommended Next Task #4가 이번에 충족됨). publish/search/install/update/remove 전체 라이프사이클을 스크래치 디렉터리에서 실제 실행해 검증. 발견한 문제: `marketplace/manifest.json`의 `count`가 `publish` 후에도 자동 갱신되지 않아 실제와 어긋나 있었음(정적 값 교정, 자동 동기화 로직 추가는 새 기능이라 이번 범위 밖) — 및 `tests/marketplace/registry.test.ts`가 "실 저장소 manifest는 항상 count 0"이라고 하드코딩되어 있어 실제 게시 직후 깨지는 테스트였던 것을 발견·수정.
+- **Website Builder Validation** — SaaS(→`landing`으로 매핑, "SaaS"는 canonical 타입이 아님)/Restaurant/Dental Clinic/Portfolio/E-commerce 5개 사이트를 스크래치 디렉터리에 생성해 `npm install`/`npm run build`/`npm run lint` 전부 통과(18개 라우트, 경고 0건) 확인. 파이프라인 자체의 버그는 발견되지 않음. `--out`을 지정해도 Planning Agent 스캐폴딩(`agents/{business-analyst,...}`, `workflows/website-builder/`)이 `process.cwd()` 기준으로 실 저장소에 생성되는 기존 문서화된 부수 효과가 재현되어, 검증 후 수동으로 정리함(코드 수정 없음).
+- **Dashboard Validation** — 검증 전용 임시 계정으로 실제 로그인 세션을 만들어 Login/Provider Status/Marketplace/Website Builder/AI Workspace 5개 화면을 Playwright로 확인, 전부 실 데이터 기준으로 정상 동작(예: Marketplace 화면에 방금 게시한 `changelog-writer`가 실제로 표시됨). 검증에 사용한 dev 서버·계정 데이터는 전부 종료·삭제.
+- Evidence: `docs/PRODUCTION_VALIDATION.md`(전체 결과), `agents/changelog-writer/`(신규 실 패키지), `marketplace/{index.json,agents/changelog-writer/,manifest.json}`(count 교정), `tests/ai-platform-cli/provider-retry.test.ts`(Timeout 테스트 2개 추가), `tests/marketplace/registry.test.ts`(하드코딩 단언 수정)
+- 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(64개 라우트) · `npm test`(32 files / 208 tests 전부 통과)
 
 ---
 
@@ -344,7 +359,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - `docs/09_WORK_HISTORY/`(5) — `CURRENT_CONTEXT.md`, `WORK_HISTORY.md` + `sessions/`
   - `docs/99_ARCHIVE/`(1)
 - **`docs/08_PLANS/상가분양센터/`(7개 파일, 936KB, HTML/PDF/md)**: CNBIZ/AI Business OS와 무관한 것으로 보이는 별도 프로젝트("상가분양센터"=상업용 부동산 분양 센터) 화면 구조도·사용자 스토리보드·"의뢰자미팅용" 문서. **v1.0.0 클린업(2026-07-14)에서도 소유권 미확인으로 삭제하지 않고 그대로 유지**(`Remaining TODO` 참고, 실수로 함께 삭제될 뻔했으나 즉시 복구·재확인함).
-- ~~`docs/` 최상위(번호 폴더 밖) 느슨한 파일 22개가 git에 커밋되어 있음~~ — **부분 해결(v1.0.0, 2026-07-14)**: 이전 감사 산출물로 추정되던 14개(`AGENT_AUDIT.md`, `CLI_AUDIT.md`, `CODE_QUALITY.md`, `DASHBOARD_AUDIT.md`, `FEATURE_MATRIX.md`, `IMPLEMENTATION_STATUS.md`, `PROJECT_AUDIT.md`, `PROJECT_STATUS.md`, `PROJECT_STATUS_CURRENT.md`, `REPOSITORY_AUDIT_COMPLETE.md`, `ROADMAP.md`, `TECH_DEBT.md`, `TODO_CURRENT.md`, `WEBSITE_BUILDER_AUDIT.md`, `WORKFLOW_AUDIT.md`)를 `git rm`했다 — 이 인덱스 문서(`REPOSITORY_INDEX.md`)가 유일한 최신 소스. 정상 운영 문서로 남긴 것: `README.md`, `UI_MAP.md`, `PROJECT_PAGES.md`, `faq.md`, `getting-started.md`, `installation.md`(Phase 5 계획 문서로 의도적 유지), `RELEASE_CHECKLIST.md`·`RELEASE_NOTES_v1.0.md`(신규).
+- ~~`docs/` 최상위(번호 폴더 밖) 느슨한 파일 22개가 git에 커밋되어 있음~~ — **부분 해결(v1.0.0, 2026-07-14)**: 이전 감사 산출물로 추정되던 14개(`AGENT_AUDIT.md`, `CLI_AUDIT.md`, `CODE_QUALITY.md`, `DASHBOARD_AUDIT.md`, `FEATURE_MATRIX.md`, `IMPLEMENTATION_STATUS.md`, `PROJECT_AUDIT.md`, `PROJECT_STATUS.md`, `PROJECT_STATUS_CURRENT.md`, `REPOSITORY_AUDIT_COMPLETE.md`, `ROADMAP.md`, `TECH_DEBT.md`, `TODO_CURRENT.md`, `WEBSITE_BUILDER_AUDIT.md`, `WORKFLOW_AUDIT.md`)를 `git rm`했다 — 이 인덱스 문서(`REPOSITORY_INDEX.md`)가 유일한 최신 소스. 정상 운영 문서로 남긴 것: `README.md`, `UI_MAP.md`, `PROJECT_PAGES.md`, `faq.md`, `getting-started.md`, `installation.md`(Phase 5 계획 문서로 의도적 유지), `RELEASE_CHECKLIST.md`·`RELEASE_NOTES_v1.0.md`·`PRODUCTION_VALIDATION.md`(신규, Production Validation 결과).
 - ~~`docs.zip`(240KB)·`docs_extract/`(70개 파일, 598KB)~~ — **해결됨(v1.0.0, 2026-07-14)**: `docs/` 스냅샷 압축본과 그 해제본으로 확인되어 `git rm`. `tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`(디렉터리 덤프 텍스트)와 `test-project/`(CLI 테스트 스크래치), `backup.bat`/`start-wor.bat`(구식 배치 스크립트, `ai devmode`/`ai deploy`로 대체됨)도 함께 제거했다.
 
 ---
@@ -412,7 +427,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - ~~저장소 루트 정리 필요~~ — **해결됨(v1.0.0, 2026-07-14)**: 자기 자신의 중첩 복제본(`AI-Web-Master/`, broken gitlink), 이전 감사 산출물(`docs.zip`, `docs_extract/`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`, `typescript-files.txt`), 스크래치 프로젝트(`test-project/`), 구식 배치 스크립트(`backup.bat`, `start-wor.bat`), `docs/` 최상위 구 감사 문서 14종을 전부 `git rm`했다(히스토리 재작성은 하지 않음 — 과거 커밋에는 여전히 남아 있으나 HEAD 기준 작업 트리에는 없음). `docs/08_PLANS/상가분양센터/`만 소유권 미확인으로 예외 유지.
 - **⚠ 루트 `app/{about,services,portfolio,contact}`(v1 레거시 CNBIZ 마케팅 페이지)가 Development OS와 같은 Next.js 앱에 여전히 공존**: `apps/cnbiz-web`(v2)로 실제 서비스가 이전되어 `WBS.md` 기준 2026-07-01부로 동결됐음에도, 루트 앱에서 인증 없이 계속 공개 상태로 서빙되고 있음(`proxy.ts`의 보호 대상은 `/developer/**`·`/projects/**`뿐). v1.0.0 클린업은 stabilization에 집중하기 위해 이 삭제를 범위에서 제외했다 — 별도 승인 후 제거 여부 결정 필요.
 - **Agent Runtime / Workflow Engine 이원화**: Development OS(`lib/agents`, `lib/workflows`)와 CLI(`packages/cli/src/runtime`, `packages/cli/src/workflow`)에 유사한 개념이 각각 독립적으로 구현되어 있어 장기적으로 개념 통합 여부에 대한 결정이 필요(현재는 의도적으로 별개 애플리케이션이라 문제는 아님).
-- **Marketplace v1 — 메커니즘은 정상이지만 실제 게시된 패키지는 여전히 0개**: `ai marketplace publish`(또는 Dashboard의 Publish)를 아무도 실행하지 않아 `marketplace/manifest.json` 5개 카테고리가 여전히 `count: 0`. Install/Remove/Update 로직 자체는 2026-07-14에 수정·검증 완료(`## Marketplace` 참고) — 남은 건 실제 콘텐츠뿐.
+- **Marketplace v1 — 카탈로그가 여전히 얇음(1개 패키지)**: Production Validation(2026-07-14)에서 `agents/changelog-writer`를 실제로 게시해 `count: 0`이던 상태는 해소했으나(`## Production Validation` 참고), agents 외 4개 카테고리(prompts/skills/templates/workflows)는 여전히 0개. Install/Remove/Update 로직 자체는 2026-07-14에 수정·검증 완료(`## Marketplace` 참고).
 - **Marketplace v1 — 온라인 레지스트리 Provider 없음**: `LocalMarketplaceProvider`(파일시스템 기반)만 존재. `getMarketplaceProvider()`가 향후 다른 Provider로 교체 가능하도록 인터페이스로 분리되어 있으나 실제 구현은 없음.
 - **Dashboard v1 — Website Builder는 `packages/cli/dist/index.js`가 빌드되어 있어야 동작**: `npm run build --workspace=@ai-business-os/cli`(루트 `pretest`가 자동 실행) 이후에만 `/developer/websites`의 Create가 성공. 없으면 API가 400으로 명확히 안내하지만, 클린 체크아웃 직후 첫 사용 시 놓치기 쉬움.
 - **Dashboard v1 — Logs 카테고리 이름이 요청한 "Application/Workflow/CLI" 표현과 다름**: 기존 Terminal/Git/AI/System 4개 카테고리(`lib/events/eventBus.ts`)를 그대로 두고 cross-cutting "Errors" 필터만 추가함(재설계 방지 목적). 정확한 이름 매핑이 필요하면 `EventCategory` 자체를 확장하는 별도 작업 필요.
@@ -430,7 +445,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 1. **`docs/08_PLANS/상가분양센터/` 소유권 확인** — v1.0.0 클린업에서도 삭제하지 않고 보류. 다른 고객사 자료로 추정되는 문서가 이 저장소에 남아 있음을 사용자에게 확인하고, `git rm`(및 민감도에 따라 히스토리 제거) 여부를 결정.
 2. **루트 `app/{about,services,portfolio,contact}`(v1 레거시 CNBIZ 마케팅 페이지) 제거 여부 결정** — `apps/cnbiz-web`(v2)로 이미 대체됐으나 루트 앱에 인증 없이 공존 중. 삭제 승인 시 별도 작업으로 제거.
 3. **테스트 커버리지 확장** — Orchestrator(`packages/cli/src/orchestrator`), Development OS Workflow Engine(`lib/workflows/engine.ts`), Provider 시뮬레이션 폴백 경로(`packages/cli/src/providers/manager.ts`) 등 아직 다루지 않은 영역에 순서대로 테스트 추가.
-4. **Marketplace 실 데이터 채우기** — Install/Remove/Update/Publish 메커니즘은 이제 CLI·Dashboard 양쪽에서 검증 완료(`## Marketplace` 참고)했으므로, 실제 `ai marketplace publish`로 agent/workflow/skill을 최소 1개 이상 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신 — 남은 유일한 작업.
+4. **Marketplace 실 데이터 계속 채우기** — Production Validation(2026-07-14)에서 `agents/changelog-writer` 1개를 실제로 게시해 최초 실 데이터를 채웠다(`## Production Validation` 참고). prompts/skills/templates/workflows 4개 카테고리는 여전히 0개 — 필요에 따라 추가 게시.
 5. **Authentication — 다른 내부 API 보호 여부 결정** — `/developer/**`·`/projects/**`는 보호되지만 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등은 `packages/cli` 호환을 위해 의도적으로 미보호 상태. CLI 쪽에도 세션 전달(예: API 토큰) 방식을 도입해 이 API들까지 보호 범위를 넓힐지, 현재 상태를 유지할지 결정 필요.
 6. **온라인 Marketplace Provider 도입 여부 결정** — 현재는 `LocalMarketplaceProvider`(파일시스템)만 존재. 여러 프로젝트/팀 간 패키지 공유가 필요해지면 HTTP 기반 Provider를 `MarketplaceProvider` 인터페이스에 맞춰 추가하는 방향으로 확장 가능(인터페이스는 이미 이를 염두에 두고 분리되어 있음).
 7. **AI Platform v1 / AI Provider Integration v1.1 — 실제 API 키로 검증 필요** — 이번 검증은 이 환경에 실제 Provider API 키가 없어 전부 시뮬레이션 폴백 또는 mock된 `fetch` 경로로만 확인됨(`## AI Platform v1`·`## AI Provider Integration v1.1` 참고). 실제 Anthropic/OpenAI/Gemini/OpenRouter 키가 준비되면 `ai provider set-key`·`ai chat`(`--stream` 포함)·`ai prompt execute`의 실제 응답·토큰 사용량 기록에 더해, 재시도(429/5xx 발생 시 실제로 재시도되는지)와 스트리밍(실제 SSE 응답이 청크 파싱과 어긋나지 않는지)도 재확인 권장.

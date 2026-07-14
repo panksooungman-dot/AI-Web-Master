@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>상가분양센터 · 사용자 화면 스토리보드</title>
+  <style>
+    :root {
+      --navy: #0b1f3a;
+      --navy-2: #153155;
+      --gold: #c9a227;
+      --gold-bg: #f4ecd0;
+      --bg: #eef2f7;
+      --white: #fff;
+      --line: #cfd6e0;
+      --text: #182433;
+      --muted: #617288;
+      --frame: #dde4ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header.top {
+      background: var(--navy);
+      color: #fff;
+      padding: 22px 28px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    header.top h1 { margin: 0; font-size: 22px; }
+    header.top p { margin: 6px 0 0; color: #b8c6d9; font-size: 13px; }
+    .badge {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 700;
+      font-size: 12px;
+      padding: 7px 11px;
+      border-radius: 4px;
+      height: fit-content;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 22px; }
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      color: var(--navy);
+    }
+    .hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    .scenario-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .scenario-tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .scenario-tab.active {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: #fff;
+    }
+    .scenario-meta {
+      background: var(--gold-bg);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .scenario-meta strong { color: var(--navy); }
+    .story-row {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scroll-snap-type: x proximity;
+    }
+    .scene {
+      flex: 0 0 260px;
+      scroll-snap-align: start;
+    }
+    .scene-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .step-no {
+      background: var(--gold);
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+    }
+    .phone {
+      background: var(--frame);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 10px;
+      min-height: 420px;
+    }
+    .screen {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+    .status {
+      background: var(--navy);
+      color: #fff;
+      font-size: 10px;
+      padding: 7px 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .content { flex: 1; display: flex; flex-direction: column; }
+    .blk {
+      border-bottom: 1px dashed #e2e8f0;
+      padding: 8px 9px;
+      font-size: 10px;
+    }
+    .blk:last-child { border-bottom: 0; }
+    .nav {
+      background: var(--navy);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 9px;
+      font-size: 10px;
+    }
+    .nav .cta {
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 700;
+      border-radius: 3px;
+      padding: 3px 6px;
+    }
+    .hero {
+      background: linear-gradient(165deg, #0b1f3a, #1c4068);
+      color: #fff;
+      padding: 14px 10px;
+      text-align: center;
+    }
+    .hero h4 { margin: 0 0 4px; font-size: 13px; }
+    .hero p { margin: 0; color: #c9d7ea; font-size: 10px; }
+    .search {
+      margin-top: 8px;
+      background: #fff;
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+    }
+    .search b { color: var(--navy); }
+    .trust {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      padding: 6px 8px;
+      background: #f7f9fc;
+      font-size: 9px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+    .chip {
+      background: #eef2f7;
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 6px 8px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .thumb {
+      height: 42px;
+      background: #c8d2e2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 9px;
+    }
+    .card-body { padding: 5px; font-size: 9px; line-height: 1.35; }
+    .btns { display: flex; gap: 4px; margin-top: 4px; }
+    .btn {
+      flex: 1;
+      text-align: center;
+      border-radius: 3px;
+      padding: 4px 0;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .btn.pri { background: var(--navy); color: #fff; }
+    .btn.sec { background: var(--gold-bg); color: var(--navy); border: 1px solid #e0d2a0; }
+    .filterbar {
+      padding: 8px;
+      background: #f7f9fc;
+      border-bottom: 1px solid var(--line);
+      font-size: 9px;
+    }
+    .filterbar .row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+    .pill {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 3px 6px;
+    }
+    .map {
+      flex: 1;
+      min-height: 160px;
+      background:
+        radial-gradient(circle at 35% 40%, #9eb2cd 0 6px, transparent 7px),
+        radial-gradient(circle at 55% 55%, var(--gold) 0 7px, transparent 8px),
+        radial-gradient(circle at 70% 35%, #9eb2cd 0 5px, transparent 6px),
+        linear-gradient(180deg, #d9e3f0, #c6d3e4);
+      position: relative;
+    }
+    .preview {
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      bottom: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px;
+      font-size: 9px;
+      box-shadow: 0 2px 0 rgba(11,31,58,.04);
+    }
+    .keyinfo {
+      padding: 8px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+      font-size: 10px;
+    }
+    .keyinfo .price { font-size: 14px; font-weight: 800; color: var(--navy); }
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 9px;
+    }
+    .tabs span {
+      flex: 1;
+      text-align: center;
+      padding: 6px 0;
+      color: var(--muted);
+    }
+    .tabs span.on {
+      color: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      font-weight: 700;
+    }
+    .form label {
+      display: block;
+      font-size: 9px;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+    .form input, .form select, .form textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 5px 6px;
+      margin-top: 2px;
+      font-size: 10px;
+      background: #fff;
+    }
+    .submit {
+      margin: 8px;
+      background: var(--navy);
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 9px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .success {
+      padding: 20px 12px;
+      text-align: center;
+    }
+    .success .ok {
+      width: 36px; height: 36px; margin: 0 auto 8px;
+      border-radius: 50%; background: #1f7a4d; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800;
+    }
+    .caption {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+      min-height: 52px;
+    }
+    .action {
+      display: inline-block;
+      margin-top: 4px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+    }
+    .compare-table th, .compare-table td {
+      border: 1px solid var(--line);
+      padding: 4px;
+      text-align: center;
+    }
+    .compare-table th { background: #f3f6fa; }
+    .arrow {
+      align-self: center;
+      color: var(--gold);
+      font-size: 22px;
+      font-weight: 800;
+      flex: 0 0 auto;
+      margin-top: -40px;
+    }
+    .legend {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      font-size: 12px; color: var(--muted); margin-top: 10px;
+    }
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 0 28px;
+    }
+    @media (max-width: 700px) {
+      .scene { flex-basis: 84vw; }
+      .arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>상가분양센터 · 사용자 화면 스토리보드</h1>
+      <p>의뢰자 기획 미팅용 · 시나리오별 화면 흐름을 좌→우로 함께 보며 합의합니다 · v1.0 · 2026-07-14</p>
+    </div>
+    <div class="badge">전환 CTA = 상담신청</div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <h2>1) 전체 전환 스토리 (공통 퍼널)</h2>
+      <p class="hint">모든 시나리오가 최종적으로 도달하는 공통 경로입니다.</p>
+      <div class="story-row" id="funnelStory"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2) 사용자 시나리오별 화면 스토리보드</h2>
+      <div class="scenario-tabs" id="scenarioTabs"></div>
+      <div class="scenario-meta" id="scenarioMeta"></div>
+      <div class="story-row" id="scenarioStory"></div>
+      <div class="legend">
+        <span>■ 네이비 버튼 = 1차 CTA(상담신청)</span>
+        <span>■ 골드 영역 = 보조 CTA/강조</span>
+        <span>→ 화살표 = 다음 화면으로의 사용자 이동</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>3) 미팅 확인 포인트</h2>
+      <ul class="hint" style="margin:0; padding-left:18px; color:var(--text); font-size:13px; line-height:1.7">
+        <li>홈 퀵서치 조건(지역·면적·분양가·역세권)이 의뢰자 실제 상품과 맞는가?</li>
+        <li>리스트 카드에 보여줄 정보(면적/분양가/층/입점/역세권/호재1줄) 충분한가?</li>
+        <li>지도 마커 클릭 시 프리뷰 → 상세 흐름이 자연스러운가?</li>
+        <li>비교는 최대 몇 건(3 또는 4)으로 할지?</li>
+        <li>상담신청 필수 필드(이름·연락처·개인정보동의) 외 추가할 항목이 있는가?</li>
+      </ul>
+    </section>
+  </main>
+
+  <p class="footer-note">
+    관련 문서: 화면스토리보드_의뢰자미팅용.md · UIUX화면구조도.html<br />
+    본 화면은 사용자 여정 합의용 스토리보드이며 최종 UI 시안을 대체하지 않습니다.
+  </p>
+
+  <script>
+    const funnel = [
+      {
+        step: 1, title: "홈", page: "P01",
+        action: "퀵서치 / 추천 클릭",
+        note: "브랜드 신뢰 + 조건 입력으로 탐색 시작",
+        type: "home"
+      },
+      {
+        step: 2, title: "리스트·필터", page: "P02",
+        action: "조건 축약 후 카드 선택",
+        note: "면적·가격·역세권으로 후보 압축",
+        type: "list"
+      },
+      {
+        step: 3, title: "상가 상세", page: "P04",
+        action: "호재·평면도 확인",
+        note: "확신 형성 후 상담·관심·비교",
+        type: "detail"
+      },
+      {
+        step: 4, title: "상담신청", page: "P07",
+        action: "폼 작성·동의·제출",
+        note: "리드 수집 (전환 최종단)",
+        type: "form"
+      },
+      {
+        step: 5, title: "완료", page: "P07-Done",
+        action: "접수번호 확인",
+        note: "예상 연락시간 + 재탐색 유도",
+        type: "done"
+      }
+    ];
+
+    const scenarios = [
+      {
+        id: "S1",
+        name: "투자자 · 서울 역세권 소형",
+        who: "서울 역세권 소형 상가를 찾는 투자자",
+        keyScreens: "P02 · P04 · P07",
+        goal: "조건 검색 → 호재 확인 → 상담",
+        frames: [
+          { step: 1, title: "홈 퀵서치", page: "P01", action: "서울 · 소형 · 역세권 검색", note: "투자 조건으로 즉시 진입", type: "home" },
+          { step: 2, title: "리스트", page: "P02", action: "가격·역세권 정렬", note: "카드로 후보 3~5개 스크리닝", type: "list" },
+          { step: 3, title: "상세", page: "P04", action: "호재·입지 탭 확인", note: "수익률/호재로 확신", type: "detail" },
+          { step: 4, title: "상담신청", page: "P07", action: "문의유형=투자", note: "선택 매물 컨텍스트 포함", type: "form" },
+          { step: 5, title: "완료", page: "Done", action: "접수 완료", note: "관심목록 유지", type: "done" }
+        ]
+      },
+      {
+        id: "S2",
+        name: "창업자 · 유동 상권",
+        who: "유동인구 많은 상권에서 창업하려는 사용자",
+        keyScreens: "P03 · P04 · P07",
+        goal: "지도 탐색 → 입지 확인 → 상담",
+        frames: [
+          { step: 1, title: "홈/지도 진입", page: "P01→P03", action: "지도로 탐색", note: "지역·상권 감각으로 탐색", type: "home" },
+          { step: 2, title: "지도", page: "P03", action: "마커 클릭", note: "프리뷰 카드로 1차 판정", type: "map" },
+          { step: 3, title: "상세", page: "P04", action: "입지·동선 확인", note: "창업 적합 여부 점검 + 관심", type: "detail" },
+          { step: 4, title: "상담신청", page: "P07", action: "문의유형=창업", note: "희망면적·지역 입력", type: "form" },
+          { step: 5, title: "완료", page: "Done", action: "접수 완료", note: "추가 매물 추천 유도", type: "done" }
+        ]
+      },
+      {
+        id: "S3",
+        name: "자문형 · 비교 후 상담",
+        who: "여러 매물을 비교한 뒤 상담하는 사용자",
+        keyScreens: "P05 · P04 · P07",
+        goal: "비교담기 → 표 대조 → 비교상담",
+        frames: [
+          { step: 1, title: "리스트", page: "P02", action: "비교담기 3~4건", note: "후보를 트레이에 수집", type: "list" },
+          { step: 2, title: "비교", page: "P05", action: "표로 지표 대조", note: "면적·가·입점·역·호재 비교", type: "compare" },
+          { step: 3, title: "상세 재확인", page: "P04", action: "최종 1~2건 상세", note: "평면·호재 최종 점검", type: "detail" },
+          { step: 4, title: "상담신청", page: "P07", action: "문의유형=비교상담", note: "비교 대상 자동 첨부", type: "form" },
+          { step: 5, title: "완료", page: "Done", action: "접수 완료", note: "상담원 컨텍스트 전달", type: "done" }
+        ]
+      }
+    ];
+
+    let currentScenario = "S1";
+
+    function navBar() {
+      return `<div class="nav"><span>상가분양센터</span><span class="cta">상담신청</span></div>`;
+    }
+
+    function renderType(type) {
+      switch (type) {
+        case "home":
+          return `
+            ${navBar()}
+            <div class="hero">
+              <h4>상가분양센터</h4>
+              <p>역세권·수익형 상가를 한곳에서</p>
+              <div class="search"><span>서울 · 소형 · 역세권</span><b>매물 찾기</b></div>
+            </div>
+            <div class="trust"><div>분양<br/><b>128</b></div><div>매물<br/><b>1.2k</b></div><div>응답<br/><b>2h</b></div><div>파트너<br/><b>42</b></div></div>
+            <div class="chips"><span class="chip">서울역세권</span><span class="chip">소형</span><span class="chip">분양중</span></div>
+            <div class="cards">
+              <div class="card"><div class="thumb">IMG</div><div class="card-body">8.2평 · 2.8억<br/>강남역 3분<div class="btns"><span class="btn sec">상세</span><span class="btn pri">상담</span></div></div></div>
+              <div class="card"><div class="thumb">IMG</div><div class="card-body">12평 · 4.1억<br/>홍대입구<div class="btns"><span class="btn sec">상세</span><span class="btn pri">상담</span></div></div></div>
+            </div>`;
+        case "list":
+          return `
+            ${navBar()}
+            <div class="filterbar">
+              <div class="row"><span class="pill">서울 ▾</span><span class="pill">~10평 ▾</span><span class="pill">역세권 ▾</span><span class="pill">적용</span></div>
+              <div>결과 86건 · 추천순</div>
+            </div>
+            <div class="cards">
+              <div class="card"><div class="thumb">HOT</div><div class="card-body">8.2평 · 2.8억<br/>2층 · 입점 26.09<br/>호재 한줄<div class="btns"><span class="btn sec">상세보기</span><span class="btn pri">상담신청</span></div></div></div>
+              <div class="card"><div class="thumb">분양중</div><div class="card-body">10평 · 3.2억<br/>1층 · 역 5분<br/>호재 한줄<div class="btns"><span class="btn sec">상세보기</span><span class="btn pri">상담신청</span></div></div></div>
+            </div>
+            <div class="blk" style="background:#0b1f3a;color:#fff;border:0;margin-top:auto">비교트레이 3/4 · <b style="color:#c9a227">비교하기</b></div>`;
+        case "map":
+          return `
+            ${navBar()}
+            <div class="filterbar"><div class="row"><span class="pill">마포</span><span class="pill">반경 500m</span><span class="pill">분양중</span></div></div>
+            <div class="map">
+              <div class="preview">
+                <b>홍대역 인근 상가</b><br/>12평 · 4.1억 · B1<br/>유동 높음 · 호재 1줄
+                <div class="btns" style="margin-top:6px"><span class="btn sec">상세보기</span><span class="btn pri">상담신청</span></div>
+              </div>
+            </div>`;
+        case "detail":
+          return `
+            ${navBar()}
+            <div class="thumb" style="height:78px;border-radius:0">갤러리</div>
+            <div class="keyinfo">
+              <div>OO타워 102호 · 분양중</div>
+              <div class="price">2.8억</div>
+              <div>전용 8.2평 · 2층 · 입점 2026.09 · 역 3분</div>
+              <div class="btns" style="margin-top:6px">
+                <span class="btn pri">상담신청</span>
+                <span class="btn sec">관심</span>
+                <span class="btn sec">비교</span>
+              </div>
+            </div>
+            <div class="tabs"><span class="on">개요</span><span>호재·입지</span><span>평면도</span><span>위치</span></div>
+            <div class="blk">호재 타임라인 · 배후수요 · 리스크 노트</div>
+            <div class="blk">평면도 / 미니맵</div>`;
+        case "compare":
+          return `
+            ${navBar()}
+            <div class="blk"><b>비교 3/4</b> · 차이만 보기</div>
+            <div class="blk">
+              <table class="compare-table">
+                <tr><th>항목</th><th>A</th><th>B</th><th>C</th></tr>
+                <tr><td>면적</td><td>8.2</td><td>12</td><td>10</td></tr>
+                <tr><td>분양가</td><td>2.8억</td><td>4.1억</td><td>3.5억</td></tr>
+                <tr><td>역세권</td><td>3분</td><td>5분</td><td>7분</td></tr>
+                <tr><td>입점</td><td>26.09</td><td>26.12</td><td>27.03</td></tr>
+              </table>
+            </div>
+            <div class="submit" style="margin-top:auto">선택 매물 상담</div>`;
+        case "form":
+          return `
+            ${navBar()}
+            <div class="blk"><b>전문 상담 신청</b><br/>평균 2시간 내 연락 · 선택매물 OO타워 102호</div>
+            <div class="blk form">
+              <label>이름* <input value="홍길동" readonly /></label>
+              <label>연락처* <input value="010-0000-0000" readonly /></label>
+              <label>문의유형 <select disabled><option>투자 / 창업 / 비교</option></select></label>
+              <label>간단메모 <textarea rows="2" readonly>수익형 상담 요청</textarea></label>
+              <label>☑ 개인정보 수집·이용 동의*</label>
+            </div>
+            <div class="submit">상담신청 완료</div>`;
+        case "done":
+          return `
+            ${navBar()}
+            <div class="success">
+              <div class="ok">✓</div>
+              <b>상담 신청이 접수되었습니다</b>
+              <p style="font-size:10px;color:#617288;margin:8px 0">접수번호 S-20260714-01<br/>예상 연락: 영업일 기준 2시간 이내</p>
+              <div class="btns"><span class="btn sec">관심목록</span><span class="btn pri">다른 매물</span></div>
+            </div>`;
+        default:
+          return `<div class="blk">${type}</div>`;
+      }
+    }
+
+    function sceneHTML(frame, withArrow) {
+      return `
+        <div class="scene">
+          <div class="scene-label">
+            <span>${frame.title} · ${frame.page}</span>
+            <span class="step-no">${frame.step}</span>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="status"><span>상가분양센터</span><span>${frame.page}</span></div>
+              <div class="content">${renderType(frame.type)}</div>
+            </div>
+          </div>
+          <div class="caption">
+            <span class="action">${frame.action}</span><br/>
+            ${frame.note}
+          </div>
+        </div>
+        ${withArrow ? `<div class="arrow">→</div>` : ""}
+      `;
+    }
+
+    function renderStory(targetId, frames) {
+      const el = document.getElementById(targetId);
+      el.innerHTML = frames.map((f, i) => sceneHTML(f, i < frames.length - 1)).join("");
+    }
+
+    function renderScenarioTabs() {
+      const el = document.getElementById("scenarioTabs");
+      el.innerHTML = scenarios.map(s => `
+        <button class="scenario-tab ${s.id === currentScenario ? "active" : ""}" data-id="${s.id}">
+          ${s.id}. ${s.name}
+        </button>
+      `).join("");
+      el.querySelectorAll(".scenario-tab").forEach(btn => {
+        btn.onclick = () => {
+          currentScenario = btn.dataset.id;
+          renderScenarios();
+        };
+      });
+    }
+
+    function renderScenarios() {
+      const s = scenarios.find(x => x.id === currentScenario);
+      renderScenarioTabs();
+      document.getElementById("scenarioMeta").innerHTML = `
+        <strong>${s.id} · ${s.who}</strong><br/>
+        목표: ${s.goal}<br/>
+        핵심 화면: ${s.keyScreens}
+      `;
+      renderStory("scenarioStory", s.frames);
+    }
+
+    renderStory("funnelStory", funnel);
+    renderScenarios();
+  </script>
+</body>
+</html>

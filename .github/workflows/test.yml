@@ -33,54 +33,34 @@ jobs:
           cache: npm
 
       - name: Install Dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          else
-            echo "No package.json found. Skipping dependency installation."
-          fi
+        run: npm ci
 
-      - name: Run Unit Tests
-        run: |
-          if [ -f package.json ]; then
-            npm run test:unit --if-present
-          else
-            echo "No package.json found. Skipping Unit Tests."
-          fi
+      - name: Build (root Next.js app)
+        run: npm run build --if-present
 
-      - name: Run Integration Tests
-        run: |
-          if [ -f package.json ]; then
-            npm run test:integration --if-present
-          else
-            echo "No package.json found. Skipping Integration Tests."
-          fi
+      # `npm test`'s `pretest` script builds @ai-business-os/cli (packages/cli/dist)
+      # before Vitest runs, since the CLI startup test executes the built bin/ai.js.
+      - name: Run Vitest Suite
+        run: npm test
 
-      - name: Run End-to-End Tests
-        run: |
-          if [ -f package.json ]; then
-            npm run test:e2e --if-present
-          else
-            echo "No package.json found. Skipping E2E Tests."
-          fi
+      - name: Generate Coverage Report
+        run: npm run coverage
 
       - name: Generate Test Summary
         run: |
           echo "=================================="
           echo "AI Business OS Test Pipeline"
           echo "=================================="
-          echo "✓ Unit Tests"
-          echo "✓ Integration Tests"
-          echo "✓ End-to-End Tests"
+          echo "✓ npm ci"
+          echo "✓ npm run build"
+          echo "✓ npm test (Vitest)"
+          echo "✓ npm run coverage"
           echo "=================================="
 
-      - name: Upload Test Reports
+      - name: Upload Coverage Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
-          path: |
-            tests/reports/
+          name: coverage-report
+          path: coverage/
           if-no-files-found: ignore

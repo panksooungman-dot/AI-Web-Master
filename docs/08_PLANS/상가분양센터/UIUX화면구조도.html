@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>상가분양센터 · UI/UX 화면 구조도 (의뢰자 미팅용)</title>
+  <style>
+    :root {
+      --navy: #0b1f3a;
+      --navy-mid: #163256;
+      --gold: #c9a227;
+      --gold-soft: #f3e9c4;
+      --bg: #f5f7fa;
+      --white: #ffffff;
+      --line: #d7dee8;
+      --text: #1a2332;
+      --muted: #5c6b7f;
+      --ok: #1f7a4d;
+      --cta: #0b1f3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.45;
+    }
+    .top {
+      background: var(--navy);
+      color: #fff;
+      padding: 20px 28px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .top h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+    .top p { margin: 6px 0 0; color: #c9d4e4; font-size: 13px; }
+    .badge {
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      color: var(--navy);
+    }
+    .funnel {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .funnel-step {
+      background: var(--navy);
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+      position: relative;
+      font-size: 13px;
+    }
+    .funnel-step span {
+      display: block;
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .funnel-step::after {
+      content: "›";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gold);
+      font-size: 20px;
+      font-weight: 700;
+      z-index: 1;
+    }
+    .funnel-step:last-child::after { content: none; }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: #fff;
+    }
+    .tab .pid {
+      color: var(--gold);
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .tab.active .pid { color: var(--gold-soft); }
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .funnel { grid-template-columns: 1fr 1fr; }
+      .funnel-step::after { content: none; }
+    }
+    .meta h3 { margin: 0 0 6px; font-size: 18px; color: var(--navy); }
+    .meta .purpose { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+    .flow {
+      background: var(--gold-soft);
+      border-left: 3px solid var(--gold);
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      border-radius: 0 6px 6px 0;
+    }
+    .phone {
+      background: #e9eef5;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      max-width: 420px;
+    }
+    .frame {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 520px;
+    }
+    .browser-bar {
+      background: var(--navy);
+      color: #fff;
+      padding: 8px 10px;
+      font-size: 11px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7c93; }
+    .url {
+      flex: 1;
+      background: rgba(255,255,255,.12);
+      border-radius: 4px;
+      padding: 4px 8px;
+      color: #d7e0ec;
+    }
+    .block {
+      border-bottom: 1px dashed var(--line);
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+    .block:last-child { border-bottom: 0; }
+    .block-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    .role { color: var(--muted); margin-bottom: 6px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip {
+      font-size: 10px;
+      background: #eef2f7;
+      color: var(--muted);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+    .chip.cta {
+      background: var(--navy);
+      color: #fff;
+    }
+    .chip.cta2 {
+      background: var(--gold-soft);
+      color: var(--navy);
+      border: 1px solid #e0cfa0;
+    }
+    .hero-block {
+      background: linear-gradient(160deg, #0b1f3a, #1b3c64);
+      color: #fff;
+      padding: 18px 12px;
+      text-align: center;
+    }
+    .hero-block strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .hero-block em { font-style: normal; color: var(--gold-soft); font-size: 11px; }
+    .search-fake {
+      margin-top: 10px;
+      background: #fff;
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .search-fake b { color: var(--navy); }
+    .cards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .mini-thumb {
+      height: 48px;
+      background: #cfd8e6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .mini-body { padding: 6px; font-size: 10px; }
+    .sticky {
+      position: sticky;
+      bottom: 0;
+      background: var(--navy);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+    .sticky button {
+      background: var(--gold);
+      border: 0;
+      color: var(--navy);
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: default;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .legend i {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: -1px;
+    }
+    .sitemap {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 900px) {
+      .sitemap { grid-template-columns: 1fr 1fr; }
+    }
+    .node {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .node:hover, .node.active {
+      border-color: var(--navy);
+      background: #f0f4f9;
+    }
+    .node strong { display: block; font-size: 12px; color: var(--navy); }
+    .node span { font-size: 11px; color: var(--muted); }
+    .hint { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 0 24px;
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>상가분양센터 · UI/UX 화면 구조도</h1>
+      <p>의뢰자 기획 미팅용 · v1.0 · 2026-07-14 · 페이지를 클릭하면 우측/하단에 와이어프레임이 바뀝니다</p>
+    </div>
+    <div class="badge">CTA 중심: 상담신청</div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h2>핵심 전환 퍼널</h2>
+      <div class="funnel">
+        <div class="funnel-step"><span>1</span>홈 퀵서치</div>
+        <div class="funnel-step"><span>2</span>리스트·필터</div>
+        <div class="funnel-step"><span>3</span>상가 상세</div>
+        <div class="funnel-step"><span>4</span>상담신청</div>
+        <div class="funnel-step"><span>5</span>완료·리드</div>
+      </div>
+      <div class="legend">
+        <span><i style="background:#0b1f3a"></i>1차 CTA 상담신청</span>
+        <span><i style="background:#c9a227"></i>2차 CTA 관심/비교/지도</span>
+        <span><i style="background:#cfd8e6"></i>정보·탐색 블록</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>사이트맵 (11페이지)</h2>
+      <p class="hint">박스를 클릭하면 해당 화면 구조 미리보기로 이동합니다.</p>
+      <div class="sitemap" id="sitemap"></div>
+    </section>
+
+    <section class="card">
+      <h2>페이지 선택</h2>
+      <div class="tabs" id="tabs"></div>
+    </section>
+
+    <section class="card">
+      <div class="layout">
+        <div class="meta" id="meta"></div>
+        <div class="phone">
+          <div class="frame" id="frame"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <p class="footer-note">본 화면은 스토리보드 시각화이며 최종 시안을 대체하지 않습니다. · docs/08_PLANS/상가분양센터</p>
+
+  <script>
+    const pages = [
+      {
+        id: "P01", name: "홈(랜딩)", required: true,
+        purpose: "서비스 신뢰 전달 및 조건 기반 탐색·상담 진입",
+        flow: "① 랜딩 진입 → ② 퀵서치·추천·지역 선택 → ③ 리스트/지도/상세 → ④ 즉시 상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["로고", "GNB", "검색", "관심", "상담신청"], style: "nav" },
+          { name: "Hero", role: "브랜드·1차 탐색", items: ["지역", "면적대", "분양가", "역세권", "매물 찾기", "상담신청"], style: "hero" },
+          { name: "TrustBar", role: "즉시 신뢰", items: ["진행분양", "매물수", "응답시간", "파트너"] },
+          { name: "QuickFilterChips", role: "의도별 원클릭", items: ["서울역세권", "소형", "분양중", "입점임박"] },
+          { name: "FeaturedListings", role: "엄선 매물", items: ["카드메타", "상세보기", "상담신청", "관심"], style: "cards" },
+          { name: "RegionShortcuts", role: "지역 허브", items: ["권역", "매물수", "지도에서 보기"] },
+          { name: "MapTeaser", role: "지도 유도", items: ["맵미리보기", "지도로 탐색"] },
+          { name: "WhyUs", role: "차별·프로세스", items: ["탐색→분석→상담"] },
+          { name: "Review / Notice", role: "사회증거", items: ["후기", "공지"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관", "개인정보", "사업자"] }
+        ]
+      },
+      {
+        id: "P02", name: "분양/매물 리스트", required: true,
+        purpose: "필터로 후보 축소 후 상세·상담·비교 전환",
+        flow: "① 리스트 진입 → ② 필터·정렬 → ③ 카드 스크리닝 → ④ 상세 또는 상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["검색강조", "상담신청"], style: "nav" },
+          { name: "PageTitle", role: "위치 인지", items: ["분양/매물", "지역"] },
+          { name: "SearchFilterBar", role: "조건 검색(모바일 바텀시트)", items: ["지역", "면적", "분양가", "역세권", "필터적용", "지도에서 보기"] },
+          { name: "ResultSummary", role: "결과량·정렬", items: ["N건", "정렬", "그리드/리스트"] },
+          { name: "ActiveFilterChips", role: "조건 제거", items: ["칩X", "전체해제"] },
+          { name: "ListingCardGrid", role: "스크리닝 본체", items: ["면적", "분양가", "층", "입점", "역세권", "호재1줄", "상세보기", "상담신청"], style: "cards" },
+          { name: "CompareTray", role: "비교 후보 3~4", items: ["썸네일", "비교하기"] },
+          { name: "Pagination", role: "결과 탐색", items: ["더보기"] },
+          { name: "StickyConsultBar", role: "모바일 전환", items: ["필터", "상담신청"], style: "sticky" }
+        ]
+      },
+      {
+        id: "P03", name: "지도 탐색", required: false,
+        purpose: "공간 기반 발견 → 프리뷰 → 상세/상담",
+        flow: "① 지도 진입 → ② 영역·필터 → ③ 마커 프리뷰 → ④ 상세·관심·상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "MapToolbar", role: "맵 조건", items: ["지역검색", "반경", "면적/가", "분양중", "리스트로"] },
+          { name: "MapCanvas", role: "마커 탐색", items: ["클러스터", "상태색"] },
+          { name: "MarkerPreviewCard", role: "마커 클릭 1차 판정", items: ["썸네일", "표준메타", "상세보기", "상담신청"] },
+          { name: "Side/Bottom List", role: "현 범위 목록", items: ["축약카드"] },
+          { name: "LegendPanel", role: "마커 의미", items: ["분양중", "입점임박"] },
+          { name: "HotZoneTips", role: "상권 힌트", items: ["핫존", "유동요약"] },
+          { name: "CompareTray", role: "비교 수집", items: ["비교하기"] },
+          { name: "StickyConsultBar", role: "지역 상담", items: ["이 지역 상담신청"], style: "sticky" }
+        ]
+      },
+      {
+        id: "P04", name: "상가 상세", required: true,
+        purpose: "정보로 확신 형성 후 상담·관심·비교 전환",
+        flow: "① 상세 진입 → ② 갤러리·호재·평면도 → ③ 관심/비교 → ④ 상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "DetailHeroGallery", role: "시각 신뢰", items: ["갤러리", "배지"], style: "hero" },
+          { name: "KeyInfoCard", role: "핵심 수치", items: ["면적", "분양가", "층", "입점", "역세권", "상담신청", "관심", "비교"] },
+          { name: "QuickActionsBar", role: "상시 액션", items: ["상담신청", "관심", "지도에서 보기"] },
+          { name: "TabNav", role: "섹션 이동", items: ["개요", "호재·입지", "평면도", "위치"] },
+          { name: "Overview / Advantage", role: "요약·호재분석", items: ["호재", "배후수요", "리스크", "이 매물 상담"] },
+          { name: "FloorPlanBlock", role: "공간 이해", items: ["평면도", "면적표"] },
+          { name: "MiniMapBlock", role: "입지 확인", items: ["핀", "큰 지도"] },
+          { name: "SimilarListings", role: "유사 매물", items: ["카드", "상세보기"], style: "cards" },
+          { name: "InlineConsultForm", role: "빠른 리드", items: ["이름", "연락처", "동의", "빠른 상담신청"], style: "sticky" }
+        ]
+      },
+      {
+        id: "P05", name: "상가 비교", required: false,
+        purpose: "최대 3~4건 핵심 지표 대조 후 상담",
+        flow: "① 비교 트레이 진입 → ② 표·하이라이트 → ③ 상세 또는 비교상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "CompareHeader", role: "대상 관리", items: ["N/4", "매물추가", "비교상담"] },
+          { name: "CompareTable", role: "핵심 지표 표", items: ["면적", "분양가", "평단가", "층", "입점", "역", "호재", "차이만보기"] },
+          { name: "HighlightCallouts", role: "우위 강조", items: ["최저가", "최대면적"] },
+          { name: "ProsConsMini", role: "열별 요약", items: ["장점2", "주의1"] },
+          { name: "CTABand", role: "일괄 전환", items: ["관심일괄", "선택매물 상담"] },
+          { name: "EmptyCompareState", role: "0건 안내", items: ["리스트에서 담기"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      },
+      {
+        id: "P06", name: "관심목록", required: false,
+        purpose: "저장 매물 재방문 및 묶음 상담",
+        flow: "① 관심 진입 → ② 게스트 저장 안내 → ③ 정리·비교·상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "GuestSyncNotice", role: "저장 정책", items: ["기기저장 안내", "로그인 동기화"] },
+          { name: "ListTools", role: "일괄 관리", items: ["전체선택", "정렬", "삭제", "비교담기"] },
+          { name: "WishlistCardGrid", role: "저장 목록", items: ["표준메타", "상세보기", "상담신청"], style: "cards" },
+          { name: "BulkConsultBar", role: "선택 상담", items: ["선택 매물 상담신청"] },
+          { name: "RecommendAfterEmpty", role: "공란 유도", items: ["추천매물", "지도탐색"] },
+          { name: "StickyConsultBar", role: "모바일 전환", items: ["상담신청"], style: "sticky" },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      },
+      {
+        id: "P07", name: "상담신청", required: true,
+        purpose: "리드 수집(전환 최종단)",
+        flow: "① 진입 → ② 폼·동의 → ③ 제출 → ④ 완료 안내",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["로고"], style: "nav" },
+          { name: "FormIntro", role: "기대치·신뢰", items: ["평균응답시간"] },
+          { name: "ContextChip", role: "문의 맥락", items: ["매물명", "비교상담"] },
+          { name: "ConsultForm", role: "리드 입력", items: ["이름*", "연락처*", "이메일", "희망지역", "희망면적", "문의유형", "메모"] },
+          { name: "ConsentBlock", role: "동의", items: ["개인정보필수*", "마케팅선택"] },
+          { name: "SubmitArea", role: "제출", items: ["상담신청 완료"] },
+          { name: "PrivacyTrustNotes", role: "신뢰 보강", items: ["보관기간"] },
+          { name: "SuccessState", role: "완료", items: ["접수번호", "관심목록", "홈"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      },
+      {
+        id: "P08", name: "FAQ", required: false,
+        purpose: "의문 해소로 이탈 감소, 미해결 시 상담",
+        flow: "① FAQ → ② 검색·카테고리 → ③ 답변 → ④ 상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "FAQHeroSearch", role: "질문 탐색", items: ["검색", "인기칩"] },
+          { name: "CategoryTabs", role: "주제 분류", items: ["절차", "계약", "대출", "입점"] },
+          { name: "AccordionList", role: "Q&A", items: ["질문", "답변"] },
+          { name: "StillNeedHelp", role: "전환", items: ["상담신청"] },
+          { name: "RelatedLinks", role: "연계", items: ["공지", "회사소개"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      },
+      {
+        id: "P09", name: "회사소개·신뢰", required: false,
+        purpose: "운영 주체 신뢰로 상담 허들 완화",
+        flow: "① 소개 → ② 실적·프로세스 → ③ 상담/매물",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "BrandStory", role: "브랜드", items: ["미션"] },
+          { name: "NumbersTrust", role: "실적", items: ["누적", "상담", "파트너"] },
+          { name: "ProcessTimeline", role: "이용 절차", items: ["상담→현장→계약"] },
+          { name: "PartnerLogos", role: "제휴", items: ["파트너"] },
+          { name: "ComplianceNotes", role: "법적 고지", items: ["사업자"] },
+          { name: "CTABand", role: "전환", items: ["상담신청", "매물 보러가기"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      },
+      {
+        id: "P10", name: "공지사항", required: false,
+        purpose: "분양·일정 공지로 신뢰·재방문",
+        flow: "① 목록 → ② 검색·필터 → ③ 상세 → ④ 관련매물·상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "NoticeTools", role: "탐색", items: ["검색", "카테고리"] },
+          { name: "NoticeList", role: "목록", items: ["제목", "날짜", "고정"] },
+          { name: "NoticeDetail", role: "본문", items: ["본문", "첨부"] },
+          { name: "RelatedListing", role: "매물 연결", items: ["상세보기"] },
+          { name: "CTABand", role: "전환", items: ["상담신청"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      },
+      {
+        id: "P11", name: "고객 후기", required: false,
+        purpose: "사회적 증거로 상담 전환",
+        flow: "① 후기 → ② 필터 → ③ 상세·유사매물 → ④ 상담",
+        blocks: [
+          { name: "Header", role: "전역 내비", items: ["상담신청"], style: "nav" },
+          { name: "ReviewFilter", role: "세그먼트", items: ["투자/창업", "지역"] },
+          { name: "ReviewCardGrid", role: "후기 목록", items: ["요약", "지역", "면적대"], style: "cards" },
+          { name: "ReviewDetailModal", role: "전문", items: ["전후니즈"] },
+          { name: "LinkedListing", role: "유사 매물", items: ["유사매물 보기", "상담신청"] },
+          { name: "CTABand", role: "전환", items: ["나도 상담받기"] },
+          { name: "Footer", role: "법적·사업자", items: ["약관"] }
+        ]
+      }
+    ];
+
+    let current = "P01";
+
+    function isCta(label) {
+      return /상담|매물 찾기|상세보기|비교하기|지도/.test(label);
+    }
+    function isPrimary(label) {
+      return /상담/.test(label);
+    }
+
+    function renderTabs() {
+      const el = document.getElementById("tabs");
+      el.innerHTML = pages.map(p => `
+        <button class="tab ${p.id === current ? "active" : ""}" data-id="${p.id}">
+          <span class="pid">${p.id}</span>${p.name}${p.required ? " ★" : ""}
+        </button>
+      `).join("");
+      el.querySelectorAll(".tab").forEach(btn => {
+        btn.onclick = () => { current = btn.dataset.id; renderAll(); };
+      });
+    }
+
+    function renderSitemap() {
+      const el = document.getElementById("sitemap");
+      el.innerHTML = pages.map(p => `
+        <div class="node ${p.id === current ? "active" : ""}" data-id="${p.id}">
+          <strong>${p.id} ${p.name}</strong>
+          <span>${p.required ? "필수" : "포함"} · 블록 ${p.blocks.length}개</span>
+        </div>
+      `).join("");
+      el.querySelectorAll(".node").forEach(n => {
+        n.onclick = () => { current = n.dataset.id; renderAll(); };
+      });
+    }
+
+    function chipHtml(items) {
+      return `<div class="chips">${items.map(t => {
+        if (isPrimary(t)) return `<span class="chip cta">${t}</span>`;
+        if (isCta(t)) return `<span class="chip cta2">${t}</span>`;
+        return `<span class="chip">${t}</span>`;
+      }).join("")}</div>`;
+    }
+
+    function renderFrame(page) {
+      const frame = document.getElementById("frame");
+      let html = `
+        <div class="browser-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <div class="url">sangga.example / ${page.id.toLowerCase()}</div>
+        </div>
+      `;
+      page.blocks.forEach(b => {
+        if (b.style === "hero") {
+          html += `
+            <div class="hero-block">
+              <strong>${b.name}</strong>
+              <em>${b.role}</em>
+              <div class="search-fake"><span>${b.items.slice(0, 3).join(" · ")}</span><b>${b.items.find(isPrimary) || b.items[b.items.length - 1]}</b></div>
+            </div>`;
+          return;
+        }
+        if (b.style === "cards") {
+          html += `
+            <div class="block">
+              <div class="block-title"><span>${b.name}</span><span style="color:#5c6b7f;font-weight:500;font-size:11px">${b.role}</span></div>
+              <div class="cards-row">
+                <div class="mini-card"><div class="mini-thumb">IMG</div><div class="mini-body">면적 · 분양가 · 역세권<br/>호재 한 줄</div></div>
+                <div class="mini-card"><div class="mini-thumb">IMG</div><div class="mini-body">상세보기 · 상담신청</div></div>
+              </div>
+              ${chipHtml(b.items.filter(isCta))}
+            </div>`;
+          return;
+        }
+        if (b.style === "sticky") {
+          html += `
+            <div class="sticky">
+              <span>${b.name} · ${b.role}</span>
+              <button type="button">${b.items.find(isPrimary) || "상담신청"}</button>
+            </div>`;
+          return;
+        }
+        if (b.style === "nav") {
+          html += `
+            <div class="block" style="background:#0b1f3a;color:#fff;border:0">
+              <div class="block-title" style="color:#fff"><span>Header</span><span style="color:#c9a227">상담신청</span></div>
+              <div style="opacity:.85;font-size:11px">${b.items.join(" · ")}</div>
+            </div>`;
+          return;
+        }
+        html += `
+          <div class="block">
+            <div class="block-title"><span>${b.name}</span><span style="color:#5c6b7f;font-weight:500;font-size:11px">#${page.blocks.indexOf(b) + 1}</span></div>
+            <div class="role">${b.role}</div>
+            ${chipHtml(b.items)}
+          </div>`;
+      });
+      frame.innerHTML = html;
+    }
+
+    function renderMeta(page) {
+      document.getElementById("meta").innerHTML = `
+        <h3>${page.id} · ${page.name}</h3>
+        <div class="purpose">${page.purpose}</div>
+        <div class="flow"><strong>사용자 흐름</strong><br/>${page.flow}</div>
+        <p class="hint">섹션/블록 ${page.blocks.length}개 · ${page.required ? "필수 페이지" : "1차 포함 페이지"}</p>
+        <ol style="margin:0;padding-left:18px;font-size:13px;color:#5c6b7f">
+          ${page.blocks.map(b => `<li><strong style="color:#0b1f3a">${b.name}</strong> — ${b.role}</li>`).join("")}
+        </ol>
+      `;
+    }
+
+    function renderAll() {
+      const page = pages.find(p => p.id === current);
+      renderTabs();
+      renderSitemap();
+      renderMeta(page);
+      renderFrame(page);
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>

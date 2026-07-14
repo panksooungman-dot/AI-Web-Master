@@ -73,47 +73,93 @@ async function checkAgentInstalled(
 }
 
 /**
- * OpenAI/Gemini "configured" means the API key env var is present — the same
- * non-live-call semantics packages/cli/src/providers/manager.ts uses for its
- * own `configured` field. No live API validation call is made (avoids cost
- * and requires no new dependency on that CLI package).
+ * OpenAI/Gemini는 이제 API 키 존재 여부만이 아니라 실제 모델 목록 엔드포인트를 호출해
+ * 연결을 검증한다(packages/cli/src/providers/{openai,gemini}.ts의 `.validate()`와 동일한
+ * "실제로 호출해본다" 원칙 — 다만 이 위젯은 대시보드 페이지 로드마다 그려지므로 CLI를
+ * 서브프로세스로 띄우지 않고 Ollama처럼 짧은 타임아웃의 직접 fetch만 사용한다).
+ * - 키 없음 → "Not Configured"
+ * - 키 있음 + 실제 호출 성공 → "Configured"
+ * - 키 있음 + 호출 실패(잘못된 키, 네트워크 오류 등) → "Unreachable"
  */
-function checkEnvConfigured(
+async function checkLiveApiProvider(
   id: "openai" | "gemini",
   name: string,
   provider: string,
   apiKeyEnvVar: string,
-  defaultModel: string,
-  modelEnvVar: string
-): ProviderStatus {
-  const configured = Boolean(process.env[apiKeyEnvVar]);
+  modelEnvVar: string,
+  fetchModels: (apiKey: string) => Promise<string[]>
+): Promise<ProviderStatus> {
+  const apiKey = process.env[apiKeyEnvVar];
 
-  return {
-    id,
-    name,
-    provider,
-    status: configured ? "Configured" : "Not Configured",
-    model: configured ? process.env[modelEnvVar] || defaultModel : null,
-    detail: configured ? undefined : `${apiKeyEnvVar} 환경 변수가 설정되지 않았습니다.`,
-  };
+  if (!apiKey) {
+    return {
+      id,
+      name,
+      provider,
+      status: "Not Configured",
+      model: null,
+      detail: `${apiKeyEnvVar} 환경 변수가 설정되지 않았습니다.`,
+    };
+  }
+
+  try {
+    const models = await fetchModels(apiKey);
+    return {
+      id,
+      name,
+      provider,
+      status: "Configured",
+      model: process.env[modelEnvVar] || models[0] || null,
+      detail: `${models.length}개 모델 사용 가능`,
+    };
+  } catch {
+    return {
+      id,
+      name,
+      provider,
+      status: "Unreachable",
+      model: null,
+      detail: `${name} API에 연결할 수 없습니다(API 키를 확인하세요).`,
+    };
+  }
+}
+
+async function checkOpenAI(): Promise<ProviderStatus> {
+  return checkLiveApiProvider("openai", "OpenAI", "OpenAI", "OPENAI_API_KEY", "OPENAI_MODEL", async (apiKey) => {
+    const response = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) {
+      throw new Error(`OpenAI API returned ${response.status}`);
+    }
+    const data = (await response.json()) as { data?: { id: string }[] };
+    return (data.data ?? []).map((model) => model.id);
+  });
+}
+
+async function checkGemini(): Promise<ProviderStatus> {
+  return checkLiveApiProvider("gemini", "Gemini", "Google", "GEMINI_API_KEY", "GEMINI_MODEL", async (apiKey) => {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+      { signal: AbortSignal.timeout(3000) }
+    );
+    if (!response.ok) {
+      throw new Error(`Gemini API returned ${response.status}`);
+    }
+    const data = (await response.json()) as { models?: { name: string }[] };
+    return (data.models ?? []).map((model) => model.name.replace(/^models\//, ""));
+  });
 }
 
 export async function getProviderStatuses(): Promise<ProviderStatus[]> {
-  const [claudeCode, cursor, ollama] = await Promise.all([
+  const [claudeCode, cursor, ollama, openai, gemini] = await Promise.all([
     checkAgentInstalled("claude-code", "Claude Code", "Anthropic"),
     checkAgentInstalled("cursor", "Cursor", "Cursor"),
     checkOllama(),
+    checkOpenAI(),
+    checkGemini(),
   ]);
-
-  const openai = checkEnvConfigured("openai", "OpenAI", "OpenAI", "OPENAI_API_KEY", "gpt-4o-mini", "OPENAI_MODEL");
-  const gemini = checkEnvConfigured(
-    "gemini",
-    "Gemini",
-    "Google",
-    "GEMINI_API_KEY",
-    "gemini-1.5-flash",
-    "GEMINI_MODEL"
-  );
 
   return [claudeCode, cursor, ollama, openai, gemini];
 }

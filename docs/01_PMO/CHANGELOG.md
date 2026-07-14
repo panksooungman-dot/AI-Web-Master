@@ -4,6 +4,27 @@
 
 ---
 
+## 2026-07-14 (8)
+
+### 추가 (Added)
+
+- **AI Provider Integration v1.1**: AI Platform v1(2026-07-14 (7))의 provider 호출 계층을 보강 — 새 provider·새 실행 경로를 추가하지 않고 기존 5-vendor 구조(Anthropic/OpenAI/Gemini/Ollama/OpenRouter) 위에 재시도·스트리밍·Dashboard 라이브 헬스체크 3가지를 추가
+  - **재시도**: `packages/cli/src/providers/provider.ts`의 `providerFetchJson()`/`providerFetchSseStream()`이 공유하는 `withRetry()`(지수 백오프, 기본 3회 시도) — `TIMEOUT`·네트워크 레벨 실패·429·5xx만 재시도하고 401/403/400 등 4xx는 즉시 던진다(`isRetryableError()`)
+  - **스트리밍**: `AIProvider.chatStream?()`(신규, `ChatStreamChunk` 타입) — Anthropic/OpenAI에 SSE 파싱 기반으로 구현. `providerFetchSseStream()`(신규, `provider.ts`)이 `text/event-stream` 응답을 `{event?, data}` 이벤트로 파싱. `ProviderManager.streamComplete()`(신규, `manager.ts`)가 `complete()`와 동일한 resolve→attempt→simulate 폴백 의미론을 스트리밍으로 재구현(chatStream 미지원 provider는 `chat()`으로 자동 폴백). `ai chat --stream`(신규 플래그) 추가
+  - **Dashboard Provider Status 라이브 체크**: `lib/providers/status.ts`의 OpenAI/Gemini 판정을 "env var 존재 여부"에서 "실제 모델 목록 엔드포인트 호출"로 교체(`checkLiveApiProvider()`, 신규) — 키 없음(Not Configured, 호출 없음) / 키 있음+호출 성공(Configured, 실제 모델명) / 키 있음+호출 실패(Unreachable)를 정확히 구분
+  - 테스트(신규 17개): `tests/ai-platform-cli/provider-retry.test.ts`(9개, 재시도/비재시도 조건·SSE 청크 경계 분할 파싱), `tests/ai-platform-cli/streaming.test.ts`(8개, Anthropic/OpenAI `chatStream()`·`ProviderManager.streamComplete()`의 폴백/전파/사용량 기록)
+
+### 수정 (Fixed)
+
+- `tests/providers/status.test.ts`의 "OpenAI/Gemini 키 미설정 시 fetch가 전혀 호출되지 않는다"는 기존 assertion이 실제로는 항상 실패하는 버그를 발견·수정 — `getProviderStatuses()`가 Ollama 체크도 병렬로 항상 `fetch`하므로 공유 mock에 호출이 기록됨. "OpenAI/Gemini URL로는 호출되지 않는다"로 단언 범위를 좁혀 수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(루트, 64개 라우트 정상 생성) · `npm test`(32 files / 206 tests 전부 통과, 신규 17개 포함, 회귀 없음)
+- `docs/REPOSITORY_INDEX.md` — `## AI Provider Integration v1.1`(신규 섹션) · `## Dashboard`(AI Workspace 라이브 체크 반영) · `## Tests`(카운트 갱신) · `## Remaining TODO` · `## Recommended Next Tasks` 갱신
+
+---
+
 ## 2026-07-14 (7)
 
 ### 추가 (Added)

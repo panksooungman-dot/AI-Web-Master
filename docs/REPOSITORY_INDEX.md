@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — v1.0.0 Release Candidate 정리 반영)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — AI Provider Integration v1.1 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
 > **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
 
@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 30 files / 188 tests 전부 통과 |
+| `npm test`(Vitest) | ✅ 32 files / 206 tests 전부 통과 (AI Provider Integration v1.1 신규 17개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지된다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1(`## AI Provider Integration v1.1` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -189,7 +189,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - 모듈별 상태:
   - **Dashboard Home**(`/developer`) — Projects·Running AI Tasks·Active Workflows·Marketplace Packages·Provider Status·Token Usage·Recent Activity·System Health 8개 위젯(뒤 2개는 AI Platform v1, `## AI Platform v1` 참고). 전부 기존/신규 API를 그대로 소비(`components/developer/dashboard/*Widget.tsx`).
   - **Project Manager**(`/projects`) — 기존 List/Recent/Open/Create/Details에 Delete 추가(`lib/projects/registry.ts`의 `deleteProject()`, `DELETE /api/projects/[id]`).
-  - **AI Workspace**(`/developer/ai`) — 기존에는 Ollama/ChatGPT 카드가 하드코딩된 가짜 상태였음. `lib/providers/status.ts`(신규)로 Claude Code/Cursor(기존 `lib/agents/registry.ts` `isAvailable()` 재사용)·Local AI(Ollama, 실제 `fetch` 연결 확인)·OpenAI/Gemini(env var 존재 여부, `packages/cli`의 `ProviderManager.configured`와 동일한 의미론이나 해당 패키지는 import하지 않음) 5종 모두 실제 상태로 교체.
+  - **AI Workspace**(`/developer/ai`) — 기존에는 Ollama/ChatGPT 카드가 하드코딩된 가짜 상태였음. `lib/providers/status.ts`(신규)로 Claude Code/Cursor(기존 `lib/agents/registry.ts` `isAvailable()` 재사용)·Local AI(Ollama, 실제 `fetch` 연결 확인)·OpenAI/Gemini 5종 모두 실제 상태로 교체. OpenAI/Gemini는 최초엔 env var 존재 여부만으로 "Configured"를 판정했으나, **AI Provider Integration v1.1(2026-07-14, `## AI Provider Integration v1.1` 참고)에서 실제 모델 목록 엔드포인트를 호출하는 라이브 헬스체크로 교체** — 키가 없으면 "Not Configured"(호출 없음), 키가 있고 호출이 성공하면 "Configured"(+ 실제 모델명), 키가 있어도 호출이 실패하면 "Unreachable"을 반환한다(`packages/cli`의 `{openai,gemini}.validate()`와 동일한 "실제로 호출해본다" 원칙이나, 이 위젯은 페이지 로드마다 그려지므로 CLI를 서브프로세스로 띄우지 않고 Ollama처럼 짧은 타임아웃의 직접 `fetch`만 사용).
   - **Website Builder**(`/developer/websites`, 신규) — `ai website create` CLI를 `lib/commandEngine/engine.ts`의 `execute()`로 실제 실행(child process, 새 npm 의존성 없음). 생성 이력은 `lib/websites/registry.ts`(`lib/data/websites.json`)에 기록. 실제 E2E 검증: 8단계 Planning 파이프라인 실행 → `.generated-websites/<slug>`에 완전한 Next.js 프로젝트 생성 확인.
   - **Workflow Center**(`/developer/workflows`, 신규) — 신규 백엔드 없음. 기존 `/api/workflows`·`/api/workflows/runs*`(run/pause/resume/cancel/retry)를 그대로 소비하는 UI만 추가.
   - **GitHub**(`/developer/github`) — 변경 없음. 기존 구현이 Branch/Commit/Status/Push/Pull을 이미 충족.
@@ -248,6 +248,28 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - CLI 등록: `packages/cli/src/index.ts`
   - 테스트(신규 43개): `tests/ai-platform-cli/{openrouter,provider-config,usage,prompt-library,task-ledger}.test.ts`(23개, CLI 로직 직접 import, subprocess 미사용), `tests/prompts/{registry,render}.test.ts`(11개), `tests/agents/taskQueue-retry.test.ts`(3개, 실제 `shell` Agent로 성공 Task를 만들어 "Success Task는 재시도 불가"를 검증), `tests/ai/bridge.test.ts`(6개, `execute()` mock)
   - 검증: `npx tsc --noEmit`·`npm run lint`(무관한 사전 존재 오류만, 상세는 `## Build Status` 참고)·`npm run build`(루트+CLI)·`npm run test`(188/188) 전부 통과. 실제 E2E: 스크래치 디렉터리에서 `ai provider list/set-key/test`·`ai models`·`ai chat`(provider 미설정 → simulated 폴백 확인, Website Builder와 동일한 graceful-degradation)·`ai prompt` 전체 라이프사이클(create→list→show→preview→execute)·`ai task list/retry`(명시적 `--provider` 요청 실패 → Failed Task 기록 → retry로 새 Task 생성, 원본 불변 확인) 전부 실행 확인. Dashboard 쪽은 실제 로그인 세션으로 `/api/ai/{chat,providers,usage}`·`/api/prompts/[id]/preview`·`/api/agents/tasks/[id]/retry`·`/developer/{ai,ai/tasks,prompts}`(전부 200)·Dashboard Home HTML에 "Provider Status"/"Token Usage" 위젯 렌더링까지 curl로 확인. 검증 중 저장소 루트에 실수로 남을 뻔한 `.runtime/`(CLI가 실제 저장소 cwd로 shell-out될 때 생성됨)과 테스트용 인증 계정(`lib/data/users.json`)은 검증 후 삭제(둘 다 `.gitignore` 대상이라 애초에 git에는 영향 없음, `git status` 재확인 완료).
+
+---
+
+## AI Provider Integration v1.1
+
+**Status: ✅ Implemented — retry, streaming, live Dashboard status — 2026-07-14**
+
+- Description: AI Platform v1(위 `## AI Platform v1`)이 provider 호출을 "한 번 호출하고 성공/실패만 본다"는 수준에 머물러 있던 것을 보강한 후속 작업. 새 provider나 새 실행 경로를 추가하지 않고, 기존 4-vendor 구조(Anthropic/OpenAI/Gemini/Ollama, OpenRouter 포함 5종) 위에 3가지를 추가했다: (1) 일시적 실패에 대한 자동 재시도, (2) OpenAI/Anthropic의 실시간 스트리밍 응답, (3) Dashboard Provider Status의 OpenAI/Gemini 라이브 헬스체크(기존에는 env var 존재 여부만 확인).
+- **재시도(retry, 공용 helper)**: `packages/cli/src/providers/provider.ts`의 `providerFetchJson()`/`providerFetchSseStream()`(신규 `providerFetchSseStream`)이 내부적으로 공유하는 `withRetry()` — 지수 백오프(기본 baseDelayMs 300ms, 시도마다 2배 증가)로 최대 `1 + retries`회(기본 retries=2, 총 3회) 시도한다. `isRetryableError()`가 재시도 대상을 판별: `TIMEOUT`(AbortSignal 타임아웃)·`REQUEST_FAILED` 중 상태 코드가 없는 네트워크 레벨 실패·429·5xx만 재시도하고, 401/403/400 등 나머지 4xx는 즉시 던진다(인증·입력 오류를 재시도해봤자 의미가 없기 때문). 모든 vendor 파일(`anthropic/openai/gemini/ollama/openrouter.ts`)이 기존과 동일한 시그니처로 이 helper를 그대로 재사용하므로 vendor별 재시도 로직 중복은 없다.
+- **스트리밍**: `AIProvider` 인터페이스에 선택적 `chatStream?(request): AsyncGenerator<ChatStreamChunk>` 추가(`ChatStreamChunk = { delta, done, model?, usage? }`, `packages/cli/src/providers/types.ts`). Anthropic(SSE `content_block_delta`/`message_start`/`message_delta`/`message_stop` 파싱)과 OpenAI(SSE `choices[0].delta.content` + `[DONE]` 파싱)만 구현하고, Gemini/Ollama/OpenRouter는 구현하지 않는다(스트리밍 API가 없거나 이번 범위에서 제외 — `chatStream`이 없으면 호출자가 `chat()`으로 자동 폴백하므로 안전).
+  - `providerFetchSseStream()`(신규, `provider.ts`) — `text/event-stream` 응답의 body를 라인 단위로 파싱해 `{event?, data}` 이벤트를 순차 yield하는 공용 helper. 연결 수립(fetch + status 확인)까지만 재시도 대상이고, 스트림이 이미 시작된 이후의 중단은 부분 응답을 감추지 않기 위해 재시도하지 않는다.
+  - `ProviderManager.streamComplete(options)`(신규, `manager.ts`) — `complete()`와 동일한 resolve→attempt→simulate 폴백 의미론을 스트리밍으로 재구현. provider가 `chatStream`을 구현하지 않으면(Gemini/Ollama/OpenRouter) 기존 `chat()`을 호출해 결과를 단일 `done:true` 청크로 감싸 yield하므로, 호출자 입장에서는 모든 provider를 항상 스트림 인터페이스로 소비할 수 있다. 명시적으로 요청된 provider(`options.providerId`)가 실패하면 감추지 않고 그대로 던진다(기존 `complete()`와 동일한 규칙).
+  - `ai chat --stream`(신규 플래그, `packages/cli/src/commands/chat.ts`) — `streamComplete()`가 yield하는 청크를 도착하는 대로 stdout에 이어 쓴다. `--json`과 함께 주면 기존 `--json` 소비자와의 호환을 위해 스트리밍 대신 기존 단일 JSON 응답으로 폴백한다. 완료/실패는 기존과 동일하게 `.runtime/tasks.json`(task ledger)에 기록된다.
+- **Dashboard Provider Status 라이브 체크**: `lib/providers/status.ts`의 OpenAI/Gemini 판정을 "env var 존재 여부"에서 "실제 모델 목록 엔드포인트를 호출"로 교체 — `packages/cli`의 `{openai,gemini}.validate()`와 동일한 "실제로 호출해본다" 원칙이나, 이 위젯은 Dashboard 페이지 로드마다 그려지므로 CLI를 서브프로세스로 띄우지 않고 Ollama처럼 짧은 타임아웃(3초)의 직접 `fetch`만 사용한다(`checkLiveApiProvider()`, 신규 공용 헬퍼). 키가 없으면 "Not Configured"(호출 없음), 키가 있고 호출 성공이면 "Configured"(+ 실제 모델명 1개), 키가 있어도 호출이 실패하면(잘못된 키·네트워크 오류) "Unreachable"을 반환 — 이전에는 잘못된 키도 "Configured"로 잘못 표시되었다.
+- **아직 통합하지 않은 것**: 이번 작업으로 `lib/providers/status.ts`(Dashboard)와 `packages/cli/src/providers/manager.ts`(AI Platform v1)가 "실제로 호출해서 검증한다"는 동일한 원칙을 공유하게 되었지만, 두 곳의 코드 자체는 여전히 독립적으로 존재한다(Dashboard는 Next.js 서버 프로세스에서 직접 `fetch`, CLI는 별도 프로세스의 `ProviderManager`) — 완전한 코드 통합은 `## Remaining TODO`의 관련 항목대로 별도 결정 사항으로 남겨둔다.
+- Evidence:
+  - `packages/cli/src/providers/provider.ts`(`withRetry()`, `isRetryableError()`, `providerFetchSseStream()`, `SseEvent`), `packages/cli/src/providers/types.ts`(`ChatStreamChunk`, `RetryOptions`, `ProviderError.status`)
+  - `packages/cli/src/providers/anthropic.ts`·`openai.ts`(`chatStream()` 구현), `packages/cli/src/providers/manager.ts`(`streamComplete()`)
+  - `packages/cli/src/commands/chat.ts`(`--stream` 플래그, `streamChat()`), `packages/cli/src/index.ts`(`ai chat --stream` 등록)
+  - `lib/providers/status.ts`(`checkLiveApiProvider()`, `checkOpenAI()`, `checkGemini()`)
+  - 테스트(신규 17개, 기존 `tests/providers/status.test.ts` 갱신 포함): `tests/ai-platform-cli/provider-retry.test.ts`(9개 — `providerFetchJson()`/`providerFetchSseStream()`의 재시도·비재시도 조건, SSE 청크 경계 분할 파싱), `tests/ai-platform-cli/streaming.test.ts`(8개 — Anthropic/OpenAI `chatStream()` 파싱, `ProviderManager.streamComplete()`의 simulate 폴백·명시적 provider 실패 전파·non-streaming provider(gemini) 폴백·streaming provider(anthropic) 청크·사용량 기록), `tests/providers/status.test.ts`(기존 5개 유지 + OpenAI/Gemini 라이브 체크 케이스 갱신 — 이 과정에서 "키 없으면 fetch가 전혀 호출되지 않는다"고 잘못 단언하던 기존 assertion 버그를 발견·수정: `getProviderStatuses()`가 Ollama 체크도 병렬로 항상 `fetch`하므로, "OpenAI/Gemini URL로는 호출되지 않는다"로 단언 범위를 좁혔다).
+  - 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(루트, 64개 라우트 정상 생성) · `npm test`(32 files / 206 tests 전부 통과, 회귀 없음).
 
 ---
 
@@ -331,7 +353,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai}/`에 추가. 30개 테스트 파일·188개 테스트 케이스(2026-07-14 AI Platform v1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai}/`에 추가. 32개 테스트 파일·206개 테스트 케이스(2026-07-14 AI Provider Integration v1.1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 신규 17개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+  - **AI Provider Integration v1.1(신규)** — `tests/ai-platform-cli/{provider-retry,streaming}.test.ts`(17개) + `tests/providers/status.test.ts`(기존 5개 유지, OpenAI/Gemini 라이브 체크로 갱신), 자세한 내용은 `## AI Provider Integration v1.1` 참고.
   - **CLI startup** — 빌드된 `packages/cli/bin/ai.js`를 실제 하위 프로세스로 실행해 `--version`/`--help`/미등록 명령 처리를 검증(`dist/`가 없으면 skip). 루트 `pretest` 스크립트가 `npm test` 실행 전 CLI를 자동 빌드.
   - **Website Builder(CLI)** — `website/types.ts`(11개 사이트 타입·팔레트·카피)·`website/scaffold.ts`(`slugify()`/`resolveSiteType()`)·`website/content.ts`(Content Generator, 신규)의 실제 로직 검증.
   - **Workflow Engine** — `workflow/validator.ts`의 `validateWorkflowJson()`이 정상/비정상 `workflow.json`을 올바른 `WorkflowError` 코드로 구분하는지 검증.
@@ -395,7 +418,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - **Dashboard v1 — Logs 카테고리 이름이 요청한 "Application/Workflow/CLI" 표현과 다름**: 기존 Terminal/Git/AI/System 4개 카테고리(`lib/events/eventBus.ts`)를 그대로 두고 cross-cutting "Errors" 필터만 추가함(재설계 방지 목적). 정확한 이름 매핑이 필요하면 `EventCategory` 자체를 확장하는 별도 작업 필요.
 - ~~Dashboard v1 검증 과정에서 생성된 실 CLI 산출물이 저장소에 남아있음~~ — **해결됨(2026-07-14)**: `/developer/websites` E2E 검증 중 `ai website create`가 자동 생성한 8개 Planning Agent 디렉터리(`agents/{business-analyst,component-generator,page-generator,project-generator,qa,seo-generator,site-planner,ui-designer}/`, git 미추적 확인 후 삭제 — 기존에 git으로 추적되던 `agents/*.md` 10개 파일은 무변경 보존), `workflows/website-builder/`(E2E 생성 샘플로 판단, CLI가 필요 시 자동 재생성하므로 삭제), `.runtime/`(에이전트 memory/history/실행 로그 등 캐시성 데이터로 확인 후 삭제 + `.gitignore`에 `/.runtime/` 추가) 정리 완료.
 - **AI Platform v1 — `ai task`의 Cancel/Progress는 의도적으로 제한적**: Dashboard의 `taskQueue`(in-memory, Next.js 서버 프로세스 상주)와 달리 `ai task`는 CLI 프로세스가 만드는 파일 기반 원장(`.runtime/tasks.json`)만 다룬다. CLI 호출은 동기적이라 실행 중인 호출을 다른 프로세스에서 취소하거나 진행률을 볼 수 없음 — 이는 실제 아키텍처 경계(별도 OS 프로세스)이며 향후 CLI가 장기 실행 프로세스로 상주하는 구조로 바뀌지 않는 한 해소되지 않음(`## AI Platform v1` 참고, 위장하지 않고 문서화됨).
-- **AI Platform v1 — 실제 API 키 미검증**: 이 개발 환경에는 실제 Anthropic/OpenAI/Gemini/OpenRouter API 키가 없어, `ai chat`/`ai prompt execute`/Dashboard AI Studio는 전부 시뮬레이션 폴백 경로로만 확인됨(Website Builder와 동일한 기존 폴백 메커니즘 재사용, 신규 위험 아님). 실제 키 준비 후 재검증 권장.
+- **AI Platform v1 / AI Provider Integration v1.1 — 실제 API 키 미검증**: 이 개발 환경에는 실제 Anthropic/OpenAI/Gemini/OpenRouter API 키가 없어, `ai chat`(`--stream` 포함)/`ai prompt execute`/Dashboard AI Studio/Provider Status 라이브 헬스체크는 전부 mock된 `fetch` 또는 시뮬레이션 폴백 경로로만 확인됨(Website Builder와 동일한 기존 폴백 메커니즘 재사용, 신규 위험 아님). 실제 키 준비 후 재검증 권장 — 특히 재시도(`withRetry`)와 스트리밍 SSE 파싱은 실제 vendor 응답 형식과 100% 동일하다는 보장이 mock에는 없다.
+- ~~`lib/providers/status.ts`(Dashboard Provider Status 그리드)가 OpenAI/Gemini를 env var 존재 여부만으로 판정~~ — **부분 해결(AI Provider Integration v1.1, 2026-07-14)**: 실제 모델 목록 엔드포인트를 호출하는 라이브 헬스체크로 교체함(`## AI Provider Integration v1.1` 참고). 다만 `lib/providers/status.ts`와 `packages/cli/src/providers/manager.ts`의 코드 자체는 여전히 두 곳에 독립적으로 존재 — 완전한 통합 여부는 아래 항목대로 별도 결정 필요.
 
 ---
 
@@ -409,5 +433,5 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 4. **Marketplace 실 데이터 채우기** — Install/Remove/Update/Publish 메커니즘은 이제 CLI·Dashboard 양쪽에서 검증 완료(`## Marketplace` 참고)했으므로, 실제 `ai marketplace publish`로 agent/workflow/skill을 최소 1개 이상 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신 — 남은 유일한 작업.
 5. **Authentication — 다른 내부 API 보호 여부 결정** — `/developer/**`·`/projects/**`는 보호되지만 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등은 `packages/cli` 호환을 위해 의도적으로 미보호 상태. CLI 쪽에도 세션 전달(예: API 토큰) 방식을 도입해 이 API들까지 보호 범위를 넓힐지, 현재 상태를 유지할지 결정 필요.
 6. **온라인 Marketplace Provider 도입 여부 결정** — 현재는 `LocalMarketplaceProvider`(파일시스템)만 존재. 여러 프로젝트/팀 간 패키지 공유가 필요해지면 HTTP 기반 Provider를 `MarketplaceProvider` 인터페이스에 맞춰 추가하는 방향으로 확장 가능(인터페이스는 이미 이를 염두에 두고 분리되어 있음).
-7. **AI Platform v1 — 실제 API 키로 검증 필요** — 이번 검증은 이 환경에 실제 Provider API 키가 없어 전부 시뮬레이션 폴백 경로로만 확인됨(`## AI Platform v1` 참고). 실제 Anthropic/OpenAI/Gemini/OpenRouter 키가 준비되면 `ai provider set-key`·`ai chat`·`ai prompt execute`의 실제 응답·토큰 사용량 기록을 재확인 권장.
-8. **`lib/providers/status.ts`(Dashboard Provider Status 그리드)와 `packages/cli/src/providers/manager.ts`(AI Platform v1) 통합 여부 결정** — 현재 두 곳 모두 "Provider 연결 상태"를 별도로 계산한다(`ProviderStatusWidget`은 두 결과를 병합해서 보여줄 뿐, 내부 로직은 여전히 둘). 장기적으로 하나로 합칠지는 별도 결정 필요.
+7. **AI Platform v1 / AI Provider Integration v1.1 — 실제 API 키로 검증 필요** — 이번 검증은 이 환경에 실제 Provider API 키가 없어 전부 시뮬레이션 폴백 또는 mock된 `fetch` 경로로만 확인됨(`## AI Platform v1`·`## AI Provider Integration v1.1` 참고). 실제 Anthropic/OpenAI/Gemini/OpenRouter 키가 준비되면 `ai provider set-key`·`ai chat`(`--stream` 포함)·`ai prompt execute`의 실제 응답·토큰 사용량 기록에 더해, 재시도(429/5xx 발생 시 실제로 재시도되는지)와 스트리밍(실제 SSE 응답이 청크 파싱과 어긋나지 않는지)도 재확인 권장.
+8. **`lib/providers/status.ts`(Dashboard Provider Status 그리드)와 `packages/cli/src/providers/manager.ts`(AI Platform v1) 코드 통합 여부 결정** — AI Provider Integration v1.1(2026-07-14)에서 두 곳 모두 "실제로 호출해서 검증한다"는 동일한 원칙으로 의미론은 맞춰졌으나(`## AI Provider Integration v1.1` 참고), 코드 자체는 여전히 두 곳에 독립적으로 존재한다(`ProviderStatusWidget`은 두 결과를 병합해서 보여줄 뿐). 장기적으로 하나로 합칠지는 별도 결정 필요.

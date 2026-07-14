@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-14 (11)
+
+### 추가 (Added)
+
+- **Design Automation Phase 1**: `docs/03_DESIGN/{DESIGN_AUTOMATION_MASTER,CLAUDE_DESIGN_INTEGRATION,FIGMA_INTEGRATION,DESIGN_SYNC,DESIGN_WORKFLOW}.md` 스펙 중 Phase 1(Requirement Analysis/Feature List/Site Map/User Flow/Screen List)만 구현. Storyboard/Wireframe/Prototype/Claude Design 연동/Figma/Design Sync/고객 승인 Workflow는 의도적으로 Phase 2 이후로 남김. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/{types,generator,registry}.ts`(신규) — 입력(Project Name/Type/Requirements/Target Users)을 받아 기존 `lib/ai/bridge.ts`의 `chatViaCli()`(Website Builder Content Engine·AI Studio와 동일한 CLI 브릿지, 신규 의존성 없음)로 AI에게 JSON 생성을 요청하고, 파싱 실패/Provider 미설정 시 결정론적 기본값(`buildDefaultDesignPlan()`)으로 전부-아니면-전무 폴백. `lib/data/design-plans.json`에 기존 registry 패턴과 동일하게 저장
+  - `POST/GET /api/design/requirements`(신규) — 스펙 문서(`CLAUDE_DESIGN_INTEGRATION.md` 14번)에 명시된 엔드포인트. 5종 산출물을 한 번에 생성/조회(스펙의 Dashboard Integration도 5종을 "Requirements" 메뉴 하나로 묶어 보여주므로 API를 쪼개지 않음)
+  - `/developer/design`(신규) — 입력 폼 + 생성 이력 + 5종 산출물 상세 뷰. `DeveloperNav`에 "Design" 링크 추가(Workflow Center와 Website Builder 사이), Dashboard Home에 `DesignPlansWidget`(신규) 추가
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.generate"` 추가(기존 8개 값 무변경) + 기존 `aiTaskCount` 카운터 재사용(Operations & Observability v1.1 인프라 재사용, 새 저장소 없음)
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(신규 작성, 원래 빈 파일이었음)에 기록
+  - 테스트(신규 21개): `tests/design/generator.test.ts`(12개)·`tests/design/registry.test.ts`(5개)·`tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 1개 포함 정상 생성) · `npm test`(38 files / 249 tests 전부 통과, 신규 21개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → Playwright로 실제 한글을 타이핑해 Design Plan 생성 → 5종 산출물 전부 정상 렌더링 확인 → `/api/audit?action=design.generate`·`/api/metrics`의 `aiTaskCount` 갱신 확인. curl로 먼저 시도했을 때 한글이 깨져 보인 것은 Git Bash on Windows의 쉘 인코딩 문제였음을 Playwright 실 브라우저 입력으로 재확인(애플리케이션 버그 아님)
+- 실제 라우트 핸들러(`app/api/design/requirements/route.ts`)를 vitest에서 직접 호출하는 통합 테스트를 시도했으나, `getCurrentActorEmail()`이 쓰는 `next/headers`의 `cookies()`가 실제 Next.js 요청 컨텍스트 밖에서는 예외를 던짐을 확인(이 저장소의 다른 라우트도 이 방식으로 테스트되지 않는 이유와 동일) — 통합 테스트는 라우트 바로 아래 계층(generator+registry)까지만 다루고, 라우트 자체는 기존 관례대로 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 1`(신규 섹션) · `## Documentation`·`## Tests` 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(신규, 원래 빈 파일)
+
+---
+
 ## 2026-07-14 (10)
 
 ### 추가 (Added)

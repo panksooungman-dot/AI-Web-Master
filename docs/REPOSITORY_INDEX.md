@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — Operations & Observability v1.1 반영)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — Design Automation Phase 1 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
 > **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
 
@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 35 files / 228 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 테스트 2개 + Operations & Observability v1.1 신규 20개 포함) |
+| `npm test`(Vitest) | ✅ 38 files / 249 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 신규 21개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1(`## Operations & Observability v1.1` 참고) 반영 이후 재실행한 결과다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1(`## Design Automation Phase 1` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -197,7 +197,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - **Settings**(`/developer/settings`) — Profile·Authentication 카드 신규 추가(`useAuth()` 재사용), 기존 AI 카드에 `/api/providers`(AI Workspace와 동일 엔드포인트, 로직 재사용) 요약 링크 추가. Theme(General 하위)·Workspace는 기존 그대로 요건 충족.
   - **Logs**(`/developer/logs`) — 기존 Terminal/Git/AI/System 4개 필터에 cross-cutting "Errors" 필터 1개만 추가(백엔드 변경 없음).
   - **Health**(`/developer/health`, 신규) — `lib/health/checks.ts`(신규)가 Git Status(기존 `lib/commandEngine/commands.ts`의 `git:status` 카탈로그 재사용)·Disk Usage(Node 내장 `fs.statfsSync`, 신규 의존성 없음)는 실시간으로, Build/Tests/Coverage는 수동 "Run Now" 버튼으로 실제 `npm run build`/`test`/`coverage`를 실행(동일 command engine 재사용)해 `lib/data/health-checks.json`에 캐시. Coverage 비율 파싱을 위해 `vitest.config.ts`의 `coverage.reporter`에 `"json-summary"` 추가. **Operations & Observability v1.1(2026-07-14)에서 CPU·Memory·Node version·Server Uptime·Active Sessions 5개 항목 추가**(`## Operations & Observability v1.1` 참고, 기존 Git/Disk/Build/Tests/Coverage는 무변경).
-- Evidence: `app/developer/{page,workspace,terminal,github,ai,workflows,websites,marketplace,logs,health,settings,ui-map}/page.tsx`, `app/projects/{page.tsx,[id]/page.tsx}`, `components/developer/dashboard/*.tsx`, `lib/{providers,websites,marketplace,health}/*.ts`, `app/api/{providers,websites,marketplace,health}/**/route.ts`, `app/api/projects/[id]/route.ts`(DELETE), `components/developer/DeveloperNav.tsx`(Operations & Observability v1.1 이후 17개 항목)
+- Evidence: `app/developer/{page,workspace,terminal,github,ai,workflows,websites,marketplace,logs,health,settings,ui-map}/page.tsx`, `app/projects/{page.tsx,[id]/page.tsx}`, `components/developer/dashboard/*.tsx`, `lib/{providers,websites,marketplace,health}/*.ts`, `app/api/{providers,websites,marketplace,health}/**/route.ts`, `app/api/projects/[id]/route.ts`(DELETE), `components/developer/DeveloperNav.tsx`(Design Automation Phase 1 이후 18개 항목)
 - 테스트: `tests/{projects,providers,websites,marketplace,health}/*.test.ts`(신규, 총 27개 테스트) — 모두 `fs.mkdtempSync` 임시 디렉터리 격리 또는 순수 함수 검증, 실제 `npm run build`/`test`(느리고 재귀적)나 실제 CLI 서브프로세스는 유닛 테스트에서 실행하지 않음(수동 curl E2E로 별도 확인).
 - 인증: 모든 신규 라우트는 이미 존재하는 `/developer/**` 보호 범위 안에 들어가므로 `proxy.ts` 변경 없이 자동으로 보호됨(확인 완료).
 - 별도 대시보드는 CLI 쪽에는 없음(CLI는 터미널 메뉴 UI만 제공, `packages/cli/src/session/`).
@@ -311,6 +311,27 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ---
 
+## Design Automation Phase 1
+
+**Status: ✅ Implemented (Phase 1 of the Design Automation system only) — 2026-07-14**
+
+- Description: `docs/03_DESIGN/{DESIGN_AUTOMATION_MASTER,CLAUDE_DESIGN_INTEGRATION,FIGMA_INTEGRATION,DESIGN_SYNC,DESIGN_WORKFLOW}.md`에 정의된 Design Automation 전체 시스템 중 **Phase 1만** 구현 — Requirement Analysis·Feature List·Site Map·User Flow·Screen List. Storyboard/Wireframe/Prototype/Claude Design 연동/Figma Import·Export/Design Sync/고객 승인 Workflow는 의도적으로 구현하지 않음(Phase 2 이후로 명시적으로 남김, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`의 Phase 구분표 참고). 새 기능은 기존 API·타입을 하나도 변경하지 않고 추가만 했다(additive).
+- **생성 파이프라인**(`lib/design/{types,generator,registry}.ts`, 전부 신규) — 입력(Project Name/Type/Requirements/Target Users) → 기존 `lib/ai/bridge.ts`의 `chatViaCli()`(Website Builder Content Engine·AI Studio와 동일한 CLI shell-out 브릿지, 신규 의존성 없음)로 AI에게 JSON 생성 요청 → 파싱 실패/Provider 미설정 시 결정론적 기본값(`buildDefaultDesignPlan()`)으로 전부-아니면-전무(all-or-nothing) 폴백(Website Builder Content Engine의 `generateSiteContent()`/`buildDefaultContent()`와 동일한 원칙). `chatFn`을 의존성 주입 가능하게 설계해(기본값은 실제 `chatViaCli`) 실제 CLI 서브프로세스 없이도 빠른 단위 테스트가 가능하다.
+- **저장**(`lib/data/design-plans.json`, 신규) — 기존 registry 패턴(workspaces/projects/prompts/workflows/websites/audit-log/metrics)과 동일한 fs-JSON append 방식.
+- **API**(`app/api/design/requirements/route.ts`, 신규) — `CLAUDE_DESIGN_INTEGRATION.md` 14번에 명시된 `POST /api/design/requirements` 그대로. `GET`(목록)도 함께 제공.
+- **Dashboard**(`/developer/design`, 신규) — 입력 폼 + 생성 이력 + 5종 산출물 상세 뷰(Requirement Analysis/Feature List/Site Map/User Flow/Screen List). `DeveloperNav`에 "Design" 링크 추가(Workflow Center와 Website Builder 사이 — 기획이 빌드보다 먼저라는 파이프라인 순서 반영). Dashboard Home에 `DesignPlansWidget`(신규) 추가.
+- **Audit Log·Metrics 연동**(additive) — `lib/audit/log.ts`의 `AuditAction` 유니온에 `"design.generate"` 추가(기존 8개 값은 무변경), 생성 성공 시 기존 `aiTaskCount` 카운터 재사용(새 카운터 추가하지 않음) — Operations & Observability v1.1 인프라를 그대로 재사용.
+- 명세와 실제 구현의 차이(명세에 없던 세부사항, `DESIGN_AUTOMATION_MASTER.md` 3번에도 기록):
+  - 5종 산출물마다 별도 API를 두지 않고 `POST /api/design/requirements` 하나가 전부 생성 — 명세의 Dashboard Integration(11번)도 이 5종을 "Requirements" 메뉴 하나로 묶어 보여주기 때문.
+  - `projectId`(기존 `lib/projects/registry.ts` Project와 선택적 연결) — 명세에 없는 필드지만, Phase 5(승인 Workflow) 대비로 스키마에 포함(강제하지 않음).
+  - `design.generate` Audit 액션·`aiTaskCount` 재사용 — 명세에 없지만 기존 AI 실행 경로(AI Studio·Website Builder)와의 일관성을 위해 추가.
+- **알려진 제약**: 실제 HTTP 라우트 핸들러(`app/api/design/requirements/route.ts`)를 vitest에서 직접 호출하는 통합 테스트는 시도했으나 실패했다 — 이 라우트가 쓰는 `getCurrentActorEmail()`(`next/headers`의 `cookies()`)은 실제 Next.js 요청 처리 런타임 밖에서 호출하면 `` `cookies` was called outside a request scope `` 오류를 던진다(이 저장소의 다른 어떤 라우트도 이 방식으로 테스트되지 않는 이유와 동일). 따라서 통합 테스트는 라우트 바로 아래 계층(generator+registry 실 연동)까지만 다루고, 라우트 자체는 기존 관례대로 수동 curl/Playwright E2E로 검증했다.
+- Evidence: `lib/design/{types,generator,registry}.ts`, `app/api/design/requirements/route.ts`, `app/developer/design/page.tsx`, `components/developer/dashboard/DesignPlansWidget.tsx`, `lib/audit/log.ts`(`design.generate` 추가), `components/developer/DeveloperNav.tsx`
+- 테스트(신규 21개): `tests/design/generator.test.ts`(12개 — `buildDefaultDesignPlan()`/`parseDesignPlanContent()`의 all-or-nothing 검증·`generateDesignPlan()`의 성공/실패 폴백), `tests/design/registry.test.ts`(5개), `tests/design/integration.test.ts`(4개 — generator+registry 실 fs 연동 3개 + 실제 CLI 서브프로세스를 통한 end-to-end 폴백 검증 1개)
+- 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 1개 포함 정상 생성) · `npm test`(38 files / 249 tests 전부 통과, 회귀 없음). 실 E2E: 검증 전용 임시 계정으로 로그인 → Playwright로 실제 한글을 타이핑해 Design Plan 생성 → 5종 산출물이 모두 정상 렌더링됨을 확인(curl로 먼저 테스트했을 때는 Git Bash on Windows의 쉘 인코딩 문제로 한글이 깨져 보였으나, 실제 브라우저 입력에서는 문제없이 정상 저장·표시됨을 재확인 — 애플리케이션 버그 아님) → `/api/audit?action=design.generate`·`/api/metrics`의 `aiTaskCount`가 실제로 갱신됨을 확인. 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제.
+
+---
+
 ## Authentication
 
 **Status: ✅ Implemented (Development OS scope) — 2026-07-14**
@@ -374,7 +395,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - `docs/00_COMPANY/`(4) — `PROJECT_VISION.md`, `ORGANIZATION.md`, `COMPANY_POLICY.md`, `DOCUMENT_INDEX.md`
   - `docs/01_PMO/`(4) — `PROJECT_ROADMAP.md`, `WBS.md`, `CHANGELOG.md`, `REQUEST.md`
   - `docs/02_DEVELOPMENT/`(4) — `CNBIZ_RULES.md`, `ARCHITECTURE.md`, `TECH_STACK.md`, `AI_COMPONENT_GUIDDE.md`
-  - `docs/03_DESIGN/`(3) — `DESIGN_SYSTEM.md` 등
+  - `docs/03_DESIGN/`(8) — `DESIGN_SYSTEM.md`·`UI_GUIDE.md`·`UX_GUIDE.md` + Design Automation 스펙 5종(`DESIGN_AUTOMATION_MASTER.md`·`CLAUDE_DESIGN_INTEGRATION.md`·`FIGMA_INTEGRATION.md`·`DESIGN_SYNC.md`·`DESIGN_WORKFLOW.md`, `## Design Automation Phase 1` 참고)
   - `docs/04_OPERATIONS/`(5)
   - `docs/05_AI/`(12) — `AGENTS.md`, `TOKEN_POLICY.md`, `WORKFLOW.md`, `PROMPTS.md` 등 + `docs/05_AI/skills/`
   - `docs/06_TEMPLATES/`(10)
@@ -391,8 +412,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup}/`에 추가. 35개 테스트 파일·228개 테스트 케이스(2026-07-14 Operations & Observability v1.1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 신규 20개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
-  - **Operations & Observability v1.1(신규)** — `tests/audit/log.test.ts`(7개, record/list/필터/정렬/500건 상한 트리밍) + `tests/metrics/registry.test.ts`(5개) + `tests/backup/registry.test.ts`(5개, export/import 왕복·부분 번들) + `tests/health/checks.test.ts`(`getSystemInfo()` 1개 추가) + `tests/auth/session.test.ts`(`countActiveSessions()` 2개 추가), 자세한 내용은 `## Operations & Observability v1.1` 참고.
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 38개 테스트 파일·249개 테스트 케이스(2026-07-14 Design Automation Phase 1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 신규 21개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+  - **Design Automation Phase 1(신규)** — `tests/design/generator.test.ts`(12개) + `tests/design/registry.test.ts`(5개) + `tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개), 자세한 내용은 `## Design Automation Phase 1` 참고.
+  - **Operations & Observability v1.1** — `tests/audit/log.test.ts`(7개, record/list/필터/정렬/500건 상한 트리밍) + `tests/metrics/registry.test.ts`(5개) + `tests/backup/registry.test.ts`(5개, export/import 왕복·부분 번들) + `tests/health/checks.test.ts`(`getSystemInfo()` 1개 추가) + `tests/auth/session.test.ts`(`countActiveSessions()` 2개 추가), 자세한 내용은 `## Operations & Observability v1.1` 참고.
   - **AI Provider Integration v1.1** — `tests/ai-platform-cli/{provider-retry,streaming}.test.ts`(17개) + `tests/providers/status.test.ts`(기존 5개 유지, OpenAI/Gemini 라이브 체크로 갱신), 자세한 내용은 `## AI Provider Integration v1.1` 참고.
   - **CLI startup** — 빌드된 `packages/cli/bin/ai.js`를 실제 하위 프로세스로 실행해 `--version`/`--help`/미등록 명령 처리를 검증(`dist/`가 없으면 skip). 루트 `pretest` 스크립트가 `npm test` 실행 전 CLI를 자동 빌드.
   - **Website Builder(CLI)** — `website/types.ts`(11개 사이트 타입·팔레트·카피)·`website/scaffold.ts`(`slugify()`/`resolveSiteType()`)·`website/content.ts`(Content Generator, 신규)의 실제 로직 검증.
@@ -405,7 +427,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - **AI Platform v1(신규)** — `tests/ai-platform-cli/{openrouter,provider-config,usage,prompt-library,task-ledger}.test.ts`(CLI 로직, 23개) + `tests/prompts/{registry,render}.test.ts`(Next.js Prompt Library, 11개) + `tests/agents/taskQueue-retry.test.ts`(Task Queue `retry()`, 실제 `shell` Agent로 검증, 3개) + `tests/ai/bridge.test.ts`(Dashboard↔CLI bridge, `execute()` mock, 6개), 자세한 내용은 `## AI Platform v1` 참고.
   - 이 작업 과정에서 실제로 발견·수정한 버그: `next build`의 TypeScript 타입체크가 루트 `tsconfig.json`(`exclude`가 비재귀 패턴이라 저장소 내 중첩 복제본까지 스캔)에서 빌드 실패 — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"` 재귀 패턴으로 교체(자세한 내용은 `## Build Status` 참고). Marketplace의 `remove`/`update` 명령이 애초에 한 번도 `install`과 맞물려 동작한 적이 없었던 버그도 이 과정에서 발견·수정(`## Marketplace` 참고). AI Platform v1 작업 중에는 `ProviderManager.readProvidersConfig()`가 파일이 없을 때 모듈 스코프 `DEFAULT_CONFIG` 객체를 참조로 반환해 쓰기 경로가 이를 영구 오염시키는 버그를 발견·수정(`## AI Platform v1` 참고).
   - 나머지 영역(Workflow/Agent Runtime의 실행 경로 자체, Orchestrator)은 아직 테스트 없음.
-- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
+- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
 
 ---
 

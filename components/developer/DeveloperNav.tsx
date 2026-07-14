@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/developer/ai", label: "AI Workspace" },
   { href: "/developer/prompts", label: "Prompt Library" },
   { href: "/developer/workflows", label: "Workflow Center" },
+  { href: "/developer/design", label: "Design" },
   { href: "/developer/websites", label: "Website Builder" },
   { href: "/developer/marketplace", label: "Marketplace" },
   { href: "/developer/logs", label: "Logs" },

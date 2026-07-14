@@ -20,6 +20,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "website.generate": "Website Generation",
   "ai.task": "AI Task",
   "build.run": "Build",
+  "design.generate": "Design Plan",
 };
 
 /**

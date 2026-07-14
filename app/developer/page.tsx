@@ -9,6 +9,7 @@ import { SystemHealthWidget } from "@/components/developer/dashboard/SystemHealt
 import { ProviderStatusWidget } from "@/components/developer/dashboard/ProviderStatusWidget";
 import { TokenUsageWidget } from "@/components/developer/dashboard/TokenUsageWidget";
 import { MetricsWidget } from "@/components/developer/dashboard/MetricsWidget";
+import { DesignPlansWidget } from "@/components/developer/dashboard/DesignPlansWidget";
 
 export default function DeveloperPage() {
   return (
@@ -23,6 +24,7 @@ export default function DeveloperPage() {
         <ProjectsWidget />
         <RunningTasksWidget />
         <ActiveWorkflowsWidget />
+        <DesignPlansWidget />
         <MarketplaceWidget />
         <ProviderStatusWidget />
         <TokenUsageWidget />

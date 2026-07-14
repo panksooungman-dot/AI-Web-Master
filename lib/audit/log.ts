@@ -15,7 +15,8 @@ export type AuditAction =
   | "marketplace.remove"
   | "website.generate"
   | "ai.task"
-  | "build.run";
+  | "build.run"
+  | "design.generate";
 
 export interface AuditEntry {
   id: string;

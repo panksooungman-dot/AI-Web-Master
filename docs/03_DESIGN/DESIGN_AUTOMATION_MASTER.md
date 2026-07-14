@@ -1,0 +1,74 @@
+# Design Automation — Master Index
+
+> Version: v1.0
+> Status: Phase 1 Implemented
+> Priority: High
+> Owner: AI Business OS
+> Last Updated: 2026-07-14
+
+---
+
+# 1. 목적
+
+"고객 요구사항 → 기획 → 디자인 → 승인 → 코드 생성"까지 이어지는 Design Automation 전체
+시스템의 진입점 문서. 4개 세부 스펙 문서와 실제 구현 상태를 연결한다.
+
+| 문서 | 다루는 범위 |
+|------|-------------|
+| `CLAUDE_DESIGN_INTEGRATION.md` | Claude Code ↔ Claude Design 연동, Requirement Analysis, Storyboard/Wireframe/Prototype, Customer Review, API |
+| `FIGMA_INTEGRATION.md` | Figma Import/Export (문서 작성 진행 트래커 — 세부 스펙은 이후 작성 예정) |
+| `DESIGN_SYNC.md` | Design ↔ Code 양방향 동기화 엔진 |
+| `DESIGN_WORKFLOW.md` | Customer Request부터 Deploy까지 전체 14-Phase Workflow |
+
+---
+
+# 2. 이 저장소의 Phase 구분 (실제 구현 기준)
+
+위 4개 문서는 각자 독립적인 Phase 번호를 갖는다(예: `DESIGN_SYNC.md`의 Phase 1은 "Sync
+Engine"). 실제 구현 순서를 혼동 없이 추적하기 위해, 이 저장소에서 "Design Automation
+Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Phase) 중 최초 두 단계
+(Phase 2 요구사항 분석 + Phase 3 기획)를 하나로 묶은 것**을 가리킨다:
+
+| Design Automation Phase | 산출물 | 근거 |
+|---|---|---|
+| **Phase 1(이 저장소 구현 완료)** | Requirement Analysis, Feature List, Site Map, User Flow, Screen List | `DESIGN_WORKFLOW.md` Phase 2("요구사항 분석")+Phase 3("기획") 통합, `CLAUDE_DESIGN_INTEGRATION.md` 7번("Requirement Analysis")·5번("Claude Code 역할") |
+| Phase 2(미구현) | Storyboard | `DESIGN_WORKFLOW.md` Phase 4, `CLAUDE_DESIGN_INTEGRATION.md` 8번 |
+| Phase 3(미구현) | Wireframe | `DESIGN_WORKFLOW.md` Phase 5 |
+| Phase 4(미구현) | Prototype | `DESIGN_WORKFLOW.md` Phase 6 |
+| Phase 5(미구현) | Claude Design 연동 + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7 |
+| Phase 6(미구현) | 고객 검토/승인 Workflow | `DESIGN_WORKFLOW.md` Phase 8 |
+| Phase 7(미구현) | Figma Import/Export | `DESIGN_WORKFLOW.md` Phase 9 |
+| Phase 8(미구현) | Design Sync(양방향) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
+| Phase 9+(미구현) | Website Builder 연동, Build/Test/Deploy | `DESIGN_WORKFLOW.md` Phase 11~14 (Website Builder v2·Dashboard·CI는 이미 별도로 구현되어 있음, `docs/REPOSITORY_INDEX.md` 참고 — 이 Phase가 하는 일은 "연결"뿐) |
+
+---
+
+# 3. Phase 1 구현 요약 (2026-07-14)
+
+**Status: ✅ Implemented**
+
+- Description: Requirement Analysis·Feature List·Site Map·User Flow·Screen List 5종을 하나의
+  "Design Plan"으로 자동 생성. `lib/ai/bridge.ts`의 기존 `chatViaCli()`(Website Builder Content
+  Engine·AI Studio와 동일한 CLI shell-out 브릿지)를 그대로 재사용해 AI에게 JSON 생성을 요청하고,
+  Provider 미설정이거나 응답 파싱에 실패하면 결정론적 기본값으로 폴백한다(Website Builder
+  Content Engine의 `buildDefaultContent()`/`generateSiteContent()`와 동일한 원칙).
+- 문서와의 차이점(명세에 없던 구현 세부사항):
+  - 명세(`CLAUDE_DESIGN_INTEGRATION.md` 14번)는 `POST /api/design/requirements` 하나만
+    정의하고 Feature List/Site Map/User Flow/Screen List용 별도 API는 명시하지 않는다 —
+    같은 문서의 11번("Dashboard Integration")도 이 5종을 "Requirements" 메뉴 하나로 묶어
+    보여주므로, 5개 API로 쪼개지 않고 하나의 엔드포인트가 5종을 한 번에 생성·반환하도록
+    구현했다.
+  - `projectId`(기존 `lib/projects/registry.ts`의 Project와 선택적 연결)는 명세에 없던 필드다
+    — Phase 5(Dashboard Integration을 실제 승인 Workflow와 엮는 단계)에서 필요해질 것으로
+    예상해 스키마에는 포함해 두었으나, 강제하지는 않는다(Website Builder도 기존 Project 등록
+    없이 독립적으로 실행 가능한 것과 동일한 원칙).
+  - Audit Log(`design.generate`)·Metrics(`aiTaskCount`) 연동은 명세에 없다 — Operations &
+    Observability v1.1에서 이미 구축된 인프라를 그대로 재사용(추가 저장소 없음)한 것으로,
+    이 저장소의 다른 모든 AI 실행 경로(AI Studio·Website Builder)와 동일한 일관성을 위해
+    추가했다.
+- Evidence: `lib/design/{types,generator,registry}.ts`, `app/api/design/requirements/route.ts`,
+  `app/developer/design/page.tsx`, `components/developer/dashboard/DesignPlansWidget.tsx`
+- 테스트: `tests/design/{generator,registry,integration}.test.ts`(21개) — 상세는
+  `docs/REPOSITORY_INDEX.md`의 `## Design Automation Phase 1` 참고.
+- 미구현(Phase 2 이후로 명시적으로 남겨둔 것): Storyboard, Wireframe, Prototype, Claude
+  Design 연동, Figma Import/Export, Design Sync, 고객 승인 Workflow.

@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-2 Implemented
+> Status: Phase 1-3 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -33,7 +33,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 |---|---|---|
 | **Phase 1(이 저장소 구현 완료)** | Requirement Analysis, Feature List, Site Map, User Flow, Screen List | `DESIGN_WORKFLOW.md` Phase 2("요구사항 분석")+Phase 3("기획") 통합, `CLAUDE_DESIGN_INTEGRATION.md` 7번("Requirement Analysis")·5번("Claude Code 역할") |
 | **Phase 2(이 저장소 구현 완료)** | Storyboard(Screen Flow, User Journey, Navigation Flow, Page Sequence, Screen Description) | `DESIGN_WORKFLOW.md` Phase 4, `CLAUDE_DESIGN_INTEGRATION.md` 8번 |
-| Phase 3(미구현) | Wireframe | `DESIGN_WORKFLOW.md` Phase 5 |
+| **Phase 3(이 저장소 구현 완료)** | Wireframe(Desktop/Tablet/Mobile Layout, Component Layout, Responsive Layout, Screen Sections) | `DESIGN_WORKFLOW.md` Phase 5 |
 | Phase 4(미구현) | Prototype | `DESIGN_WORKFLOW.md` Phase 6 |
 | Phase 5(미구현) | Claude Design 연동 + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7 |
 | Phase 6(미구현) | 고객 검토/승인 Workflow | `DESIGN_WORKFLOW.md` Phase 8 |
@@ -112,3 +112,53 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   `docs/REPOSITORY_INDEX.md`의 `## Design Automation Phase 2` 참고.
 - 미구현(Phase 3 이후로 명시적으로 남겨둔 것): Wireframe, Prototype, Claude Design 연동,
   Figma Import/Export, Design Sync, 고객 승인 Workflow.
+
+---
+
+# 5. Phase 3 구현 요약 — Wireframe Generator (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 2가 만든 Storyboard(Screen Description의 `keyElements`)를 입력으로
+  Desktop/Tablet/Mobile Layout·Component Layout·Responsive Layout·Screen Sections을 생성하는
+  "Wireframe Generator". Phase 1·2와 완전히 동일한 원칙 재사용 — `lib/ai/bridge.ts`의
+  `chatViaCli()`로 AI에게 JSON 생성을 요청하고, Provider 미설정이거나 응답 파싱에 실패하면
+  결정론적 기본값(`buildDefaultWireframe()`, Screen Description의 `keyElements`를 13종 고정
+  컴포넌트 팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/
+  Button/Search/Pagination)로 정규화해 화면별 Header/Hero/Main Content/Footer 섹션으로 변환)로
+  전부-아니면-전무 폴백. Audit Log·Metrics도 새 저장소 없이 기존 인프라만 재사용.
+- 문서와의 차이점(명세에 없던 구현 세부사항):
+  - 요구사항이 예시로 든 API 응답 `{ wireframeId, projectId, layouts, components, responsive }`는
+    그대로 포함하되(`layouts`=화면별 Desktop/Tablet/Mobile `BreakpointLayout` 3종을 묶은 배열,
+    `components`=전체 화면에서 실제로 쓰인 컴포넌트 종류의 인벤토리(usedIn 화면 목록 포함),
+    `responsive`=desktop/tablet/mobile 3개 breakpoint의 min-width·column 수·설명을 담은 객체),
+    Dashboard가 필요로 하는 전체 레코드는 `wireframe` 필드 아래에 추가로 포함했다 — Phase 2의
+    `storyboard` 필드와 동일한 확장 방식으로 스펙을 축소하지 않고 확장한 것이라 호환성에 영향
+    없음.
+  - "Screen Sections"는 명세에 `layouts`/`components`/`responsive`와 나란히 나열된 별도
+    생성 대상이었으나, 별도 최상위 필드로 만들지 않고 각 `BreakpointLayout.sections`(화면×
+    breakpoint별 섹션 목록)로 구현했다 — Desktop/Tablet/Mobile Layout 자체가 이미 "그 breakpoint
+    에서의 화면 구성 섹션"이라는 의미를 담고 있어, 별도 필드로 중복 표현하지 않았다.
+  - 결정론적 폴백에서는 같은 화면의 desktop/tablet/mobile 섹션 구성(components)을 동일하게
+    유지하고 `columns`(12/8/4)만 breakpoint별로 다르게 부여했다 — 반응형 시 실제로 달라지는
+    동작(Sidebar가 접히거나 Navigation이 햄버거 메뉴로 축약되는 것 등)은 `responsive` 필드의
+    `notes`로 서술하고, 섹션 구조 자체를 breakpoint마다 다르게 지어내지는 않았다(AI 경로는
+    프롬프트에서 breakpoint별로 다른 섹션 구성을 자유롭게 생성할 수 있도록 허용함). 컬럼 수는
+    CNBIZ_RULES.md 4.3(브레이크포인트)과 동일한 사고를 따른 12/8/4 그리드다.
+  - "Developer → Design → Wireframe"이라는 계층 요구는 Phase 2와 동일하게 새로운 중첩 네비게이션
+    메뉴를 만들지 않고, `/developer/design/storyboard`(Storyboard, "Wireframe →" 링크 추가)와
+    신규 `/developer/design/wireframe` 페이지 사이의 상호 링크("Wireframe →" / "← Storyboard")로
+    구현했다 — `DeveloperNav`는 무변경.
+  - Metrics는 `MetricsCounters`에 `wireframeGenerationCount` 필드를 추가(같은
+    `lib/data/metrics.json` 파일, 같은 `readMetrics()`/`incrementMetric()` 함수)했다 — Phase 2와
+    동일하게, "몇 번의 AI 호출이 있었는지(`aiTaskCount`)"·"Storyboard가 몇 번 만들어졌는지
+    (`storyboardGenerationCount`)"·"Wireframe이 몇 번 만들어졌는지(`wireframeGenerationCount`)"를
+    서로 구분 가능하게 유지했다.
+- Evidence: `lib/design/{wireframe,wireframe-generator}.ts`,
+  `app/api/design/wireframe/{route.ts,[id]/route.ts}`, `app/developer/design/wireframe/page.tsx`,
+  `lib/audit/log.ts`(`design.wireframe.generate` 추가), `lib/metrics/registry.ts`
+  (`wireframeGenerationCount` 추가)
+- 테스트: `tests/design/wireframe-{generator,registry,integration}.test.ts`(25개) + 기존
+  `tests/metrics/registry.test.ts`에 `wireframeGenerationCount` 케이스 1개 추가.
+- 미구현(Phase 4 이후로 명시적으로 남겨둔 것): Prototype, Claude Design 연동, Figma
+  Import/Export, Design Sync, 고객 승인 Workflow.

@@ -22,6 +22,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       aiTaskCount: 0,
       marketplaceInstallCount: 0,
       storyboardGenerationCount: 0,
+      wireframeGenerationCount: 0,
     });
   });
 
@@ -60,6 +61,16 @@ describe("Metrics — lib/metrics/registry.ts", () => {
 
     const counters = readMetrics(baseDir);
     expect(counters.storyboardGenerationCount).toBe(2);
+    expect(counters.aiTaskCount).toBe(0);
+  });
+
+  it("incrementMetric() increments wireframeGenerationCount (Design Automation Phase 3) independently of other counters", () => {
+    incrementMetric("wireframeGenerationCount", undefined, baseDir);
+    incrementMetric("wireframeGenerationCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.wireframeGenerationCount).toBe(2);
+    expect(counters.storyboardGenerationCount).toBe(0);
     expect(counters.aiTaskCount).toBe(0);
   });
 });

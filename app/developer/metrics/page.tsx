@@ -59,6 +59,9 @@ export default function MetricsPage() {
           <Card title="Storyboard Generation Count">
             <p className="text-3xl font-bold text-gray-100">{summary.counters.storyboardGenerationCount}</p>
           </Card>
+          <Card title="Wireframe Generation Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.wireframeGenerationCount}</p>
+          </Card>
 
           <Card title="Provider Usage" className="sm:col-span-2 lg:col-span-2">
             {summary.providerUsage ? (

@@ -21,6 +21,7 @@ export function MetricsWidget() {
           aiTaskCount: 0,
           marketplaceInstallCount: 0,
           storyboardGenerationCount: 0,
+          wireframeGenerationCount: 0,
         })
       );
   }, []);
@@ -58,6 +59,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Storyboards Generated</span>
             <span className="text-gray-200">{counters.storyboardGenerationCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Wireframes Generated</span>
+            <span className="text-gray-200">{counters.wireframeGenerationCount}</span>
           </li>
         </ul>
       )}

@@ -22,6 +22,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "build.run": "Build",
   "design.generate": "Design Plan",
   "design.storyboard.generate": "Storyboard",
+  "design.wireframe.generate": "Wireframe",
 };
 
 /**

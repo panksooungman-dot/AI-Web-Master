@@ -27,6 +27,29 @@
 
 ---
 
+## 2026-07-15 (2)
+
+### 추가 (Added)
+
+- **Design Automation Phase 3 — Wireframe Generator**: Phase 2(Storyboard의 Screen Description `keyElements`) 위에서 Desktop/Tablet/Mobile Layout·Component Layout·Responsive Layout·Screen Sections을 생성. Phase 1·2와 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/wireframe.ts`(신규, 요구사항이 지정한 파일명 — 13종 고정 컴포넌트 팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/Button/Search/Pagination) 타입 + `lib/data/design-wireframes.json` fs registry) · `lib/design/wireframe-generator.ts`(신규, 생성 로직 — `keyElements`를 13종 컴포넌트로 정규화해 Header/Navigation/Hero/Main Content/Footer 섹션으로 그룹화, breakpoint당 columns 12/8/4 차등 부여)
+  - `POST /api/design/wireframe`·`GET /api/design/wireframe/:id`(신규, 요구사항 명시 엔드포인트) — 응답에 요구사항의 `{wireframeId, projectId, layouts, components, responsive}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세는 `wireframe` 필드로 확장. `GET /api/design/wireframe`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/wireframe`(신규) — Storyboard 선택 → Generate → Project/Responsive Layout/Component Layout/화면별 Desktop·Tablet·Mobile Layout 표시, Export JSON/Markdown. `/developer/design/storyboard`와 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.wireframe.generate"` 추가(기존 10개 값 무변경), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `wireframeGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — `aiTaskCount`·`storyboardGenerationCount`와 분리해 각각 구분 가능하게 함. `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 5번에 기록
+  - 테스트(신규 25개): `tests/design/wireframe-generator.test.ts`(15개)·`tests/design/wireframe-registry.test.ts`(6개)·`tests/design/wireframe-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(44 files / 300 tests 전부 통과, 신규 25개 포함, 회귀 없음 — `tests/providers/status.test.ts`의 1건 타임아웃은 병렬 실행 시 네트워크 자원 경합으로 인한 기존 무관 플레이크로 확인, 단독 재실행 시 7/7 통과)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe 생성 파이프라인 전체를 실행해 API 응답 shape(`wireframeId`/`projectId`/`layouts`/`components`/`responsive`) 확인 → Playwright 실 브라우저로 `/developer/design/wireframe`에서 "Generate Wireframe" 클릭 → History 갱신 → Project/Responsive Layout/Component Layout/화면별 3-breakpoint(Desktop·Tablet·Mobile) Layout 정상 렌더링 확인(콘솔 에러 0건) → Export JSON/Export Markdown 버튼이 실제 파일 다운로드를 트리거함을 확인 → `/developer/design/storyboard`의 "Wireframe →" 상호 링크 확인 → `/api/audit?action=design.wireframe.generate`(정상 기록)·`/api/metrics`(`wireframeGenerationCount`가 `storyboardGenerationCount`·`aiTaskCount`와 독립 집계)·`/developer/metrics`·`/developer/audit-log` 화면에 새 카운터/필터 정상 표시·`GET /api/design/wireframe/:id`·404 케이스 전부 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1·2와 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 3`(신규 섹션) · `## Tests`·상단 검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(5번 섹션 추가)
+
+---
+
 ## 2026-07-14 (11)
 
 ### 추가 (Added)

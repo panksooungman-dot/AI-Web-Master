@@ -153,9 +153,14 @@ export default function StoryboardPage() {
         title="Design — Storyboard"
         description="Design Automation Phase 2: Screen Flow·User Journey·Navigation Flow·Page Sequence·Screen Description을 Phase 1 Design Plan 위에서 생성합니다."
         actions={
-          <Link href="/developer/design" className="text-xs text-blue-400 hover:underline self-center">
-            ← Requirements
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/developer/design" className="text-xs text-blue-400 hover:underline">
+              ← Requirements
+            </Link>
+            <Link href="/developer/design/wireframe" className="text-xs text-blue-400 hover:underline">
+              Wireframe →
+            </Link>
+          </div>
         }
       />
 

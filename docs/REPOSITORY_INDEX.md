@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 41 files / 274 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 21개 + Design Automation Phase 2 신규 25개 포함) |
+| `npm test`(Vitest) | ✅ 44 files / 300 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 21개 + Phase 2 25개 + Phase 3 신규 25개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1·Phase 2(`## Design Automation Phase 2` 참고) 반영 이후 재실행한 결과다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1·Phase 2·Phase 3(`## Design Automation Phase 3` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -356,6 +356,31 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ---
 
+## Design Automation Phase 3
+
+**Status: ✅ Implemented (Wireframe Generator, built on top of Phase 2) — 2026-07-15**
+
+- Description: Phase 2의 Storyboard(Screen Description의 `keyElements`)를 입력으로 Desktop/
+  Tablet/Mobile Layout·Component Layout·Responsive Layout·Screen Sections을 생성하는 "Wireframe".
+  Phase 1·2와 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백, DI
+  가능한 `chatFn`)을 그대로 따른다. 새 기능은 기존 API·타입을 하나도 변경하지 않고 추가만 했다.
+- **생성 파이프라인**(`lib/design/{wireframe,wireframe-generator}.ts`, 신규 — 요구사항이 지정한 두 파일명 그대로: `wireframe.ts`=타입(13종 고정 컴포넌트 팔레트 `ComponentType` 포함)+registry, `wireframe-generator.ts`=생성 로직) — 입력은 Phase 2 `StoryboardRecord`(`storyboardId`로 조회) → `chatViaCli()`로 AI에게 JSON 생성 요청 → 파싱 실패/Provider 미설정 시 `buildDefaultWireframe()`(Screen Description의 `keyElements`를 13종 컴포넌트로 정규화해 Header/Navigation/Hero/Main Content/Footer 섹션으로 그룹화, breakpoint당 columns만 12/8/4로 차등 부여)로 폴백. `lib/data/design-wireframes.json`에 기존 registry 패턴으로 저장.
+- **API**(`app/api/design/wireframe/{route.ts,[id]/route.ts}`, 신규) — 요구사항이 명시한 `POST /api/design/wireframe`·`GET /api/design/wireframe/:id` 그대로. 응답은 요구사항의 `{wireframeId, projectId, layouts, components, responsive}`를 포함하되(`layouts`=화면별 desktop/tablet/mobile `BreakpointLayout` 3종 묶음 배열, `components`=전체 화면에서 실제로 쓰인 컴포넌트 인벤토리(`usedIn` 화면 목록 포함), `responsive`=desktop/tablet/mobile 3개 breakpoint의 min-width·column 수·설명 객체, `projectId`=Storyboard가 참조하는 Phase 1 Plan의 `id`를 그대로 전달), Dashboard가 필요로 하는 전체 레코드는 `wireframe` 필드 아래에 추가 포함(스펙 확장, 축소 아님). `GET /api/design/wireframe`(목록, 신규 추가)도 함께 제공.
+- **Dashboard**(`/developer/design/wireframe`, 신규) — Storyboard 선택 → Generate → Project/Responsive Layout/Component Layout/화면별 Desktop·Tablet·Mobile Layout(Screen Sections)을 표시, Export JSON/Export Markdown 버튼(Phase 2와 동일한 클라이언트 사이드 blob 다운로드 패턴). `/developer/design/storyboard`와 상호 링크("Wireframe →" / "← Storyboard")로 연결 — `DeveloperNav`는 변경하지 않음(Phase 2와 동일한 관례).
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 `"design.wireframe.generate"` 추가(기존 10개 값 무변경). `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵도 함께 갱신.
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에 `wireframeGenerationCount` 필드 추가(같은 `lib/data/metrics.json` 파일, 새 저장소 아님) — `aiTaskCount`·`storyboardGenerationCount`와 분리해 "AI 호출 횟수"·"Storyboard 생성 횟수"·"Wireframe 생성 횟수"를 각각 구분 가능하게 함. `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가.
+- 명세와 실제 구현의 차이(명세에 없던 세부사항, `DESIGN_AUTOMATION_MASTER.md` 5번에도 기록):
+  - API 응답에 `wireframe`(전체 레코드) 필드 추가 — 스펙의 5개 필드는 그대로 유지하면서 확장.
+  - "Screen Sections"를 별도 최상위 필드로 만들지 않고 각 `BreakpointLayout.sections`(화면×breakpoint별 섹션 목록)로 구현 — Desktop/Tablet/Mobile Layout 자체가 이미 그 breakpoint의 화면 구성 섹션을 담고 있어 중복 표현하지 않았다.
+  - 결정론적 폴백에서는 breakpoint별 섹션 구성(components)을 동일하게 유지하고 `columns`(12/8/4)만 다르게 부여 — 실제 반응형 동작 차이는 `responsive` 필드의 `notes`로 서술(AI 경로는 breakpoint별로 다른 섹션 구성을 자유롭게 생성 가능).
+  - "Developer → Design → Wireframe" 계층을 중첩 네비게이션 메뉴 대신 두 페이지 간 상호 링크로 구현(Phase 2와 동일한 패턴).
+- **알려진 제약**(Phase 1·2와 동일): 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트 밖에서 예외를 던져 불가능 — 통합 테스트는 라우트 바로 아래 계층(wireframe-generator+wireframe registry 실 연동)까지 다루고, 라우트 자체는 수동 curl/Playwright E2E로 검증.
+- Evidence: `lib/design/{wireframe,wireframe-generator}.ts`, `app/api/design/wireframe/{route.ts,[id]/route.ts}`, `app/developer/design/wireframe/page.tsx`, `lib/audit/log.ts`(`design.wireframe.generate` 추가), `lib/metrics/registry.ts`(`wireframeGenerationCount` 추가), `components/developer/dashboard/MetricsWidget.tsx`·`app/developer/metrics/page.tsx`(새 카운터 표시), `app/developer/{audit-log,errors}/page.tsx`(새 action 라벨), `app/developer/design/storyboard/page.tsx`("Wireframe →" 링크 추가)
+- 테스트(신규 25개): `tests/design/wireframe-generator.test.ts`(15개 — `buildDefaultWireframe()`/`parseWireframeContent()`의 all-or-nothing 검증·`generateWireframe()`의 성공/실패 폴백), `tests/design/wireframe-registry.test.ts`(6개), `tests/design/wireframe-integration.test.ts`(4개 — generator+registry 실 fs 연동 3개 + 실제 CLI 서브프로세스를 통한 end-to-end 폴백 검증 1개), `tests/metrics/registry.test.ts`(`wireframeGenerationCount` 1개 추가 + 기존 테스트 1개 갱신)
+- 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(44 files / 300 tests 전부 통과, 회귀 없음 — `tests/providers/status.test.ts`의 1건 타임아웃은 병렬 실행 시 네트워크 자원 경합으로 인한 기존 무관 플레이크로 확인, 단독 재실행 시 7/7 통과). 실 E2E: 검증 전용 임시 계정으로 로그인 → Design Plan → Storyboard → Wireframe 생성까지 전 구간을 curl(API 응답 shape 확인)과 실제 브라우저(Playwright, "Generate Wireframe" 버튼 클릭 → History 갱신 → Project/Responsive Layout/Component Layout/화면별 3-breakpoint Layout 정상 렌더링 → Export JSON/Markdown 실제 파일 다운로드 트리거)로 확인 → `/api/audit?action=design.wireframe.generate`(정상 기록)·`/api/metrics`(`wireframeGenerationCount`가 `storyboardGenerationCount`·`aiTaskCount`와 독립적으로 집계됨)·`GET /api/design/wireframe/:id`(정상 응답)·`GET /api/design/wireframe/does-not-exist`(404)를 모두 확인. 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제.
+
+---
+
 ## Authentication
 
 **Status: ✅ Implemented (Development OS scope) — 2026-07-14**
@@ -436,8 +461,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 41개 테스트 파일·274개 테스트 케이스(2026-07-15 Design Automation Phase 2 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 21개·Design Automation Phase 2 신규 25개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
-  - **Design Automation Phase 2(신규)** — `tests/design/storyboard-generator.test.ts`(14개) + `tests/design/storyboard-registry.test.ts`(6개) + `tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`storyboardGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 2` 참고.
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 44개 테스트 파일·300개 테스트 케이스(2026-07-15 Design Automation Phase 3 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 21개·Design Automation Phase 2 25개·Design Automation Phase 3 신규 25개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+  - **Design Automation Phase 3(신규)** — `tests/design/wireframe-generator.test.ts`(15개) + `tests/design/wireframe-registry.test.ts`(6개) + `tests/design/wireframe-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`wireframeGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 3` 참고.
+  - **Design Automation Phase 2** — `tests/design/storyboard-generator.test.ts`(14개) + `tests/design/storyboard-registry.test.ts`(6개) + `tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`storyboardGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 2` 참고.
   - **Design Automation Phase 1** — `tests/design/generator.test.ts`(12개) + `tests/design/registry.test.ts`(5개) + `tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개), 자세한 내용은 `## Design Automation Phase 1` 참고.
   - **Operations & Observability v1.1** — `tests/audit/log.test.ts`(7개, record/list/필터/정렬/500건 상한 트리밍) + `tests/metrics/registry.test.ts`(5개) + `tests/backup/registry.test.ts`(5개, export/import 왕복·부분 번들) + `tests/health/checks.test.ts`(`getSystemInfo()` 1개 추가) + `tests/auth/session.test.ts`(`countActiveSessions()` 2개 추가), 자세한 내용은 `## Operations & Observability v1.1` 참고.
   - **AI Provider Integration v1.1** — `tests/ai-platform-cli/{provider-retry,streaming}.test.ts`(17개) + `tests/providers/status.test.ts`(기존 5개 유지, OpenAI/Gemini 라이브 체크로 갱신), 자세한 내용은 `## AI Provider Integration v1.1` 참고.

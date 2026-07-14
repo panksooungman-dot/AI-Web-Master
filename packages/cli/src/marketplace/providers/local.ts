@@ -101,4 +101,12 @@ export class LocalMarketplaceProvider implements MarketplaceProvider {
 
     await fs.copy(sourceDir, targetDir);
   }
+
+  async uninstall(type: PackageType, name: string, targetDir: string): Promise<void> {
+    if (!(await fs.pathExists(targetDir))) {
+      throw new MarketplaceError("NOT_FOUND", `"${name}" (${type}) is not installed at ${targetDir}.`);
+    }
+
+    await fs.remove(targetDir);
+  }
 }

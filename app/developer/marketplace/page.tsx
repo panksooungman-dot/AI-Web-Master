@@ -1,77 +1,86 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
-import type { CatalogSummary, InstalledPackage } from "@/lib/marketplace/registry";
+import { MarketplaceTabs } from "@/components/developer/marketplace/MarketplaceTabs";
+import type { CatalogSummary, MarketplaceEntry, PackageType } from "@/lib/marketplace/registry";
 
-interface MarketplaceResponse {
+interface SearchResponse {
   catalog: CatalogSummary;
-  installed: InstalledPackage[];
+  success: boolean;
+  results: MarketplaceEntry[];
+  error?: string;
 }
 
-export default function MarketplacePage() {
+const TYPE_OPTIONS: { value: PackageType | ""; label: string }[] = [
+  { value: "", label: "All Types" },
+  { value: "agent", label: "Agent" },
+  { value: "workflow", label: "Workflow" },
+  { value: "skill", label: "Skill" },
+];
+
+export default function MarketplaceBrowsePage() {
   const [catalog, setCatalog] = useState<CatalogSummary | null>(null);
-  const [installed, setInstalled] = useState<InstalledPackage[]>([]);
+  const [results, setResults] = useState<MarketplaceEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [keyword, setKeyword] = useState("");
+  const [type, setType] = useState<PackageType | "">("");
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [busyName, setBusyName] = useState<string | null>(null);
-  const [installName, setInstallName] = useState("");
 
   const load = () => {
-    fetch("/api/marketplace")
+    setIsLoading(true);
+    setLoadError(null);
+
+    const params = new URLSearchParams();
+    if (keyword.trim()) params.set("keyword", keyword.trim());
+    if (type) params.set("type", type);
+
+    fetch(`/api/marketplace?${params.toString()}`)
       .then((res) => res.json())
-      .then((data: MarketplaceResponse) => {
+      .then((data: SearchResponse) => {
         setCatalog(data.catalog);
-        setInstalled(data.installed ?? []);
+        if (!data.success) {
+          setLoadError(data.error ?? "검색 실패");
+          setResults([]);
+          return;
+        }
+        setResults(data.results ?? []);
       })
-      .catch(() => setLoadError("Marketplace 정보를 불러오지 못했습니다."))
+      .catch(() => setLoadError("Marketplace 검색에 실패했습니다."))
       .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
     queueMicrotask(load);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleInstall = async (name: string) => {
-    if (!name.trim() || busyName) return;
+  const handleInstall = async (entry: MarketplaceEntry) => {
+    const key = `${entry.type}/${entry.name}`;
+    if (busyKey) return;
 
-    setBusyName(name);
+    setBusyKey(key);
     setActionError(null);
 
     try {
-      const res = await fetch(`/api/marketplace/${encodeURIComponent(name.trim())}`, { method: "POST" });
-      const data = (await res.json()) as { success: boolean; installed: InstalledPackage[] };
+      const res = await fetch(`/api/marketplace/${entry.type}/${encodeURIComponent(entry.name)}`, {
+        method: "POST",
+      });
+      const data = (await res.json()) as { success: boolean; error?: string };
 
-      if (data.success) {
-        setInstalled(data.installed);
-        setInstallName("");
+      if (!data.success) {
+        setActionError(data.error ?? "설치 실패");
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "요청 실패");
     } finally {
-      setBusyName(null);
-    }
-  };
-
-  const handleRemove = async (name: string) => {
-    if (busyName) return;
-
-    setBusyName(name);
-    setActionError(null);
-
-    try {
-      const res = await fetch(`/api/marketplace/${encodeURIComponent(name)}`, { method: "DELETE" });
-      const data = (await res.json()) as { success: boolean; installed: InstalledPackage[] };
-
-      if (data.success) setInstalled(data.installed);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "요청 실패");
-    } finally {
-      setBusyName(null);
+      setBusyKey(null);
     }
   };
 
@@ -80,8 +89,51 @@ export default function MarketplacePage() {
       <PageHeader
         icon="🧩"
         title="Marketplace"
-        description="Agents·Prompts·Skills·Templates·Workflows 패키지의 설치 상태를 관리합니다."
+        description="Agent·Workflow·Skill 패키지를 검색하고 설치합니다."
       />
+
+      <MarketplaceTabs />
+
+      {catalog && catalog.categories.length > 0 && (
+        <Card title="Catalog" className="mb-6">
+          <ul className="flex flex-wrap gap-3 text-sm">
+            {catalog.categories.map((c) => (
+              <li key={c.id} className="flex items-center gap-1.5">
+                <span className="text-gray-400">{c.id}</span>
+                <Badge tone={c.count > 0 ? "accent" : "neutral"}>{c.count}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <input
+          type="text"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load()}
+          placeholder="Search packages..."
+          className="w-full sm:max-w-sm rounded bg-gray-900 border border-gray-700 px-4 py-2 outline-none focus:border-green-500"
+        />
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as PackageType | "")}
+          className="rounded bg-gray-900 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500"
+        >
+          {TYPE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={load}
+          className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm transition-colors"
+        >
+          Search
+        </button>
+      </div>
 
       {actionError && <StatusMessage tone="error" className="mb-4">{actionError}</StatusMessage>}
 
@@ -89,72 +141,43 @@ export default function MarketplacePage() {
         <LoadingText />
       ) : loadError ? (
         <StatusMessage tone="error">{loadError}</StatusMessage>
+      ) : results.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          검색 결과가 없습니다. 게시된 패키지가 없다면 <code>ai marketplace publish</code>로 먼저 게시하세요.
+        </p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card title="Available Packages">
-            {!catalog || catalog.totalAvailable === 0 ? (
-              <p className="text-sm text-gray-500">
-                아직 게시된 패키지가 없습니다 (모든 카테고리 count: 0). `ai publish`로 첫 패키지를 게시하면
-                여기에 표시됩니다.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-1.5 text-sm">
-                {catalog.categories.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between gap-3">
-                    <span className="text-gray-300">{c.id}</span>
-                    <Badge tone={c.count > 0 ? "accent" : "neutral"}>{c.count}개</Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {results.map((entry) => {
+            const key = `${entry.type}/${entry.name}`;
 
-            <div className="mt-4 flex gap-2">
-              <input
-                type="text"
-                value={installName}
-                onChange={(e) => setInstallName(e.target.value)}
-                placeholder="설치 추적할 패키지 이름"
-                className="flex-1 rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500"
-              />
-              <button
-                onClick={() => handleInstall(installName)}
-                disabled={!installName.trim() || busyName !== null}
-                className="rounded bg-green-600 hover:bg-green-700 px-3 py-2 text-sm transition-colors disabled:opacity-50"
+            return (
+              <Card
+                key={key}
+                title={entry.name}
+                actions={<Badge tone="accent">{entry.type}</Badge>}
               >
-                Install
-              </button>
-            </div>
-            <p className="mt-1 text-xs text-gray-600">
-              Update Available: N/A — 실제 게시된 패키지가 없어 버전 비교가 불가능합니다.
-            </p>
-          </Card>
-
-          <Card title="Installed Packages">
-            {installed.length === 0 ? (
-              <p className="text-sm text-gray-500">설치된(추적 중인) 패키지가 없습니다.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {installed.map((pkg) => (
-                  <li
-                    key={pkg.name}
-                    className="flex items-center justify-between gap-3 rounded border border-gray-800 p-2 text-sm"
+                <p className="mb-2 text-sm text-gray-400">{entry.description}</p>
+                <p className="mb-3 text-xs text-gray-600">
+                  v{entry.version} · {entry.author}
+                </p>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/developer/marketplace/${entry.type}/${encodeURIComponent(entry.name)}`}
+                    className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1 text-sm transition-colors"
                   >
-                    <div>
-                      <p className="text-gray-200">{pkg.name}</p>
-                      <p className="text-xs text-gray-600">{new Date(pkg.installedAt).toLocaleString()}</p>
-                    </div>
-                    <button
-                      onClick={() => handleRemove(pkg.name)}
-                      disabled={busyName === pkg.name}
-                      className="rounded bg-red-900/60 hover:bg-red-800 px-3 py-1 text-xs text-red-200 transition-colors disabled:opacity-50"
-                    >
-                      {busyName === pkg.name ? "Removing..." : "Remove"}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+                    Details
+                  </Link>
+                  <button
+                    onClick={() => handleInstall(entry)}
+                    disabled={busyKey === key}
+                    className="rounded bg-green-600 hover:bg-green-700 px-3 py-1 text-sm transition-colors disabled:opacity-50"
+                  >
+                    {busyKey === key ? "Installing..." : "Install"}
+                  </button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

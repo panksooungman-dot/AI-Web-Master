@@ -3,6 +3,8 @@ import path from "path";
 import { isPackageType, MarketplaceError, type PackageManifest } from "./types.js";
 
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+/** Safe slug — package name flows directly into path.join(root, typeDir, name) in publish/install/uninstall. */
+const NAME_PATTERN = /^[a-z0-9][a-z0-9-_]*$/i;
 
 const REQUIRED_FIELDS: (keyof PackageManifest)[] = [
   "name",
@@ -48,6 +50,14 @@ export function validateManifest(raw: unknown, sourceHint: string): PackageManif
     throw new MarketplaceError(
       "INVALID_MANIFEST",
       `Invalid manifest in ${sourceHint}: missing/empty field(s) ${missing.join(", ")}`
+    );
+  }
+
+  const name = manifest.name as string;
+  if (!NAME_PATTERN.test(name)) {
+    throw new MarketplaceError(
+      "INVALID_MANIFEST",
+      `Invalid manifest in ${sourceHint}: name "${name}" must start with a letter/digit and contain only letters, digits, "-", "_"`
     );
   }
 

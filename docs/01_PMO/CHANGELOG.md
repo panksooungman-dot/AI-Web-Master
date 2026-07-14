@@ -4,6 +4,57 @@
 
 ---
 
+## 2026-07-14 (6)
+
+### 확인 (Verified) — "Website Builder v2 Phase 2" 요청 처리
+
+- 요청받은 7개 카테고리(Multi-page 11종·Design System·Component Generator·SEO·Content Generator·Asset Generator·Deployment)를 `docs/REPOSITORY_INDEX.md`의 `## Website Builder v2` 섹션과 대조한 결과, **전부 2026-07-12에 이미 구현·문서화되어 있음을 확인** — 새로 구현한 기능은 없음. "기존 아키텍처 재사용, 로직 중복 금지, 하위 호환성 유지"라는 요청의 규칙 자체가 이미 완성된 시스템을 재구현하지 말라는 의미로 해석해, 재구현 대신 **저장소 외부 스크래치 디렉터리에서 실제로 `ai website create`를 실행해 처음부터 끝까지 재검증**하는 방향으로 진행
+  - 생성된 프로젝트(치과 사이트, `--site-type dental`)에서 `npm install` → `npm run build`(18개 라우트: 11페이지 + `_not-found`+`icon.svg`+`opengraph-image`+`robots.txt`+`sitemap.xml`+API 2개, 전부 정상 생성) → `npm run lint`(경고 0건) 전부 실제 실행해 통과 확인
+  - `{{var}}` 형태의 미치환 템플릿 변수가 산출물에 남아있지 않음을 재확인(발견된 `{{` 3건은 전부 JSX 이중 중괄호 — `style={{...}}`, prop 객체, `dangerouslySetInnerHTML={{...}}` — 실제 문제 아님)
+  - 이번 세션의 Marketplace v1 작업으로 `packages/cli/src/index.ts`(커맨드 등록부)가 크게 바뀌었음에도 Website Builder 파이프라인(`ai website create`)에 회귀가 없음을 실제 실행으로 확인
+  - 검증에 사용한 스크래치 프로젝트는 삭제 완료
+
+### 추가 (Added)
+
+- **Website Builder v2 — Content Generator(`content.ts`) 최초 테스트 커버리지 추가**: 위 감사 과정에서 `packages/cli/src/website/content.ts`(Content Generator, 요청의 5번 항목)에 그동안 테스트가 전혀 없었던 것을 확인하고 신규 작성. 다른 카테고리(Multi-page/Design System/Component Generator/SEO/Asset Generator/Deployment)는 이미 존재하는 산출물(템플릿 파일)이라 별도 단위 테스트보다 위 실제 빌드 검증이 더 적절하다고 판단해 추가하지 않음
+  - `tests/website/content.test.ts`(신규, 15개 테스트) — `buildDefaultContent()`가 11개 사이트 타입 전부에서 `SiteContent`의 모든 섹션(features 3·testimonials 2·values 3·services 4·products 3·plans 3·faq 5·blog 3)을 유효하게 채우는지, pricing 강조 플랜이 정확히 1개인지, `generateSiteContent()`가 Provider 미설정 시 `simulated:true` + `buildDefaultContent()`와 동일한 결과로 폴백하는지 검증
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit` 0 errors, `npm run lint` 0 errors(기존 무관 오류 3건만 잔존), `npm run build`(루트, 정상), `npm run test` 145/145 통과(신규 15개 포함, 회귀 없음)
+- `docs/REPOSITORY_INDEX.md` — `## Website Builder v2`(감사 결과 기록)·`Content Generator` 하위 섹션(테스트 근거 추가)·`## Tests`(카운트 갱신) 갱신
+
+---
+
+## 2026-07-14 (5)
+
+### 수정 (Fixed)
+
+- **Marketplace v1 — `ai remove`/`ai update`가 한 번도 `ai install`과 맞물려 동작한 적이 없었던 버그 수정**: `install.ts`는 실제로 `<cwd>/agents|workflows|skills/<name>`에 설치하는데, `remove.ts`는 `<projectRoot>/packages/<name>`을 찾고 있었고 `update.ts`는 `<projectRoot>/marketplace/<name>`(평평한 경로, 실제 `publish`가 쓰는 `marketplace/<type>s/<name>`과 다름)을 읽고 있었음. 둘 다 `discoverLocalPackages()`(실제 설치 위치 스캔) + `LocalMarketplaceProvider`(신규 `uninstall()` 메서드) 기반으로 재작성
+  - `packages/cli/src/marketplace/providers/{types,local}.ts` — `MarketplaceProvider` 인터페이스에 `uninstall()` 추가, 로컬 구현
+  - `packages/cli/src/marketplace/types.ts` — `AMBIGUOUS_PACKAGE` 에러 코드 추가(기존엔 "여러 개 매칭"을 `install.ts` 내부에서 `console.log`+`process.exit`로만 처리해 재사용·테스트 불가능했음)
+  - `packages/cli/src/marketplace/manifest.ts` — `validateManifest()`에 패키지 이름 안전 문자 검증(`/^[a-z0-9][a-z0-9-_]*$/i`) 추가. 검증 전에는 이름이 `path.join(root, typeDir, name)`에 그대로 들어가 `../../etc` 같은 경로 조작이 가능했음
+  - `packages/cli/src/marketplace/index.ts` — `getInstalledPackages(provider, cwd)` 신규: 설치된 패키지 자체의 `manifest.json`(install()이 통째로 복사하므로 그 자체가 설치 버전 기록)과 마켓플레이스 게시본을 비교해 업데이트 가능 여부 계산. 별도 버전 추적 상태 파일 불필요
+
+### 추가 (Added)
+
+- **Marketplace v1 — 작동하는 패키지 관리 시스템**: CLI 5개 명령(`install`/`remove`/`update`/`search`/`publish`) 전부에 `--json` 모드 추가, 핵심 로직을 `console.log`/`process.exit` 없는 순수 함수로 분리(`resolveInstallEntry`/`installPackage`/`resolveInstalledPackage`/`removePackage`/`updatePackage`/`updateAllPackages`/`publishPackages`) — Vitest로 직접 테스트 가능해짐, CLI presentation과 로직 재사용 양쪽에 동일 함수 사용
+  - `packages/cli/src/commands/marketplace.ts`(신규) — `ai marketplace {install,remove,update,search,publish}` 서브커맨드 그룹. `packages/cli/src/commands/website.ts`의 `buildXCommand()` 패턴을 그대로 따름. 기존 flat 명령(`ai install` 등)은 동일 핸들러를 호출하도록 유지(하위 호환, 버그 수정 혜택도 함께 받음). `update`는 이름 생략 시 설치된 패키지+업데이트 가능 여부 목록(list mode), `--all`이면 일괄 갱신
+  - `lib/marketplace/registry.ts`(전면 재작성) — 기존 Dashboard v1의 "설치 추적 전용" JSON(`lib/data/marketplace-installed.json`, 폐기)을 걷어내고, `node packages/cli/dist/index.js marketplace ... --json`을 `lib/commandEngine/engine.ts`의 `execute()`로 실행하는 얇은 브리지로 교체(Website Builder 대시보드 연동과 동일 패턴) — 로직 중복 없이 CLI를 그대로 재사용
+  - Dashboard 4개 화면: `/developer/marketplace`(Browse, 재작성), `/developer/marketplace/installed`(Installed, 신규), `/developer/marketplace/updates`(Updates, 신규), `/developer/marketplace/[type]/[name]`(Package Details, 신규). `components/developer/marketplace/MarketplaceTabs.tsx`(신규)로 3개 목록 화면 간 탭 공유
+  - `app/api/marketplace/{route.ts(재작성),installed/route.ts,publish/route.ts,[type]/[name]/route.ts}`(신규/재작성) — 기존 `[name]/route.ts` 폐기(`[type]/[name]`으로 대체, type 명시 필요)
+  - `components/developer/dashboard/MarketplaceWidget.tsx` — Dashboard Home 위젯도 실제 설치 개수·카탈로그 개수를 쓰도록 갱신(기존 추적 JSON과 더 이상 불일치하지 않음)
+  - 테스트(신규 49개): `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(38개, `packages/cli/src/**/*.ts`를 직접 import, subprocess 미사용 — `tests/workflow/validator.test.ts`와 동일 패턴), `tests/marketplace/{registry,cli-bridge}.test.ts`(11개, `registry.ts`는 `getCatalogSummary()`만 남기고 나머지는 `execute()` mock으로 명령 조합·JSON 파싱·에러 전파 검증)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트+CLI 양쪽 0 errors), `npm run lint`(0 errors, 기존 무관 오류 3건만 잔존), `npm run build`(신규 페이지 4개·API 라우트 4개 전부 포함해 정상 생성 확인), `npm run test` 130/130 통과(신규 49개 포함, 회귀 없음)
+- **CLI 실 E2E**: 저장소 외부 스크래치 디렉터리에서 `ai marketplace publish/search/install/update/remove --json` 전체 라이프사이클 실행 — 설치된 패키지의 `manifest.json`에 버전이 실제로 기록됨을 확인, 마켓플레이스 버전을 수동으로 올린 뒤 `update`가 최초엔 no-op(`updated:false`)였다가 실제 적용(`from`/`to` 정확히 보고)되는 것까지 확인
+- **Dashboard 실 E2E**: 로그인 상태에서 실제 HTTP 요청으로 동일 라이프사이클 재확인(저장소 루트의 `agents/`에 임시 테스트 패키지를 만들어 진행) — publish→search(Browse)→install→Package Details(entry+installed 병합 확인)→PATCH(update, from/to 보고)→DELETE(remove) 전부 정상 동작. 검증에 사용한 `agents/e2e-dashboard-test/`(git 미추적 확인 후 삭제)·`marketplace/index.json`·`marketplace/agents/e2e-dashboard-test/`(둘 다 `git ls-files`로 미추적 확인 후 삭제)·인증 테스트 계정(`lib/data/{users,sessions}.json`)은 검증 후 전부 삭제, 기존 실 데이터(`lib/data/projects.json` 등)는 무변경 보존
+- `docs/REPOSITORY_INDEX.md` — `## Marketplace`(✅로 전환)·`## Dashboard`·`## API Routes`·`## Tests`·`## Remaining TODO`·`## Recommended Next Tasks` 갱신
+
+---
+
 ## 2026-07-14 (3)
 
 ### 추가 (Added)

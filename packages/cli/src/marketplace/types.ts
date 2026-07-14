@@ -32,7 +32,8 @@ export type MarketplaceErrorCode =
   | "NOT_FOUND"
   | "INVALID_MANIFEST"
   | "ALREADY_PUBLISHED"
-  | "DUPLICATE_PACKAGE";
+  | "DUPLICATE_PACKAGE"
+  | "AMBIGUOUS_PACKAGE";
 
 export class MarketplaceError extends Error {
   code: MarketplaceErrorCode;

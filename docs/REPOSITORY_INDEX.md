@@ -94,12 +94,15 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ## Website Builder v2
 
-**Status: ✅ Implemented**
+**Status: ✅ Implemented — re-verified end-to-end (Phase 2 audit) — 2026-07-14**
 
 `packages/cli/src/website/` + `packages/cli/src/templates/website/` — `ai website create` 명령. Business Analyst→Site Planner→...→Project Generator 8단계 Agent 파이프라인(Workflow Engine 재사용) + Content Engine으로 11페이지 Next.js 프로젝트를 생성.
 
 - Evidence(진입점): `packages/cli/src/commands/website.ts`, `packages/cli/src/website/builder.ts`(`buildWebsite()`), `packages/cli/src/website/agents.ts`(8-Agent 파이프라인 spec), `packages/cli/src/website/scaffold.ts`(`scaffoldWebsiteProject()`)
 - Dashboard v1(2026-07-14)에서 `/developer/websites`가 이 CLI 명령을 `child_process`로 직접 실행하는 UI를 추가함(`## Dashboard` 참고) — 파이프라인 자체는 무변경, 실행 방식만 대시보드에서 트리거 가능해짐. 실제 실행 시 `agents/`·`workflows/website-builder/`·`.runtime/`에 8개 Planning Agent·Workflow 정의가 최초 1회 생성됨(CLI의 기존 동작, Dashboard가 새로 만든 것 아님).
+- **"Website Builder v2 Phase 2" 요청(2026-07-14) 처리 내역**: 요청된 7개 카테고리(Multi-page·Design System·Component Generator·SEO·Content Generator·Asset Generator·Deployment) 전부가 이미 아래 하위 섹션대로 구현·문서화되어 있음을 재확인 — 새로 구현한 것은 없음(재구현 시 "기존 아키텍처 재사용" 요구사항과 정면으로 충돌했을 것). 대신 저장소 외부 스크래치 디렉터리에서 `ai website create`를 실제로 실행해 산출물 전체를 감사하고, 그동안 테스트가 없었던 Content Generator(`content.ts`)에 대해서만 신규 테스트를 추가함(아래 `Content Generator` 하위 섹션 참고).
+  - 실 검증: 생성된 프로젝트에서 `npm install`→`npm run build`(18개 라우트 전부 정상 생성)→`npm run lint`(경고 0건) 전부 실제 실행해 통과 확인. `{{var}}` 미치환 잔존 없음(JSX 이중 중괄호만 존재, 이전 세션 확인과 동일) 재확인. 이번 회차의 Marketplace v1 작업으로 `packages/cli/src/index.ts`가 크게 바뀌었음에도 Website Builder 파이프라인에는 회귀가 없음을 확인.
+  - 검증에 사용한 스크래치 프로젝트는 삭제 완료.
 
 ### Website Types
 
@@ -140,8 +143,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Provider Layer(`ProviderManager.complete()`)를 재사용해 페이지별 카피(헤드라인·기능·후기·플랜·FAQ·블로그 요약 등)를 생성. Provider 미설정/실패 시에도 예외 없이 결정론적 기본 콘텐츠로 폴백.
-- Evidence: `packages/cli/src/website/content.ts`(`generateSiteContent()`), `packages/cli/src/providers/manager.ts`(`ProviderManager.complete()`), `packages/cli/src/prompt/renderer.ts`
+- Description: Provider Layer(`ProviderManager.complete()`)를 재사용해 페이지별 카피(헤드라인·기능·후기·플랜·FAQ·블로그 요약 등)를 생성. Provider 미설정/실패 시에도 예외 없이 결정론적 기본 콘텐츠로 폴백 — "템플릿 우선, 향후 LLM 연동 준비된 아키텍처"(`generateSiteContent()`가 이미 `ProviderManager.complete()`를 호출하고 실패 시에만 `buildDefaultContent()`로 폴백하는 구조이므로 추가 배선 없이 Provider만 설정하면 활성화됨).
+- Evidence: `packages/cli/src/website/content.ts`(`buildDefaultContent()`, `generateSiteContent()`), `packages/cli/src/providers/manager.ts`(`ProviderManager.complete()`), `packages/cli/src/prompt/renderer.ts`
+- 테스트(신규, 2026-07-14): `tests/website/content.test.ts` — `buildDefaultContent()`가 11개 사이트 타입 전부에서 `SiteContent`의 모든 섹션(features 3·testimonials 2·values 3·services 4·products 3·plans 3·faq 5·blog 3)을 유효하게 채우는지, `generateSiteContent()`가 Provider 미설정 시 `simulated:true` + `buildDefaultContent()`와 동일한 결과로 폴백하는지 검증(15개 테스트). 이전에는 `content.ts`에 테스트가 전혀 없었음.
 
 ### Asset Generator
 
@@ -171,7 +175,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - **Website Builder**(`/developer/websites`, 신규) — `ai website create` CLI를 `lib/commandEngine/engine.ts`의 `execute()`로 실제 실행(child process, 새 npm 의존성 없음). 생성 이력은 `lib/websites/registry.ts`(`lib/data/websites.json`)에 기록. 실제 E2E 검증: 8단계 Planning 파이프라인 실행 → `.generated-websites/<slug>`에 완전한 Next.js 프로젝트 생성 확인.
   - **Workflow Center**(`/developer/workflows`, 신규) — 신규 백엔드 없음. 기존 `/api/workflows`·`/api/workflows/runs*`(run/pause/resume/cancel/retry)를 그대로 소비하는 UI만 추가.
   - **GitHub**(`/developer/github`) — 변경 없음. 기존 구현이 Branch/Commit/Status/Push/Pull을 이미 충족.
-  - **Marketplace**(`/developer/marketplace`, 신규) — `lib/marketplace/registry.ts`(신규)가 저장소 루트의 실제 `marketplace/manifest.json`을 읽어 카탈로그 요약(현재 5개 카테고리 모두 count 0, 정직한 빈 상태 표시)을 제공하고, 설치 추적은 별도 `lib/data/marketplace-installed.json`에 기록. `packages/cli/src/marketplace/*`는 재사용하지 않음(그 패키지의 `remove.ts`/`update.ts`가 `install.ts`/`publish.ts`와 디렉터리 규칙이 어긋나는 기존 버그가 있어, 대신 저장소에 이미 있는 fs-JSON 레지스트리 패턴을 새로 적용).
+  - **Marketplace**(`/developer/marketplace`) — Dashboard v1에서는 자체 설치 추적 JSON(`lib/data/marketplace-installed.json`)이었으나, Marketplace v1(2026-07-14, `## Marketplace` 참고)에서 실제 CLI 패키지 시스템과 직접 통신하도록 전면 재구성됨. 4개 화면(Browse/Installed/Updates/Package Details)으로 확장.
   - **Settings**(`/developer/settings`) — Profile·Authentication 카드 신규 추가(`useAuth()` 재사용), 기존 AI 카드에 `/api/providers`(AI Workspace와 동일 엔드포인트, 로직 재사용) 요약 링크 추가. Theme(General 하위)·Workspace는 기존 그대로 요건 충족.
   - **Logs**(`/developer/logs`) — 기존 Terminal/Git/AI/System 4개 필터에 cross-cutting "Errors" 필터 1개만 추가(백엔드 변경 없음).
   - **Health**(`/developer/health`, 신규) — `lib/health/checks.ts`(신규)가 Git Status(기존 `lib/commandEngine/commands.ts`의 `git:status` 카탈로그 재사용)·Disk Usage(Node 내장 `fs.statfsSync`, 신규 의존성 없음)는 실시간으로, Build/Tests/Coverage는 수동 "Run Now" 버튼으로 실제 `npm run build`/`test`/`coverage`를 실행(동일 command engine 재사용)해 `lib/data/health-checks.json`에 캐시. Coverage 비율 파싱을 위해 `vitest.config.ts`의 `coverage.reporter`에 `"json-summary"` 추가.
@@ -184,13 +188,21 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ## Marketplace
 
-**Status: 🚧 Partial (CLI) / ✅ Dashboard tracking UI implemented — 2026-07-14**
+**Status: ✅ Implemented — Marketplace v1 (working package management system) — 2026-07-14**
 
-- Description: CLI 쪽 로직(`ai search`/`ai publish`/`ai install`)은 로컬 파일시스템 기반으로 구현되어 있으나(`LocalMarketplaceProvider`), 저장소 루트의 `marketplace/manifest.json`은 `agents/prompts/skills/templates/workflows` 5개 카테고리 모두 `"count": 0`으로 실제 게시된 패키지가 하나도 없는 빈 상태. 온라인 레지스트리 Provider는 없음(로컬 Provider만 존재, `getMarketplaceProvider()` 주석에 "향후 온라인 레지스트리 추가" 명시). Dashboard v1(`## Dashboard` 참고)에서 `/developer/marketplace` 화면이 이 매니페스트를 실제로 읽어 표시하고 설치 추적 UI(Install/Remove)를 추가했지만, CLI의 `remove`/`update` 명령이 가진 디렉터리 규칙 불일치 버그는 이번 작업에서 고치지 않았고(범위 밖) 대시보드도 그 로직을 재사용하지 않는다 — 실제 게시된 패키지가 0개인 현재로서는 두 경로 모두 실질적인 차이가 없다.
+- Description: 이전 회차(Dashboard v1)에서 `remove`/`update` 명령이 실제로는 동작하지 않는 것으로 확인되었던 문제를 근본적으로 수정하고, Dashboard가 자체 "설치 추적" JSON 대신 실제 패키지 시스템과 직접 통신하도록 전면 재구성했다. CLI(`packages/cli/src/marketplace/*`)가 유일한 구현이며, Dashboard는 그 CLI를 `--json` 모드로 호출하는 얇은 브리지일 뿐 로직을 재구현하지 않는다.
+- **발견하고 고친 버그(2건)**: `remove.ts`는 `<projectRoot>/packages/<name>`을 찾았지만 `install.ts`는 실제로 `<cwd>/agents|workflows|skills/<name>`에 설치한다 — 한 번도 서로 맞물려 동작한 적이 없었다. `update.ts`는 `<projectRoot>/marketplace/<name>`(평평한 경로)을 읽었지만 `publish`가 실제로 쓰는 경로는 `marketplace/<type>s/<name>`이다. 둘 다 `discoverLocalPackages()`(실제 설치 위치를 스캔) + `LocalMarketplaceProvider`(신규 `uninstall()` 메서드 포함) 기반으로 재작성했다.
+- **버전 정보**: 별도 상태 파일 없이, 설치된 패키지 폴더 자체의 `manifest.json`(install()이 통째로 복사)이 "설치된 버전"의 기록이다. `getInstalledPackages()`가 이를 마켓플레이스에 게시된 최신 버전과 비교해 `updateAvailable`을 계산한다.
+- **CLI**: `ai marketplace {install,remove,update,search,publish}` 신규 추가(기존 flat `ai install`/`ai search`/`ai remove`/`ai update`/`ai publish`는 동일 핸들러를 그대로 호출하도록 유지, 두 표면 모두 버그 수정 혜택을 받음). 전 명령에 `--json` 지원 추가. `update`는 이름 없이 실행하면 설치된 패키지 + 업데이트 가능 여부 목록(list mode)을, `--all`이면 업데이트 가능한 전부를 일괄 갱신한다.
+- **Dashboard**: `/developer/marketplace`(Browse: 검색+타입 필터+Install), `/developer/marketplace/installed`(Installed: 버전·Remove·Update), `/developer/marketplace/updates`(Updates: 업데이트 가능 목록+Update All), `/developer/marketplace/[type]/[name]`(Package Details: manifest 전체+설치 상태+Install/Remove/Update). 전부 `lib/marketplace/registry.ts`(재작성)가 `node packages/cli/dist/index.js marketplace ... --json`을 실행(`lib/commandEngine/engine.ts`의 `execute()` 재사용, Website Builder 대시보드 연동과 동일 패턴)한 결과를 그대로 표시 — Dashboard 쪽에 패키지 로직이 전혀 없다.
+- **Package validation 강화**: `manifest.ts`의 `validateManifest()`에 패키지 이름 안전 문자 검증(`/^[a-z0-9][a-z0-9-_]*$/i`)을 추가 — 검증되지 않은 이름이 `path.join(root, typeDir, name)`에 그대로 들어가는 경로 조작(path-traversal) 가능성을 막는다.
 - Evidence:
-  - CLI 구현: `packages/cli/src/marketplace/{index,manifest,types}.ts`, `packages/cli/src/marketplace/providers/{local,types}.ts`, `packages/cli/src/commands/{publish,search,install,remove,update}.ts`
-  - 빈 상태: `marketplace/manifest.json`(`"count": 0` × 5), `marketplace/{agents,prompts,skills,templates,workflows}/README.md`(내용 없이 안내문만 존재)
-  - Dashboard 추적 UI(신규, CLI와 별개 구현): `lib/marketplace/registry.ts`, `app/api/marketplace/{route.ts,[name]/route.ts}`, `app/developer/marketplace/page.tsx`, `tests/marketplace/registry.test.ts`
+  - CLI 핵심: `packages/cli/src/marketplace/{types,manifest,index}.ts`(name 검증, `AMBIGUOUS_PACKAGE` 에러 코드, `getInstalledPackages()` 신규), `providers/{types,local}.ts`(`uninstall()` 신규)
+  - CLI 명령: `packages/cli/src/commands/{install,remove,update,search,publish}.ts`(핵심 로직을 `console.log`/`process.exit` 없는 순수 함수로 분리 — `resolveInstallEntry`/`installPackage`/`resolveInstalledPackage`/`removePackage`/`updatePackage`/`updateAllPackages`/`publishPackages`), `packages/cli/src/commands/marketplace.ts`(신규, `buildMarketplaceCommand()`), `packages/cli/src/index.ts`(등록)
+  - Dashboard 브리지: `lib/marketplace/registry.ts`(재작성, CLI shell-out), `app/api/marketplace/{route.ts,installed/route.ts,publish/route.ts,[type]/[name]/route.ts}`(재작성/신규), `app/developer/marketplace/{page.tsx,installed/page.tsx,updates/page.tsx,[type]/[name]/page.tsx}`, `components/developer/marketplace/MarketplaceTabs.tsx`, `components/developer/dashboard/MarketplaceWidget.tsx`(실데이터로 갱신)
+  - 테스트(신규, 49개): `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(38개, CLI 로직을 `packages/cli/src/**/*.ts`에서 직접 import, subprocess 미사용), `tests/marketplace/{registry,cli-bridge}.test.ts`(11개, `execute()` mock으로 브리지 함수의 명령 조합·JSON 파싱·에러 전파 검증)
+  - 검증: CLI `ai marketplace publish/search/install/update/remove --json` 스크래치 디렉터리에서 전체 라이프사이클 실행 확인(설치된 manifest.json에 버전 기록됨, update가 no-op→실제 적용까지 정확히 동작), Dashboard도 로그인 상태에서 동일 라이프사이클(publish→search→install→details→update→remove)을 실제 HTTP 요청으로 재확인. 테스트에 사용한 스크래치 패키지·`marketplace/index.json`·`marketplace/agents/e2e-dashboard-test/`·인증 테스트 계정은 검증 후 전부 삭제(사전에 `git ls-files`로 각 경로가 미추적임을 확인한 뒤 삭제).
+- 여전히 남은 것: 실제로 `ai publish`(또는 대시보드의 Publish)를 실행하기 전까지는 저장소의 실제 `marketplace/manifest.json` 5개 카테고리가 여전히 `count: 0`이다 — 메커니즘은 이제 정상 동작하지만, 아직 아무도 실제 패키지를 게시하지 않았을 뿐이다.
 
 ---
 
@@ -216,7 +228,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented (Development OS scope)**
 
-- Description: 루트 Next.js 앱(`app/api/`)에 40개 Route Handler 존재(Dashboard v1에서 6개 추가: providers 1·websites 1·marketplace 2·health 2). CNBIZ Website(`apps/cnbiz-web`)에는 Contact 폼 전용 API 1개 존재.
+- Description: 루트 Next.js 앱(`app/api/`)에 43개 Route Handler 존재(Dashboard v1에서 6개, Marketplace v1에서 3개 추가). CNBIZ Website(`apps/cnbiz-web`)에는 Contact 폼 전용 API 1개 존재.
 - Evidence(루트, 전체 목록):
   - Agents: `app/api/agents/route.ts`, `app/api/agents/run/route.ts`, `app/api/agents/tasks/route.ts`, `app/api/agents/tasks/[id]/route.ts`, `app/api/agents/tasks/[id]/cancel/route.ts`
   - Auth: `app/api/auth/login/route.ts`, `app/api/auth/logout/route.ts`, `app/api/auth/me/route.ts` (자세한 내용은 `## Authentication` 참고)
@@ -224,7 +236,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - Dev Server: `app/api/devserver/{start,stop,restart,status}/route.ts`
   - Health: `app/api/health/route.ts`, `app/api/health/run/route.ts` (신규, `## Dashboard` 참고)
   - Logs: `app/api/logs/route.ts`
-  - Marketplace: `app/api/marketplace/route.ts`, `app/api/marketplace/[name]/route.ts` (신규, `## Dashboard` 참고)
+  - Marketplace: `app/api/marketplace/route.ts`, `app/api/marketplace/installed/route.ts`, `app/api/marketplace/publish/route.ts`, `app/api/marketplace/[type]/[name]/route.ts` (Marketplace v1, `## Marketplace` 참고)
   - Projects: `app/api/projects/route.ts`, `app/api/projects/[id]/route.ts`(GET/PATCH/**DELETE 신규**), `app/api/projects/bootstrap/route.ts`, `app/api/projects/health/route.ts`, `app/api/projects/import/route.ts`
   - Prompts: `app/api/prompts/route.ts`, `app/api/prompts/[id]/route.ts`, `app/api/prompts/[id]/execute/route.ts`
   - Providers: `app/api/providers/route.ts` (신규, `## Dashboard` 참고)
@@ -276,17 +288,18 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,health}/`에 추가. 16개 테스트 파일·88개 테스트 케이스(2026-07-14 Dashboard v1 기준, Authentication 26개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health}/`에 추가. 21개 테스트 파일·145개 테스트 케이스(2026-07-14 Website Builder v2 Phase 2 감사 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
   - **CLI startup** — 빌드된 `packages/cli/bin/ai.js`를 실제 하위 프로세스로 실행해 `--version`/`--help`/미등록 명령 처리를 검증(`dist/`가 없으면 skip). 루트 `pretest` 스크립트가 `npm test` 실행 전 CLI를 자동 빌드.
-  - **Website Builder(CLI)** — `website/types.ts`(11개 사이트 타입·팔레트·카피)와 `website/scaffold.ts`(`slugify()`/`resolveSiteType()`)의 실제 로직 검증.
+  - **Website Builder(CLI)** — `website/types.ts`(11개 사이트 타입·팔레트·카피)·`website/scaffold.ts`(`slugify()`/`resolveSiteType()`)·`website/content.ts`(Content Generator, 신규)의 실제 로직 검증.
   - **Workflow Engine** — `workflow/validator.ts`의 `validateWorkflowJson()`이 정상/비정상 `workflow.json`을 올바른 `WorkflowError` 코드로 구분하는지 검증.
   - **Utilities** — `utils/filesystem.ts`(`FileSystem`, 실제 임시 디렉터리에 대한 I/O 왕복)와 `utils/config.ts`(`findProjectRoot()`, 실제 저장소 트리 기준)를 `tests/cli/utils.test.ts`에서 검증.
   - **Agents(스켈레톤)** — `lib/agents/registry.ts`(Development OS Agent Service)의 3개 등록 Agent(`shell`/`claude-code`/`cursor`) 조회 로직 검증.
   - **Authentication** — `tests/auth/*`(password/users/session/auth/middleware), 자세한 내용은 `## Authentication` 참고.
-  - **Dashboard v1(신규)** — `tests/{projects,providers,websites,marketplace,health}/*.test.ts`, 자세한 내용은 `## Dashboard` 참고.
-  - 이 작업 과정에서 실제로 발견·수정한 버그: `next build`의 TypeScript 타입체크가 루트 `tsconfig.json`(`exclude`가 비재귀 패턴이라 저장소 내 중첩 복제본까지 스캔)에서 빌드 실패 — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"` 재귀 패턴으로 교체(자세한 내용은 `## Build Status` 참고).
+  - **Dashboard v1** — `tests/{projects,providers,websites,health}/*.test.ts`, 자세한 내용은 `## Dashboard` 참고.
+  - **Marketplace v1(신규)** — `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(CLI 로직, subprocess 미사용, 38개) + `tests/marketplace/{registry,cli-bridge}.test.ts`(Dashboard 브리지, `execute()` mock, 11개), 자세한 내용은 `## Marketplace` 참고.
+  - 이 작업 과정에서 실제로 발견·수정한 버그: `next build`의 TypeScript 타입체크가 루트 `tsconfig.json`(`exclude`가 비재귀 패턴이라 저장소 내 중첩 복제본까지 스캔)에서 빌드 실패 — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"` 재귀 패턴으로 교체(자세한 내용은 `## Build Status` 참고). Marketplace의 `remove`/`update` 명령이 애초에 한 번도 `install`과 맞물려 동작한 적이 없었던 버그도 이 과정에서 발견·수정(`## Marketplace` 참고).
   - 나머지 영역(Workflow/Agent Runtime의 실행 경로 자체, Orchestrator, Provider 실제 호출)은 아직 테스트 없음.
-- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,health}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
+- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
 
 ---
 
@@ -323,7 +336,6 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 ## Remaining TODO
 
 - **Website Builder — 실 배포(Deployment) 자동 실행 없음**: `vercel.json`/`.env.example`만 생성되고 CLI가 실제 배포 명령을 실행하지 않음(Website Builder v2 > Deployment 참고).
-- **Marketplace — 게시된 패키지 0개**: 로컬 Provider 구현은 있으나 `marketplace/manifest.json` 5개 카테고리 전부 `count: 0`, 온라인 레지스트리 Provider 없음.
 - **Authentication — signup 백엔드 및 일부 내부 API 미보호**: 로그인/로그아웃/세션은 구현 완료(`## Authentication` 참고)했으나, `/signup`은 여전히 정적 폼(범위 밖)이고 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등 다른 내부 API는 `packages/cli`(`ai devmode` 등)가 세션 없이 직접 호출하는 구조라 의도적으로 미보호 상태.
 - **테스트 커버리지가 아직 얕음**: Website Builder/Workflow Engine/Utilities/Agent Runtime/Authentication 중 순수 로직 일부만 커버. Orchestrator·Provider 실제 호출·Development OS Workflow Engine(`lib/workflows`)·API 라우트·Dashboard 컴포넌트는 여전히 테스트 없음.
 - **`lint.yml`에는 아직 build 스텝이 없음**: 빌드 검증은 `test.yml`에만 추가됨(`release.yml`은 태그 push 시에만 build 실행) — `lint.yml`도 별도로 build를 검증할지는 정책 결정 필요.
@@ -331,7 +343,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - **⚠ 다른 프로젝트로 추정되는 자료가 이 저장소에 커밋되어 있음(`docs/08_PLANS/상가분양센터/`, 7개 파일, 936KB)**: CNBIZ/AI Business OS와 무관해 보이는 상업용 부동산 분양 관련 UI/UX 구조도·스토리보드·"의뢰자미팅용" 문서가 커밋 `b954508`에 포함됨. 다른 고객사 자료 유출/오염 가능성이 있어 삭제 여부와 별개로 **사용자 확인이 우선 필요**.
 - **저장소 루트 정리 필요(git에 이미 커밋된 상태, 로컬 미추적 파일이 아님)**: 이전 버전 문서와 달리 이제 아래 항목들은 모두 git 히스토리에 실제로 포함되어 있음이 확인됨 — 자기 자신의 중첩 복제본(`AI-Web-Master/`, `.gitmodules` 없이 커밋된 broken gitlink, 모드 `160000`, 커밋 `b954508`), 이전 감사 산출물(`docs.zip`, `docs_extract/`70개 파일, `docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md`, `docs/{AGENT,CLI,PROJECT,WEBSITE_BUILDER,WORKFLOW}_AUDIT.md` 등 커밋 `deaeb45`/`b2c0b6a`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`, 커밋 `b954508`/`1148f3a`), 스크래치 프로젝트(`test-project/`, 커밋 `4e7900d`). 로컬 파일 삭제가 아니라 `git rm`(+커밋)이 필요하며, 저장소 히스토리에서 완전히 없애려면 히스토리 재작성 여부까지 사용자 승인이 필요(문서 관리 규칙).
 - **Agent Runtime / Workflow Engine 이원화**: Development OS(`lib/agents`, `lib/workflows`)와 CLI(`packages/cli/src/runtime`, `packages/cli/src/workflow`)에 유사한 개념이 각각 독립적으로 구현되어 있어 장기적으로 개념 통합 여부에 대한 결정이 필요(현재는 의도적으로 별개 애플리케이션이라 문제는 아님).
-- **Dashboard v1 — Marketplace는 여전히 실제 패키지 0개**: `/developer/marketplace`의 Install/Remove는 동작하지만 추적 전용(`lib/data/marketplace-installed.json`)이라, 실제 `ai publish`로 패키지를 게시하기 전까지는 "Available Packages"가 항상 0으로 보임. Update Available도 비교할 버전이 없어 N/A로 고정.
+- **Marketplace v1 — 메커니즘은 정상이지만 실제 게시된 패키지는 여전히 0개**: `ai marketplace publish`(또는 Dashboard의 Publish)를 아무도 실행하지 않아 `marketplace/manifest.json` 5개 카테고리가 여전히 `count: 0`. Install/Remove/Update 로직 자체는 2026-07-14에 수정·검증 완료(`## Marketplace` 참고) — 남은 건 실제 콘텐츠뿐.
+- **Marketplace v1 — 온라인 레지스트리 Provider 없음**: `LocalMarketplaceProvider`(파일시스템 기반)만 존재. `getMarketplaceProvider()`가 향후 다른 Provider로 교체 가능하도록 인터페이스로 분리되어 있으나 실제 구현은 없음.
 - **Dashboard v1 — Website Builder는 `packages/cli/dist/index.js`가 빌드되어 있어야 동작**: `npm run build --workspace=@ai-business-os/cli`(루트 `pretest`가 자동 실행) 이후에만 `/developer/websites`의 Create가 성공. 없으면 API가 400으로 명확히 안내하지만, 클린 체크아웃 직후 첫 사용 시 놓치기 쉬움.
 - **Dashboard v1 — Logs 카테고리 이름이 요청한 "Application/Workflow/CLI" 표현과 다름**: 기존 Terminal/Git/AI/System 4개 카테고리(`lib/events/eventBus.ts`)를 그대로 두고 cross-cutting "Errors" 필터만 추가함(재설계 방지 목적). 정확한 이름 매핑이 필요하면 `EventCategory` 자체를 확장하는 별도 작업 필요.
 - ~~Dashboard v1 검증 과정에서 생성된 실 CLI 산출물이 저장소에 남아있음~~ — **해결됨(2026-07-14)**: `/developer/websites` E2E 검증 중 `ai website create`가 자동 생성한 8개 Planning Agent 디렉터리(`agents/{business-analyst,component-generator,page-generator,project-generator,qa,seo-generator,site-planner,ui-designer}/`, git 미추적 확인 후 삭제 — 기존에 git으로 추적되던 `agents/*.md` 10개 파일은 무변경 보존), `workflows/website-builder/`(E2E 생성 샘플로 판단, CLI가 필요 시 자동 재생성하므로 삭제), `.runtime/`(에이전트 memory/history/실행 로그 등 캐시성 데이터로 확인 후 삭제 + `.gitignore`에 `/.runtime/` 추가) 정리 완료.
@@ -343,8 +356,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 1. **`docs/08_PLANS/상가분양센터/` 소유권 확인(최우선)** — 다른 고객사 자료로 추정되는 문서가 이 저장소에 커밋되어 있음을 사용자에게 즉시 확인하고, 필요 시 `git rm`(및 민감도에 따라 히스토리 제거) 여부를 결정.
 2. **저장소 루트 클린업 승인 요청** — `AI-Web-Master/`(broken gitlink)·`docs.zip`/`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`·`test-project/`가 이미 git에 커밋되어 있음을 반영해, `git rm` 대상과 히스토리 재작성 필요 여부를 사용자와 함께 확정.
 3. **테스트 커버리지 확장** — Orchestrator(`packages/cli/src/orchestrator`), Development OS Workflow Engine(`lib/workflows/engine.ts`), Provider 시뮬레이션 폴백 경로(`packages/cli/src/providers/manager.ts`) 등 아직 다루지 않은 영역에 순서대로 테스트 추가.
-4. **Marketplace 실 데이터 채우기 또는 범위 재확정** — 로컬 Provider가 이미 동작하므로, 실제 `ai publish`로 최소 1개 이상의 agent/workflow/skill을 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신하거나, Phase 5(Productization) 착수 시점까지 보류할지 명시적으로 결정.
+4. **Marketplace 실 데이터 채우기** — Install/Remove/Update/Publish 메커니즘은 이제 CLI·Dashboard 양쪽에서 검증 완료(`## Marketplace` 참고)했으므로, 실제 `ai marketplace publish`로 agent/workflow/skill을 최소 1개 이상 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신 — 남은 유일한 작업.
 5. **Authentication — 다른 내부 API 보호 여부 결정** — `/developer/**`·`/projects/**`는 보호되지만 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등은 `packages/cli` 호환을 위해 의도적으로 미보호 상태. CLI 쪽에도 세션 전달(예: API 토큰) 방식을 도입해 이 API들까지 보호 범위를 넓힐지, 현재 상태를 유지할지 결정 필요.
 6. **`eslint.config.mjs`의 비재귀 ignore 패턴 수정** — `tsconfig.json`과 동일한 버그가 `globalIgnores`에도 있어 `AI-Web-Master/` 내부 파일이 `npm run lint`에서 계속 오류로 잡힘(`Remaining TODO` 참고). 저장소 루트 클린업(#2)과 함께 처리하거나 선행 처리.
-7. **Marketplace 실 데이터 채우기** — Dashboard의 Install/Remove UI는 이제 동작하므로, 실제 `ai publish`로 최소 1개 패키지를 게시해 End-to-End(게시→대시보드에 표시→설치)를 검증하면 좋음.
-8. **OpenAI/Gemini 연결 상태의 실제 API 검증 여부 결정** — 현재 `/developer/ai`는 env var 존재 여부만으로 "Configured"를 판단(비용 없음, 의존성 없음). 실제 `/v1/models` 호출까지 검증할지는 후속 결정 필요.
+7. **OpenAI/Gemini 연결 상태의 실제 API 검증 여부 결정** — 현재 `/developer/ai`는 env var 존재 여부만으로 "Configured"를 판단(비용 없음, 의존성 없음). 실제 `/v1/models` 호출까지 검증할지는 후속 결정 필요.
+8. **온라인 Marketplace Provider 도입 여부 결정** — 현재는 `LocalMarketplaceProvider`(파일시스템)만 존재. 여러 프로젝트/팀 간 패키지 공유가 필요해지면 HTTP 기반 Provider를 `MarketplaceProvider` 인터페이스에 맞춰 추가하는 방향으로 확장 가능(인터페이스는 이미 이를 염두에 두고 분리되어 있음).

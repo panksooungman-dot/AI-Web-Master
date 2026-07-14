@@ -20,4 +20,7 @@ export interface MarketplaceProvider {
 
   /** 마켓플레이스의 패키지를 대상 디렉터리로 설치(복사)한다. */
   install(type: PackageType, name: string, targetDir: string): Promise<void>;
+
+  /** 설치된 패키지(대상 디렉터리)를 제거한다. */
+  uninstall(type: PackageType, name: string, targetDir: string): Promise<void>;
 }

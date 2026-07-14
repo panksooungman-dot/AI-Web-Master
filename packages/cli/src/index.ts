@@ -14,6 +14,7 @@ import { buildOrchestratorCommand } from "./commands/orchestrator.js";
 import { buildProviderCommand } from "./commands/provider.js";
 import { buildToolsCommand } from "./commands/tools.js";
 import { buildWebsiteCommand } from "./commands/website.js";
+import { buildMarketplaceCommand } from "./commands/marketplace.js";
 import { addCommand } from "./commands/add.js";
 import { installCommand } from "./commands/install.js";
 import { doctorCommand } from "./commands/doctor.js";
@@ -96,6 +97,7 @@ program.addCommand(buildOrchestratorCommand());
 program.addCommand(buildProviderCommand());
 program.addCommand(buildToolsCommand());
 program.addCommand(buildWebsiteCommand());
+program.addCommand(buildMarketplaceCommand());
 
 program
   .command("init")
@@ -117,8 +119,9 @@ program
   .command("install")
   .argument("<package>", "Package name")
   .option("--type <type>", "agent | workflow | skill")
-  .description("마켓플레이스의 패키지를 현재 프로젝트에 설치")
-  .action(async (pkg: string, options: { type?: string }) => {
+  .option("--json", "JSON 형식으로 출력")
+  .description("마켓플레이스의 패키지를 현재 프로젝트에 설치 (= ai marketplace install)")
+  .action(async (pkg: string, options: { type?: string; json?: boolean }) => {
     await installCommand(pkg, options);
   });
 
@@ -133,33 +136,40 @@ program
   .command("search")
   .argument("[keyword]", "Search keyword (name/description 부분 일치)")
   .option("--type <type>", "agent | workflow | skill")
-  .description("마켓플레이스에 게시된 패키지 검색")
-  .action(async (keyword: string | undefined, options: { type?: string }) => {
+  .option("--json", "JSON 형식으로 출력")
+  .description("마켓플레이스에 게시된 패키지 검색 (= ai marketplace search)")
+  .action(async (keyword: string | undefined, options: { type?: string; json?: boolean }) => {
     await searchCommand(keyword, options);
   });
 
 program
   .command("remove")
   .argument("<package>", "Package name")
-  .description("Remove an installed package")
-  .action(async (pkg: string) => {
-    await removeCommand(pkg);
+  .option("--type <type>", "agent | workflow | skill")
+  .option("--json", "JSON 형식으로 출력")
+  .description("설치된 패키지를 제거 (= ai marketplace remove)")
+  .action(async (pkg: string, options: { type?: string; json?: boolean }) => {
+    await removeCommand(pkg, options);
   });
 
 program
   .command("update")
-  .argument("<package>", "Package name")
-  .description("Update an installed package")
-  .action(async (pkg: string) => {
-    await updateCommand(pkg);
+  .argument("[package]", "Package name (생략 시 설치된 패키지 + 업데이트 가능 여부 목록 표시)")
+  .option("--type <type>", "agent | workflow | skill")
+  .option("--all", "업데이트 가능한 설치된 패키지를 모두 갱신")
+  .option("--json", "JSON 형식으로 출력")
+  .description("설치된 패키지를 최신 버전으로 갱신 (= ai marketplace update)")
+  .action(async (pkg: string | undefined, options: { type?: string; all?: boolean; json?: boolean }) => {
+    await updateCommand(pkg, options);
   });
 
 program
   .command("publish")
   .argument("[package]", "Package name (생략 시 agents/·workflows/·skills/의 모든 로컬 패키지를 게시)")
-  .description("생성된 Agent/Workflow/Skill을 마켓플레이스에 게시")
-  .action(async (pkg?: string) => {
-    await publishCommand(pkg);
+  .option("--json", "JSON 형식으로 출력")
+  .description("생성된 Agent/Workflow/Skill을 마켓플레이스에 게시 (= ai marketplace publish)")
+  .action(async (pkg: string | undefined, options: { json?: boolean }) => {
+    await publishCommand(pkg, options);
   });
 
 async function main(): Promise<void> {

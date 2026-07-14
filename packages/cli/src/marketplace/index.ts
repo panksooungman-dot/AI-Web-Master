@@ -1,7 +1,9 @@
 import fs from "fs-extra";
 import path from "path";
 import { LocalMarketplaceProvider } from "./providers/local.js";
+import { readManifest } from "./manifest.js";
 import { PACKAGE_TYPES, TYPE_DIR_NAMES, type PackageType } from "./types.js";
+import type { MarketplaceProvider } from "./providers/types.js";
 
 export * from "./types.js";
 export * from "./manifest.js";
@@ -56,4 +58,67 @@ export async function discoverLocalPackages(cwd: string = process.cwd()): Promis
   }
 
   return found;
+}
+
+export interface InstalledPackageInfo {
+  type: PackageType;
+  name: string;
+  installedVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  description: string;
+  author: string;
+  dir: string;
+}
+
+/** Compares "x.y.z" strings numerically. Positive if `a` > `b`. */
+function compareVersions(a: string, b: string): number {
+  const partsA = a.split(".").map(Number);
+  const partsB = b.split(".").map(Number);
+
+  for (let i = 0; i < 3; i += 1) {
+    if (partsA[i] !== partsB[i]) return partsA[i] - partsB[i];
+  }
+
+  return 0;
+}
+
+/**
+ * cwd에 실제로 설치된 패키지 목록 — `discoverLocalPackages()`(agents/·workflows/·skills/
+ * 스캔)로 찾은 각 패키지의 자체 manifest.json(= 설치 당시 버전)을, 같은 이름/타입의
+ * 마켓플레이스 게시본(provider.list())과 비교해 업데이트 가능 여부를 계산한다.
+ * 설치 버전을 별도로 추적하는 상태 파일이 없다 — 설치된 패키지 폴더 자체가
+ * manifest.json을 포함하고 있어(install()이 통째로 복사) 그 자체가 기록이다.
+ */
+export async function getInstalledPackages(
+  provider: MarketplaceProvider = getMarketplaceProvider(),
+  cwd: string = process.cwd()
+): Promise<InstalledPackageInfo[]> {
+  const [discovered, published] = await Promise.all([discoverLocalPackages(cwd), provider.list()]);
+
+  const results: InstalledPackageInfo[] = [];
+
+  for (const pkg of discovered) {
+    let manifest;
+    try {
+      manifest = await readManifest(pkg.dir);
+    } catch {
+      continue;
+    }
+
+    const latest = published.find((entry) => entry.type === pkg.type && entry.name === pkg.name);
+
+    results.push({
+      type: pkg.type,
+      name: pkg.name,
+      installedVersion: manifest.version,
+      latestVersion: latest?.version ?? null,
+      updateAvailable: latest ? compareVersions(latest.version, manifest.version) > 0 : false,
+      description: manifest.description,
+      author: manifest.author,
+      dir: pkg.dir
+    });
+  }
+
+  return results;
 }

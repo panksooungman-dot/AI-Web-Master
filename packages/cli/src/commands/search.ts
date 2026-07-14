@@ -3,16 +3,14 @@ import { getMarketplaceProvider, isPackageType, type PackageType } from "../mark
 
 export interface SearchOptions {
   type?: string;
+  json?: boolean;
 }
 
 /**
- * `ai search [keyword] [--type agent|workflow|skill]` — marketplace/index.json을
+ * `ai search [keyword] [--type agent|workflow|skill] [--json]` — marketplace/index.json을
  * 읽어 게시된 패키지를 나열한다. keyword는 name/description에 대한 부분 일치.
  */
 export async function searchCommand(keyword?: string, options: SearchOptions = {}): Promise<void> {
-  console.log(chalk.cyan("\n🔍 AI Business OS Marketplace Search"));
-  console.log(chalk.gray("--------------------------------"));
-
   let type: PackageType | undefined;
 
   if (options.type) {
@@ -25,6 +23,14 @@ export async function searchCommand(keyword?: string, options: SearchOptions = {
 
   const provider = getMarketplaceProvider();
   const results = await provider.list({ type, keyword });
+
+  if (options.json) {
+    console.log(JSON.stringify({ success: true, results }));
+    return;
+  }
+
+  console.log(chalk.cyan("\n🔍 AI Business OS Marketplace Search"));
+  console.log(chalk.gray("--------------------------------"));
 
   if (results.length === 0) {
     console.log(chalk.yellow("⚠️ No packages found in the marketplace."));

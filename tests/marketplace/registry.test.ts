@@ -2,9 +2,9 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getCatalogSummary, listInstalled, setInstalled } from "../../lib/marketplace/registry";
+import { getCatalogSummary } from "../../lib/marketplace/registry";
 
-describe("Marketplace — registry (lib/marketplace/registry.ts)", () => {
+describe("Marketplace — dashboard bridge, catalog summary (lib/marketplace/registry.ts)", () => {
   describe("getCatalogSummary()", () => {
     let manifestPath: string;
     let tmpDir: string;
@@ -55,44 +55,6 @@ describe("Marketplace — registry (lib/marketplace/registry.ts)", () => {
 
       expect(summary.categories.length).toBeGreaterThan(0);
       expect(summary.totalAvailable).toBe(0);
-    });
-  });
-
-  describe("listInstalled() / setInstalled()", () => {
-    let baseDir: string;
-
-    beforeEach(() => {
-      baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "marketplace-installed-test-"));
-    });
-
-    afterEach(() => {
-      fs.rmSync(baseDir, { recursive: true, force: true });
-    });
-
-    it("starts empty", () => {
-      expect(listInstalled(baseDir)).toEqual([]);
-    });
-
-    it("setInstalled(name, true) adds the package; listInstalled() reflects it", () => {
-      setInstalled("my-agent", true, baseDir);
-      const installed = listInstalled(baseDir);
-
-      expect(installed).toHaveLength(1);
-      expect(installed[0].name).toBe("my-agent");
-    });
-
-    it("setInstalled(name, true) twice does not duplicate the entry", () => {
-      setInstalled("my-agent", true, baseDir);
-      setInstalled("my-agent", true, baseDir);
-
-      expect(listInstalled(baseDir)).toHaveLength(1);
-    });
-
-    it("setInstalled(name, false) removes the package", () => {
-      setInstalled("my-agent", true, baseDir);
-      setInstalled("my-agent", false, baseDir);
-
-      expect(listInstalled(baseDir)).toEqual([]);
     });
   });
 });

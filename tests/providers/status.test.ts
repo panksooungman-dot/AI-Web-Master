@@ -48,11 +48,15 @@ describe("AI Workspace — provider status (lib/providers/status.ts)", () => {
     expect(openai?.model).toBeNull();
     expect(gemini?.status).toBe("Not Configured");
     expect(gemini?.model).toBeNull();
+
     // 키가 없으면 OpenAI/Gemini는 실제 API를 호출하지 않고 즉시 판정한다(불필요한 네트워크 호출 없음).
-    // Ollama 체크는 병렬로 항상 fetch를 호출하므로, 그 호출까지 "전혀 없어야 함"으로 단언하지는 않는다.
     const calledUrls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(calledUrls.some((url) => url.includes("api.openai.com"))).toBe(false);
     expect(calledUrls.some((url) => url.includes("generativelanguage.googleapis.com"))).toBe(false);
+
+    // Ollama의 health check는 OpenAI/Gemini의 설정 여부와 무관하게 항상(병렬로) 수행되도록
+    // 의도되어 있다 — 위 두 단언과 달리 이 호출은 허용되어야 하므로, 실제로 일어났는지 긍정 검증한다.
+    expect(calledUrls.some((url) => url.includes("localhost:11434"))).toBe(true);
   });
 
   it("openai/gemini report 'Configured' with a real model name when the live models call succeeds", async () => {

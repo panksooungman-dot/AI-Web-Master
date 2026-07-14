@@ -1,10 +1,57 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+type SubmitState = "idle" | "submitting" | "error";
 
 export default function LoginPage() {
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const router = useRouter();
+  const [state, setState] = useState<SubmitState>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [redirectTarget, setRedirectTarget] = useState("/developer");
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      if (redirect && redirect.startsWith("/")) {
+        setRedirectTarget(redirect);
+      }
+    });
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setState("submitting");
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") ?? "");
+    const password = String(formData.get("password") ?? "");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data: { success: boolean; error?: string } = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.error ?? "로그인에 실패했습니다.");
+        setState("error");
+        return;
+      }
+
+      router.push(redirectTarget);
+      router.refresh();
+    } catch {
+      setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      setState("error");
+    }
   }
 
   return (
@@ -51,11 +98,18 @@ export default function LoginPage() {
               />
             </div>
 
+            {state === "error" && error && (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            )}
+
             <button
               type="submit"
-              className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+              disabled={state === "submitting"}
+              className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              로그인
+              {state === "submitting" ? "로그인 중..." : "로그인"}
             </button>
           </form>
 

@@ -181,10 +181,19 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ## Authentication
 
-**Status: ❌ Not Implemented**
+**Status: ✅ Implemented (Development OS scope) — 2026-07-14**
 
-- Description: `/login`, `/signup` 페이지가 존재하나 순수 UI 폼(Client Component)뿐이며 `onSubmit`이 `e.preventDefault()`만 호출하고 실제 인증 요청·세션 생성 로직이 전혀 없음. 저장소 전체에서 `supabase.auth`, NextAuth, JWT, 세션 검증 등 실제 인증 구현을 나타내는 코드가 발견되지 않음(`lib/supabase.ts`는 클라이언트 초기화만 존재, 실사용처 없음).
-- Evidence: `app/login/page.tsx`, `app/signup/page.tsx`(둘 다 `handleSubmit`이 `preventDefault()`만 수행), `lib/supabase.ts`(초기화 코드만 존재, import하는 곳 없음)
+- Description: 이메일/비밀번호 기반 세션 인증. `/login`이 실제 `POST /api/auth/login`을 호출하도록 연결되었고(`app/login/page.tsx`), 내부 Dashboard 전체(`/developer/**`, `/projects/**`)가 `proxy.ts`(Next.js 16의 `middleware.ts` 후속, Node.js 런타임 기본 실행)로 보호된다. `/signup` 백엔드는 이번 범위 밖(요청 범위에 없었음) — 계정 생성은 `scripts/create-auth-user.cjs`로만 가능.
+- 세션 모델: 서버 측 불투명 토큰(`crypto.randomBytes(32)`)을 `lib/data/sessions.json`(기존 `lib/workspaces/registry.ts`와 동일한 fs-JSON 패턴, `.gitignore` 처리됨)에 저장하고, 쿠키(`ai_session`, HttpOnly·`Secure`(production only)·`SameSite=Lax`·7일 만료)에는 토큰만 담는다. 새 npm 패키지·새 `.env` 변수 없음(비밀번호는 Node 내장 `crypto.scryptSync`, 세션 토큰도 `crypto.randomBytes` — 서명 키 자체가 불필요한 구조).
+- 보호 범위: `/developer/**` + `/projects/**`만 보호. `/api/workspaces`·`/api/terminal`·`/api/devserver` 등 다른 내부 API는 의도적으로 미보호 — `packages/cli`(`ai devmode` 등)가 브라우저 세션 없이 이 API들을 직접 호출하므로, 쿠키 게이팅을 걸면 CLI 연동이 깨짐(실제로 로그인 없이 `/api/devserver/status`가 계속 200을 반환하는지 curl로 확인 완료). 후속 과제로 남겨둠, 누락이 아님.
+- Evidence:
+  - `lib/auth/{types,password,users,session,auth,middleware}.ts`, `lib/auth/AuthContext.tsx`(client, `useAuth()`)
+  - `proxy.ts`(저장소 루트) — `/developer/:path*`·`/projects/:path*`·`/login`에 대해 세션 확인 후 리다이렉트
+  - `app/api/auth/{login,logout,me}/route.ts`
+  - `app/login/page.tsx`(실제 제출 연결), `components/auth/AuthBar.tsx`(로그아웃 버튼 + 사용자 이메일, `app/developer/layout.tsx`·`app/projects/layout.tsx`에 배치), `app/layout.tsx`(`AuthProvider` 전역 연결)
+  - `scripts/create-auth-user.cjs`(계정 생성 스크립트, 최초 계정 부트스트랩용)
+  - 테스트: `tests/auth/{password,users,session,auth,middleware}.test.ts`(26개, `npm run test`로 실행)
+  - 검증: `npm run test`(26/26 통과), 대상 파일 `npx eslint`(0 errors), 실행 중인 dev 서버에 curl로 End-to-End 확인 — 비로그인 `/developer` → `/login?redirect=/developer` 307, `/api/auth/me` 401, 로그인 실패 401, 로그인 성공 200 + `Set-Cookie: ai_session`, 로그인 상태 `/developer`·`/projects` 200, 로그인 상태 `/login` → `/developer` 307, 로그아웃 후 `/developer` 다시 307, 공개 페이지(`/`·`/about`·`/login`)는 비로그인으로도 200, `/api/devserver/status`는 비로그인으로도 200(CLI 호환성 확인)
 
 ---
 
@@ -192,9 +201,10 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented (Development OS scope)**
 
-- Description: 루트 Next.js 앱(`app/api/`)에 31개 Route Handler 존재. CNBIZ Website(`apps/cnbiz-web`)에는 Contact 폼 전용 API 1개 존재.
+- Description: 루트 Next.js 앱(`app/api/`)에 34개 Route Handler 존재. CNBIZ Website(`apps/cnbiz-web`)에는 Contact 폼 전용 API 1개 존재.
 - Evidence(루트, 전체 목록):
   - Agents: `app/api/agents/route.ts`, `app/api/agents/run/route.ts`, `app/api/agents/tasks/route.ts`, `app/api/agents/tasks/[id]/route.ts`, `app/api/agents/tasks/[id]/cancel/route.ts`
+  - Auth: `app/api/auth/login/route.ts`, `app/api/auth/logout/route.ts`, `app/api/auth/me/route.ts` (자세한 내용은 `## Authentication` 참고)
   - Dev Inspector: `app/api/dev-inspector/{save-image,save-style,save-text}/route.ts`
   - Dev Server: `app/api/devserver/{start,stop,restart,status}/route.ts`
   - Logs: `app/api/logs/route.ts`

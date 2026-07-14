@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-07-14
+
+### 추가 (Added)
+
+- **Authentication — Development OS(`/developer/**`, `/projects/**`) 세션 인증 구현**: `docs/REPOSITORY_INDEX.md`에 ❌로 표시되어 있던 인증 기능을 이메일/비밀번호 + 서버 측 세션으로 구현. 새 npm 패키지·새 `.env` 변수 없이 Node 내장 `crypto`(`scryptSync` 비밀번호 해시, `randomBytes` 세션 토큰)만 사용
+  - `lib/auth/{types,password,users,session,auth,middleware}.ts`(신규) — `users.ts`/`session.ts`는 `lib/workspaces/registry.ts`와 동일한 fs-JSON 패턴(`lib/data/{users,sessions}.json`, 기존에 이미 `.gitignore` 처리됨). `auth.ts`는 provider-agnostic하게 설계되어(`createSession()`을 password 없이도 호출 가능) 향후 OAuth 추가 시 재사용 가능
+  - `proxy.ts`(저장소 루트, 신규) — Next.js 16에서 `middleware.ts`가 `proxy.ts`로 이름이 바뀐 것을 확인하고(`node_modules/next/dist/docs/.../proxy.md`) 그에 맞게 구현. `/developer/:path*`·`/projects/:path*`·`/login`에 대해 `lib/auth/middleware.ts`의 `resolveSessionUser()`를 호출해 리다이렉트 처리(Proxy는 Node.js 런타임이 기본이라 세션 조회에 쓰는 `fs` 호출이 그대로 동작함)
+  - `app/api/auth/{login,logout,me}/route.ts`(신규)
+  - `lib/auth/AuthContext.tsx`(신규, client) — `app/layout.tsx`에 `AuthProvider`로 전역 연결(기존 `WorkspaceStoreProvider`와 동일한 자리)
+  - `components/auth/AuthBar.tsx`(신규) — 사용자 이메일 + 로그아웃 버튼, `app/developer/layout.tsx`·`app/projects/layout.tsx`에 배치
+  - `app/login/page.tsx` — 기존에는 `onSubmit`이 `preventDefault()`만 호출하는 정적 폼이었던 것을 `POST /api/auth/login` 실제 연결. `?redirect=` 파라미터로 로그인 후 원래 가려던 경로로 복귀
+  - `scripts/create-auth-user.cjs`(신규) — 최초 계정 생성용 독립 CommonJS 스크립트(`node scripts/create-auth-user.cjs <email> <password>`). 이번 범위에 회원가입 API는 포함되지 않아(요청 범위 밖) 계정 생성은 이 스크립트로만 가능
+  - `tests/auth/{password,users,session,auth,middleware}.test.ts`(신규, 26개 테스트) — `fs.mkdtempSync` 임시 디렉터리로 격리, 기존 `tests/agents/registry.test.ts`와 동일한 단위 테스트 스타일
+
+### 범위 결정 (Scope decisions)
+
+- 요청된 `/dashboard`·`/workspace/*`·`/settings/*`는 이 저장소에 실존하지 않아, 실제 내부 Dashboard인 `/developer/**` + `/projects/**` 전체를 보호 대상으로 매핑(사용자 확인 완료)
+- `/api/workspaces`·`/api/terminal`·`/api/devserver` 등 다른 내부 API는 이번 범위에서 의도적으로 미보호 — `packages/cli`(`ai devmode` 등)가 브라우저 세션 없이 이 API들을 직접 HTTP로 호출하므로 쿠키 게이팅 시 CLI 연동이 깨짐. 후속 과제로 남김(누락 아님)
+- 회원가입(signup) 백엔드는 요청 범위 밖 — `/signup` 페이지는 기존과 동일하게 정적 폼 상태 유지
+
+### 검증 (Verified)
+
+- `npm run test` — 신규 26개 포함 전체 통과
+- 변경/신규 파일 대상 `npx eslint` 0 errors(`app/login/page.tsx`·`lib/auth/AuthContext.tsx`에서 발견된 `react-hooks/set-state-in-effect`는 기존 `lib/store/workspace-store.tsx`와 동일한 `queueMicrotask` 패턴으로 해결)
+- `npx tsc --noEmit`·`npm run build`는 `apps/cnbiz-web`·저장소 내 중복 `AI-Web-Master/` 디렉터리에서 기인한 기존(이번 변경 이전부터 존재, `git stash`로 재현 확인) 타입 오류로 실패 — 이번 Authentication 변경과 무관함을 확인. Turbopack 컴파일 자체(신규 `proxy.ts`·`app/api/auth/*` 포함)는 오류 없이 성공
+- 실행 중인 dev 서버에 curl로 End-to-End 확인: 비로그인 `/developer` → `/login?redirect=/developer`(307), `/api/auth/me`(401), 로그인 실패(401, 존재하지 않는 이메일과 동일한 오류 메시지로 사용자 목록 노출 방지), 로그인 성공(200 + `Set-Cookie: ai_session; HttpOnly`), 로그인 상태에서 `/developer`·`/projects`(200), 로그인 상태에서 `/login` 방문 시 `/developer`로 리다이렉트(307), 로그아웃 후 `/developer` 재방문 시 다시 `/login`으로 리다이렉트(세션이 서버에서 실제로 삭제되었음을 확인, 쿠키만 지운 게 아님), 공개 페이지(`/`·`/about`·`/login`)는 비로그인 상태에서도 200, `/api/devserver/status`는 비로그인 상태에서도 200(CLI 호환성 확인). 테스트에 사용한 계정·세션 데이터(`lib/data/{users,sessions}.json`)는 검증 후 삭제 완료
+- `docs/REPOSITORY_INDEX.md`의 `## Authentication` 섹션을 ❌ → ✅로 갱신, `## API Routes`에 3개 라우트 추가 반영
+
 ## 2026-07-12
 
 ### 추가 (Added)

@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { OG_DEFAULTS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site-config";
 import { WorkspaceStoreProvider } from "@/lib/store/workspace-store";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 import { DevInspectorOverlay } from "@cnbiz/dev-inspector";
 
 const geistSans = Geist({
@@ -70,7 +71,9 @@ export default function RootLayout({
         />
         <Header />
         <main className="flex-1">
-          <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
+          <AuthProvider>
+            <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
+          </AuthProvider>
         </main>
         <Footer />
         <DevInspectorOverlay />

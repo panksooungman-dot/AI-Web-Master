@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-07-14 (7)
+
+### 추가 (Added)
+
+- **AI Platform v1 — AI-first operating system 레이어**: 기존에 이미 실존하던 `ProviderManager`(Anthropic/OpenAI/Gemini/Ollama, `complete()`의 resolve→chat→simulate 폴백)·Task Queue(`lib/agents/taskQueue.ts`)·Prompt 버전 관리(`lib/prompts/registry.ts`)는 그대로 재사용하고, Chat/Code/Content 실행 UI·5번째 vendor·API Key 쓰기 경로·실제 연결 확인·Task 재시도·Prompt 카테고리/변수/미리보기·CLI 노출·토큰 사용량 추적 등 실제로 비어있던 부분만 구현
+  - **AI Provider Manager**: `packages/cli/src/providers/openrouter.ts`(신규, 5번째 vendor). `ProviderManager.setProviderConfig()`(신규, API Key/host 쓰기 경로). `{openai,anthropic,gemini,openrouter}.validate()`를 "API 키 존재 여부만 확인"에서 자기 `.models()`를 실제로 호출하는 라이브 헬스체크로 교체(Ollama의 기존 패턴과 통일). 4개 vendor `chat()` 응답에서 `usage` 파싱 추가, `complete()` 내부 단일 지점에서 `.runtime/usage.json`에 토큰 사용량 기록(신규 `providers/usage.ts`). `ai provider set-key`·`ai provider usage`(신규), `ai models`(신규 top-level)
+  - **Prompt Library**: `PromptRecord.category`·`PromptVersion.variables`(신규 필드, 레거시 레코드 자동 보정). `lib/prompts/render.ts`(신규, 미리보기 전용 `{{key}}` 치환) + `POST /api/prompts/[id]/preview`(신규). `/developer/prompts`(신규 페이지). CLI 쪽 `packages/cli/src/promptLibrary/registry.ts`(신규, Dashboard와 동일한 `lib/data/prompts.json`을 공유) + `ai prompt {list,show,create,preview,execute}`(신규)
+  - **AI Task Runner**: `taskQueue.retry(id)`(신규, Failed Task만 재-enqueue) + `POST /api/agents/tasks/[id]/retry`(신규) + `/developer/ai/tasks`(신규, 전체 이력 테이블). CLI는 Dashboard의 in-memory Task Queue를 별도 프로세스에서 관찰할 수 없다는 실제 아키텍처 경계 때문에 자체 원장(`packages/cli/src/tasks/ledger.ts`, `.runtime/tasks.json`) 사용, `ai task {list,show,retry}`(신규)
+  - **AI Workspace**: `/developer/ai`에 "AI Studio" 섹션 신규 추가(Chat/Code/Content 3개 프리셋, 동일 UI·동일 API 공유). `POST /api/ai/chat`(신규, CLI shell-out 브리지) ← `ai chat`(신규, `ProviderManager.complete()` 재사용). Website Generation/Workflow Execution은 기존 페이지로의 quick-link 카드로 처리(재구현 없음)
+  - **Dashboard Integration**: `ProviderStatusWidget`·`TokenUsageWidget`(신규) → Dashboard Home 그리드에 추가(8개 위젯). `RunningTasksWidget`/`RecentActivityWidget`은 이미 요구사항을 충족해 무변경
+  - 테스트(신규 43개): `tests/ai-platform-cli/{openrouter,provider-config,usage,prompt-library,task-ledger}.test.ts`(23개)·`tests/prompts/{registry,render}.test.ts`(11개)·`tests/agents/taskQueue-retry.test.ts`(3개)·`tests/ai/bridge.test.ts`(6개)
+
+### 수정 (Fixed)
+
+- **`ProviderManager.readProvidersConfig()`가 모듈 스코프 `DEFAULT_CONFIG` 객체를 참조로 반환하던 버그**: 설정 파일이 아직 없는 cwd에서는 이 함수가 `DEFAULT_CONFIG` 리터럴을 그대로(clone 없이) 반환하고 있었음. 신규 `setProviderConfig()`(및 기존 `setDefaultProvider()`도 동일)가 반환값을 직접 mutate하는 방식이라, 첫 호출 이후로는 프로세스 전역의 `DEFAULT_CONFIG` 자체가 영구 오염되어 이후 "새 cwd"에서도 이전 호출의 값이 새어 나오는 문제가 있었음. 신규 테스트 작성 중 실제로 재현됨 — `readProvidersConfig()`가 항상 `structuredClone(DEFAULT_CONFIG)`를 반환하도록 수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트, 0 errors) · `npm run build`(루트+CLI, 신규 라우트 8개 포함 정상 생성) · `npm run test` 188/188 통과(신규 43개 포함, 회귀 없음) · `npm run lint`(기존 무관 오류만 잔존, 신규 파일 0건)
+- **CLI 실 E2E**: 저장소 외부 스크래치 디렉터리에서 `ai provider list/set-key/test`·`ai models`·`ai chat`(provider 미설정 → simulated 폴백, Website Builder와 동일한 기존 메커니즘)·`ai prompt` 전체 라이프사이클(create→list→show→preview→execute)·`ai task list/retry`(명시적 `--provider` 요청 실패 → Failed 기록 → retry로 새 Task 생성, 원본 불변 확인) 전부 실행 확인
+- **Dashboard 실 E2E**: 실제 로그인 세션으로 `/api/ai/{chat,providers,usage}`·`/api/prompts/[id]/preview`·`/api/agents/tasks/[id]/retry`·`/developer/{ai,ai/tasks,prompts}`(전부 200)·Dashboard Home HTML에 "Provider Status"/"Token Usage" 위젯 렌더링 확인. 기존에 실제로 존재하던 프롬프트 2건(`lib/data/prompts.json`, 이전 세션 산출물)이 `category` 필드 없이도 정상 로드되어(자동으로 `"General"` 보정) 하위 호환을 확인
+- 검증 중 생성된 저장소 루트의 `.runtime/`(CLI가 실제 저장소 cwd로 shell-out될 때 생성됨)·테스트용 인증 계정(`lib/data/users.json`)은 검증 후 삭제(둘 다 `.gitignore` 대상, `git status` 재확인 완료)
+- `docs/REPOSITORY_INDEX.md` — `## AI Platform v1`(신규 섹션)·`## Dashboard`·`## CLI Commands`·`## Tests`·`## Remaining TODO`·`## Recommended Next Tasks` 갱신
+
+---
+
 ## 2026-07-14 (6)
 
 ### 확인 (Verified) — "Website Builder v2 Phase 2" 요청 처리

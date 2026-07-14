@@ -44,7 +44,7 @@ function readRegistry(baseDir: string): PromptRecord[] {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     // 기존(카테고리 도입 이전) 레코드에는 category가 없을 수 있어 기본값으로 보정한다.
-    return (parsed as PromptRecord[]).map((record) => ({ category: DEFAULT_CATEGORY, ...record }));
+    return (parsed as PromptRecord[]).map((record) => ({ ...record, category: record.category ?? DEFAULT_CATEGORY }));
   } catch {
     return [];
   }

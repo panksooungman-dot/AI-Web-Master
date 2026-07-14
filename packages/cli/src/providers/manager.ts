@@ -20,20 +20,24 @@ const DEFAULT_CONFIG: ProvidersFile = {
   }
 };
 
-/** 없으면 기본 템플릿(env 변수 참조 형태)으로 생성해 반환한다 — 비밀값은 파일에 직접 쓰지 않는다. */
+/**
+ * 없으면 기본 템플릿(env 변수 참조 형태)으로 생성해 반환한다 — 비밀값은 파일에 직접 쓰지 않는다.
+ * 항상 DEFAULT_CONFIG의 깊은 복제본을 반환한다 — setDefaultProvider()/setProviderConfig()처럼
+ * 반환값을 직접 mutate하는 호출자가 모듈 스코프의 DEFAULT_CONFIG 자체를 오염시키지 않도록 한다.
+ */
 export async function readProvidersConfig(cwd: string): Promise<ProvidersFile> {
   const file = configFile(cwd);
 
   if (!(await fs.pathExists(file))) {
     await fs.ensureDir(path.dirname(file));
     await fs.writeJson(file, DEFAULT_CONFIG, { spaces: 2 });
-    return DEFAULT_CONFIG;
+    return structuredClone(DEFAULT_CONFIG);
   }
 
   try {
     return await fs.readJson(file);
   } catch {
-    return DEFAULT_CONFIG;
+    return structuredClone(DEFAULT_CONFIG);
   }
 }
 

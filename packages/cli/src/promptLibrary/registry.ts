@@ -45,7 +45,7 @@ async function readRegistry(cwd: string): Promise<PromptRecord[]> {
   try {
     const raw = await fs.readJson(registryPath(cwd));
     if (!Array.isArray(raw)) return [];
-    return (raw as PromptRecord[]).map((record) => ({ category: DEFAULT_CATEGORY, ...record }));
+    return (raw as PromptRecord[]).map((record) => ({ ...record, category: record.category ?? DEFAULT_CATEGORY }));
   } catch {
     return [];
   }

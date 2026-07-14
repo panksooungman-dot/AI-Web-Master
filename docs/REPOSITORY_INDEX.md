@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — 커밋 상태 재확인)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-14 — AI Platform v1 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다. 이전 감사 보고서(`docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md` 등)는 내용을 참고하지 않았으나, 이번 갱신에서 이 파일들이 더 이상 "로컬 미추적 상태"가 아니라 **git에 커밋되어 저장소의 일부가 되었음**을 확인했다(커밋 `b2c0b6a`). `AI-Web-Master/`(이 저장소 자체의 중첩 복제본)도 실제로는 훨씬 이전 커밋(`b954508`)부터 이미 broken gitlink(모드 `160000`, `.gitmodules` 없음)로 추적되고 있었음을 이번에 재확인했다 — 이전 버전 문서에서 "git 미추적"이라 기술한 것은 부정확했다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션 참고.
 
 ---
@@ -37,8 +37,9 @@
   - `ai register` — 프로젝트 레지스트리 등록
   - `ai create` — Agent/Workflow/Skill 스캐폴딩
   - `ai run <agent>` — Agent Runtime 실행
-  - `ai workflow`, `ai memory`, `ai orchestrator`, `ai provider`, `ai tools`, `ai website` — 서브커맨드 그룹
-  - `ai init`, `ai add`, `ai install`, `ai doctor`, `ai search`, `ai remove`, `ai update`, `ai publish`
+  - `ai workflow`, `ai memory`, `ai orchestrator`, `ai provider`(확장), `ai tools`, `ai website`, `ai marketplace`, `ai prompt`(신규), `ai task`(신규) — 서브커맨드 그룹
+  - `ai init`, `ai add`, `ai install`, `ai doctor`, `ai search`, `ai remove`, `ai update`, `ai publish`, `ai chat`(신규), `ai models`(신규)
+  - AI Platform v1(`ai chat`/`ai prompt`/`ai provider set-key`·`usage`/`ai models`/`ai task`) 상세는 `## AI Platform v1` 참고
 - Evidence:
   - `packages/cli/src/index.ts`(전체 명령 등록부)
   - `packages/cli/bin/ai.js`
@@ -169,7 +170,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 - Description: `/developer`가 실제 운영 현황을 보여주는 Dashboard Home(위젯 6종)으로 개편되었고, `/developer` 하위 10개 모듈 전체가 인증 보호 하에 동작한다. 기존 Workspace·Terminal·GitHub·Settings·Logs·UI Map Explorer는 그대로 재사용하고, AI Manager는 실데이터 기반으로 재작성했으며, Workflow Center·Website Builder·Marketplace·Health 4개 모듈을 신규 구현했다. `/projects`에는 Delete Project를 추가해 CRUD를 완성했다.
 - 모듈별 상태:
-  - **Dashboard Home**(`/developer`) — Projects·Running AI Tasks·Active Workflows·Marketplace Packages·Recent Activity·System Health 6개 위젯. 전부 기존 API를 그대로 소비(신규 로직 없음, `components/developer/dashboard/*Widget.tsx`).
+  - **Dashboard Home**(`/developer`) — Projects·Running AI Tasks·Active Workflows·Marketplace Packages·Provider Status·Token Usage·Recent Activity·System Health 8개 위젯(뒤 2개는 AI Platform v1, `## AI Platform v1` 참고). 전부 기존/신규 API를 그대로 소비(`components/developer/dashboard/*Widget.tsx`).
   - **Project Manager**(`/projects`) — 기존 List/Recent/Open/Create/Details에 Delete 추가(`lib/projects/registry.ts`의 `deleteProject()`, `DELETE /api/projects/[id]`).
   - **AI Workspace**(`/developer/ai`) — 기존에는 Ollama/ChatGPT 카드가 하드코딩된 가짜 상태였음. `lib/providers/status.ts`(신규)로 Claude Code/Cursor(기존 `lib/agents/registry.ts` `isAvailable()` 재사용)·Local AI(Ollama, 실제 `fetch` 연결 확인)·OpenAI/Gemini(env var 존재 여부, `packages/cli`의 `ProviderManager.configured`와 동일한 의미론이나 해당 패키지는 import하지 않음) 5종 모두 실제 상태로 교체.
   - **Website Builder**(`/developer/websites`, 신규) — `ai website create` CLI를 `lib/commandEngine/engine.ts`의 `execute()`로 실제 실행(child process, 새 npm 의존성 없음). 생성 이력은 `lib/websites/registry.ts`(`lib/data/websites.json`)에 기록. 실제 E2E 검증: 8단계 Planning 파이프라인 실행 → `.generated-websites/<slug>`에 완전한 Next.js 프로젝트 생성 확인.
@@ -203,6 +204,33 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - 테스트(신규, 49개): `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(38개, CLI 로직을 `packages/cli/src/**/*.ts`에서 직접 import, subprocess 미사용), `tests/marketplace/{registry,cli-bridge}.test.ts`(11개, `execute()` mock으로 브리지 함수의 명령 조합·JSON 파싱·에러 전파 검증)
   - 검증: CLI `ai marketplace publish/search/install/update/remove --json` 스크래치 디렉터리에서 전체 라이프사이클 실행 확인(설치된 manifest.json에 버전 기록됨, update가 no-op→실제 적용까지 정확히 동작), Dashboard도 로그인 상태에서 동일 라이프사이클(publish→search→install→details→update→remove)을 실제 HTTP 요청으로 재확인. 테스트에 사용한 스크래치 패키지·`marketplace/index.json`·`marketplace/agents/e2e-dashboard-test/`·인증 테스트 계정은 검증 후 전부 삭제(사전에 `git ls-files`로 각 경로가 미추적임을 확인한 뒤 삭제).
 - 여전히 남은 것: 실제로 `ai publish`(또는 대시보드의 Publish)를 실행하기 전까지는 저장소의 실제 `marketplace/manifest.json` 5개 카테고리가 여전히 `count: 0`이다 — 메커니즘은 이제 정상 동작하지만, 아직 아무도 실제 패키지를 게시하지 않았을 뿐이다.
+
+---
+
+## AI Platform v1
+
+**Status: ✅ Implemented — AI-first operating system layer — 2026-07-14**
+
+- Description: `packages/cli/src/providers/*`(4개 vendor: Anthropic/OpenAI/Gemini/Ollama)와 `lib/prompts/*`·`lib/agents/taskQueue.ts`(Next.js Task Queue)는 이미 실존했지만, Chat/Code/Content 실행 UI·5번째 vendor(OpenRouter)·API Key 쓰기 경로·실제 연결 확인(`.validate()`)·Task 재시도·Prompt 카테고리/변수/미리보기·CLI 노출·토큰 사용량 추적이 전부 빠져 있었다. 이번 작업은 그 빈틈만 채웠고, 기존에 이미 동작하던 `ProviderManager.complete()`(resolve→chat→simulate 폴백)·Task Queue·Prompt 버전 관리는 그대로 재사용했다.
+- **AI Provider Manager**:
+  - `packages/cli/src/providers/openrouter.ts`(신규, OpenAI 호환 API) — `registry.ts`의 `FACTORIES`·`manager.ts`의 `DEFAULT_CONFIG`에 5번째 vendor로 등록.
+  - `ProviderManager.setProviderConfig(id, patch)`(신규) — API Key/host 쓰기 경로(`.runtime/config/providers.json` 부분 갱신). 구현 중 발견한 실제 버그: `readProvidersConfig()`가 파일이 없을 때 모듈 스코프의 `DEFAULT_CONFIG` 객체 리터럴을 **그대로(참조)** 반환하고 있어, 이 새 쓰기 경로(및 기존 `setDefaultProvider()`도 동일)가 그 반환값을 직접 mutate하면 프로세스 전역의 `DEFAULT_CONFIG` 자체가 영구 오염되는 문제가 있었다 — `structuredClone()`으로 수정(테스트로 실제 재현·확인).
+  - `{openai,anthropic,gemini,openrouter}.validate()` — 기존 "API 키 존재 여부만 확인"에서 자기 자신의 `.models()`를 실제로 호출하는 라이브 헬스체크로 교체(Ollama의 기존 방식과 동일한 패턴으로 통일). 4개 vendor의 `chat()` 응답에서 `usage`(input/output 토큰) 파싱 추가.
+  - `ProviderManager.complete()` 내부에서 실제 성공 호출마다 `.runtime/usage.json`에 토큰 사용량 기록(신규 `providers/usage.ts`) — Website Builder Content Engine·Agent Runtime·`ai chat`·`ai prompt execute`를 포함한 모든 호출자가 이 한 지점을 공유하므로 별도 계측 불필요.
+  - `ai provider set-key <id> <key>`·`ai provider usage [--json]`(신규), `ai provider list`에 `--json` 추가, `ai models [provider]`(신규 top-level, `ai provider models`와 조회 로직 공유).
+- **Prompt Library**: `PromptRecord.category`·`PromptVersion.variables`(신규 필드, 레거시 레코드는 읽을 때 `category: "General"`로 자동 보정). `lib/prompts/render.ts`(신규, `{{key}}` 치환 — CLI의 `prompt/renderer.ts`와 동일한 정규식을 미리보기 전용으로 의도적 복제)·`POST /api/prompts/[id]/preview`(신규, task 생성 없이 렌더링만). `/developer/prompts`(신규) — 카테고리 필터·생성 폼·버전 이력·미리보기·Agent 실행(기존 `/api/prompts/[id]/execute` 재사용). CLI 쪽은 `packages/cli/src/promptLibrary/registry.ts`(신규, 동일한 `<cwd>/lib/data/prompts.json`을 읽고 써서 `ai prompt`와 Dashboard가 실제로 데이터를 공유 — Next 앱 모듈을 CLI로 cross-import하지 않기 위한 의도적 소규모 복제)와 `ai prompt {list,show,create,preview,execute}`(신규).
+- **AI Task Runner**: `taskQueue.retry(id)`(신규) — Failed 상태의 Task만 동일 agentId/prompt/context로 재-enqueue(새 실행 로직 없음, 원본 Task는 불변). `POST /api/agents/tasks/[id]/retry`(신규, 기존 `.../cancel` 라우트와 동일 패턴). `/developer/ai/tasks`(신규) — 전체 이력 테이블 + Cancel/Retry. CLI는 Dashboard의 `taskQueue`가 Next.js 서버 프로세스 in-memory 상태라 별도 OS 프로세스인 CLI가 관찰·제어할 수 없다는 실제 아키텍처 경계 때문에 자체 원장(`packages/cli/src/tasks/ledger.ts`, `.runtime/tasks.json`)을 사용 — `ai chat`/`ai prompt execute` 호출마다 기록되고, `ai task {list,show,retry}`(신규)가 이를 대상으로 동작. CLI 재시도는 동기 호출이라 "취소/진행률"은 의도적으로 없음(정직하게 생략, 위장하지 않음).
+- **AI Workspace**(`/developer/ai`): 기존 Provider Status 그리드는 그대로 두고 "AI Studio" 섹션 신규 추가 — Chat/Code Generation/Content Generation 3개 프리셋(system prompt만 다르고 동일한 UI·동일한 API 호출, 3중 구현 아님)을 탭 전환(Marketplace의 탭 패턴 재사용)으로 제공. `POST /api/ai/chat`(신규, `node packages/cli/dist/index.js chat --json`을 shell-out, Website Builder·Marketplace와 동일한 bridge 패턴) ← `ai chat [message] [--system] [--provider] [--json]`(신규, `ProviderManager.complete()` 재사용). "Website Generation"/"Workflow Execution"은 각각 이미 존재하는 `/developer/websites`·`/developer/workflows` 페이지로의 quick-link 카드로 처리(재구현 없음).
+- **Dashboard Integration**: `ProviderStatusWidget`(신규, 기존 `/api/providers` + 신규 `/api/ai/providers` 병합 — 연결 수·기본 provider 표시. "Model Status" 요구사항은 별도 위젯을 만들지 않고 여기 접힘, 의도적 스코프 축소)·`TokenUsageWidget`(신규, `/api/ai/usage`) → `app/developer/page.tsx` 그리드에 추가. `RunningTasksWidget`/`RecentActivityWidget`은 이미 "Active AI Tasks"/"Recent AI Activity" 요구사항을 충족하고 있어 변경하지 않음.
+- **CLI 최종 명령 표면**: `ai chat`, `ai prompt {list,show,create,preview,execute}`, `ai provider {list,use,test,models,set-key,usage}`(확장), `ai models [provider]`(신규), `ai task {list,show,retry}`(신규) — 전부 `packages/cli/src/index.ts`에 기존과 동일한 방식(`program.command()`/`program.addCommand(build*Command())`)으로 등록.
+- Evidence:
+  - Provider: `packages/cli/src/providers/{openrouter,manager,usage,types,openai,anthropic,gemini}.ts`, `packages/cli/src/commands/{provider,models}.ts`
+  - Prompt Library: `lib/prompts/{registry,render}.ts`, `app/api/prompts/{route.ts,[id]/route.ts,[id]/preview/route.ts}`, `app/developer/prompts/page.tsx`, `packages/cli/src/promptLibrary/registry.ts`, `packages/cli/src/commands/prompt.ts`
+  - Task Runner: `lib/agents/taskQueue.ts`(`retry()`), `app/api/agents/tasks/[id]/retry/route.ts`, `app/developer/ai/tasks/page.tsx`, `packages/cli/src/tasks/ledger.ts`, `packages/cli/src/commands/{chat,task}.ts`
+  - AI Workspace/Dashboard: `app/developer/ai/page.tsx`(AI Studio 섹션), `lib/ai/bridge.ts`(신규, shell-out bridge), `app/api/ai/{chat,providers,usage}/route.ts`, `components/developer/dashboard/{ProviderStatusWidget,TokenUsageWidget}.tsx`, `app/developer/page.tsx`
+  - CLI 등록: `packages/cli/src/index.ts`
+  - 테스트(신규 43개): `tests/ai-platform-cli/{openrouter,provider-config,usage,prompt-library,task-ledger}.test.ts`(23개, CLI 로직 직접 import, subprocess 미사용), `tests/prompts/{registry,render}.test.ts`(11개), `tests/agents/taskQueue-retry.test.ts`(3개, 실제 `shell` Agent로 성공 Task를 만들어 "Success Task는 재시도 불가"를 검증), `tests/ai/bridge.test.ts`(6개, `execute()` mock)
+  - 검증: `npx tsc --noEmit`·`npm run lint`(무관한 사전 존재 오류만, 상세는 `## Build Status` 참고)·`npm run build`(루트+CLI)·`npm run test`(188/188) 전부 통과. 실제 E2E: 스크래치 디렉터리에서 `ai provider list/set-key/test`·`ai models`·`ai chat`(provider 미설정 → simulated 폴백 확인, Website Builder와 동일한 graceful-degradation)·`ai prompt` 전체 라이프사이클(create→list→show→preview→execute)·`ai task list/retry`(명시적 `--provider` 요청 실패 → Failed Task 기록 → retry로 새 Task 생성, 원본 불변 확인) 전부 실행 확인. Dashboard 쪽은 실제 로그인 세션으로 `/api/ai/{chat,providers,usage}`·`/api/prompts/[id]/preview`·`/api/agents/tasks/[id]/retry`·`/developer/{ai,ai/tasks,prompts}`(전부 200)·Dashboard Home HTML에 "Provider Status"/"Token Usage" 위젯 렌더링까지 curl로 확인. 검증 중 저장소 루트에 실수로 남을 뻔한 `.runtime/`(CLI가 실제 저장소 cwd로 shell-out될 때 생성됨)과 테스트용 인증 계정(`lib/data/users.json`)은 검증 후 삭제(둘 다 `.gitignore` 대상이라 애초에 git에는 영향 없음, `git status` 재확인 완료).
 
 ---
 
@@ -288,7 +316,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health}/`에 추가. 21개 테스트 파일·145개 테스트 케이스(2026-07-14 Website Builder v2 Phase 2 감사 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai}/`에 추가. 30개 테스트 파일·188개 테스트 케이스(2026-07-14 AI Platform v1 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
   - **CLI startup** — 빌드된 `packages/cli/bin/ai.js`를 실제 하위 프로세스로 실행해 `--version`/`--help`/미등록 명령 처리를 검증(`dist/`가 없으면 skip). 루트 `pretest` 스크립트가 `npm test` 실행 전 CLI를 자동 빌드.
   - **Website Builder(CLI)** — `website/types.ts`(11개 사이트 타입·팔레트·카피)·`website/scaffold.ts`(`slugify()`/`resolveSiteType()`)·`website/content.ts`(Content Generator, 신규)의 실제 로직 검증.
   - **Workflow Engine** — `workflow/validator.ts`의 `validateWorkflowJson()`이 정상/비정상 `workflow.json`을 올바른 `WorkflowError` 코드로 구분하는지 검증.
@@ -296,10 +324,11 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
   - **Agents(스켈레톤)** — `lib/agents/registry.ts`(Development OS Agent Service)의 3개 등록 Agent(`shell`/`claude-code`/`cursor`) 조회 로직 검증.
   - **Authentication** — `tests/auth/*`(password/users/session/auth/middleware), 자세한 내용은 `## Authentication` 참고.
   - **Dashboard v1** — `tests/{projects,providers,websites,health}/*.test.ts`, 자세한 내용은 `## Dashboard` 참고.
-  - **Marketplace v1(신규)** — `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(CLI 로직, subprocess 미사용, 38개) + `tests/marketplace/{registry,cli-bridge}.test.ts`(Dashboard 브리지, `execute()` mock, 11개), 자세한 내용은 `## Marketplace` 참고.
-  - 이 작업 과정에서 실제로 발견·수정한 버그: `next build`의 TypeScript 타입체크가 루트 `tsconfig.json`(`exclude`가 비재귀 패턴이라 저장소 내 중첩 복제본까지 스캔)에서 빌드 실패 — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"` 재귀 패턴으로 교체(자세한 내용은 `## Build Status` 참고). Marketplace의 `remove`/`update` 명령이 애초에 한 번도 `install`과 맞물려 동작한 적이 없었던 버그도 이 과정에서 발견·수정(`## Marketplace` 참고).
-  - 나머지 영역(Workflow/Agent Runtime의 실행 경로 자체, Orchestrator, Provider 실제 호출)은 아직 테스트 없음.
-- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
+  - **Marketplace v1** — `tests/marketplace-cli/{manifest,local-provider,commands}.test.ts`(CLI 로직, subprocess 미사용, 38개) + `tests/marketplace/{registry,cli-bridge}.test.ts`(Dashboard 브리지, `execute()` mock, 11개), 자세한 내용은 `## Marketplace` 참고.
+  - **AI Platform v1(신규)** — `tests/ai-platform-cli/{openrouter,provider-config,usage,prompt-library,task-ledger}.test.ts`(CLI 로직, 23개) + `tests/prompts/{registry,render}.test.ts`(Next.js Prompt Library, 11개) + `tests/agents/taskQueue-retry.test.ts`(Task Queue `retry()`, 실제 `shell` Agent로 검증, 3개) + `tests/ai/bridge.test.ts`(Dashboard↔CLI bridge, `execute()` mock, 6개), 자세한 내용은 `## AI Platform v1` 참고.
+  - 이 작업 과정에서 실제로 발견·수정한 버그: `next build`의 TypeScript 타입체크가 루트 `tsconfig.json`(`exclude`가 비재귀 패턴이라 저장소 내 중첩 복제본까지 스캔)에서 빌드 실패 — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"` 재귀 패턴으로 교체(자세한 내용은 `## Build Status` 참고). Marketplace의 `remove`/`update` 명령이 애초에 한 번도 `install`과 맞물려 동작한 적이 없었던 버그도 이 과정에서 발견·수정(`## Marketplace` 참고). AI Platform v1 작업 중에는 `ProviderManager.readProvidersConfig()`가 파일이 없을 때 모듈 스코프 `DEFAULT_CONFIG` 객체를 참조로 반환해 쓰기 경로가 이를 영구 오염시키는 버그를 발견·수정(`## AI Platform v1` 참고).
+  - 나머지 영역(Workflow/Agent Runtime의 실행 경로 자체, Orchestrator)은 아직 테스트 없음.
+- Evidence: `vitest.config.ts`, `tests/setup.ts`, `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai}/*.test.ts`, 루트 `package.json`(`scripts.test`/`test:watch`/`coverage`/`pretest`, `devDependencies.vitest`/`@vitest/coverage-v8`), `.github/workflows/test.yml`
 
 ---
 
@@ -348,6 +377,8 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 - **Dashboard v1 — Website Builder는 `packages/cli/dist/index.js`가 빌드되어 있어야 동작**: `npm run build --workspace=@ai-business-os/cli`(루트 `pretest`가 자동 실행) 이후에만 `/developer/websites`의 Create가 성공. 없으면 API가 400으로 명확히 안내하지만, 클린 체크아웃 직후 첫 사용 시 놓치기 쉬움.
 - **Dashboard v1 — Logs 카테고리 이름이 요청한 "Application/Workflow/CLI" 표현과 다름**: 기존 Terminal/Git/AI/System 4개 카테고리(`lib/events/eventBus.ts`)를 그대로 두고 cross-cutting "Errors" 필터만 추가함(재설계 방지 목적). 정확한 이름 매핑이 필요하면 `EventCategory` 자체를 확장하는 별도 작업 필요.
 - ~~Dashboard v1 검증 과정에서 생성된 실 CLI 산출물이 저장소에 남아있음~~ — **해결됨(2026-07-14)**: `/developer/websites` E2E 검증 중 `ai website create`가 자동 생성한 8개 Planning Agent 디렉터리(`agents/{business-analyst,component-generator,page-generator,project-generator,qa,seo-generator,site-planner,ui-designer}/`, git 미추적 확인 후 삭제 — 기존에 git으로 추적되던 `agents/*.md` 10개 파일은 무변경 보존), `workflows/website-builder/`(E2E 생성 샘플로 판단, CLI가 필요 시 자동 재생성하므로 삭제), `.runtime/`(에이전트 memory/history/실행 로그 등 캐시성 데이터로 확인 후 삭제 + `.gitignore`에 `/.runtime/` 추가) 정리 완료.
+- **AI Platform v1 — `ai task`의 Cancel/Progress는 의도적으로 제한적**: Dashboard의 `taskQueue`(in-memory, Next.js 서버 프로세스 상주)와 달리 `ai task`는 CLI 프로세스가 만드는 파일 기반 원장(`.runtime/tasks.json`)만 다룬다. CLI 호출은 동기적이라 실행 중인 호출을 다른 프로세스에서 취소하거나 진행률을 볼 수 없음 — 이는 실제 아키텍처 경계(별도 OS 프로세스)이며 향후 CLI가 장기 실행 프로세스로 상주하는 구조로 바뀌지 않는 한 해소되지 않음(`## AI Platform v1` 참고, 위장하지 않고 문서화됨).
+- **AI Platform v1 — 실제 API 키 미검증**: 이 개발 환경에는 실제 Anthropic/OpenAI/Gemini/OpenRouter API 키가 없어, `ai chat`/`ai prompt execute`/Dashboard AI Studio는 전부 시뮬레이션 폴백 경로로만 확인됨(Website Builder와 동일한 기존 폴백 메커니즘 재사용, 신규 위험 아님). 실제 키 준비 후 재검증 권장.
 
 ---
 
@@ -359,5 +390,7 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 4. **Marketplace 실 데이터 채우기** — Install/Remove/Update/Publish 메커니즘은 이제 CLI·Dashboard 양쪽에서 검증 완료(`## Marketplace` 참고)했으므로, 실제 `ai marketplace publish`로 agent/workflow/skill을 최소 1개 이상 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신 — 남은 유일한 작업.
 5. **Authentication — 다른 내부 API 보호 여부 결정** — `/developer/**`·`/projects/**`는 보호되지만 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등은 `packages/cli` 호환을 위해 의도적으로 미보호 상태. CLI 쪽에도 세션 전달(예: API 토큰) 방식을 도입해 이 API들까지 보호 범위를 넓힐지, 현재 상태를 유지할지 결정 필요.
 6. **`eslint.config.mjs`의 비재귀 ignore 패턴 수정** — `tsconfig.json`과 동일한 버그가 `globalIgnores`에도 있어 `AI-Web-Master/` 내부 파일이 `npm run lint`에서 계속 오류로 잡힘(`Remaining TODO` 참고). 저장소 루트 클린업(#2)과 함께 처리하거나 선행 처리.
-7. **OpenAI/Gemini 연결 상태의 실제 API 검증 여부 결정** — 현재 `/developer/ai`는 env var 존재 여부만으로 "Configured"를 판단(비용 없음, 의존성 없음). 실제 `/v1/models` 호출까지 검증할지는 후속 결정 필요.
+7. ~~OpenAI/Gemini 연결 상태의 실제 API 검증 여부 결정~~ — **해결됨(2026-07-14, AI Platform v1)**: `.validate()`가 `.models()`를 실제로 호출하는 라이브 헬스체크로 교체됨. 단, `/developer/ai`의 Provider Status 그리드 자체(`lib/providers/status.ts`)는 이번 작업 범위 밖이라 여전히 env var 존재 여부만 판단 — CLI의 `ai provider test`/`ai models`는 실제 라이브 체크를 사용.
 8. **온라인 Marketplace Provider 도입 여부 결정** — 현재는 `LocalMarketplaceProvider`(파일시스템)만 존재. 여러 프로젝트/팀 간 패키지 공유가 필요해지면 HTTP 기반 Provider를 `MarketplaceProvider` 인터페이스에 맞춰 추가하는 방향으로 확장 가능(인터페이스는 이미 이를 염두에 두고 분리되어 있음).
+9. **AI Platform v1 — 실제 API 키로 검증 필요** — 이번 검증은 이 환경에 실제 Provider API 키가 없어 전부 시뮬레이션 폴백 경로로만 확인됨(`## AI Platform v1` 참고). 실제 Anthropic/OpenAI/Gemini/OpenRouter 키가 준비되면 `ai provider set-key`·`ai chat`·`ai prompt execute`의 실제 응답·토큰 사용량 기록을 재확인 권장.
+10. **`lib/providers/status.ts`(Dashboard Provider Status 그리드)와 `packages/cli/src/providers/manager.ts`(AI Platform v1) 통합 여부 결정** — 현재 두 곳 모두 "Provider 연결 상태"를 별도로 계산한다(`ProviderStatusWidget`은 두 결과를 병합해서 보여줄 뿐, 내부 로직은 여전히 둘). 장기적으로 하나로 합칠지는 별도 결정 필요.

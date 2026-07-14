@@ -284,13 +284,29 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ---
 
+## Build Status
+
+**Status: ✅ 루트 앱 + `apps/cnbiz-web` 모두 정상 빌드 (2026-07-14)**
+
+- Description: `npm run build`(루트)·`npx tsc --noEmit`(루트)·`apps/cnbiz-web`의 `npm run build`가 모두 타입 오류 없이 성공. 두 가지 서로 다른 원인으로 실패하던 것을 각각 최소 설정 변경으로 수정(애플리케이션 로직·Authentication 코드·`packages/cli`는 변경하지 않음):
+  1. **루트 `tsc`/`next build`가 `AI-Web-Master/`(Remaining TODO에 기록된 `.gitmodules` 없는 broken gitlink, 커밋 `b954508`) 내부의 `apps/cnbiz-web` 복제본까지 타입체크하던 문제**: 루트 `tsconfig.json`의 `exclude`(`"apps"`, `"packages"`, `"tests"`)가 최상위 경로만 매칭하는 비재귀 패턴이라, `AI-Web-Master/apps/**` 같은 중첩 경로는 걸러지지 않고 `**/*.tsx` `include` 글롭에 그대로 포함됨. 그 결과 `AI-Web-Master/apps/cnbiz-web/app/about/page.tsx` 등이 **루트 tsconfig의 `@/*` 경로 별칭**(`apps/cnbiz-web` 자신의 것이 아님)으로 잘못 해석되어, 우연히 이름이 같은 루트 v1 레거시 컴포넌트(`components/sections/AboutHeroSection.tsx` 등, default export)와 충돌해 `TS2614`/`TS2307`을 발생시켰음. `apps/cnbiz-web`의 실제 소스 자체는 처음부터 정상이었음(격리된 `apps/cnbiz-web` 자체 빌드로 확인).
+     - 수정: `tsconfig.json`의 `exclude`를 재귀 패턴(`"**/apps/**"`, `"**/packages/**"`, `"**/tests/**"`, `"**/node_modules/**"`)으로 교체.
+  2. **`apps/cnbiz-web` 자체 빌드가 루트의 `proxy.ts`(이번 세션에서 Authentication 작업으로 신규 추가된 파일)를 자신의 파일로 오인하던 문제**: npm workspaces 모노레포에서 `next`가 루트에만 호이스팅되어 있어, Turbopack이 `apps/cnbiz-web`의 프로젝트 루트를 최상위 lockfile 기준(`D:\ai-web-master`)으로 자동 감지함. 그 결과 `apps/cnbiz-web`에 자체 `proxy.ts`가 없으면 Turbopack이 감지된 루트의 `proxy.ts`(Authentication 라우트 보호 로직)를 대신 사용하려 시도하고, `@/lib/auth/middleware`를 `apps/cnbiz-web`의 경로 별칭 기준으로 잘못 해석해 `Module not found` 오류가 발생. `turbopack.root`를 `apps/cnbiz-web` 자신으로 좁히는 방식은 호이스팅된 `next` 패키지 자체를 못 찾게 만들어(별도 `node_modules` 없음) 대안이 아니었음.
+     - 수정: `apps/cnbiz-web/proxy.ts`(신규, no-op passthrough) 추가 — Next.js가 자기 자신에 가장 가까운 파일을 우선 사용하도록 만들어 루트 파일로의 폴백을 차단. Authentication 로직·`proxy.ts`(루트)는 무변경.
+  3. **`.next/dev/types/routes.d.ts` 손상**: 이전 세션에서 강제 종료한 dev 서버가 쓰다 만 파일이 남아있었음(소스 아님, gitignore 대상 빌드 캐시) — `.next/` 삭제 후 재생성으로 해결, 소스 변경 없음.
+- Evidence: `tsconfig.json`(`exclude` 재귀 패턴), `apps/cnbiz-web/proxy.ts`(신규, no-op)
+- 검증: `npx tsc --noEmit`(루트, 0 errors) · `npm run build`(루트, 46개 라우트 정상 생성, `Proxy (Middleware)` 정상 표시) · `apps/cnbiz-web`의 `npm run build`(9개 라우트 정상 생성) · `npm run test`(62/62 통과, Authentication 26개 포함, 무변경) 전부 확인. `npm run lint`는 이번 작업 범위(build/tsc) 밖이며, `AI-Web-Master/`(동일한 broken gitlink) 내부 파일에서 나는 기존 lint 오류 3건은 그대로 남아있음(별도 승인 필요 항목, 아래 Remaining TODO 참고).
+
+---
+
 ## Remaining TODO
 
 - **Website Builder — 실 배포(Deployment) 자동 실행 없음**: `vercel.json`/`.env.example`만 생성되고 CLI가 실제 배포 명령을 실행하지 않음(Website Builder v2 > Deployment 참고).
 - **Marketplace — 게시된 패키지 0개**: 로컬 Provider 구현은 있으나 `marketplace/manifest.json` 5개 카테고리 전부 `count: 0`, 온라인 레지스트리 Provider 없음.
-- **Authentication 완전 미구현**: `/login`·`/signup`이 정적 폼뿐이며 세션·토큰 발급 로직 없음.
-- **테스트 커버리지가 아직 얕음**: Website Builder/Workflow Engine/Utilities/Agent Runtime 중 순수 로직 일부만 커버. Orchestrator·Provider 실제 호출·Development OS Workflow Engine(`lib/workflows`)·API 라우트·Dashboard 컴포넌트는 여전히 테스트 없음.
+- **Authentication — signup 백엔드 및 일부 내부 API 미보호**: 로그인/로그아웃/세션은 구현 완료(`## Authentication` 참고)했으나, `/signup`은 여전히 정적 폼(범위 밖)이고 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등 다른 내부 API는 `packages/cli`(`ai devmode` 등)가 세션 없이 직접 호출하는 구조라 의도적으로 미보호 상태.
+- **테스트 커버리지가 아직 얕음**: Website Builder/Workflow Engine/Utilities/Agent Runtime/Authentication 중 순수 로직 일부만 커버. Orchestrator·Provider 실제 호출·Development OS Workflow Engine(`lib/workflows`)·API 라우트·Dashboard 컴포넌트는 여전히 테스트 없음.
 - **`lint.yml`에는 아직 build 스텝이 없음**: 빌드 검증은 `test.yml`에만 추가됨(`release.yml`은 태그 push 시에만 build 실행) — `lint.yml`도 별도로 build를 검증할지는 정책 결정 필요.
+- **`eslint.config.mjs`의 `globalIgnores`도 `tsconfig.json`과 동일한 비재귀 패턴 버그가 있음**: `"apps/**"`·`"packages/**"`·`"*.cjs"`가 최상위 경로만 매칭해, `AI-Web-Master/`(broken gitlink) 내부 파일 3건이 `npm run lint`에서 계속 오류로 잡힘(`Build Status` 참고). 이번 작업은 build/tsc만 범위였기 때문에 `eslint.config.mjs`는 의도적으로 손대지 않음 — 저장소 루트 클린업(TODO 항목 참고)과 함께, 혹은 별도로 재귀 패턴(`"**/apps/**"` 등)으로 교체할지 결정 필요.
 - **⚠ 다른 프로젝트로 추정되는 자료가 이 저장소에 커밋되어 있음(`docs/08_PLANS/상가분양센터/`, 7개 파일, 936KB)**: CNBIZ/AI Business OS와 무관해 보이는 상업용 부동산 분양 관련 UI/UX 구조도·스토리보드·"의뢰자미팅용" 문서가 커밋 `b954508`에 포함됨. 다른 고객사 자료 유출/오염 가능성이 있어 삭제 여부와 별개로 **사용자 확인이 우선 필요**.
 - **저장소 루트 정리 필요(git에 이미 커밋된 상태, 로컬 미추적 파일이 아님)**: 이전 버전 문서와 달리 이제 아래 항목들은 모두 git 히스토리에 실제로 포함되어 있음이 확인됨 — 자기 자신의 중첩 복제본(`AI-Web-Master/`, `.gitmodules` 없이 커밋된 broken gitlink, 모드 `160000`, 커밋 `b954508`), 이전 감사 산출물(`docs.zip`, `docs_extract/`70개 파일, `docs/PROJECT_STATUS*.md`, `docs/REPOSITORY_AUDIT_COMPLETE.md`, `docs/TODO_CURRENT.md`, `docs/{AGENT,CLI,PROJECT,WEBSITE_BUILDER,WORKFLOW}_AUDIT.md` 등 커밋 `deaeb45`/`b2c0b6a`), 대형 텍스트 덤프(`tree.txt`, `structure.txt`, `apps-tree.txt`, `packages-tree.txt`, 커밋 `b954508`/`1148f3a`), 스크래치 프로젝트(`test-project/`, 커밋 `4e7900d`). 로컬 파일 삭제가 아니라 `git rm`(+커밋)이 필요하며, 저장소 히스토리에서 완전히 없애려면 히스토리 재작성 여부까지 사용자 승인이 필요(문서 관리 규칙).
 - **Agent Runtime / Workflow Engine 이원화**: Development OS(`lib/agents`, `lib/workflows`)와 CLI(`packages/cli/src/runtime`, `packages/cli/src/workflow`)에 유사한 개념이 각각 독립적으로 구현되어 있어 장기적으로 개념 통합 여부에 대한 결정이 필요(현재는 의도적으로 별개 애플리케이션이라 문제는 아님).
@@ -303,4 +319,5 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 2. **저장소 루트 클린업 승인 요청** — `AI-Web-Master/`(broken gitlink)·`docs.zip`/`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`·`test-project/`가 이미 git에 커밋되어 있음을 반영해, `git rm` 대상과 히스토리 재작성 필요 여부를 사용자와 함께 확정.
 3. **테스트 커버리지 확장** — Orchestrator(`packages/cli/src/orchestrator`), Development OS Workflow Engine(`lib/workflows/engine.ts`), Provider 시뮬레이션 폴백 경로(`packages/cli/src/providers/manager.ts`) 등 아직 다루지 않은 영역에 순서대로 테스트 추가.
 4. **Marketplace 실 데이터 채우기 또는 범위 재확정** — 로컬 Provider가 이미 동작하므로, 실제 `ai publish`로 최소 1개 이상의 agent/workflow/skill을 게시해 `marketplace/manifest.json`의 count를 실제 값으로 갱신하거나, Phase 5(Productization) 착수 시점까지 보류할지 명시적으로 결정.
-5. **Authentication 범위 결정** — `/login`·`/signup`이 실제 기능으로 필요한지, 아니면 Development OS 범위 밖(CNBIZ Website에는 해당 없음)이라 제거 대상인지 확정.
+5. **Authentication — 다른 내부 API 보호 여부 결정** — `/developer/**`·`/projects/**`는 보호되지만 `/api/workspaces`·`/api/terminal`·`/api/devserver` 등은 `packages/cli` 호환을 위해 의도적으로 미보호 상태. CLI 쪽에도 세션 전달(예: API 토큰) 방식을 도입해 이 API들까지 보호 범위를 넓힐지, 현재 상태를 유지할지 결정 필요.
+6. **`eslint.config.mjs`의 비재귀 ignore 패턴 수정** — `tsconfig.json`과 동일한 버그가 `globalIgnores`에도 있어 `AI-Web-Master/` 내부 파일이 `npm run lint`에서 계속 오류로 잡힘(`Remaining TODO` 참고). 저장소 루트 클린업(#2)과 함께 처리하거나 선행 처리.

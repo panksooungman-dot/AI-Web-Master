@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-14 (2)
+
+### 수정 (Fixed)
+
+- **`apps/cnbiz-web` 빌드 실패(`npm run build`·`npx tsc --noEmit`) 수정**: Authentication 로직·`packages/cli`는 변경하지 않고, 서로 다른 두 가지 원인을 각각 최소 설정 변경으로 수정
+  1. **루트 `tsc`/`next build`가 `AI-Web-Master/`(`docs/REPOSITORY_INDEX.md`의 Remaining TODO에 이미 기록되어 있던, `.gitmodules` 없는 broken gitlink·커밋 `b954508`) 내부의 `apps/cnbiz-web` 복제본까지 타입체크하던 문제**: 루트 `tsconfig.json`의 `exclude`(`"apps"`,`"packages"`,`"tests"`)가 최상위 경로만 매칭하는 비재귀 패턴이라 `AI-Web-Master/apps/**` 같은 중첩 경로가 걸러지지 않고, 우연히 이름이 같은 루트 v1 레거시 컴포넌트(default export)와 충돌해 `TS2614`/`TS2307`이 발생했음. `apps/cnbiz-web` 자체 소스는 처음부터 정상이었음(격리된 자체 빌드로 확인)
+     - `tsconfig.json` — `exclude`를 `"**/apps/**"`·`"**/packages/**"`·`"**/tests/**"`·`"**/node_modules/**"` 재귀 패턴으로 교체
+  2. **`apps/cnbiz-web` 자체 빌드가 루트 `proxy.ts`(전날 Authentication 작업에서 신규 추가)를 자신의 것으로 오인하던 문제**: npm workspaces에서 `next`가 루트에만 호이스팅되어 있어 Turbopack이 `apps/cnbiz-web`의 프로젝트 루트를 최상위 lockfile 기준으로 자동 감지 → 자체 `proxy.ts`가 없으면 루트 파일로 폴백하며 `@/lib/auth/middleware`를 자신의 경로 별칭으로 잘못 해석해 `Module not found` 발생. `turbopack.root`를 자기 자신으로 좁히는 방법은 호이스팅된 `next` 패키지 자체를 못 찾게 만들어 폐기
+     - `apps/cnbiz-web/proxy.ts`(신규, no-op passthrough) — Next.js가 자기 자신에 가장 가까운 파일을 우선 사용하도록 만들어 루트 파일로의 폴백을 차단
+  - 부수적으로 `.next/`(루트, gitignore 대상 빌드 캐시)에서 이전 세션 강제 종료로 손상된 `dev/types/routes.d.ts`를 발견해 삭제 후 재생성(소스 변경 아님)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트) 0 errors, `npm run build`(루트) 46개 라우트 정상 생성 및 `Proxy (Middleware)` 정상 표시
+- `apps/cnbiz-web`의 `npm run build` 9개 라우트 정상 생성(이전에는 위 2번 문제로 실패)
+- `npm run test` 62/62 통과(Authentication 26개 포함, 무변경 확인)
+- `npm run lint`는 이번 작업 범위(build/tsc) 밖 — `AI-Web-Master/`(동일 gitlink) 내부 파일에서 나는 기존 lint 오류 3건은 `eslint.config.mjs`의 동일한 비재귀 ignore 패턴 버그로 인해 그대로 남음(수정하지 않음, `docs/REPOSITORY_INDEX.md`의 Remaining TODO/Recommended Next Tasks에 후속 과제로 기록)
+- `git status` 확인 결과 변경 파일은 `tsconfig.json`(수정)·`apps/cnbiz-web/proxy.ts`(신규)뿐, Authentication 관련 파일(`lib/auth/**`·`app/api/auth/**`·`proxy.ts`(루트) 등)은 무변경
+- `docs/REPOSITORY_INDEX.md` — `## Build Status` 섹션 신설(✅), `## Remaining TODO`·`## Recommended Next Tasks`에 Authentication 항목 갱신 및 `eslint.config.mjs` 후속 과제 추가
+
+---
+
 ## 2026-07-14
 
 ### 추가 (Added)

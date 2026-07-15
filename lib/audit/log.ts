@@ -25,7 +25,9 @@ export type AuditAction =
   | "design.review.comment"
   | "design.review.approve"
   | "design.review.reject"
-  | "design.review.revision";
+  | "design.review.revision"
+  | "design.figma.import"
+  | "design.figma.export";
 
 export interface AuditEntry {
   id: string;

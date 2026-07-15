@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-6 Implemented
+> Status: Phase 1-7 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -37,7 +37,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | **Phase 4(이 저장소 구현 완료)** | Prototype(Click Flow, Navigation Flow, Screen Transition, Interaction Map, Component Actions, User Journey, Animation Preview, Prototype Preview) | `DESIGN_WORKFLOW.md` Phase 6 |
 | **Phase 5(이 저장소 구현 완료)** | Claude Design 연동(Design/UI/Component/Theme/Layout Prompt) + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7, `CLAUDE_DESIGN_INTEGRATION.md` 6번("Claude Design 역할") |
 | **Phase 6(이 저장소 구현 완료)** | 고객 검토/승인 Workflow(Review Engine + Approval Engine) | `DESIGN_WORKFLOW.md` Phase 8("고객 검토") |
-| Phase 7(미구현) | Figma Import/Export | `DESIGN_WORKFLOW.md` Phase 9 |
+| **Phase 7(이 저장소 구현 완료)** | Figma Import/Export(Figma Engine + Approval Rule) | `DESIGN_WORKFLOW.md` Phase 9, `FIGMA_INTEGRATION.md` |
 | Phase 8(미구현) | Design Sync(양방향) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
 | Phase 9+(미구현) | Website Builder 연동, Build/Test/Deploy | `DESIGN_WORKFLOW.md` Phase 11~14 (Website Builder v2·Dashboard·CI는 이미 별도로 구현되어 있음, `docs/REPOSITORY_INDEX.md` 참고 — 이 Phase가 하는 일은 "연결"뿐) |
 
@@ -352,3 +352,76 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   체인 위에서의 전체 라이프사이클(댓글→수정요청→승인→취소→반려→보관) 1개 포함) + 기존
   `tests/metrics/registry.test.ts`에 3개 counter(reviewCount/approvalCount/
   revisionCount) 케이스 1개 추가.
+
+---
+
+# 9. Phase 7 구현 요약 — Figma Import/Export (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 6이 "Approved"로 전이시킨 Review 위에서 Figma Import/Export를 제공하는
+  "Figma Engine". Import는 `FIGMA_API_TOKEN` 설정 시 실제 Figma REST API
+  (`GET /v1/files/:file_key`)를 호출해 Pages/Frames/Components를 가져오고, 토큰이 없거나
+  호출/파싱이 실패하면 결정론적 기본값으로 폴백한다(Website Builder Content Engine과 동일한
+  resolve → parse → fallback 원칙). Export는 Phase 3(Wireframe)·Phase 4(Prototype)·
+  Phase 5(Claude Design) 체인을 Figma 구조(Pages/Frames/Components/Design Tokens/Assets)로
+  결정론적으로 변환한다 — AI Provider 호출 없이 이미 확정된 구조화 데이터를 옮기는 순수 변환
+  (Phase 6 Review/Approval Engine과 동일하게 새 AI 생성 단계를 추가하지 않았다).
+- **Figma REST API의 실제 제약**(문서와의 차이점): Figma REST API는 임의의 Page/Frame/Component를
+  "생성"하는 공개 쓰기 엔드포인트를 제공하지 않는다(읽기 전용에 가까움) — 유일한 예외는
+  Variables(Enterprise 플랜 전용) 쓰기 엔드포인트다. 그래서 Export는 콘텐츠 자체는 항상 로컬에서
+  결정론적으로 만들고(`simulated` 값과 무관하게 동일), `FIGMA_API_TOKEN`이 설정되어 있으면
+  Design Token만 Figma Variables API로 실제 반영을 시도한다 — 성공 시 `simulated:false`,
+  실패(토큰 없음/Enterprise 아님/API 오류)해도 콘텐츠는 그대로 반환되고 `simulated:true`로만
+  표시된다. 나머지 산출물(Pages/Frames/Components/Assets)은 Figma API 자체의 한계로 인해 항상
+  로컬 산출물이다.
+- **"Variables" ≠ 별도 배열**: 요구사항 1번의 Support 목록은 Variables와 Design Tokens를 나란히
+  나열하지만, Figma 자체가 2023년부터 Variables API를 Design Token의 기술적 구현체로 통합했으므로
+  (같은 개념), `FigmaContent.tokens` 하나로 합쳐 구현했다 — 중복 배열을 유지하지 않는다.
+- **Approval Rule**(요구사항 5번) — `POST /api/design/figma/export`는 대상 Review의
+  `status !== "approved"`이면 409를 반환한다. Import(`POST /api/design/figma/import`)는
+  Approved 상태를 요구하지 않는다 — 참고 자료 Import는 검토가 끝나기 전에도 자유롭게 수행할 수
+  있어야 한다는 판단이며, 요구사항 5번도 "Export"만 명시적으로 제한한다. Dashboard의 Review
+  선택 드롭다운은 UI 단순화를 위해 Approved Review만 나열하지만(요구사항 4번 Display 순서
+  "Project → Approved Design → Import → Export"를 그대로 따름), API 자체는 Import를 임의
+  상태의 Review에도 허용한다.
+- **Registry**(요구사항 2번) — 별도의 Import 전용/Export 전용 저장소를 만들지 않고, 하나의
+  `FigmaRecord`(`lib/design/figma.ts`, `lib/data/design-figma.json`)가 `importHistory`·
+  `exportHistory` 두 배열을 모두 갖는다. `(reviewId, figmaFileId)` 쌍으로 기존 레코드를 찾아
+  Import/Export가 일어날 때마다 해당 히스토리 배열에 추가하고 `version`을 1씩 증가시킨다(Phase 4
+  Prototype과 동일한 자동 증가 패턴) — 새 Figma File ID로 Import/Export하면 별개의 레코드가
+  생성된다.
+- **API**(`app/api/design/figma/{route.ts,import/route.ts,export/route.ts,[id]/route.ts}`,
+  신규) — 요구사항이 명시한 `POST /api/design/figma/import`·`POST /api/design/figma/export`·
+  `GET /api/design/figma/:id` 그대로. 응답은 요구사항 예시의
+  `{figmaId, projectId, fileId, pages, components, tokens, assets}`를 그대로 포함하고, 전체
+  레코드(frames·importHistory·exportHistory·metadata 포함)는 `figma` 필드로 확장(Phase 2~6과
+  동일한 확장 방식). `GET /api/design/figma`(목록, 신규 추가)도 함께 제공.
+- **Dashboard**(`/developer/design/figma`, 신규) — Approved Review 선택 → Figma File ID/File
+  Name 입력 → Import/Export 버튼 → 요구사항이 명시한 순서(Pages → Frames → Components →
+  Design Tokens → Assets → History) 그대로 표시, Export JSON/Export Markdown 버튼.
+  `/developer/design/review`와 상호 링크("Figma →" / "← Review")로 연결 — `DeveloperNav`는
+  변경하지 않음(Phase 2~6과 동일한 관례).
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 요구사항이 명시한 2개 그대로
+  추가: `"design.figma.import"`·`"design.figma.export"`(기존 18개 값 무변경).
+  `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵도 함께 갱신.
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에 요구사항이 명시한 2개
+  그대로 추가: `figmaImportCount`·`figmaExportCount`. 같은 `lib/data/metrics.json` 파일에
+  필드만 추가(새 저장소 아님). `app/developer/metrics/page.tsx`·
+  `components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가.
+- **알려진 제약**(Phase 1~6과 동일) — 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는 통합
+  테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트 밖에서 예외를
+  던져 불가능. Export route의 Approval Rule(409) 체크 자체는 라우트 안의 단순 동등 비교라 별도
+  lib 함수로 추출하지 않았고, 통합 테스트에서는 동일한 조건을 그대로 재현해 검증(`assertExportAllowed`
+  헬퍼)했으며, 실제 라우트의 409 응답은 수동 curl/Playwright E2E로 검증.
+- Evidence: `lib/design/{figma,figma-generator}.ts`,
+  `app/api/design/figma/{route.ts,import/route.ts,export/route.ts,[id]/route.ts}`,
+  `app/developer/design/figma/page.tsx`, `lib/audit/log.ts`(2개 action 추가),
+  `lib/metrics/registry.ts`(2개 counter 추가), `app/developer/design/review/page.tsx`("Figma →"
+  링크 추가)
+- 테스트(신규): `tests/design/figma-generator.test.ts`(Import/Export 생성 로직 — 결정론적 폴백,
+  실제 Figma API 응답 파싱, 네트워크 오류/비정상 응답 폴백), `tests/design/figma-registry.test.ts`
+  (생성/버전 자동증가/upsert/조회/히스토리), `tests/design/figma-integration.test.ts`(생성기+
+  레지스트리 실 fs 연동, Approval Rule 재현, Import→Export 단일 레코드 누적, 실제 fetch를 사용한
+  무-토큰 폴백 end-to-end 1개 포함) + 기존 `tests/metrics/registry.test.ts`에 2개 counter
+  (figmaImportCount/figmaExportCount) 케이스 1개 추가.

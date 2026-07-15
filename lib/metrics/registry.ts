@@ -25,6 +25,9 @@ export interface MetricsCounters {
   reviewCount: number;
   approvalCount: number;
   revisionCount: number;
+  /** Design Automation Phase 7(Figma Import/Export) 신규 — 기존 11개 필드는 무변경. */
+  figmaImportCount: number;
+  figmaExportCount: number;
 }
 
 const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
@@ -40,6 +43,8 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   reviewCount: 0,
   approvalCount: 0,
   revisionCount: 0,
+  figmaImportCount: 0,
+  figmaExportCount: 0,
 };
 
 function registryPath(baseDir: string): string {

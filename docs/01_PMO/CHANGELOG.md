@@ -4,6 +4,79 @@
 
 ---
 
+## 2026-07-15 (6)
+
+### 추가 (Added)
+
+- **Design Automation Phase 7 — Figma Import/Export**: Phase 6이 "Approved"로 전이시킨 Review
+  위에서 Figma Import/Export를 제공하는 "Figma Engine". Import는 `FIGMA_API_TOKEN` 설정 시
+  실제 Figma REST API(`GET /v1/files/:file_key`)를 호출해 Pages/Frames/Components를 가져오고,
+  토큰이 없거나 호출/파싱이 실패하면 결정론적 기본값으로 폴백한다(Website Builder Content
+  Engine과 동일한 resolve → parse → fallback 원칙). Export는 Phase 3(Wireframe)·Phase
+  4(Prototype)·Phase 5(Claude Design) 체인을 Figma 구조(Pages/Frames/Components/Design
+  Tokens/Assets)로 결정론적으로 변환하는 순수 변환(AI Provider 호출 없음)
+  - `lib/design/{figma,figma-generator}.ts`(신규) — `figma.ts`는 타입 + fs-JSON registry
+    (`lib/data/design-figma.json`). 하나의 `FigmaRecord`가 `importHistory`·`exportHistory`
+    두 히스토리 배열을 모두 가지며, `(reviewId, figmaFileId)` 쌍으로 기존 레코드를 찾아
+    upsert하고 `version`을 1씩 증가시킨다(Phase 4 Prototype과 동일한 자동 증가 패턴). Figma
+    REST API가 임의의 Page/Frame/Component 생성 쓰기 엔드포인트를 제공하지 않는다는 실제 제약
+    때문에, Export는 콘텐츠 자체를 항상 로컬에서 결정론적으로 만들고 Design Token(Variables,
+    Enterprise 전용)만 실제 반영을 시도한다
+  - `POST /api/design/figma/import`·`POST /api/design/figma/export`·`GET /api/design/figma/:id`
+    (신규, 요구사항 명시 엔드포인트) — 응답에 `{figmaId, projectId, fileId, pages, components,
+    tokens, assets}`를 그대로 포함하고, 전체 레코드는 `figma` 필드로 확장. `GET
+    /api/design/figma`(목록, 신규 추가)도 함께 제공
+  - **Approval Rule**(요구사항 5번) — Export는 대상 Review의 상태가 `"approved"`가 아니면 409를
+    반환한다. Import는 Approved 상태를 요구하지 않는다(참고 자료 Import는 검토 이전에도 자유롭게
+    수행 가능해야 한다는 판단, 요구사항 5번도 Export만 명시적으로 제한)
+  - `/developer/design/figma`(신규) — Approved Review 선택 → Figma File ID/File Name 입력 →
+    Import/Export 버튼 → Pages → Frames → Components → Design Tokens → Assets → History 순서로
+    표시, Export JSON/Export Markdown 버튼. `/developer/design/review`와 상호 링크("Figma →" /
+    "← Review")로 연결 — `DeveloperNav`는 변경하지 않음(Phase 2~6과 동일한 관례)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.figma.import"`·`"design.figma.export"` 추가
+    (기존 18개 값 무변경), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `figmaImportCount`·`figmaExportCount` 추가
+    (같은 `lib/data/metrics.json` 파일, 새 저장소 아님). `app/developer/metrics/page.tsx`·
+    `components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 9번에 기록
+  - 테스트(신규): `tests/design/figma-generator.test.ts`(14개 — 결정론적 폴백, 실제 Figma API
+    응답 파싱, 네트워크 오류/비정상 응답 폴백)·`tests/design/figma-registry.test.ts`(9개 —
+    생성/버전 자동증가/upsert/조회/히스토리)·`tests/design/figma-integration.test.ts`(5개 —
+    생성기+레지스트리 실 fs 연동, Approval Rule 재현, Import→Export 단일 레코드 누적, 실제
+    fetch를 사용한 무-토큰 폴백 end-to-end 1개 포함) + 기존 `tests/metrics/registry.test.ts`에
+    2개 counter(figmaImportCount/figmaExportCount) 케이스 1개 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 4개 포함 정상 생성) ·
+  `npm test`(56 files / 417 tests 전부 통과, 신규 28개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe →
+  Prototype → Claude Design → Review 생성 파이프라인 전체를 실행 → **Export를 in_review 상태에서
+  먼저 시도해 409 확인**("아직 승인되지 않았습니다") → Import는 같은 in_review 상태에서도 정상
+  수행됨을 확인(200, `simulated:true`, `FIGMA_API_TOKEN` 미설정 환경이라 결정론적 폴백) → Review
+  Approve → Export 재시도 → 200 확인(Wireframe의 4개 화면 → Figma Pages 4개·Frames 12개
+  (desktop/tablet/mobile), Components 5종(Header/Hero/Card/Form/Footer), Design Tokens
+  9종(Primary/Secondary/Success/Warning/Danger/Info/Neutral/Spacing Unit/Radius Medium),
+  Assets 2종 — 전부 실제 Wireframe/디자인 시스템 팔레트 기준으로 정확히 파생됨을 확인) →
+  `GET /api/design/figma/:id`·`GET /api/design/figma`(목록)·404 케이스 확인 →
+  `/api/audit?action=design.figma.{import,export}`(정상 기록)·`/api/metrics`
+  (`figmaImportCount:2`/`figmaExportCount:1` 정상 집계) 확인 → Playwright 실 브라우저로
+  `/developer/design/figma`에서 요구사항 순서대로 Project~History 전 섹션 정상 렌더링(콘솔 에러
+  0건), History 목록에 Import v1/v2·Export v3 순서로 표시 확인 → `/developer/design/review`의
+  "Figma →" 상호 링크 확인(Review 상태 "Approved" 정상 반영) → `/developer/metrics`·
+  `/developer/audit-log` 화면에 새 카운터/필터 정상 표시 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~6과 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — Export
+  route의 Approval Rule(409) 체크는 라우트 안의 단순 동등 비교라 별도 lib 함수로 추출하지
+  않았고, 통합 테스트에서는 동일한 조건을 재현해 검증했으며 실제 라우트의 409 응답은 위 curl
+  E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부
+  종료·삭제
+- `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(9번 섹션 추가, 상단 Status를 "Phase 1-7
+  Implemented"로 갱신)
+
+---
+
 ## 2026-07-15 (5)
 
 ### 추가 (Added)

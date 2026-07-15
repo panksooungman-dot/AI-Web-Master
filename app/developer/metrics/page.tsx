@@ -77,6 +77,12 @@ export default function MetricsPage() {
           <Card title="Revision Count">
             <p className="text-3xl font-bold text-gray-100">{summary.counters.revisionCount}</p>
           </Card>
+          <Card title="Figma Import Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.figmaImportCount}</p>
+          </Card>
+          <Card title="Figma Export Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.figmaExportCount}</p>
+          </Card>
 
           <Card title="Provider Usage" className="sm:col-span-2 lg:col-span-2">
             {summary.providerUsage ? (

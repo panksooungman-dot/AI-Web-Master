@@ -330,9 +330,14 @@ export default function CustomerReviewPage() {
         title="Design — Customer Review"
         description="Design Automation Phase 6: Phase 5 Claude Design 위에서 고객 검토·댓글·승인/반려/수정요청 워크플로를 지원합니다."
         actions={
-          <Link href="/developer/design/claude" className="text-xs text-blue-400 hover:underline self-center">
-            ← Claude Design
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/developer/design/claude" className="text-xs text-blue-400 hover:underline">
+              ← Claude Design
+            </Link>
+            <Link href="/developer/design/figma" className="text-xs text-blue-400 hover:underline">
+              Figma →
+            </Link>
+          </div>
         }
       />
 

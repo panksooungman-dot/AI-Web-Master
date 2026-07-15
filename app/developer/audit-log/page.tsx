@@ -30,6 +30,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.review.approve": "Review 승인",
   "design.review.reject": "Review 반려",
   "design.review.revision": "Review 수정요청",
+  "design.figma.import": "Figma Import",
+  "design.figma.export": "Figma Export",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -51,6 +53,8 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.review.approve": "success",
   "design.review.reject": "danger",
   "design.review.revision": "orange",
+  "design.figma.import": "info",
+  "design.figma.export": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -73,6 +77,8 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.review.approve",
   "design.review.reject",
   "design.review.revision",
+  "design.figma.import",
+  "design.figma.export",
 ];
 
 export default function AuditLogPage() {

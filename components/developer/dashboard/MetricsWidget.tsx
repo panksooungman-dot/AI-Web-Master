@@ -27,6 +27,8 @@ export function MetricsWidget() {
           reviewCount: 0,
           approvalCount: 0,
           revisionCount: 0,
+          figmaImportCount: 0,
+          figmaExportCount: 0,
         })
       );
   }, []);
@@ -88,6 +90,14 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Revision Requests</span>
             <span className="text-gray-200">{counters.revisionCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Figma Imports</span>
+            <span className="text-gray-200">{counters.figmaImportCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Figma Exports</span>
+            <span className="text-gray-200">{counters.figmaExportCount}</span>
           </li>
         </ul>
       )}

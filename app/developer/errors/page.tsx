@@ -30,6 +30,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.review.approve": "Review 승인",
   "design.review.reject": "Review 반려",
   "design.review.revision": "Review 수정요청",
+  "design.figma.import": "Figma Import",
+  "design.figma.export": "Figma Export",
 };
 
 /**

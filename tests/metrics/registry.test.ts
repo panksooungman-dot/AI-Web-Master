@@ -28,6 +28,8 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       reviewCount: 0,
       approvalCount: 0,
       revisionCount: 0,
+      figmaImportCount: 0,
+      figmaExportCount: 0,
     });
   });
 
@@ -116,5 +118,17 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.revisionCount).toBe(3);
     expect(counters.claudeDesignGenerationCount).toBe(0);
     expect(counters.prototypeGenerationCount).toBe(0);
+  });
+
+  it("incrementMetric() increments figmaImportCount/figmaExportCount (Design Automation Phase 7) independently of each other and other counters", () => {
+    incrementMetric("figmaImportCount", undefined, baseDir);
+    incrementMetric("figmaImportCount", undefined, baseDir);
+    incrementMetric("figmaExportCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.figmaImportCount).toBe(2);
+    expect(counters.figmaExportCount).toBe(1);
+    expect(counters.reviewCount).toBe(0);
+    expect(counters.claudeDesignGenerationCount).toBe(0);
   });
 });

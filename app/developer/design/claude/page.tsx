@@ -178,9 +178,14 @@ export default function ClaudeDesignPage() {
         title="Design — Claude Design"
         description="Design Automation Phase 5: Phase 4 Prototype 위에서 Design/UI/Component/Theme/Layout Prompt 5종을 생성합니다."
         actions={
-          <Link href="/developer/design/prototype" className="text-xs text-blue-400 hover:underline self-center">
-            ← Prototype
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/developer/design/prototype" className="text-xs text-blue-400 hover:underline">
+              ← Prototype
+            </Link>
+            <Link href="/developer/design/review" className="text-xs text-blue-400 hover:underline">
+              Review →
+            </Link>
+          </div>
         }
       />
 

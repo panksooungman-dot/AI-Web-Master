@@ -25,6 +25,11 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.wireframe.generate": "Wireframe",
   "design.prototype.generate": "Prototype",
   "design.claude.generate": "Claude Design",
+  "design.review.create": "Review 생성",
+  "design.review.comment": "Review 댓글",
+  "design.review.approve": "Review 승인",
+  "design.review.reject": "Review 반려",
+  "design.review.revision": "Review 수정요청",
 };
 
 /**

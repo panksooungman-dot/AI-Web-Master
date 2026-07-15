@@ -21,6 +21,10 @@ export interface MetricsCounters {
   prototypeGenerationCount: number;
   /** Design Automation Phase 5(Claude Design Integration) 신규 — 기존 7개 필드는 무변경. */
   claudeDesignGenerationCount: number;
+  /** Design Automation Phase 6(Customer Review & Approval) 신규 — 기존 8개 필드는 무변경. */
+  reviewCount: number;
+  approvalCount: number;
+  revisionCount: number;
 }
 
 const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
@@ -33,6 +37,9 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   wireframeGenerationCount: 0,
   prototypeGenerationCount: 0,
   claudeDesignGenerationCount: 0,
+  reviewCount: 0,
+  approvalCount: 0,
+  revisionCount: 0,
 };
 
 function registryPath(baseDir: string): string {

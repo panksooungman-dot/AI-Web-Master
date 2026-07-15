@@ -20,7 +20,12 @@ export type AuditAction =
   | "design.storyboard.generate"
   | "design.wireframe.generate"
   | "design.prototype.generate"
-  | "design.claude.generate";
+  | "design.claude.generate"
+  | "design.review.create"
+  | "design.review.comment"
+  | "design.review.approve"
+  | "design.review.reject"
+  | "design.review.revision";
 
 export interface AuditEntry {
   id: string;

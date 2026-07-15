@@ -4,6 +4,76 @@
 
 ---
 
+## 2026-07-15 (5)
+
+### 추가 (Added)
+
+- **Design Automation Phase 6 — Customer Review & Approval**: Phase 5(Claude Design의
+  Design/UI/Component/Theme/Layout Prompt) 산출물을 대상으로 고객 검토 사이클(댓글·승인·
+  반려·수정요청)을 지원하는 "Review Engine" + "Approval Engine". Phase 1~5와 달리 AI
+  Provider 호출이 전혀 없는 순수 상태 기계 — Draft/In Review/Revision Requested/Approved/
+  Rejected/Archived 6개 상태, Approve/Reject/Request Revision/Cancel Approval 4개 검증된
+  전이 액션. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/review.ts`(신규, 순수 타입 + 상태 전이 규칙표 `APPROVAL_TRANSITIONS`) ·
+    `lib/design/review-registry.ts`(신규, fs-JSON registry — `lib/data/design-reviews.json`,
+    생성/조회/댓글/상태전이/보관) · `lib/design/approval.ts`(신규, 4개 액션의 유효성
+    검증 후 review-registry의 상태 전이를 위임 — 별도 저장소 없음, "Do not create another
+    storage" 요구사항 그대로 준수)
+  - `POST /api/design/review`·`GET /api/design/review/:id`·`POST /api/design/approval`·
+    `GET /api/design/approval/:id`(신규, 요구사항 명시 엔드포인트) — 응답에 요구사항 예시의
+    `{reviewId, projectId, status, comments, history, version}`를 그대로 포함하고, 전체
+    레코드는 `review` 필드로 확장. `GET /api/design/review`(목록)·
+    `POST /api/design/review/:id/comment`(댓글 작성, 신규 추가)도 함께 제공.
+    `GET /api/design/approval/:id`는 승인 전용 저장소가 없어 리뷰 레코드를 그대로 반환
+  - `/developer/design/review`(신규) — Claude Design 선택 → Start Review → 요구사항이
+    명시한 순서(Project → Requirement → Storyboard → Wireframe → Prototype → Claude
+    Design → Review → Comments → Approval Status → History) 그대로 표시, Comment/Approve/
+    Reject/Request Revision 버튼 + Export JSON/Markdown. `/developer/design/claude`와
+    상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - **Auto Save**: 별도 저장 버튼 없이 댓글·상태 전이가 일어날 때마다 즉시 fs에 재저장
+    (Phase 1~5의 fs-JSON registry와 동일한 즉시 쓰기 패턴)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.review.create"`·`"design.review.comment"`·
+    `"design.review.approve"`·`"design.review.reject"`·`"design.review.revision"` 5개 추가
+    (기존 13개 값 무변경), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `reviewCount`·`approvalCount`·
+    `revisionCount` 3개 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님).
+    `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도
+    표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 8번에 기록
+  - 테스트(신규 29개): `tests/design/review-registry.test.ts`(13개)·
+    `tests/design/approval.test.ts`(11개)·`tests/design/review-integration.test.ts`(4개,
+    review-registry+approval 실 fs 연동, ClaudeDesign 체인 위 전체 라이프사이클 포함)·
+    `tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 5개 포함 정상 생성) ·
+  `npm test`(53 files / 388 tests 전부 통과, 신규 29개 포함, 회귀 없음)
+- 실 E2E: curl로 Design Plan → Storyboard → Wireframe → Prototype → Claude Design → Review
+  생성 파이프라인 전체를 실행해 응답 shape(`reviewId`/`projectId`/`status`/`comments`/
+  `history`/`version`) 확인 → 댓글 작성 → Request Revision(`in_review`→`revision_requested`)
+  → 잘못된 전이(같은 상태에서 다시 revision) 시도 시 409와 명확한 오류 메시지 확인 →
+  `revision_requested`에서 Approve(→`approved`) 확인 → `GET /api/design/review/:id`·
+  `GET /api/design/approval/:id`(동일 레코드 반환)·둘 다 404 케이스 확인 →
+  `/api/metrics`(`reviewCount`/`approvalCount`/`revisionCount` 정상 집계)·
+  `/api/audit?action=design.review.{create,comment,approve,revision}`(전부 정상 기록) 확인
+  → Playwright 실 브라우저로 `/developer/design/review`에서 요구사항 순서대로 Project~
+  History 전 섹션 정상 렌더링(콘솔 에러 0건), 현재 상태(Approved)에서 Approve/Reject/
+  Request Revision 버튼이 올바르게 비활성화됨을 확인, 실제 한글 타이핑으로 댓글 작성 →
+  작성자가 로그인 사용자 이메일로 정확히 귀속됨을 확인(curl로 만든 이전 댓글에서 보였던
+  한글 mojibake는 Git Bash 쉘 인코딩 문제였음을 재확인 — Phase 1 세션에서 이미 확인된 것과
+  동일한 원인, 애플리케이션 버그 아님) → `/developer/design/claude`의 "Review →" 상호
+  링크 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~5와 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합
+  테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후
+  전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 6`(신규 섹션) · `## Tests`·상단
+  검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(8번 섹션 추가)
+
+---
+
 ## 2026-07-15 (4)
 
 ### 추가 (Added)

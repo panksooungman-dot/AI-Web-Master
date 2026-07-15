@@ -25,6 +25,11 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.wireframe.generate": "Wireframe",
   "design.prototype.generate": "Prototype",
   "design.claude.generate": "Claude Design",
+  "design.review.create": "Review 생성",
+  "design.review.comment": "Review 댓글",
+  "design.review.approve": "Review 승인",
+  "design.review.reject": "Review 반려",
+  "design.review.revision": "Review 수정요청",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -41,6 +46,11 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.wireframe.generate": "purple",
   "design.prototype.generate": "purple",
   "design.claude.generate": "purple",
+  "design.review.create": "purple",
+  "design.review.comment": "info",
+  "design.review.approve": "success",
+  "design.review.reject": "danger",
+  "design.review.revision": "orange",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -58,6 +68,11 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.wireframe.generate",
   "design.prototype.generate",
   "design.claude.generate",
+  "design.review.create",
+  "design.review.comment",
+  "design.review.approve",
+  "design.review.reject",
+  "design.review.revision",
 ];
 
 export default function AuditLogPage() {

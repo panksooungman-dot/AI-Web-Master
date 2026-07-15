@@ -25,6 +25,9 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       wireframeGenerationCount: 0,
       prototypeGenerationCount: 0,
       claudeDesignGenerationCount: 0,
+      reviewCount: 0,
+      approvalCount: 0,
+      revisionCount: 0,
     });
   });
 
@@ -97,5 +100,21 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.wireframeGenerationCount).toBe(0);
     expect(counters.storyboardGenerationCount).toBe(0);
     expect(counters.aiTaskCount).toBe(0);
+  });
+
+  it("incrementMetric() increments reviewCount/approvalCount/revisionCount (Design Automation Phase 6) independently of each other and other counters", () => {
+    incrementMetric("reviewCount", undefined, baseDir);
+    incrementMetric("reviewCount", undefined, baseDir);
+    incrementMetric("approvalCount", undefined, baseDir);
+    incrementMetric("revisionCount", undefined, baseDir);
+    incrementMetric("revisionCount", undefined, baseDir);
+    incrementMetric("revisionCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.reviewCount).toBe(2);
+    expect(counters.approvalCount).toBe(1);
+    expect(counters.revisionCount).toBe(3);
+    expect(counters.claudeDesignGenerationCount).toBe(0);
+    expect(counters.prototypeGenerationCount).toBe(0);
   });
 });

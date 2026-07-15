@@ -68,6 +68,15 @@ export default function MetricsPage() {
           <Card title="Claude Design Generation Count">
             <p className="text-3xl font-bold text-gray-100">{summary.counters.claudeDesignGenerationCount}</p>
           </Card>
+          <Card title="Review Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.reviewCount}</p>
+          </Card>
+          <Card title="Approval Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.approvalCount}</p>
+          </Card>
+          <Card title="Revision Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.revisionCount}</p>
+          </Card>
 
           <Card title="Provider Usage" className="sm:col-span-2 lg:col-span-2">
             {summary.providerUsage ? (

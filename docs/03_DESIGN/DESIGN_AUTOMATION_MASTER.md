@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-5 Implemented
+> Status: Phase 1-6 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -36,7 +36,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | **Phase 3(이 저장소 구현 완료)** | Wireframe(Desktop/Tablet/Mobile Layout, Component Layout, Responsive Layout, Screen Sections) | `DESIGN_WORKFLOW.md` Phase 5 |
 | **Phase 4(이 저장소 구현 완료)** | Prototype(Click Flow, Navigation Flow, Screen Transition, Interaction Map, Component Actions, User Journey, Animation Preview, Prototype Preview) | `DESIGN_WORKFLOW.md` Phase 6 |
 | **Phase 5(이 저장소 구현 완료)** | Claude Design 연동(Design/UI/Component/Theme/Layout Prompt) + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7, `CLAUDE_DESIGN_INTEGRATION.md` 6번("Claude Design 역할") |
-| Phase 6(미구현) | 고객 검토/승인 Workflow | `DESIGN_WORKFLOW.md` Phase 8 |
+| **Phase 6(이 저장소 구현 완료)** | 고객 검토/승인 Workflow(Review Engine + Approval Engine) | `DESIGN_WORKFLOW.md` Phase 8("고객 검토") |
 | Phase 7(미구현) | Figma Import/Export | `DESIGN_WORKFLOW.md` Phase 9 |
 | Phase 8(미구현) | Design Sync(양방향) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
 | Phase 9+(미구현) | Website Builder 연동, Build/Test/Deploy | `DESIGN_WORKFLOW.md` Phase 11~14 (Website Builder v2·Dashboard·CI는 이미 별도로 구현되어 있음, `docs/REPOSITORY_INDEX.md` 참고 — 이 Phase가 하는 일은 "연결"뿐) |
@@ -265,3 +265,90 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   `tests/metrics/registry.test.ts`에 `claudeDesignGenerationCount` 케이스 1개 추가.
 - 미구현(Phase 6 이후로 명시적으로 남겨둔 것): 고객 검토/승인 Workflow, Figma Import/Export,
   Design Sync, Website Builder 연동.
+
+---
+
+# 8. Phase 6 구현 요약 — Customer Review & Approval (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 5가 만든 Claude Design 산출물(Design/UI/Component/Theme/Layout Prompt)을
+  대상으로 고객 검토 사이클(댓글·승인·반려·수정요청)을 제공하는 "Review Engine" +
+  "Approval Engine". Phase 1~5와 달리 AI Provider 호출이 전혀 없는 순수 상태 기계(state
+  machine)다 — Draft/In Review/Revision Requested/Approved/Rejected/Archived 6개 상태와,
+  Approve/Reject/Request Revision/Cancel Approval 4개 검증된 전이 액션으로 구성된다.
+- **역할 분리**: `lib/design/review.ts`(순수 타입 + 상태 전이 규칙표 `APPROVAL_TRANSITIONS`,
+  fs 의존성 없음) · `lib/design/review-registry.ts`(fs-JSON 영속화 — `createReview`·
+  `getReview`·`listReviews`·`listReviewsForClaudeDesign`·`addReviewComment`·
+  `transitionReviewStatus`·`archiveReview`, `lib/data/design-reviews.json`) ·
+  `lib/design/approval.ts`(승인 액션의 유효성 검증 후 `review-registry.ts`의
+  `transitionReviewStatus()`를 호출 — 별도 저장소를 만들지 않고 Review Registry를 그대로
+  재사용, 요구사항의 "Do not create another storage"를 그대로 따름).
+- **상태 전이 해석**(명세에 없던 구현 세부사항):
+  - `DESIGN_WORKFLOW.md` 10번은 Draft→Review→Revision→Approved→Development(5단계)를
+    말하지만, 이번 요구사항 1번은 Draft/In Review/Revision Requested/Approved/Rejected/
+    Archived(6개)를 명시적으로 요구했다 — 6개 상태 모델을 그대로 채택했다.
+  - `createReview()`는 생성 즉시 `"in_review"` 상태로 시작한다 — "Draft"는 리뷰 레코드가
+    아직 만들어지기 전의 개념적 상태(Claude Design 산출물은 있지만 검토가 시작되지 않은
+    상태)를 가리키는 것으로 해석했다. 리뷰를 생성하는 행위 자체가 "검토를 시작"하는
+    것이므로 별도의 "Draft → In Review 전환" API를 추가로 요구하지 않았다.
+  - `APPROVAL_TRANSITIONS`(4개 액션)는 `approve`/`reject`를 `in_review`·
+    `revision_requested` 양쪽에서 허용하고(수정요청 후에도 바로 승인/반려할 수 있어야
+    실무 흐름에 맞음), `revision`은 `in_review`에서만, `cancel`은 `approved`·`rejected`
+    에서 `in_review`로 되돌리는 것으로 정의했다. "Archived"는 이 4개 액션으로는 도달할 수
+    없어 `review-registry.ts`의 `archiveReview()`(어느 상태에서든 가능)로 별도 지원 —
+    Dashboard(요구사항 4번)의 액션 목록에도 "Archive"가 없어 API 라우트는 만들지 않았다.
+  - `version`은 Phase 4 Prototype과 동일한 패턴 — 동일 `claudeDesignId`에 대해 리뷰를
+    다시 시작(재검토 사이클)하면 새 레코드가 추가되며 1씩 증가한다(기존 레코드는 덮어쓰지
+    않고 히스토리 그대로 보존).
+- **API**(`app/api/design/review/{route.ts,[id]/route.ts,[id]/comment/route.ts}`,
+  `app/api/design/approval/{route.ts,[id]/route.ts}`, 신규) — 요구사항이 명시한
+  `POST /api/design/review`·`GET /api/design/review/:id`·`POST /api/design/approval`·
+  `GET /api/design/approval/:id` 그대로. 응답은 요구사항 예시의
+  `{reviewId, projectId, status, comments, history, version}`를 그대로 포함하고, 전체
+  레코드는 `review` 필드로 확장(Phase 2~5와 동일한 확장 방식). `GET /api/design/review`
+  (목록)·`POST /api/design/review/:id/comment`(댓글 작성)은 명세에 없던 additive
+  엔드포인트 — 댓글 작성 전용 API가 문서에 없어 REST 관례에 맞춰 추가했다.
+  `GET /api/design/approval/:id`는 승인 전용 저장소가 없으므로(요구사항
+  "Do not create another storage") `GET /api/design/review/:id`와 동일한 ReviewRecord를
+  반환한다("이 리뷰의 현재 승인 상태 조회"라는 의미로 재해석).
+- **Dashboard**(`/developer/design/review`, 신규) — Claude Design 선택 → Start Review →
+  요구사항이 명시한 순서(Project → Requirement → Storyboard → Wireframe → Prototype →
+  Claude Design → Review → Comments → Approval Status → History) 그대로 표시(Project~
+  Claude Design 카드는 Phase 1~5 레코드를 체인으로 조회해 요약만 표시, 재구현 아님),
+  Comment/Approve/Reject/Request Revision 버튼 + Export JSON/Export Markdown 버튼.
+  `/developer/design/claude`와 상호 링크("Review →" / "← Claude Design")로 연결 —
+  `DeveloperNav`는 변경하지 않음(Phase 2~5와 동일한 관례). "Cancel Approval"은 Dashboard
+  액션 목록(요구사항 4번)에 없어 버튼을 추가하지 않았다(API/엔진 레벨에서는 지원).
+- **Auto Save**(요구사항 5번) — 별도의 "저장" 버튼·debounce 로직 없이, 댓글 작성·상태
+  전이가 일어날 때마다 `review-registry.ts`의 각 함수가 그 즉시 `fs.writeFileSync()`로
+  전체 레지스트리를 재저장한다(Phase 1~5의 fs-JSON registry와 동일한 즉시 쓰기 패턴) —
+  "Save on every status change"·"Save comments"·"Save approval"·"Save history" 요구사항이
+  모두 동일한 단일 쓰기 경로로 자연스럽게 충족된다.
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 요구사항이 명시한 5개
+  그대로 추가: `"design.review.create"`·`"design.review.comment"`·`"design.review.approve"`·
+  `"design.review.reject"`·`"design.review.revision"`(기존 13개 값 무변경). `cancel`
+  액션은 요구사항 목록에 없어 감사 로그를 남기지 않는다(상태 전이 자체는 그대로 지원).
+  `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵도 함께 갱신.
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에 요구사항이 명시한
+  3개 그대로 추가: `reviewCount`(리뷰 생성 시)·`approvalCount`(승인 시)·`revisionCount`
+  (수정요청 시). 반려(`reject`)·취소(`cancel`)는 요구사항에 카운터가 명시되지 않아
+  집계하지 않는다. 같은 `lib/data/metrics.json` 파일에 필드만 추가(새 저장소 아님).
+  `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도
+  표시 추가.
+- **알려진 제약**(Phase 1~5와 동일): 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는
+  통합 테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트
+  밖에서 예외를 던져 불가능 — 통합 테스트는 라우트 바로 아래 계층(review-registry+
+  approval 실 연동)까지 다루고, 라우트 자체는 수동 curl/Playwright E2E로 검증.
+- Evidence: `lib/design/{review,review-registry,approval}.ts`,
+  `app/api/design/review/{route.ts,[id]/route.ts,[id]/comment/route.ts}`,
+  `app/api/design/approval/{route.ts,[id]/route.ts}`, `app/developer/design/review/page.tsx`,
+  `lib/audit/log.ts`(5개 action 추가), `lib/metrics/registry.ts`(3개 counter 추가),
+  `app/developer/design/claude/page.tsx`("Review →" 링크 추가)
+- 테스트(신규 29개): `tests/design/review-registry.test.ts`(13개 — 생성/버전 자동증가/조회/
+  댓글/상태전이/보관/히스토리 순서 검증), `tests/design/approval.test.ts`(11개 — 4개
+  액션의 정상 전이·잘못된 전이 거부·not_found·레코드 불변 보장), `tests/design/
+  review-integration.test.ts`(4개 — review-registry+approval 실 fs 연동, ClaudeDesign
+  체인 위에서의 전체 라이프사이클(댓글→수정요청→승인→취소→반려→보관) 1개 포함) + 기존
+  `tests/metrics/registry.test.ts`에 3개 counter(reviewCount/approvalCount/
+  revisionCount) 케이스 1개 추가.

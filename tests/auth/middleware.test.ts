@@ -9,12 +9,9 @@ import { createUser } from "../../lib/auth/users";
 
 describe("Auth — route protection (lib/auth/middleware.ts)", () => {
   describe("isProtectedPath()", () => {
-    it("protects /developer and nested paths", () => {
-      expect(isProtectedPath("/developer")).toBe(true);
-      expect(isProtectedPath("/developer/terminal")).toBe(true);
-      expect(isProtectedPath("/developer/workspace")).toBe(true);
-    });
-
+    // /developer and /admin moved to role-gated protection in lib/auth/rbac.ts
+    // (release hardening, v1.0) — see tests/auth/rbac.test.ts. isProtectedPath() now only
+    // covers "requires login, no specific role" paths (/projects).
     it("protects /projects and nested paths", () => {
       expect(isProtectedPath("/projects")).toBe(true);
       expect(isProtectedPath("/projects/abc")).toBe(true);
@@ -57,7 +54,7 @@ describe("Auth — route protection (lib/auth/middleware.ts)", () => {
     });
 
     it("returns the user for a valid session cookie", () => {
-      const user = createUser("middleware-user@example.com", "hunter2", baseDir);
+      const user = createUser("middleware-user@example.com", "hunter2", "developer", baseDir);
       const session = createSession(user.id, baseDir);
 
       const request = new NextRequest("http://localhost/developer", {
@@ -67,6 +64,7 @@ describe("Auth — route protection (lib/auth/middleware.ts)", () => {
       const resolved = resolveSessionUser(request, baseDir);
       expect(resolved?.id).toBe(user.id);
       expect(resolved?.email).toBe("middleware-user@example.com");
+      expect(resolved?.role).toBe("developer");
     });
   });
 });

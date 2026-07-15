@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { defaultLandingPathForRole } from "@/lib/auth/rbac";
+import type { PublicUser } from "@/lib/auth/types";
 
 type SubmitState = "idle" | "submitting" | "error";
 
@@ -10,14 +12,14 @@ export default function LoginPage() {
   const router = useRouter();
   const [state, setState] = useState<SubmitState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [redirectTarget, setRedirectTarget] = useState("/developer");
+  const [explicitRedirect, setExplicitRedirect] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
       const params = new URLSearchParams(window.location.search);
       const redirect = params.get("redirect");
       if (redirect && redirect.startsWith("/")) {
-        setRedirectTarget(redirect);
+        setExplicitRedirect(redirect);
       }
     });
   }, []);
@@ -38,7 +40,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data: { success: boolean; error?: string } = await response.json();
+      const data: { success: boolean; error?: string; user?: PublicUser } = await response.json();
 
       if (!response.ok || !data.success) {
         setError(data.error ?? "로그인에 실패했습니다.");
@@ -46,7 +48,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(redirectTarget);
+      const target = explicitRedirect ?? defaultLandingPathForRole(data.user?.role ?? "user");
+      router.push(target);
       router.refresh();
     } catch {
       setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");

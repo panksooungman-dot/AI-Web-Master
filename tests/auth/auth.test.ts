@@ -10,7 +10,7 @@ describe("Auth — orchestration (lib/auth/auth.ts)", () => {
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "auth-orchestration-test-"));
-    createUser("user@example.com", "correct-password", baseDir);
+    createUser("user@example.com", "correct-password", "developer", baseDir);
   });
 
   afterEach(() => {
@@ -23,6 +23,7 @@ describe("Auth — orchestration (lib/auth/auth.ts)", () => {
     expect("error" in result).toBe(false);
     if ("error" in result) return; // narrow for TS
     expect(result.user.email).toBe("user@example.com");
+    expect(result.user.role).toBe("developer");
     expect(result.session.userId).toBe(result.user.id);
   });
 

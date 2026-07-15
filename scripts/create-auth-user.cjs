@@ -5,7 +5,9 @@
  * to create a user. Duplicates the scrypt params from lib/auth/password.ts;
  * keep the two in sync if either changes.
  *
- * Usage: node scripts/create-auth-user.cjs <email> <password>
+ * Usage: node scripts/create-auth-user.cjs <email> <password> [role]
+ * role defaults to "user" (least privilege) — pass one of user|admin|developer|super_admin
+ * explicitly to grant dashboard access. See docs/ADMIN_GUIDE.md.
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- standalone CommonJS script, see screenshot.cjs for the same precedent */
 const fs = require("fs");
@@ -14,6 +16,7 @@ const crypto = require("crypto");
 
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
+const VALID_ROLES = ["user", "admin", "developer", "super_admin"];
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(SALT_LENGTH).toString("hex");
@@ -22,10 +25,17 @@ function hashPassword(password) {
 }
 
 function main() {
-  const [, , email, password] = process.argv;
+  const [, , email, password, roleArg] = process.argv;
 
   if (!email || !password) {
-    console.error("사용법: node scripts/create-auth-user.cjs <email> <password>");
+    console.error("사용법: node scripts/create-auth-user.cjs <email> <password> [role]");
+    console.error(`role: ${VALID_ROLES.join(" | ")} (기본값: user)`);
+    process.exit(1);
+  }
+
+  const role = roleArg || "user";
+  if (!VALID_ROLES.includes(role)) {
+    console.error(`올바르지 않은 role입니다: ${role} (허용값: ${VALID_ROLES.join(", ")})`);
     process.exit(1);
   }
 
@@ -61,13 +71,14 @@ function main() {
     id: crypto.randomUUID(),
     email: normalizedEmail,
     passwordHash: hashPassword(password),
+    role,
     createdAt: new Date().toISOString(),
   };
 
   users.push(record);
   fs.writeFileSync(usersFile, JSON.stringify(users, null, 2), "utf-8");
 
-  console.log(`계정이 생성되었습니다: ${normalizedEmail}`);
+  console.log(`계정이 생성되었습니다: ${normalizedEmail} (role: ${role})`);
 }
 
 main();

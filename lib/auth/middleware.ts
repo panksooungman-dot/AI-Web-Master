@@ -3,7 +3,12 @@ import { findUserById, toPublicUser } from "./users";
 import { getValidSession, SESSION_COOKIE_NAME } from "./session";
 import type { PublicUser } from "./types";
 
-export const PROTECTED_PREFIXES = ["/developer", "/projects"];
+/**
+ * "Requires login, but no specific role" paths. /developer and /admin are handled separately by
+ * lib/auth/rbac.ts's resolveProtectedArea() (role-gated, release hardening v1.0) — /projects is
+ * intentionally left out of that RBAC scope (any authenticated user, regardless of role).
+ */
+export const PROTECTED_PREFIXES = ["/projects"];
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(

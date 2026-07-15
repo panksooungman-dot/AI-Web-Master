@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createSession, destroySession, getValidSession } from "../../lib/auth/session";
+import { countActiveSessions, createSession, destroySession, getValidSession } from "../../lib/auth/session";
 
 describe("Auth — session store (lib/auth/session.ts)", () => {
   let baseDir: string;
@@ -50,5 +50,27 @@ describe("Auth — session store (lib/auth/session.ts)", () => {
     const session = createSession("user-1", baseDir);
     destroySession(session.id, baseDir);
     expect(getValidSession(session.id, baseDir)).toBeNull();
+  });
+
+  describe("countActiveSessions()", () => {
+    it("returns 0 when there are no sessions", () => {
+      expect(countActiveSessions(baseDir)).toBe(0);
+    });
+
+    it("counts only live sessions, pruning expired ones as a side effect", () => {
+      createSession("user-1", baseDir);
+      const expiring = createSession("user-2", baseDir);
+
+      const file = path.join(baseDir, "sessions.json");
+      const records = JSON.parse(fs.readFileSync(file, "utf-8"));
+      const target = records.find((r: { id: string }) => r.id === expiring.id);
+      target.expiresAt = new Date(Date.now() - 1000).toISOString();
+      fs.writeFileSync(file, JSON.stringify(records, null, 2), "utf-8");
+
+      expect(countActiveSessions(baseDir)).toBe(1);
+
+      const afterPrune = JSON.parse(fs.readFileSync(file, "utf-8"));
+      expect(afterPrune).toHaveLength(1);
+    });
   });
 });

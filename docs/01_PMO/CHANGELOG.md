@@ -4,6 +4,440 @@
 
 ---
 
+## 2026-07-15 (7)
+
+### 추가 (Added)
+
+- **Design Automation Phase 8 — Design Sync**: Phase 3(Wireframe)~7(Figma) 체인과 "Code" 사이의
+  양방향 동기화를 지원하는 "Sync Engine". Change Detection·Version Compare·Patch Generation·
+  Conflict Detection·Rollback을 전부 지원. AI Provider 호출 없는 순수 변환(Phase 6/7과 동일한
+  원칙) — 이미 확정된 구조화 데이터로부터 결정론적으로 스냅샷을 만들고 서로 비교
+  - `lib/design/{design-sync,design-sync-engine}.ts`(신규) — `design-sync.ts`는 타입 + fs-JSON
+    registry(`lib/data/design-sync.json`, Review 하나당 SyncRecord 하나·`reviewId` 기준 upsert,
+    Sync마다 `version` 자동 증가). `design-sync-engine.ts`는 fs 의존성 없는 순수 함수만
+    담는다 — Wireframe 컴포넌트 인벤토리 + Design Token(Phase 7 Figma Export가 있으면 그 토큰,
+    없으면 동일한 CNBIZ 팔레트로 폴백, `lib/design/figma-generator.ts`의 `DESIGN_TOKEN_SEED`를
+    export로 전환해 재사용)으로부터 Design/Code 스냅샷을 결정론적으로 생성하고 비교
+  - **"Code"가 실제 코드베이스가 아님**: 이 저장소에는 Design 레코드로부터 실제 파일을 생성해
+    디스크에 쓰는 코드베이스가 없다(Website Builder v2는 완전히 별도 파이프라인) — "Code"는
+    Wireframe/Design Token으로부터 결정론적으로 만들어지는 컴포넌트 코드 스냅샷(문자열)이며,
+    "Code → Design" 방향은 선택적 `codeOverride`로 "코드가 이렇게 바뀌었다"를 시뮬레이션
+  - **Conflict 판정**: `codeOverride`가 지금 이 Design으로부터 자동 생성될 코드와 다르고 **동시에**
+    Design 쪽도 이전 동기화 이후 실제 바뀌었을 때만 충돌로 판정(`DESIGN_SYNC.md`의 "3. 최신 변경"
+    우선순위를 코드화) — Design이 안 바뀌었다면 코드 변경은 그냥 받아들여지는 정상 갱신
+  - `POST /api/design/sync`·`GET /api/design/sync/:id`·`POST /api/design/sync/compare`·
+    `POST /api/design/sync/rollback`(신규, 요구사항 명시 엔드포인트) — `compare`는 `sync`와 동일한
+    계산을 수행하되 저장하지 않음(Dashboard "Pending Changes" 미리보기). `GET /api/design/sync`
+    (목록, 신규 추가)도 함께 제공
+  - `/developer/design/sync`(신규) — Review+Direction 선택(+ Code Override JSON) → Compare/Sync →
+    Sync Status·Conflicts·Version History(과거 버전마다 Rollback 버튼) 표시, Export JSON/Markdown.
+    `/developer/design/figma`와 상호 링크("Design Sync →" / "← Figma") — `DeveloperNav` 무변경
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.sync.{start,complete,rollback,conflict}"` 4개
+    추가(기존 20개 값 무변경), `app/developer/{audit-log,errors}/page.tsx` 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `designSyncCount`·`conflictCount`·
+    `rollbackCount` 추가(같은 `lib/data/metrics.json`, 새 저장소 아님).
+    `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시
+    추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 10번에 기록
+  - 테스트(신규): `tests/design/design-sync-engine.test.ts`(16개 — 스냅샷 생성, Code Override,
+    Patch 생성 3가지 경로, Conflict 판정 4가지 경로, computeSync() 통합 시나리오),
+    `tests/design/design-sync-registry.test.ts`(9개 — 생성/버전 자동증가/upsert/조회/Rollback
+    append-only/not_found/version_not_found), `tests/design/design-sync-integration.test.ts`
+    (4개 — engine+registry 실 fs 연동, 최초 sync·무변경 재sync·충돌 발생·충돌 후 Rollback으로
+    복원까지 전체 라이프사이클) + 기존 `tests/metrics/registry.test.ts`에 3개 counter 케이스
+    1개 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 4개 포함 정상 생성) ·
+  `npm test`(59 files / 447 tests, 신규 29개 포함 — 전체 병렬 실행 시 무관한 기존 타이밍
+  플레이크로 `tests/agents/taskQueue-retry.test.ts` 2건만 실패, 단독 재실행 시 3/3 통과 확인,
+  이번 변경과 무관)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe →
+  Prototype → Claude Design → Review 생성 → **초기 Design→Code sync**(v1, in_sync, 23개 added
+  patch) → **변경 없는 재-compare**(patch 0개, 비영속 확인) → **Code→Design + theme
+  codeOverride, Design은 안 바뀐 상태**(v2, in_sync, 충돌 없이 정상 반영 — "Design 안 바뀌면
+  코드 변경은 그냥 받아들여진다" 규칙 실증) → **Rollback을 v1으로**(v3, rolled_back, history에
+  기존 2개 항목이 그대로 보존된 채 3번째 항목으로 추가됨, designSnapshot이 v1과 정확히 일치) →
+  버전 없는 Rollback 시도(400)·존재하지 않는 syncId Rollback(404)·`GET /api/design/sync/:id`
+  404 케이스 확인 → `/api/audit?action=design.sync.{start,complete,rollback}`·`/api/metrics`
+  (`designSyncCount:2`/`rollbackCount:1`) 정상 집계 확인 → Playwright 실 브라우저로
+  `/developer/design/sync`에서 Compare 클릭 → Pending Changes("변경사항이 없습니다") 정상 표시,
+  Rollback 버튼 실제 클릭 → 페이지 새로고침 없이 Sync Status·Version History가 v4로 즉시
+  갱신됨을 확인(콘솔 에러 0건) → `/developer/design/figma`의 "Design Sync →" 상호 링크 확인
+- **Conflict 경로는 API 통합 테스트가 아닌 engine 단위 테스트로 검증**: 이 저장소의 현재 데이터
+  모델에서는 Review가 하나의 고정된 Wireframe 체인에 불변으로 묶여 있어(재생성 시 항상 새
+  레코드가 추가될 뿐 Review가 가리키는 체인 자체는 절대 바뀌지 않음), 실제 라이브 HTTP API로는
+  "이 Review의 Design이 실제로 바뀌었다"는 상태를 조직적으로 재현할 수 없다 — 이는 결함이 아니라
+  append-only 레지스트리 설계의 당연한 귀결. Conflict 판정 로직 자체는
+  `tests/design/design-sync-engine.test.ts`(합성 스냅샷으로 "design이 바뀐 척" 구성)와
+  `tests/design/design-sync-integration.test.ts`(실 fs 위에서 동일 시나리오)로 검증했고,
+  `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 10번에 이 제약을 명시
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~7과 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부
+  종료·삭제
+- `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(10번 섹션 추가, 상단 Status를 "Phase 1-8
+  Implemented"로 갱신)
+
+---
+
+## 2026-07-15 (6)
+
+### 추가 (Added)
+
+- **Design Automation Phase 7 — Figma Import/Export**: Phase 6이 "Approved"로 전이시킨 Review
+  위에서 Figma Import/Export를 제공하는 "Figma Engine". Import는 `FIGMA_API_TOKEN` 설정 시
+  실제 Figma REST API(`GET /v1/files/:file_key`)를 호출해 Pages/Frames/Components를 가져오고,
+  토큰이 없거나 호출/파싱이 실패하면 결정론적 기본값으로 폴백한다(Website Builder Content
+  Engine과 동일한 resolve → parse → fallback 원칙). Export는 Phase 3(Wireframe)·Phase
+  4(Prototype)·Phase 5(Claude Design) 체인을 Figma 구조(Pages/Frames/Components/Design
+  Tokens/Assets)로 결정론적으로 변환하는 순수 변환(AI Provider 호출 없음)
+  - `lib/design/{figma,figma-generator}.ts`(신규) — `figma.ts`는 타입 + fs-JSON registry
+    (`lib/data/design-figma.json`). 하나의 `FigmaRecord`가 `importHistory`·`exportHistory`
+    두 히스토리 배열을 모두 가지며, `(reviewId, figmaFileId)` 쌍으로 기존 레코드를 찾아
+    upsert하고 `version`을 1씩 증가시킨다(Phase 4 Prototype과 동일한 자동 증가 패턴). Figma
+    REST API가 임의의 Page/Frame/Component 생성 쓰기 엔드포인트를 제공하지 않는다는 실제 제약
+    때문에, Export는 콘텐츠 자체를 항상 로컬에서 결정론적으로 만들고 Design Token(Variables,
+    Enterprise 전용)만 실제 반영을 시도한다
+  - `POST /api/design/figma/import`·`POST /api/design/figma/export`·`GET /api/design/figma/:id`
+    (신규, 요구사항 명시 엔드포인트) — 응답에 `{figmaId, projectId, fileId, pages, components,
+    tokens, assets}`를 그대로 포함하고, 전체 레코드는 `figma` 필드로 확장. `GET
+    /api/design/figma`(목록, 신규 추가)도 함께 제공
+  - **Approval Rule**(요구사항 5번) — Export는 대상 Review의 상태가 `"approved"`가 아니면 409를
+    반환한다. Import는 Approved 상태를 요구하지 않는다(참고 자료 Import는 검토 이전에도 자유롭게
+    수행 가능해야 한다는 판단, 요구사항 5번도 Export만 명시적으로 제한)
+  - `/developer/design/figma`(신규) — Approved Review 선택 → Figma File ID/File Name 입력 →
+    Import/Export 버튼 → Pages → Frames → Components → Design Tokens → Assets → History 순서로
+    표시, Export JSON/Export Markdown 버튼. `/developer/design/review`와 상호 링크("Figma →" /
+    "← Review")로 연결 — `DeveloperNav`는 변경하지 않음(Phase 2~6과 동일한 관례)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.figma.import"`·`"design.figma.export"` 추가
+    (기존 18개 값 무변경), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `figmaImportCount`·`figmaExportCount` 추가
+    (같은 `lib/data/metrics.json` 파일, 새 저장소 아님). `app/developer/metrics/page.tsx`·
+    `components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 9번에 기록
+  - 테스트(신규): `tests/design/figma-generator.test.ts`(14개 — 결정론적 폴백, 실제 Figma API
+    응답 파싱, 네트워크 오류/비정상 응답 폴백)·`tests/design/figma-registry.test.ts`(9개 —
+    생성/버전 자동증가/upsert/조회/히스토리)·`tests/design/figma-integration.test.ts`(5개 —
+    생성기+레지스트리 실 fs 연동, Approval Rule 재현, Import→Export 단일 레코드 누적, 실제
+    fetch를 사용한 무-토큰 폴백 end-to-end 1개 포함) + 기존 `tests/metrics/registry.test.ts`에
+    2개 counter(figmaImportCount/figmaExportCount) 케이스 1개 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 4개 포함 정상 생성) ·
+  `npm test`(56 files / 417 tests 전부 통과, 신규 28개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe →
+  Prototype → Claude Design → Review 생성 파이프라인 전체를 실행 → **Export를 in_review 상태에서
+  먼저 시도해 409 확인**("아직 승인되지 않았습니다") → Import는 같은 in_review 상태에서도 정상
+  수행됨을 확인(200, `simulated:true`, `FIGMA_API_TOKEN` 미설정 환경이라 결정론적 폴백) → Review
+  Approve → Export 재시도 → 200 확인(Wireframe의 4개 화면 → Figma Pages 4개·Frames 12개
+  (desktop/tablet/mobile), Components 5종(Header/Hero/Card/Form/Footer), Design Tokens
+  9종(Primary/Secondary/Success/Warning/Danger/Info/Neutral/Spacing Unit/Radius Medium),
+  Assets 2종 — 전부 실제 Wireframe/디자인 시스템 팔레트 기준으로 정확히 파생됨을 확인) →
+  `GET /api/design/figma/:id`·`GET /api/design/figma`(목록)·404 케이스 확인 →
+  `/api/audit?action=design.figma.{import,export}`(정상 기록)·`/api/metrics`
+  (`figmaImportCount:2`/`figmaExportCount:1` 정상 집계) 확인 → Playwright 실 브라우저로
+  `/developer/design/figma`에서 요구사항 순서대로 Project~History 전 섹션 정상 렌더링(콘솔 에러
+  0건), History 목록에 Import v1/v2·Export v3 순서로 표시 확인 → `/developer/design/review`의
+  "Figma →" 상호 링크 확인(Review 상태 "Approved" 정상 반영) → `/developer/metrics`·
+  `/developer/audit-log` 화면에 새 카운터/필터 정상 표시 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~6과 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — Export
+  route의 Approval Rule(409) 체크는 라우트 안의 단순 동등 비교라 별도 lib 함수로 추출하지
+  않았고, 통합 테스트에서는 동일한 조건을 재현해 검증했으며 실제 라우트의 409 응답은 위 curl
+  E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부
+  종료·삭제
+- `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(9번 섹션 추가, 상단 Status를 "Phase 1-7
+  Implemented"로 갱신)
+
+---
+
+## 2026-07-15 (5)
+
+### 추가 (Added)
+
+- **Design Automation Phase 6 — Customer Review & Approval**: Phase 5(Claude Design의
+  Design/UI/Component/Theme/Layout Prompt) 산출물을 대상으로 고객 검토 사이클(댓글·승인·
+  반려·수정요청)을 지원하는 "Review Engine" + "Approval Engine". Phase 1~5와 달리 AI
+  Provider 호출이 전혀 없는 순수 상태 기계 — Draft/In Review/Revision Requested/Approved/
+  Rejected/Archived 6개 상태, Approve/Reject/Request Revision/Cancel Approval 4개 검증된
+  전이 액션. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/review.ts`(신규, 순수 타입 + 상태 전이 규칙표 `APPROVAL_TRANSITIONS`) ·
+    `lib/design/review-registry.ts`(신규, fs-JSON registry — `lib/data/design-reviews.json`,
+    생성/조회/댓글/상태전이/보관) · `lib/design/approval.ts`(신규, 4개 액션의 유효성
+    검증 후 review-registry의 상태 전이를 위임 — 별도 저장소 없음, "Do not create another
+    storage" 요구사항 그대로 준수)
+  - `POST /api/design/review`·`GET /api/design/review/:id`·`POST /api/design/approval`·
+    `GET /api/design/approval/:id`(신규, 요구사항 명시 엔드포인트) — 응답에 요구사항 예시의
+    `{reviewId, projectId, status, comments, history, version}`를 그대로 포함하고, 전체
+    레코드는 `review` 필드로 확장. `GET /api/design/review`(목록)·
+    `POST /api/design/review/:id/comment`(댓글 작성, 신규 추가)도 함께 제공.
+    `GET /api/design/approval/:id`는 승인 전용 저장소가 없어 리뷰 레코드를 그대로 반환
+  - `/developer/design/review`(신규) — Claude Design 선택 → Start Review → 요구사항이
+    명시한 순서(Project → Requirement → Storyboard → Wireframe → Prototype → Claude
+    Design → Review → Comments → Approval Status → History) 그대로 표시, Comment/Approve/
+    Reject/Request Revision 버튼 + Export JSON/Markdown. `/developer/design/claude`와
+    상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - **Auto Save**: 별도 저장 버튼 없이 댓글·상태 전이가 일어날 때마다 즉시 fs에 재저장
+    (Phase 1~5의 fs-JSON registry와 동일한 즉시 쓰기 패턴)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.review.create"`·`"design.review.comment"`·
+    `"design.review.approve"`·`"design.review.reject"`·`"design.review.revision"` 5개 추가
+    (기존 13개 값 무변경), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `reviewCount`·`approvalCount`·
+    `revisionCount` 3개 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님).
+    `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도
+    표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 8번에 기록
+  - 테스트(신규 29개): `tests/design/review-registry.test.ts`(13개)·
+    `tests/design/approval.test.ts`(11개)·`tests/design/review-integration.test.ts`(4개,
+    review-registry+approval 실 fs 연동, ClaudeDesign 체인 위 전체 라이프사이클 포함)·
+    `tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 5개 포함 정상 생성) ·
+  `npm test`(53 files / 388 tests 전부 통과, 신규 29개 포함, 회귀 없음)
+- 실 E2E: curl로 Design Plan → Storyboard → Wireframe → Prototype → Claude Design → Review
+  생성 파이프라인 전체를 실행해 응답 shape(`reviewId`/`projectId`/`status`/`comments`/
+  `history`/`version`) 확인 → 댓글 작성 → Request Revision(`in_review`→`revision_requested`)
+  → 잘못된 전이(같은 상태에서 다시 revision) 시도 시 409와 명확한 오류 메시지 확인 →
+  `revision_requested`에서 Approve(→`approved`) 확인 → `GET /api/design/review/:id`·
+  `GET /api/design/approval/:id`(동일 레코드 반환)·둘 다 404 케이스 확인 →
+  `/api/metrics`(`reviewCount`/`approvalCount`/`revisionCount` 정상 집계)·
+  `/api/audit?action=design.review.{create,comment,approve,revision}`(전부 정상 기록) 확인
+  → Playwright 실 브라우저로 `/developer/design/review`에서 요구사항 순서대로 Project~
+  History 전 섹션 정상 렌더링(콘솔 에러 0건), 현재 상태(Approved)에서 Approve/Reject/
+  Request Revision 버튼이 올바르게 비활성화됨을 확인, 실제 한글 타이핑으로 댓글 작성 →
+  작성자가 로그인 사용자 이메일로 정확히 귀속됨을 확인(curl로 만든 이전 댓글에서 보였던
+  한글 mojibake는 Git Bash 쉘 인코딩 문제였음을 재확인 — Phase 1 세션에서 이미 확인된 것과
+  동일한 원인, 애플리케이션 버그 아님) → `/developer/design/claude`의 "Review →" 상호
+  링크 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~5와 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합
+  테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후
+  전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 6`(신규 섹션) · `## Tests`·상단
+  검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(8번 섹션 추가)
+
+---
+
+## 2026-07-15 (4)
+
+### 추가 (Added)
+
+- **Design Automation Phase 5 — Claude Design Integration**: Phase 4(Prototype의 Screens/
+  Interaction Map/Component Actions/Animation Previews/User Journeys) 위에서 실제 Claude
+  Design(또는 다른 디자인/이미지 생성 툴)에 그대로 넘길 수 있는 Design/UI/Component/Theme/
+  Layout Prompt 5종을 생성. Phase 1~4와 완전히 동일한 원칙 재사용 — `lib/ai/bridge.ts`의
+  기존 `chatViaCli()` Provider bridge를 그대로 재사용해 AI에게 JSON 생성을 요청하고, Provider
+  미설정이거나 응답 파싱에 실패하면 결정론적 기본값(`buildDefaultClaudeDesign()`, Prototype의
+  화면·인터랙션·컴포넌트 액션·애니메이션·User Journey를 문장으로 직접 엮어 5종 프롬프트를
+  구성)으로 전부-아니면-전무 폴백. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/claude-design.ts`(신규, 요구사항이 지정한 파일명 — 타입 + `lib/data/design-claude.json`
+    fs registry) · `lib/design/claude-design-generator.ts`(신규, 생성 로직)
+  - `POST /api/design/claude`·`GET /api/design/claude/:id`(신규, 요구사항 명시 엔드포인트) —
+    응답에 Design/UI/Component/Theme/Layout Prompt 5종을 최상위에 그대로 노출하고, 전체
+    레코드는 `claudeDesign` 필드로 확장(Phase 2~4의 `storyboard`/`wireframe`/`prototype`
+    필드와 동일한 확장 방식). `GET /api/design/claude`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/claude`(신규) — Prototype 선택 → Generate → Project/Prototype 요약 →
+    Design/UI/Component/Theme/Layout Prompt 5종 표시, Export JSON/Markdown.
+    `/developer/design/prototype`와 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.claude.generate"` 추가(기존 12개 값 무변경),
+    `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `claudeDesignGenerationCount` 필드 추가
+    (같은 `metrics.json` 파일, 새 저장소 아님) — 다른 Phase 카운터와 분리해 각각 구분 가능하게
+    함. `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도
+    표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 7번에 기록
+  - 테스트(신규 25개): `tests/design/claude-design-generator.test.ts`(14개)·
+    `tests/design/claude-design-registry.test.ts`(7개)·
+    `tests/design/claude-design-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI
+    서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) ·
+  `npm test`(50 files / 359 tests 전부 통과, 신규 25개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe →
+  Prototype → Claude Design 생성 파이프라인 전체를 실행해 API 응답 shape(`claudeDesignId`/
+  `projectId`/5종 프롬프트) 확인 → `GET /api/design/claude/:id`·`GET /api/design/claude`(목록)·
+  404 케이스 확인 → Playwright 실 브라우저로 `/developer/design/claude`에서 Project/Prototype
+  요약과 Design/UI/Component/Theme/Layout Prompt 5개 카드가 실제 생성된 콘텐츠로 정상
+  렌더링됨을 확인, History 목록에 항목 표시 확인, `/developer/design/prototype`의 "Claude
+  Design →" 상호 링크와 `/developer/design/claude`의 "← Prototype" 링크 확인 →
+  `/api/audit?action=design.claude.generate`(정상 기록)·`/api/metrics`
+  (`claudeDesignGenerationCount`가 다른 Phase 카운터와 독립 집계) 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~4와 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합
+  테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후
+  전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 5`(신규 섹션) · `## Tests`·상단
+  검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(7번 섹션 추가)
+
+---
+
+## 2026-07-15 (3)
+
+### 추가 (Added)
+
+- **Design Automation Phase 4 — Prototype Generator**: Phase 3(Wireframe의 화면별 Desktop Layout 컴포넌트 구성) 위에서 Click Flow·Navigation Flow·Screen Transition·Interaction Map·Component Actions·User Journey·Animation Preview·Prototype Preview를 생성. Phase 1~3과 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/prototype.ts`(신규, 요구사항이 지정한 파일명 — 타입 + `lib/data/design-prototypes.json` fs registry. 요구사항의 "Version" 지원: `PrototypeRecord.version`이 동일 `wireframeId` 재생성 시 자동으로 1씩 증가, 기존 레코드는 덮어쓰지 않고 그대로 보존) · `lib/design/prototype-generator.ts`(신규, 생성 로직 — 13종 고정 컴포넌트 팔레트별 결정론적 인터랙션·애니메이션 정의(`COMPONENT_BEHAVIOR`)를 화면 구성에 매핑, 대표 컴포넌트 우선순위로 단일 Click Flow 생성)
+  - `POST /api/design/prototype`·`GET /api/design/prototype/:id`(신규, 요구사항 명시 엔드포인트) — 응답에 요구사항의 `{prototypeId, projectId, screens, interactions, transitions, journey, preview}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세(clickFlows/navigationFlow/componentActions/animationPreviews)는 `prototype` 필드로 확장. `GET /api/design/prototype`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/prototype`(신규) — Wireframe 선택 → Generate → 요구사항이 명시한 순서(Project → Storyboard → Wireframe → Prototype Preview → Interaction Flow → Screen Transition → Journey → Export) 그대로 표시, Export JSON/Markdown. `/developer/design/wireframe`와 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.prototype.generate"` 추가(기존 11개 값 무변경, detail에 버전 번호 포함), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `prototypeGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — 다른 Phase 카운터와 분리해 각각 구분 가능하게 함. `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 6번에 기록
+  - 테스트(신규 32개): `tests/design/prototype-generator.test.ts`(19개)·`tests/design/prototype-registry.test.ts`(8개, version 자동 증가 포함)·`tests/design/prototype-integration.test.ts`(5개, 실 fs 연동 4개(버전 증가 시나리오 포함) + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(47 files / 333 tests 전부 통과, 신규 32개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe → Prototype 생성 파이프라인 전체를 실행해 API 응답 shape(`prototypeId`/`projectId`/`screens`/`interactions`/`transitions`/`journey`/`preview`) 확인, 동일 wireframeId로 재생성해 `version` 1→2 자동 증가 확인 → Playwright 실 브라우저로 `/developer/design/prototype`에서 "Generate Prototype" 클릭을 반복해 v3까지 생성 → History에 v1/v2/v3 모두 표시 → Project/Storyboard/Wireframe/Prototype Preview/Interaction Flow/Screen Transition/Journey가 요구사항 순서대로 정상 렌더링(콘솔 에러 0건) → Export JSON/Export Markdown 버튼이 실제 파일 다운로드를 트리거함을 확인 → `/developer/design/wireframe`의 "Prototype →" 상호 링크 확인 → `/api/audit?action=design.prototype.generate`(버전 번호 포함 정상 기록)·`/api/metrics`(`prototypeGenerationCount`가 다른 카운터와 독립 집계)·`/developer/metrics`·`/developer/audit-log` 화면에 새 카운터/필터 정상 표시·`GET /api/design/prototype/:id`·404 케이스 전부 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~3과 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 4`(신규 섹션) · `## Tests`·상단 검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(6번 섹션 추가)
+
+---
+
+## 2026-07-15 (2)
+
+### 추가 (Added)
+
+- **Design Automation Phase 3 — Wireframe Generator**: Phase 2(Storyboard의 Screen Description `keyElements`) 위에서 Desktop/Tablet/Mobile Layout·Component Layout·Responsive Layout·Screen Sections을 생성. Phase 1·2와 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/wireframe.ts`(신규, 요구사항이 지정한 파일명 — 13종 고정 컴포넌트 팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/Button/Search/Pagination) 타입 + `lib/data/design-wireframes.json` fs registry) · `lib/design/wireframe-generator.ts`(신규, 생성 로직 — `keyElements`를 13종 컴포넌트로 정규화해 Header/Navigation/Hero/Main Content/Footer 섹션으로 그룹화, breakpoint당 columns 12/8/4 차등 부여)
+  - `POST /api/design/wireframe`·`GET /api/design/wireframe/:id`(신규, 요구사항 명시 엔드포인트) — 응답에 요구사항의 `{wireframeId, projectId, layouts, components, responsive}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세는 `wireframe` 필드로 확장. `GET /api/design/wireframe`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/wireframe`(신규) — Storyboard 선택 → Generate → Project/Responsive Layout/Component Layout/화면별 Desktop·Tablet·Mobile Layout 표시, Export JSON/Markdown. `/developer/design/storyboard`와 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.wireframe.generate"` 추가(기존 10개 값 무변경), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `wireframeGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — `aiTaskCount`·`storyboardGenerationCount`와 분리해 각각 구분 가능하게 함. `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 5번에 기록
+  - 테스트(신규 25개): `tests/design/wireframe-generator.test.ts`(15개)·`tests/design/wireframe-registry.test.ts`(6개)·`tests/design/wireframe-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(44 files / 300 tests 전부 통과, 신규 25개 포함, 회귀 없음 — `tests/providers/status.test.ts`의 1건 타임아웃은 병렬 실행 시 네트워크 자원 경합으로 인한 기존 무관 플레이크로 확인, 단독 재실행 시 7/7 통과)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe 생성 파이프라인 전체를 실행해 API 응답 shape(`wireframeId`/`projectId`/`layouts`/`components`/`responsive`) 확인 → Playwright 실 브라우저로 `/developer/design/wireframe`에서 "Generate Wireframe" 클릭 → History 갱신 → Project/Responsive Layout/Component Layout/화면별 3-breakpoint(Desktop·Tablet·Mobile) Layout 정상 렌더링 확인(콘솔 에러 0건) → Export JSON/Export Markdown 버튼이 실제 파일 다운로드를 트리거함을 확인 → `/developer/design/storyboard`의 "Wireframe →" 상호 링크 확인 → `/api/audit?action=design.wireframe.generate`(정상 기록)·`/api/metrics`(`wireframeGenerationCount`가 `storyboardGenerationCount`·`aiTaskCount`와 독립 집계)·`/developer/metrics`·`/developer/audit-log` 화면에 새 카운터/필터 정상 표시·`GET /api/design/wireframe/:id`·404 케이스 전부 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1·2와 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 3`(신규 섹션) · `## Tests`·상단 검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(5번 섹션 추가)
+
+---
+
+## 2026-07-15
+
+### 추가 (Added)
+
+- **Design Automation Phase 2 — Storyboard Generator**: Phase 1(Requirement Analysis/Feature List/Site Map/User Flow/Screen List) 위에서 Screen Flow/User Journey/Navigation Flow/Page Sequence/Screen Description을 생성. Phase 1과 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/storyboard.ts`(신규, 요구사항이 지정한 파일명 — 타입 + `lib/data/design-storyboards.json` fs registry) · `lib/design/storyboard-generator.ts`(신규, 생성 로직)
+  - `POST /api/design/storyboard`·`GET /api/design/storyboard/:id`(신규, 스펙 명시 엔드포인트) — 응답에 스펙의 `{storyboardId, projectId, screens, flow}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세는 `storyboard` 필드로 확장. `GET /api/design/storyboard`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/storyboard`(신규) — Plan 선택 → Generate → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey 표시, Export JSON/Markdown. `/developer/design`과 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.storyboard.generate"` 추가(기존 9개 값 무변경)
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `storyboardGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — `aiTaskCount`와 분리해 "AI 호출 횟수"와 "Storyboard 생성 횟수"를 구분 가능하게 함
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 4번에 기록
+  - 테스트(신규 25개): `tests/design/storyboard-generator.test.ts`(14개)·`tests/design/storyboard-registry.test.ts`(6개)·`tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(41 files / 274 tests 전부 통과, 신규 25개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → Phase 1 Design Plan 생성 → 그 Plan으로 Storyboard 생성 → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey 전부 정상 렌더링(실 브라우저 한글 타이핑, mojibake 없음) 확인 → Export JSON/Markdown 실제 파일 다운로드 확인(Markdown 형식 정상) → `/api/audit?action=design.storyboard.generate`·`/api/metrics`(`storyboardGenerationCount:1`이 `aiTaskCount:1`과 독립 집계)·`GET /api/design/storyboard/:id`·404 케이스 전부 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1과 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 2`(신규 섹션) · `## Tests` 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(4번 섹션 추가)
+
+---
+
+## 2026-07-14 (11)
+
+### 추가 (Added)
+
+- **Design Automation Phase 1**: `docs/03_DESIGN/{DESIGN_AUTOMATION_MASTER,CLAUDE_DESIGN_INTEGRATION,FIGMA_INTEGRATION,DESIGN_SYNC,DESIGN_WORKFLOW}.md` 스펙 중 Phase 1(Requirement Analysis/Feature List/Site Map/User Flow/Screen List)만 구현. Storyboard/Wireframe/Prototype/Claude Design 연동/Figma/Design Sync/고객 승인 Workflow는 의도적으로 Phase 2 이후로 남김. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/{types,generator,registry}.ts`(신규) — 입력(Project Name/Type/Requirements/Target Users)을 받아 기존 `lib/ai/bridge.ts`의 `chatViaCli()`(Website Builder Content Engine·AI Studio와 동일한 CLI 브릿지, 신규 의존성 없음)로 AI에게 JSON 생성을 요청하고, 파싱 실패/Provider 미설정 시 결정론적 기본값(`buildDefaultDesignPlan()`)으로 전부-아니면-전무 폴백. `lib/data/design-plans.json`에 기존 registry 패턴과 동일하게 저장
+  - `POST/GET /api/design/requirements`(신규) — 스펙 문서(`CLAUDE_DESIGN_INTEGRATION.md` 14번)에 명시된 엔드포인트. 5종 산출물을 한 번에 생성/조회(스펙의 Dashboard Integration도 5종을 "Requirements" 메뉴 하나로 묶어 보여주므로 API를 쪼개지 않음)
+  - `/developer/design`(신규) — 입력 폼 + 생성 이력 + 5종 산출물 상세 뷰. `DeveloperNav`에 "Design" 링크 추가(Workflow Center와 Website Builder 사이), Dashboard Home에 `DesignPlansWidget`(신규) 추가
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.generate"` 추가(기존 8개 값 무변경) + 기존 `aiTaskCount` 카운터 재사용(Operations & Observability v1.1 인프라 재사용, 새 저장소 없음)
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(신규 작성, 원래 빈 파일이었음)에 기록
+  - 테스트(신규 21개): `tests/design/generator.test.ts`(12개)·`tests/design/registry.test.ts`(5개)·`tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 1개 포함 정상 생성) · `npm test`(38 files / 249 tests 전부 통과, 신규 21개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → Playwright로 실제 한글을 타이핑해 Design Plan 생성 → 5종 산출물 전부 정상 렌더링 확인 → `/api/audit?action=design.generate`·`/api/metrics`의 `aiTaskCount` 갱신 확인. curl로 먼저 시도했을 때 한글이 깨져 보인 것은 Git Bash on Windows의 쉘 인코딩 문제였음을 Playwright 실 브라우저 입력으로 재확인(애플리케이션 버그 아님)
+- 실제 라우트 핸들러(`app/api/design/requirements/route.ts`)를 vitest에서 직접 호출하는 통합 테스트를 시도했으나, `getCurrentActorEmail()`이 쓰는 `next/headers`의 `cookies()`가 실제 Next.js 요청 컨텍스트 밖에서는 예외를 던짐을 확인(이 저장소의 다른 라우트도 이 방식으로 테스트되지 않는 이유와 동일) — 통합 테스트는 라우트 바로 아래 계층(generator+registry)까지만 다루고, 라우트 자체는 기존 관례대로 수동 curl/Playwright E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 1`(신규 섹션) · `## Documentation`·`## Tests` 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(신규, 원래 빈 파일)
+
+---
+
+## 2026-07-14 (10)
+
+### 추가 (Added)
+
+- **Operations & Observability v1.1**: v1.0 릴리스·Production Validation 완료 이후 핵심 기능은 변경하지 않고 운영 가시성만 보강. 기존 API·타입은 하나도 수정하지 않고 전부 새 파일 추가 또는 기존 모듈에 새 export를 얹는 방식(additive)으로만 구현
+  - **Audit Log**(`lib/audit/log.ts`, 신규) — Login/Logout/Marketplace publish·install·remove/Website 생성/AI Task 실행(+ Build 실행)을 `lib/data/audit-log.json`에 영구 기록(500건 상한, 오래된 항목부터 트리밍) — 기존 `eventBus.ts`(인메모리 200건, 재시작 시 소실)와 달리 디스크에 남는다. `lib/audit/actor.ts`(신규)가 `app/api/auth/me/route.ts`와 동일한 패턴(`next/headers`의 `cookies()` + 기존 `getCurrentUser()`)으로 actor를 구함. `/developer/audit-log`(신규) + `GET /api/audit`
+  - **Metrics**(`lib/metrics/registry.ts`, 신규) — Build/Website 생성/AI Task/Marketplace 설치 4개 영구 카운터(`lib/data/metrics.json`) + 기존 `lib/ai/bridge.ts`의 `listUsageViaCli()`를 그대로 재사용한 Provider usage. `/developer/metrics`(신규) + `GET /api/metrics` + Dashboard Home의 `MetricsWidget`(9번째 위젯)
+  - **Health Dashboard 확장**(`lib/health/checks.ts`) — 신규 export `getSystemInfo()`로 CPU(코어·모델·부하율)·Memory·Node version·Server Uptime·Active Sessions 추가. CPU 부하율은 Windows에서 `os.loadavg()`가 항상 `[0,0,0]`을 반환하는 제약 때문에 `os.cpus()` tick을 100ms 간격으로 직접 샘플링(신규 의존성 없음). Active Sessions는 `lib/auth/session.ts`에 신규 export `countActiveSessions()` 추가. 기존 Git/Disk/Build/Tests/Coverage는 무변경
+  - **Backup**(`lib/backup/registry.ts`, 신규) — Provider 설정(`.runtime/config/providers.json`, 비밀값이 아닌 `${ENV_VAR}` 참조만 담아 안전)·Prompt(`lib/data/prompts.json`)·Workflow(`lib/data/workflows.json`)를 하나의 JSON으로 export/import. 부분 번들 복원 지원(있는 섹션만 복원). `/developer/backup`(신규) + `GET /api/backup/export`·`POST /api/backup/import`
+  - **Error Report**(`/developer/errors`, 신규) — 새 저장소 없이 Audit Log에서 `success:false`만 필터링(`GET /api/errors`)
+  - `DeveloperNav`에 Audit Log·Metrics·Backup·Error Report 4개 링크 추가
+  - 테스트(신규 20개): `tests/audit/log.test.ts`(7개)·`tests/metrics/registry.test.ts`(5개)·`tests/backup/registry.test.ts`(5개)·`tests/health/checks.test.ts`(1개 추가)·`tests/auth/session.test.ts`(2개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(90개 라우트 정상 생성) · `npm test`(35 files / 228 tests 전부 통과, 신규 20개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → `/api/audit`에 로그인 이벤트 실제 기록 확인 → `/api/metrics`가 카운터+실제 Provider usage를 반환함을 확인 → `/api/backup/export`가 configuration/prompts/workflows를 정상 반환함을 확인 → 존재하지 않는 패키지로 marketplace install 실패를 유발해 `/api/errors`에 그 실패가 나타나고 `marketplaceInstallCount`가 실패에도 불구하고 증가함을 확인 → `/api/health`의 `system` 필드(CPU 8코어·실제 모델명·Memory·Node v24.18.0·Uptime·Active Sessions)가 실제 머신 값을 반환함을 확인. Playwright로 Audit Log·Metrics·Backup·Error Report·Health(확장분) 5개 페이지 전부 렌더링·실데이터 표시·Export 파일 다운로드까지 확인
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, `.runtime/`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Operations & Observability v1.1`(신규 섹션) · `## Dashboard`·`## Tests` 갱신
+
+---
+
+## 2026-07-14 (9)
+
+### 추가 (Added)
+
+- **Production Validation — AI Business OS v1.0 RC + AI Provider Integration v1.1을 실 서비스 관점에서 검증**: 새 기능은 추가하지 않고, 4개 트랙(Provider·Marketplace·Website Builder·Dashboard)을 실제 CLI 실행·실제 브라우저 로그인 세션·실제 파일시스템 검증으로 확인. 전체 근거는 `docs/PRODUCTION_VALIDATION.md`(신규)
+  - **Provider Validation**: 이 환경에 실 API 키(OpenAI/Anthropic/Gemini/OpenRouter)와 로컬 Ollama가 없어(직접 확인), 사용자 확인을 거쳐 재시도·타임아웃은 mock으로 실 검증하고 Health Check/Chat/Streaming의 실제 vendor 응답은 미검증 상태로 명시적으로 남김. `tests/ai-platform-cli/provider-retry.test.ts`에 `TIMEOUT` 코드 경로(`AbortController` 실제 만료 → 재시도 가능) 전용 테스트 2개 신규 추가
+  - **Marketplace Validation**: `agents/changelog-writer`(신규) — 이 저장소의 `docs/01_PMO/CHANGELOG.md` 작성 규칙(추가/변경/수정/검증 섹션, 날짜 헤딩, "왜" 중심 서술)을 따르는 CHANGELOG 초안 작성 Agent를 placeholder 없이 실 콘텐츠로 작성해 마켓플레이스에 실제로 게시(`marketplace/agents/changelog-writer/`, `marketplace/index.json`). publish/search/install/update/remove 전체 라이프사이클을 스크래치 디렉터리에서 실제 실행해 검증(재설치 시 `DUPLICATE_PACKAGE`, 미설치 제거 시 `NOT_FOUND` 등 의도된 실패 경로 포함)
+  - **Website Builder Validation**: `ai website create`로 SaaS(→`landing` 매핑)/Restaurant/Dental Clinic/Portfolio/E-commerce 5개 사이트를 스크래치 디렉터리에 생성 후 각각 `npm install`/`npm run build`/`npm run lint` 전부 통과 확인(18개 라우트, 경고 0건). 파이프라인 자체의 버그는 발견되지 않음
+  - **Dashboard Validation**: 검증 전용 임시 계정으로 실제 로그인 세션을 만들어 Login/Provider Status/Marketplace/Website Builder/AI Workspace 5개 화면을 Playwright로 확인, 전부 실 데이터 기준 정상 동작(Marketplace 화면에 방금 게시한 `changelog-writer`가 실제로 표시됨)
+
+### 수정 (Fixed)
+
+- **`marketplace/manifest.json`의 카테고리별 `count`가 `ai marketplace publish` 실행 후에도 자동 갱신되지 않던 문제**: `publishPackages()`는 `marketplace/index.json`만 갱신하고 카탈로그 설명용 정적 메타데이터인 `marketplace/manifest.json`은 건드리지 않는 것이 기존 설계임을 확인. 실제 게시 후 `count`가 실제와 어긋나 있어(agents: 0 → 실제 1) 정적 값만 수동으로 교정(자동 동기화 로직 추가는 새 기능이라 이번 범위에서 제외)
+- **`tests/marketplace/registry.test.ts`가 저장소의 실제 `marketplace/manifest.json`이 "항상 count 0"이라고 하드코딩되어 있던 문제**: 실제로 패키지를 게시하자마자 깨지는 테스트였음을 이번 검증에서 발견 — 특정 개수를 단언하는 대신 "실제 파일을 읽어 coherent한 구조를 만드는지"만 검증하도록 견고하게 수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(64개 라우트 정상 생성) · `npm test`(32 files / 208 tests 전부 통과, 신규 Timeout 테스트 2개 포함, 회귀 없음)
+- Website Builder 검증 중 재현된 기존 문서화된 부수 효과(Planning Agent 스캐폴딩이 `--out`과 무관하게 `process.cwd()` 기준 실 저장소에 생성됨, `docs/01_PMO/CHANGELOG.md` 2026-07-14 (3)/(4) 참고)를 검증 후 수동으로 정리(코드 수정 없음), dev 서버·임시 로그인 계정(`lib/data/*`, 전부 `.gitignore` 대상)도 검증 후 전부 종료·삭제
+- `docs/PRODUCTION_VALIDATION.md`(신규) · `docs/REPOSITORY_INDEX.md`(`## Production Validation` 신규 섹션, `## AI Provider Integration v1.1`·`## Marketplace`·`## Remaining TODO`·`## Recommended Next Tasks` 갱신) 작성/갱신
+
+---
+
+## 2026-07-14 (8)
+
+### 추가 (Added)
+
+- **AI Provider Integration v1.1**: AI Platform v1(2026-07-14 (7))의 provider 호출 계층을 보강 — 새 provider·새 실행 경로를 추가하지 않고 기존 5-vendor 구조(Anthropic/OpenAI/Gemini/Ollama/OpenRouter) 위에 재시도·스트리밍·Dashboard 라이브 헬스체크 3가지를 추가
+  - **재시도**: `packages/cli/src/providers/provider.ts`의 `providerFetchJson()`/`providerFetchSseStream()`이 공유하는 `withRetry()`(지수 백오프, 기본 3회 시도) — `TIMEOUT`·네트워크 레벨 실패·429·5xx만 재시도하고 401/403/400 등 4xx는 즉시 던진다(`isRetryableError()`)
+  - **스트리밍**: `AIProvider.chatStream?()`(신규, `ChatStreamChunk` 타입) — Anthropic/OpenAI에 SSE 파싱 기반으로 구현. `providerFetchSseStream()`(신규, `provider.ts`)이 `text/event-stream` 응답을 `{event?, data}` 이벤트로 파싱. `ProviderManager.streamComplete()`(신규, `manager.ts`)가 `complete()`와 동일한 resolve→attempt→simulate 폴백 의미론을 스트리밍으로 재구현(chatStream 미지원 provider는 `chat()`으로 자동 폴백). `ai chat --stream`(신규 플래그) 추가
+  - **Dashboard Provider Status 라이브 체크**: `lib/providers/status.ts`의 OpenAI/Gemini 판정을 "env var 존재 여부"에서 "실제 모델 목록 엔드포인트 호출"로 교체(`checkLiveApiProvider()`, 신규) — 키 없음(Not Configured, 호출 없음) / 키 있음+호출 성공(Configured, 실제 모델명) / 키 있음+호출 실패(Unreachable)를 정확히 구분
+  - 테스트(신규 17개): `tests/ai-platform-cli/provider-retry.test.ts`(9개, 재시도/비재시도 조건·SSE 청크 경계 분할 파싱), `tests/ai-platform-cli/streaming.test.ts`(8개, Anthropic/OpenAI `chatStream()`·`ProviderManager.streamComplete()`의 폴백/전파/사용량 기록)
+
+### 수정 (Fixed)
+
+- `tests/providers/status.test.ts`의 "OpenAI/Gemini 키 미설정 시 fetch가 전혀 호출되지 않는다"는 기존 assertion이 실제로는 항상 실패하는 버그를 발견·수정 — `getProviderStatuses()`가 Ollama 체크도 병렬로 항상 `fetch`하므로 공유 mock에 호출이 기록됨. "OpenAI/Gemini URL로는 호출되지 않는다"로 단언 범위를 좁혀 수정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(루트, 64개 라우트 정상 생성) · `npm test`(32 files / 206 tests 전부 통과, 신규 17개 포함, 회귀 없음)
+- `docs/REPOSITORY_INDEX.md` — `## AI Provider Integration v1.1`(신규 섹션) · `## Dashboard`(AI Workspace 라이브 체크 반영) · `## Tests`(카운트 갱신) · `## Remaining TODO` · `## Recommended Next Tasks` 갱신
+
+---
+
 ## 2026-07-14 (7)
 
 ### 추가 (Added)

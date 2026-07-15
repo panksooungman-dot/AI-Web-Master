@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { componentMarker } from "@/lib/dev/component-marker";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { roleCanAccessArea } from "@/lib/auth/rbac";
 
 const NAV_LINKS = [
   { href: "/developer", label: "Dashboard" },
@@ -13,16 +15,29 @@ const NAV_LINKS = [
   { href: "/developer/ai", label: "AI Workspace" },
   { href: "/developer/prompts", label: "Prompt Library" },
   { href: "/developer/workflows", label: "Workflow Center" },
+  { href: "/developer/design", label: "Design" },
   { href: "/developer/websites", label: "Website Builder" },
   { href: "/developer/marketplace", label: "Marketplace" },
   { href: "/developer/logs", label: "Logs" },
   { href: "/developer/health", label: "Health" },
+  { href: "/developer/audit-log", label: "Audit Log" },
+  { href: "/developer/metrics", label: "Metrics" },
+  { href: "/developer/backup", label: "Backup" },
+  { href: "/developer/errors", label: "Error Report" },
   { href: "/developer/settings", label: "Settings" },
   { href: "/developer/ui-map", label: "UI Explorer" },
 ];
 
 export function DeveloperNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Release Hardening (v1.0) — RBAC: the server (proxy.ts) already blocks /developer/** for
+  // roles without access; this is defense-in-depth so the nav itself never renders for them
+  // during a client-side transition (e.g. a role change mid-session).
+  if (user && !roleCanAccessArea(user.role, "developer")) {
+    return null;
+  }
 
   return (
     <nav

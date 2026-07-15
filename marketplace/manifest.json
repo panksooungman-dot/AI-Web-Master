@@ -20,7 +20,7 @@
   "packages": {
     "agents": {
       "path": "agents",
-      "count": 0,
+      "count": 1,
       "description": "Reusable AI Agent packages."
     },
     "prompts": {
@@ -72,6 +72,6 @@
     "workflows",
     "mcp"
   ],
-  "lastUpdated": "2026-07-11",
+  "lastUpdated": "2026-07-14",
   "status": "active"
 }

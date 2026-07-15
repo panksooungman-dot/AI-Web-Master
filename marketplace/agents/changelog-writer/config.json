@@ -1,0 +1,7 @@
+{
+  "entryPrompt": "prompt.md",
+  "variables": {},
+  "memory": {
+    "enabled": true
+  }
+}

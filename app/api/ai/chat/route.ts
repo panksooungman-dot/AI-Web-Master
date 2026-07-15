@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { chatViaCli } from "@/lib/ai/bridge";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
+import { incrementMetric } from "@/lib/metrics/registry";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -32,6 +35,15 @@ export async function POST(request: Request) {
   const provider = str(body, "provider") || undefined;
 
   const result = await chatViaCli(message, { system, provider });
+
+  const actor = await getCurrentActorEmail();
+  recordAuditEvent({
+    action: "ai.task",
+    actor,
+    success: result.success,
+    detail: result.success ? `Chat: "${message.slice(0, 60)}"` : result.error ?? "Chat 실행 실패",
+  });
+  incrementMetric("aiTaskCount");
 
   if (!result.success) {
     return NextResponse.json(result, { status: 500 });

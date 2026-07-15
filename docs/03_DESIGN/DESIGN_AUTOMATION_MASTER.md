@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-8 Implemented
+> Status: Phase 1-9 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -39,7 +39,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | **Phase 6(이 저장소 구현 완료)** | 고객 검토/승인 Workflow(Review Engine + Approval Engine) | `DESIGN_WORKFLOW.md` Phase 8("고객 검토") |
 | **Phase 7(이 저장소 구현 완료)** | Figma Import/Export(Figma Engine + Approval Rule) | `DESIGN_WORKFLOW.md` Phase 9, `FIGMA_INTEGRATION.md` |
 | **Phase 8(이 저장소 구현 완료)** | Design Sync(Design↔Code 양방향, Change Detection/Compare/Patch/Conflict/Rollback) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
-| Phase 9+(미구현) | Website Builder 연동, Build/Test/Deploy | `DESIGN_WORKFLOW.md` Phase 11~14 (Website Builder v2·Dashboard·CI는 이미 별도로 구현되어 있음, `docs/REPOSITORY_INDEX.md` 참고 — 이 Phase가 하는 일은 "연결"뿐) |
+| **Phase 9(이 저장소 구현 완료)** | Website Builder Integration(승인된 Design Plan → 기존 Website Builder v2 `ai website create` 어댑터 연결) | `DESIGN_WORKFLOW.md` Phase 11~14 (Website Builder v2·Dashboard·CI는 이미 별도로 구현되어 있음, `docs/REPOSITORY_INDEX.md` 참고 — 이 Phase가 하는 일은 "연결"뿐) |
 
 ---
 
@@ -498,3 +498,78 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   (engine+registry 실 fs 연동 — 최초 sync·무변경 재sync·충돌 발생·충돌 후 Rollback으로 복원까지
   전체 라이프사이클) + 기존 `tests/metrics/registry.test.ts`에 3개 counter
   (designSyncCount/conflictCount/rollbackCount) 케이스 1개 추가.
+
+---
+
+# 11. Phase 9 구현 요약 — Website Builder Integration (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 6(Approved Review)이 가리키는 Phase 1 Design Plan(Requirement Analysis)의
+  입력값을 기존 Website Builder v2(`packages/cli/src/website/*`, `ai website create`, 이미
+  Dashboard의 `/developer/websites` 페이지가 child process로 재사용 중)로 그대로 넘겨 실제
+  Next.js 프로젝트를 생성하는 "Website Builder Integration Adapter". **요구사항이 명시한 대로
+  새 생성 엔진을 만들지 않았다** — `lib/design/website-build-adapter.ts`는 fs 의존성 없는 순수
+  매핑 함수 하나(`planToWebsiteBuildInputs()`)뿐이고, 실제 실행은 `app/api/websites/route.ts`가
+  이미 쓰고 있는 것과 동일한 `execute()` + `node packages/cli/dist/index.js website create ...`
+  child process 호출을 그대로 재사용한다. AI Provider 호출은 이 Phase에 없다(Website Builder
+  내부의 Content Engine이 필요 시 자체적으로 수행).
+- **어댑터 매핑**(`website-build-adapter.ts`): Design Plan의 `projectName`→Website Builder
+  `name`(및 `brand` 기본값), `targetUsers`→`audience`, `projectType`→`businessType` 그대로 +
+  `inferSiteType()`으로 `siteType` 추론. `inferSiteType()`은 새로운 분류 체계가 아니라 Website
+  Builder Dashboard(`app/api/websites/route.ts`)가 이미 검증에 쓰는 `lib/websites/types.ts`의
+  동일한 11종 목록과 대조하는 결정론적 문자열 매칭이다 — ① `projectType`이 정확히 id와 일치
+  ② 한글 라벨이 부분 문자열로 포함(예: "치과 웹사이트" → "치과" 포함 → `dental`) ③ 둘 다 아니면
+  CLI의 `resolveSiteType()`과 동일하게 `"website"`로 폴백. `language`는 Website Builder Dashboard
+  라우트의 기본값과 동일하게 `"Korean"` 고정(Design Plan에 언어 필드가 없음).
+- **Approval Rule**(Phase 7 Figma Export·Phase 8과 동일한 원칙) — `POST /api/design/website`는
+  대상 Review의 `status !== "approved"`이면 409를 반환한다. 실제 배포 가능한 코드를 생성하는
+  파이프라인의 마지막 단계이므로, 참고 자료 성격의 Figma Import보다는 Figma Export/Design Sync와
+  같은 게이트를 적용하는 것이 일관적이라고 판단했다(명세에 명시적 조항은 없으나 기존 Phase들의
+  전례를 따름).
+- **Registry**(요구사항 "Reuse existing Website Builder"를 문자 그대로 해석) — 실제 생성 결과는
+  새 저장소를 만들지 않고 **기존** `lib/websites/registry.ts`(`createWebsiteRecord()`, Website
+  Builder Dashboard가 이미 쓰던 바로 그 저장소)를 그대로 재사용한다. 신규 파일
+  `lib/design/website-build.ts`는 "이 생성이 어떤 Phase 6 Review로부터 트리거됐는지"만 추적하는
+  얇은 연결 레지스트리(`WebsiteBuildRecord` — Review 하나당 레코드 하나, Build를 실행할 때마다
+  `version`이 1씩 증가하고 `history`에 append, Phase 7 Figma·Phase 8 Design Sync와 동일한 패턴)로,
+  실제 웹사이트 데이터를 중복 저장하지 않고 `websiteId`로 `WebsiteRecord`를 참조만 한다.
+- **API**(`app/api/design/website/{route.ts,[id]/route.ts}`, 신규) — `POST /api/design/website`
+  (`{ reviewId, outDir? }` → Review 체인 검증 → Design Plan 조회 → 어댑터 변환 → CLI 실행 →
+  `WebsiteRecord` 생성 + `WebsiteBuildRecord` 기록) · `GET /api/design/website`(목록) ·
+  `GET /api/design/website/:id`(단건). 다른 Phase의 API 응답 관례(최상위에 Dashboard가 바로 쓰는
+  필드 + 전체 레코드를 `build` 필드로 확장)를 그대로 따른다.
+- **Dashboard**(`/developer/design/website`, 신규) — Approved Review 선택(+ 선택적 Output
+  Directory 입력) → Build 버튼 → Project/Website Builder Result(Status·Simulated·Site Type·Output
+  Directory·Error) → Version History → Export JSON/Markdown. `/developer/design/sync`와 상호
+  링크("Website Builder →" / "← Design Sync")로 연결 — `DeveloperNav`는 변경하지 않음(Phase
+  2~8과 동일한 관례).
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 `"design.website.build"` 1개
+  추가(기존 23개 값 무변경). 실제 웹사이트가 생성됐다는 사실 자체는 **기존** `"website.generate"`
+  액션을 그대로 재사용해 함께 기록한다(Dashboard의 Website Builder 페이지에서 트리거했든 Design
+  Automation 파이프라인에서 트리거했든 "웹사이트가 생성됐다"는 동일한 사건이므로, 별도 액션으로
+  대체하지 않고 추가한다) — `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵도
+  함께 갱신.
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에 `designWebsiteBuildCount`
+  1개 추가. **기존** `websiteGenerationCount`도 함께 증가시킨다(Audit Log와 동일한 이유 — 실제
+  생성 이벤트이므로). `designWebsiteBuildCount`는 Phase 2~8의 `storyboardGenerationCount` 등과
+  동일한 목적 — "전체 웹사이트 생성 수" 안에서 "Design Automation 파이프라인에서 트리거된 것"만
+  구분 집계한다. 같은 `lib/data/metrics.json` 파일에 필드만 추가(새 저장소 아님).
+  `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시
+  추가.
+- **알려진 제약**(Phase 1~8과 동일) — 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는 통합
+  테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트 밖에서 예외를
+  던져 불가능. 추가로, 이 Phase는 실제 `node packages/cli/dist/index.js website create` child
+  process를 실행하므로(빌드된 CLI 필요, 수 초 소요) vitest 유닛/통합 테스트 범위에도 포함하지
+  않았다 — 어댑터(순수 함수)와 레지스트리(실 fs)는 vitest로, 라우트 전체(CLI 실행 포함)는 실행
+  중인 dev 서버에 대한 수동 curl/Playwright E2E로 검증했다(Phase 1~8과 동일한 분리 원칙).
+- Evidence: `lib/design/{website-build-adapter,website-build}.ts`,
+  `app/api/design/website/{route.ts,[id]/route.ts}`, `app/developer/design/website/page.tsx`,
+  `lib/audit/log.ts`(1개 action 추가), `lib/metrics/registry.ts`(1개 counter 추가),
+  `app/developer/design/sync/page.tsx`("Website Builder →" 링크 추가)
+- 테스트: `tests/design/website-build-adapter.test.ts`(단위 — `inferSiteType()` 매칭 3가지 경로,
+  `planToWebsiteBuildInputs()` 필드 매핑) · `tests/design/website-build-registry.test.ts`
+  (레지스트리 — 생성/버전 자동증가/upsert/조회/히스토리, Phase 8 `design-sync-registry.test.ts`와
+  동일한 패턴) · `tests/design/website-build-integration.test.ts`(어댑터+레지스트리 실 fs 연동 —
+  Design Plan 체인에서 Website Builder 입력값을 만들고 성공/실패 두 시나리오를 기록·조회하는
+  전체 라이프사이클).

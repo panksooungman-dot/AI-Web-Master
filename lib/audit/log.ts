@@ -31,7 +31,8 @@ export type AuditAction =
   | "design.sync.start"
   | "design.sync.complete"
   | "design.sync.rollback"
-  | "design.sync.conflict";
+  | "design.sync.conflict"
+  | "design.website.build";
 
 export interface AuditEntry {
   id: string;

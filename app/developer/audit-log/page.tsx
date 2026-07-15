@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.sync.complete": "Sync 완료",
   "design.sync.rollback": "Sync 롤백",
   "design.sync.conflict": "Sync 충돌",
+  "design.website.build": "Website Builder 연동",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -63,6 +64,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.sync.complete": "success",
   "design.sync.rollback": "orange",
   "design.sync.conflict": "danger",
+  "design.website.build": "accent",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -91,6 +93,7 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.sync.complete",
   "design.sync.rollback",
   "design.sync.conflict",
+  "design.website.build",
 ];
 
 export default function AuditLogPage() {

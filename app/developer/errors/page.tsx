@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.sync.complete": "Sync 완료",
   "design.sync.rollback": "Sync 롤백",
   "design.sync.conflict": "Sync 충돌",
+  "design.website.build": "Website Builder 연동",
 };
 
 /**

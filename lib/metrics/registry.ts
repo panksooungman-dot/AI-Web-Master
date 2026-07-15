@@ -32,6 +32,9 @@ export interface MetricsCounters {
   designSyncCount: number;
   conflictCount: number;
   rollbackCount: number;
+  /** Design Automation Phase 9(Website Builder Integration) 신규 — 기존 16개 필드는 무변경.
+   *  websiteGenerationCount와 별개로, "Design Automation 파이프라인에서 트리거된 빌드"만 센다. */
+  designWebsiteBuildCount: number;
 }
 
 const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
@@ -52,6 +55,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   designSyncCount: 0,
   conflictCount: 0,
   rollbackCount: 0,
+  designWebsiteBuildCount: 0,
 };
 
 function registryPath(baseDir: string): string {

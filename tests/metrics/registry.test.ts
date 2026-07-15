@@ -33,6 +33,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       designSyncCount: 0,
       conflictCount: 0,
       rollbackCount: 0,
+      designWebsiteBuildCount: 0,
     });
   });
 
@@ -148,5 +149,16 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.rollbackCount).toBe(1);
     expect(counters.figmaImportCount).toBe(0);
     expect(counters.reviewCount).toBe(0);
+  });
+
+  it("incrementMetric() increments designWebsiteBuildCount (Design Automation Phase 9) independently of other counters", () => {
+    incrementMetric("designWebsiteBuildCount", undefined, baseDir);
+    incrementMetric("designWebsiteBuildCount", undefined, baseDir);
+    incrementMetric("websiteGenerationCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.designWebsiteBuildCount).toBe(2);
+    expect(counters.websiteGenerationCount).toBe(1);
+    expect(counters.designSyncCount).toBe(0);
   });
 });

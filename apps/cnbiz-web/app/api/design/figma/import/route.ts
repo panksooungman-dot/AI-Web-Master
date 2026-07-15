@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "figmaFileId는 필수입니다." }, { status: 400 });
   }
 
-  const review = getReview(reviewId);
+  const review = await getReview(reviewId);
   if (!review) {
     return NextResponse.json(
       { success: false, error: `Review "${reviewId}"을(를) 찾을 수 없습니다.` },
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
   const { content, fileName: resolvedFileName, simulated } = await importFigmaFile({ figmaFileId, fileName });
   const actor = await getCurrentActorEmail();
-  const record = recordFigmaImport({
+  const record = await recordFigmaImport({
     reviewId,
     planId: review.planId,
     figmaFileId,

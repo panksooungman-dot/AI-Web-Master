@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   const actor = await getCurrentActorEmail();
-  const result = applyApproval(reviewId, action, { actor, note });
+  const result = await applyApproval(reviewId, action, { actor, note });
 
   if (!result.success || !result.record) {
     const status = result.errorCode === "not_found" ? 404 : 409;

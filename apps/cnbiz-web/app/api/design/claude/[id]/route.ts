@@ -8,7 +8,7 @@ interface RouteParams {
 /** `GET /api/design/claude/:id`. */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const record = getClaudeDesign(id);
+  const record = await getClaudeDesign(id);
 
   if (!record) {
     return NextResponse.json({ success: false, error: `Claude Design "${id}"을(를) 찾을 수 없습니다.` }, { status: 404 });

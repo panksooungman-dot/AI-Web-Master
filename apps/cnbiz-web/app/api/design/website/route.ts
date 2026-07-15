@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "reviewId는 필수입니다." }, { status: 400 });
   }
 
-  const review = getReview(reviewId);
+  const review = await getReview(reviewId);
   if (!review) {
     return NextResponse.json({ success: false, error: `Review "${reviewId}"을(를) 찾을 수 없습니다.` }, { status: 404 });
   }
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const plan = getDesignPlan(review.planId);
+  const plan = await getDesignPlan(review.planId);
   if (!plan) {
     return NextResponse.json(
       { success: false, error: `Design Plan "${review.planId}"을(를) 찾을 수 없습니다.` },

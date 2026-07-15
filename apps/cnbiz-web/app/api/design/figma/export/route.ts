@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "reviewId는 필수입니다." }, { status: 400 });
   }
 
-  const review = getReview(reviewId);
+  const review = await getReview(reviewId);
   if (!review) {
     return NextResponse.json(
       { success: false, error: `Review "${reviewId}"을(를) 찾을 수 없습니다.` },
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const claudeDesign = getClaudeDesign(review.claudeDesignId);
+  const claudeDesign = await getClaudeDesign(review.claudeDesignId);
   if (!claudeDesign) {
     return NextResponse.json(
       { success: false, error: `Claude Design "${review.claudeDesignId}"을(를) 찾을 수 없습니다.` },
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const prototype = getPrototype(claudeDesign.prototypeId);
+  const prototype = await getPrototype(claudeDesign.prototypeId);
   if (!prototype) {
     return NextResponse.json(
       { success: false, error: `Prototype "${claudeDesign.prototypeId}"을(를) 찾을 수 없습니다.` },
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const wireframe = getWireframe(prototype.wireframeId);
+  const wireframe = await getWireframe(prototype.wireframeId);
   if (!wireframe) {
     return NextResponse.json(
       { success: false, error: `Wireframe "${prototype.wireframeId}"을(를) 찾을 수 없습니다.` },
@@ -91,12 +91,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = listFigmaRecordsForReview(reviewId)[0] ?? null;
+  const existing = (await listFigmaRecordsForReview(reviewId))[0] ?? null;
   const figmaFileId = explicitFigmaFileId || existing?.figmaFileId || `figma-export-${reviewId}`;
 
   const { content, simulated } = await exportFigmaFile({ figmaFileId, wireframe, prototype, claudeDesign });
   const actor = await getCurrentActorEmail();
-  const record = recordFigmaExport({
+  const record = await recordFigmaExport({
     reviewId,
     planId: review.planId,
     figmaFileId,

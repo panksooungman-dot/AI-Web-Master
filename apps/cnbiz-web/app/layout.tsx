@@ -3,6 +3,8 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { AuthProvider } from "@/lib/auth/AuthContext";
+import { WorkspaceStoreProvider } from "@/lib/store/workspace-store";
 
 export const metadata: Metadata = {
   title: {
@@ -25,7 +27,11 @@ export default function RootLayout({
     <html lang="ko" className="scroll-smooth antialiased">
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <Header />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1">
+          <AuthProvider>
+            <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
+          </AuthProvider>
+        </main>
         <Footer />
       </body>
       {isProduction && gaMeasurementId ? (

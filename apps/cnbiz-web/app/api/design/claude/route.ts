@@ -11,7 +11,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function GET() {
-  return NextResponse.json({ claudeDesigns: listClaudeDesigns() });
+  return NextResponse.json({ claudeDesigns: await listClaudeDesigns() });
 }
 
 /**
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "prototypeId는 필수입니다." }, { status: 400 });
   }
 
-  const prototype = getPrototype(prototypeId);
+  const prototype = await getPrototype(prototypeId);
   if (!prototype) {
     return NextResponse.json(
       { success: false, error: `Prototype "${prototypeId}"을(를) 찾을 수 없습니다.` },
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   const { content, simulated, provider, model } = await generateClaudeDesign(prototype);
-  const record = createClaudeDesign({
+  const record = await createClaudeDesign({
     prototypeId,
     planId: prototype.planId,
     content,

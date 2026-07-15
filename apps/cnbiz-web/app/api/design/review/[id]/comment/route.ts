@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const actor = await getCurrentActorEmail();
-  const record = addReviewComment(id, { author: actor, text });
+  const record = await addReviewComment(id, { author: actor, text });
 
   if (!record) {
     return NextResponse.json({ success: false, error: `Review "${id}"을(를) 찾을 수 없습니다.` }, { status: 404 });

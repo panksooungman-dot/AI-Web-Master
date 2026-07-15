@@ -11,7 +11,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function GET() {
-  return NextResponse.json({ wireframes: listWireframes() });
+  return NextResponse.json({ wireframes: await listWireframes() });
 }
 
 /**
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "storyboardId는 필수입니다." }, { status: 400 });
   }
 
-  const storyboard = getStoryboard(storyboardId);
+  const storyboard = await getStoryboard(storyboardId);
   if (!storyboard) {
     return NextResponse.json(
       { success: false, error: `Storyboard "${storyboardId}"을(를) 찾을 수 없습니다.` },
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   const { content, simulated, provider, model } = await generateWireframe(storyboard);
-  const record = createWireframe({ storyboardId, planId: storyboard.planId, content, simulated, provider, model });
+  const record = await createWireframe({ storyboardId, planId: storyboard.planId, content, simulated, provider, model });
 
   const actor = await getCurrentActorEmail();
   await recordAuditEvent({

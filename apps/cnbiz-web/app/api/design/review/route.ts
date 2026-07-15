@@ -24,7 +24,7 @@ function toResponse(record: ReviewRecord) {
 }
 
 export async function GET() {
-  return NextResponse.json({ reviews: listReviews() });
+  return NextResponse.json({ reviews: await listReviews() });
 }
 
 /**
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "claudeDesignId는 필수입니다." }, { status: 400 });
   }
 
-  const claudeDesign = getClaudeDesign(claudeDesignId);
+  const claudeDesign = await getClaudeDesign(claudeDesignId);
   if (!claudeDesign) {
     return NextResponse.json(
       { success: false, error: `Claude Design "${claudeDesignId}"을(를) 찾을 수 없습니다.` },
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   const actor = await getCurrentActorEmail();
-  const record = createReview({ claudeDesignId, planId: claudeDesign.planId, actor });
+  const record = await createReview({ claudeDesignId, planId: claudeDesign.planId, actor });
 
   await recordAuditEvent({
     action: "design.review.create",

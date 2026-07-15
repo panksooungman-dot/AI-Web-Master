@@ -15,7 +15,7 @@ function str(body: Record<string, unknown>, key: string): string {
 }
 
 export async function GET() {
-  return NextResponse.json({ plans: listDesignPlans() });
+  return NextResponse.json({ plans: await listDesignPlans() });
 }
 
 /**
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   const input: DesignPlanInput = { projectName, projectType, requirements, targetUsers, projectId };
 
   const { content, simulated, provider, model } = await generateDesignPlan(input);
-  const record = createDesignPlan({ input, content, simulated, provider, model });
+  const record = await createDesignPlan({ input, content, simulated, provider, model });
 
   const actor = await getCurrentActorEmail();
   await recordAuditEvent({

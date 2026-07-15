@@ -11,7 +11,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function GET() {
-  return NextResponse.json({ prototypes: listPrototypes() });
+  return NextResponse.json({ prototypes: await listPrototypes() });
 }
 
 /**
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "wireframeId는 필수입니다." }, { status: 400 });
   }
 
-  const wireframe = getWireframe(wireframeId);
+  const wireframe = await getWireframe(wireframeId);
   if (!wireframe) {
     return NextResponse.json(
       { success: false, error: `Wireframe "${wireframeId}"을(를) 찾을 수 없습니다.` },
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   const { content, simulated, provider, model } = await generatePrototype(wireframe);
-  const record = createPrototype({
+  const record = await createPrototype({
     wireframeId,
     planId: wireframe.planId,
     content,

@@ -8,7 +8,7 @@ interface RouteParams {
 /** docs/03_DESIGN 스펙의 `GET /api/design/prototype/:id`. */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const record = getPrototype(id);
+  const record = await getPrototype(id);
 
   if (!record) {
     return NextResponse.json({ success: false, error: `Prototype "${id}"을(를) 찾을 수 없습니다.` }, { status: 404 });

@@ -12,7 +12,7 @@ interface RouteParams {
  */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const record = getReview(id);
+  const record = await getReview(id);
 
   if (!record) {
     return NextResponse.json({ success: false, error: `Review "${id}"을(를) 찾을 수 없습니다.` }, { status: 404 });

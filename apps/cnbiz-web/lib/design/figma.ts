@@ -143,12 +143,12 @@ interface UpsertFigmaEntry {
  * 만들지 않고 하나의 FigmaRecord가 두 히스토리 배열을 모두 갖도록 해 요구사항의 "Reuse existing
  * design registry"/"Do not introduce another storage engine"을 그대로 따른다.
  */
-function upsertFigmaRecord(
+async function upsertFigmaRecord(
   entry: UpsertFigmaEntry,
   operation: FigmaOperation,
-  baseDir: string
-): FigmaRecord {
-  const records = readRegistry(baseDir);
+  store: CollectionStore = getDefaultStore()
+): Promise<FigmaRecord> {
+  const records = await store.list<FigmaRecord>(COLLECTION);
   const now = new Date().toISOString();
   const existingIndex = records.findIndex(
     (record) => record.reviewId === entry.reviewId && record.figmaFileId === entry.figmaFileId
@@ -181,7 +181,7 @@ function upsertFigmaRecord(
     };
 
     records.push(record);
-    writeRegistry(baseDir, records);
+    await store.replaceAll(COLLECTION, records);
     return record;
   }
 
@@ -207,14 +207,20 @@ function upsertFigmaRecord(
   };
 
   records[existingIndex] = updated;
-  writeRegistry(baseDir, records);
+  await store.replaceAll(COLLECTION, records);
   return updated;
 }
 
-export function recordFigmaImport(entry: UpsertFigmaEntry, baseDir: string = DEFAULT_BASE_DIR): FigmaRecord {
-  return upsertFigmaRecord(entry, "import", baseDir);
+export async function recordFigmaImport(
+  entry: UpsertFigmaEntry,
+  store: CollectionStore = getDefaultStore()
+): Promise<FigmaRecord> {
+  return upsertFigmaRecord(entry, "import", store);
 }
 
-export function recordFigmaExport(entry: UpsertFigmaEntry, baseDir: string = DEFAULT_BASE_DIR): FigmaRecord {
-  return upsertFigmaRecord(entry, "export", baseDir);
+export async function recordFigmaExport(
+  entry: UpsertFigmaEntry,
+  store: CollectionStore = getDefaultStore()
+): Promise<FigmaRecord> {
+  return upsertFigmaRecord(entry, "export", store);
 }

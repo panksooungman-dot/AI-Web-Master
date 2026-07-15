@@ -39,10 +39,38 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await login(email, password);
+  let result: Awaited<ReturnType<typeof login>>;
+
+  try {
+    result = await login(email, password);
+  } catch (error) {
+    // A storage-layer failure here (e.g. Supabase env vars missing in this environment,
+    // so getDefaultStore() fell back to the fs store, which can't write on a read-only
+    // production filesystem) must not crash the route with an opaque 500 — log the real
+    // cause server-side (visible in Vercel function logs) and return a diagnosable error.
+    console.error("[api/auth/login] login() threw", {
+      message: error instanceof Error ? error.message : String(error),
+      hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+      hasSupabaseServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    });
+    return NextResponse.json(
+      { success: false, error: "로그인 처리 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+
+  // Audit logging is a side effect of login, not the login itself — a failure writing to the
+  // audit-log collection must never turn an otherwise-successful (or otherwise-rejected) login
+  // response into an unhandled 500.
+  const logLoginAttempt = (actor: string, success: boolean, detail: string) =>
+    recordAuditEvent({ action: "auth.login", actor, success, detail }).catch((error) => {
+      console.error("[api/auth/login] recordAuditEvent failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
 
   if ("error" in result) {
-    await recordAuditEvent({ action: "auth.login", actor: email, success: false, detail: result.error });
+    await logLoginAttempt(email, false, result.error);
     return NextResponse.json({ success: false, error: result.error }, { status: 401 });
   }
 
@@ -53,7 +81,7 @@ export async function POST(request: Request) {
     sessionCookieOptions(result.session.expiresAt)
   );
 
-  await recordAuditEvent({ action: "auth.login", actor: result.user.email, success: true, detail: "로그인 성공" });
+  await logLoginAttempt(result.user.email, true, "로그인 성공");
 
   return NextResponse.json({ success: true, user: result.user });
 }

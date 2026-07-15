@@ -29,6 +29,9 @@ export function MetricsWidget() {
           revisionCount: 0,
           figmaImportCount: 0,
           figmaExportCount: 0,
+          designSyncCount: 0,
+          conflictCount: 0,
+          rollbackCount: 0,
         })
       );
   }, []);
@@ -98,6 +101,18 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Figma Exports</span>
             <span className="text-gray-200">{counters.figmaExportCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Design Syncs</span>
+            <span className="text-gray-200">{counters.designSyncCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Sync Conflicts</span>
+            <span className="text-gray-200">{counters.conflictCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Sync Rollbacks</span>
+            <span className="text-gray-200">{counters.rollbackCount}</span>
           </li>
         </ul>
       )}

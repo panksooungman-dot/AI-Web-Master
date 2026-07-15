@@ -30,6 +30,9 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       revisionCount: 0,
       figmaImportCount: 0,
       figmaExportCount: 0,
+      designSyncCount: 0,
+      conflictCount: 0,
+      rollbackCount: 0,
     });
   });
 
@@ -130,5 +133,20 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.figmaExportCount).toBe(1);
     expect(counters.reviewCount).toBe(0);
     expect(counters.claudeDesignGenerationCount).toBe(0);
+  });
+
+  it("incrementMetric() increments designSyncCount/conflictCount/rollbackCount (Design Automation Phase 8) independently of each other and other counters", () => {
+    incrementMetric("designSyncCount", undefined, baseDir);
+    incrementMetric("designSyncCount", undefined, baseDir);
+    incrementMetric("designSyncCount", undefined, baseDir);
+    incrementMetric("conflictCount", undefined, baseDir);
+    incrementMetric("rollbackCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.designSyncCount).toBe(3);
+    expect(counters.conflictCount).toBe(1);
+    expect(counters.rollbackCount).toBe(1);
+    expect(counters.figmaImportCount).toBe(0);
+    expect(counters.reviewCount).toBe(0);
   });
 });

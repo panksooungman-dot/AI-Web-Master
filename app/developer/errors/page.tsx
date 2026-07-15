@@ -32,6 +32,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.review.revision": "Review 수정요청",
   "design.figma.import": "Figma Import",
   "design.figma.export": "Figma Export",
+  "design.sync.start": "Sync 시작",
+  "design.sync.complete": "Sync 완료",
+  "design.sync.rollback": "Sync 롤백",
+  "design.sync.conflict": "Sync 충돌",
 };
 
 /**

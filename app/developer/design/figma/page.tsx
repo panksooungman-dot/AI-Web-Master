@@ -246,9 +246,14 @@ export default function FigmaPage() {
         title="Design — Figma"
         description="Design Automation Phase 7: Approved Review 위에서 Figma Import/Export를 지원합니다."
         actions={
-          <Link href="/developer/design/review" className="text-xs text-blue-400 hover:underline self-center">
-            ← Review
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/developer/design/review" className="text-xs text-blue-400 hover:underline">
+              ← Review
+            </Link>
+            <Link href="/developer/design/sync" className="text-xs text-blue-400 hover:underline">
+              Design Sync →
+            </Link>
+          </div>
         }
       />
 

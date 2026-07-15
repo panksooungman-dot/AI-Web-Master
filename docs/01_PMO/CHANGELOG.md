@@ -4,6 +4,84 @@
 
 ---
 
+## 2026-07-15 (7)
+
+### 추가 (Added)
+
+- **Design Automation Phase 8 — Design Sync**: Phase 3(Wireframe)~7(Figma) 체인과 "Code" 사이의
+  양방향 동기화를 지원하는 "Sync Engine". Change Detection·Version Compare·Patch Generation·
+  Conflict Detection·Rollback을 전부 지원. AI Provider 호출 없는 순수 변환(Phase 6/7과 동일한
+  원칙) — 이미 확정된 구조화 데이터로부터 결정론적으로 스냅샷을 만들고 서로 비교
+  - `lib/design/{design-sync,design-sync-engine}.ts`(신규) — `design-sync.ts`는 타입 + fs-JSON
+    registry(`lib/data/design-sync.json`, Review 하나당 SyncRecord 하나·`reviewId` 기준 upsert,
+    Sync마다 `version` 자동 증가). `design-sync-engine.ts`는 fs 의존성 없는 순수 함수만
+    담는다 — Wireframe 컴포넌트 인벤토리 + Design Token(Phase 7 Figma Export가 있으면 그 토큰,
+    없으면 동일한 CNBIZ 팔레트로 폴백, `lib/design/figma-generator.ts`의 `DESIGN_TOKEN_SEED`를
+    export로 전환해 재사용)으로부터 Design/Code 스냅샷을 결정론적으로 생성하고 비교
+  - **"Code"가 실제 코드베이스가 아님**: 이 저장소에는 Design 레코드로부터 실제 파일을 생성해
+    디스크에 쓰는 코드베이스가 없다(Website Builder v2는 완전히 별도 파이프라인) — "Code"는
+    Wireframe/Design Token으로부터 결정론적으로 만들어지는 컴포넌트 코드 스냅샷(문자열)이며,
+    "Code → Design" 방향은 선택적 `codeOverride`로 "코드가 이렇게 바뀌었다"를 시뮬레이션
+  - **Conflict 판정**: `codeOverride`가 지금 이 Design으로부터 자동 생성될 코드와 다르고 **동시에**
+    Design 쪽도 이전 동기화 이후 실제 바뀌었을 때만 충돌로 판정(`DESIGN_SYNC.md`의 "3. 최신 변경"
+    우선순위를 코드화) — Design이 안 바뀌었다면 코드 변경은 그냥 받아들여지는 정상 갱신
+  - `POST /api/design/sync`·`GET /api/design/sync/:id`·`POST /api/design/sync/compare`·
+    `POST /api/design/sync/rollback`(신규, 요구사항 명시 엔드포인트) — `compare`는 `sync`와 동일한
+    계산을 수행하되 저장하지 않음(Dashboard "Pending Changes" 미리보기). `GET /api/design/sync`
+    (목록, 신규 추가)도 함께 제공
+  - `/developer/design/sync`(신규) — Review+Direction 선택(+ Code Override JSON) → Compare/Sync →
+    Sync Status·Conflicts·Version History(과거 버전마다 Rollback 버튼) 표시, Export JSON/Markdown.
+    `/developer/design/figma`와 상호 링크("Design Sync →" / "← Figma") — `DeveloperNav` 무변경
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.sync.{start,complete,rollback,conflict}"` 4개
+    추가(기존 20개 값 무변경), `app/developer/{audit-log,errors}/page.tsx` 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `designSyncCount`·`conflictCount`·
+    `rollbackCount` 추가(같은 `lib/data/metrics.json`, 새 저장소 아님).
+    `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시
+    추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 10번에 기록
+  - 테스트(신규): `tests/design/design-sync-engine.test.ts`(16개 — 스냅샷 생성, Code Override,
+    Patch 생성 3가지 경로, Conflict 판정 4가지 경로, computeSync() 통합 시나리오),
+    `tests/design/design-sync-registry.test.ts`(9개 — 생성/버전 자동증가/upsert/조회/Rollback
+    append-only/not_found/version_not_found), `tests/design/design-sync-integration.test.ts`
+    (4개 — engine+registry 실 fs 연동, 최초 sync·무변경 재sync·충돌 발생·충돌 후 Rollback으로
+    복원까지 전체 라이프사이클) + 기존 `tests/metrics/registry.test.ts`에 3개 counter 케이스
+    1개 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 4개 포함 정상 생성) ·
+  `npm test`(59 files / 447 tests, 신규 29개 포함 — 전체 병렬 실행 시 무관한 기존 타이밍
+  플레이크로 `tests/agents/taskQueue-retry.test.ts` 2건만 실패, 단독 재실행 시 3/3 통과 확인,
+  이번 변경과 무관)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe →
+  Prototype → Claude Design → Review 생성 → **초기 Design→Code sync**(v1, in_sync, 23개 added
+  patch) → **변경 없는 재-compare**(patch 0개, 비영속 확인) → **Code→Design + theme
+  codeOverride, Design은 안 바뀐 상태**(v2, in_sync, 충돌 없이 정상 반영 — "Design 안 바뀌면
+  코드 변경은 그냥 받아들여진다" 규칙 실증) → **Rollback을 v1으로**(v3, rolled_back, history에
+  기존 2개 항목이 그대로 보존된 채 3번째 항목으로 추가됨, designSnapshot이 v1과 정확히 일치) →
+  버전 없는 Rollback 시도(400)·존재하지 않는 syncId Rollback(404)·`GET /api/design/sync/:id`
+  404 케이스 확인 → `/api/audit?action=design.sync.{start,complete,rollback}`·`/api/metrics`
+  (`designSyncCount:2`/`rollbackCount:1`) 정상 집계 확인 → Playwright 실 브라우저로
+  `/developer/design/sync`에서 Compare 클릭 → Pending Changes("변경사항이 없습니다") 정상 표시,
+  Rollback 버튼 실제 클릭 → 페이지 새로고침 없이 Sync Status·Version History가 v4로 즉시
+  갱신됨을 확인(콘솔 에러 0건) → `/developer/design/figma`의 "Design Sync →" 상호 링크 확인
+- **Conflict 경로는 API 통합 테스트가 아닌 engine 단위 테스트로 검증**: 이 저장소의 현재 데이터
+  모델에서는 Review가 하나의 고정된 Wireframe 체인에 불변으로 묶여 있어(재생성 시 항상 새
+  레코드가 추가될 뿐 Review가 가리키는 체인 자체는 절대 바뀌지 않음), 실제 라이브 HTTP API로는
+  "이 Review의 Design이 실제로 바뀌었다"는 상태를 조직적으로 재현할 수 없다 — 이는 결함이 아니라
+  append-only 레지스트리 설계의 당연한 귀결. Conflict 판정 로직 자체는
+  `tests/design/design-sync-engine.test.ts`(합성 스냅샷으로 "design이 바뀐 척" 구성)와
+  `tests/design/design-sync-integration.test.ts`(실 fs 위에서 동일 시나리오)로 검증했고,
+  `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 10번에 이 제약을 명시
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~7과 동일한 이유
+  (`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부
+  종료·삭제
+- `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(10번 섹션 추가, 상단 Status를 "Phase 1-8
+  Implemented"로 갱신)
+
+---
+
 ## 2026-07-15 (6)
 
 ### 추가 (Added)

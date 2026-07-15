@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-7 Implemented
+> Status: Phase 1-8 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -38,7 +38,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | **Phase 5(이 저장소 구현 완료)** | Claude Design 연동(Design/UI/Component/Theme/Layout Prompt) + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7, `CLAUDE_DESIGN_INTEGRATION.md` 6번("Claude Design 역할") |
 | **Phase 6(이 저장소 구현 완료)** | 고객 검토/승인 Workflow(Review Engine + Approval Engine) | `DESIGN_WORKFLOW.md` Phase 8("고객 검토") |
 | **Phase 7(이 저장소 구현 완료)** | Figma Import/Export(Figma Engine + Approval Rule) | `DESIGN_WORKFLOW.md` Phase 9, `FIGMA_INTEGRATION.md` |
-| Phase 8(미구현) | Design Sync(양방향) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
+| **Phase 8(이 저장소 구현 완료)** | Design Sync(Design↔Code 양방향, Change Detection/Compare/Patch/Conflict/Rollback) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
 | Phase 9+(미구현) | Website Builder 연동, Build/Test/Deploy | `DESIGN_WORKFLOW.md` Phase 11~14 (Website Builder v2·Dashboard·CI는 이미 별도로 구현되어 있음, `docs/REPOSITORY_INDEX.md` 참고 — 이 Phase가 하는 일은 "연결"뿐) |
 
 ---
@@ -425,3 +425,76 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   레지스트리 실 fs 연동, Approval Rule 재현, Import→Export 단일 레코드 누적, 실제 fetch를 사용한
   무-토큰 폴백 end-to-end 1개 포함) + 기존 `tests/metrics/registry.test.ts`에 2개 counter
   (figmaImportCount/figmaExportCount) 케이스 1개 추가.
+
+---
+
+# 10. Phase 8 구현 요약 — Design Sync (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 3(Wireframe)~7(Figma) 체인과 "Code" 사이의 양방향 동기화를 지원하는
+  "Sync Engine". Change Detection·Version Compare·Patch Generation·Conflict Detection·Rollback을
+  전부 지원한다. AI Provider 호출 없는 순수 변환(Phase 6 Review/Approval Engine, Phase 7 Export와
+  동일한 원칙) — 이미 확정된 구조화 데이터로부터 결정론적으로 스냅샷을 만들고 서로 비교한다.
+- **"Code"가 실제 코드베이스가 아니라는 실제 제약**(문서와의 차이점): 이 저장소에는 Design
+  레코드(Wireframe/Prototype/Claude Design/Figma)로부터 실제 파일을 생성해 디스크에 쓰는 진짜
+  코드베이스가 없다 — Website Builder v2(`ai website create`)는 완전히 별도의 CLI 파이프라인으로,
+  Design Automation의 Review/Figma 레코드와 연결되어 있지 않다(둘을 연결하는 것 자체가
+  `DESIGN_AUTOMATION_MASTER.md` 2번 표의 "Phase 9+(미구현) Website Builder 연동" 범위). 그래서
+  "Code"는 `lib/design/design-sync-engine.ts`가 Wireframe의 컴포넌트 인벤토리 + Design Token으로부터
+  결정론적으로 만들어내는 컴포넌트 코드 스냅샷(문자열)이다 — 실제 파일 시스템에 쓰지 않고
+  `SyncRecord.codeSnapshot`에 데이터로만 보존한다. "Code → Design" 방향에서 "코드 쪽이 실제로
+  편집됨"을 시뮬레이션하기 위해, API가 선택적 `codeOverride`(코드가 이렇게 바뀌었다는 가정)를
+  받는다 — 넘기지 않으면 자동 생성된 코드 그대로라 no-op(`in_sync`)가 된다.
+- **Conflict 판정 규칙**(요구사항에 세부 규칙이 없어 `DESIGN_SYNC.md` 9번 "충돌 발생 시 우선순위"
+  중 "3. 최신 변경"을 그대로 코드화): `codeOverride`(또는 코드 쪽 상태)가 지금 이 Design으로부터
+  자동 생성될 코드(`autoCode`)와 다르고, **동시에** Design 쪽도 이전 동기화 이후로 실제 바뀌었을
+  때만 충돌로 판정한다(`detectConflicts()`). Design이 바뀌지 않았다면 코드 변경은 그냥 받아들여지는
+  정상적인 갱신(코드 → 디자인 반영)이다 — 두 쪽 다 바뀌었을 때만 사람이 판단해야 할 실제 충돌이라고
+  본다.
+- **명시적 "충돌 해결" API는 만들지 않음**: 요구사항의 API 목록(`sync`/`sync/:id`/`compare`/
+  `rollback`)에 "resolve" 엔드포인트가 없다 — 충돌이 감지되면 `SyncRecord.status`가
+  `"conflict"`로 저장되고 Dashboard의 Conflicts 섹션에 그대로 노출되며, 되돌리고 싶으면
+  Rollback으로 과거의 `in_sync` 버전으로 복원한다(Cancel Approval이 Phase 6에서 상태를 되돌리는
+  유일한 수단이었던 것과 동일한 설계).
+- **Registry**(요구사항 1번) — Review 하나당 `SyncRecord` 하나(1:1, `reviewId` 기준 upsert).
+  Sync를 실행할 때마다 새 `SyncHistoryEntry`가 추가되고 `version`이 1씩 증가한다(Phase 4
+  Prototype·Phase 7 Figma와 동일한 자동 증가 패턴). 각 히스토리 항목이 그 시점의
+  `designSnapshot`/`codeSnapshot` 전체를 담고 있어, Rollback은 별도 저장소 없이 과거 히스토리
+  항목의 스냅샷을 "현재" 값으로 복원하고 그 복원 행위 자체를 새 히스토리 항목(`action:"rollback"`)
+  으로 append-only 기록한다.
+- **API**(`app/api/design/sync/{route.ts,[id]/route.ts,compare/route.ts,rollback/route.ts}`,
+  신규) — 요구사항이 명시한 `POST /api/design/sync`·`GET /api/design/sync/:id`·
+  `POST /api/design/sync/compare`·`POST /api/design/sync/rollback` 그대로. `compare`는
+  `sync`와 동일한 계산을 수행하지만 아무것도 저장하지 않는다(Dashboard의 "Pending Changes"
+  미리보기 용도). `GET /api/design/sync`(목록, 신규 추가)도 함께 제공.
+- **Dashboard**(`/developer/design/sync`, 신규) — Review + Direction 선택(+ Code → Design일 때
+  선택적 Code Override JSON 입력) → Compare(Pending Changes 미리보기, 비영속) / Sync(영속) →
+  Sync Status·Conflicts·Version History(각 과거 버전에 Rollback 버튼) 표시, Export JSON/Markdown
+  버튼. `/developer/design/figma`와 상호 링크("Design Sync →" / "← Figma")로 연결 —
+  `DeveloperNav`는 변경하지 않음(Phase 2~7과 동일한 관례).
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 요구사항이 명시한 4개 그대로
+  추가: `"design.sync.start"`·`"design.sync.complete"`·`"design.sync.rollback"`·
+  `"design.sync.conflict"`(기존 20개 값 무변경). `app/developer/{audit-log,errors}/page.tsx`의
+  라벨/톤/필터 맵도 함께 갱신.
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에 요구사항이 명시한 3개
+  그대로 추가: `designSyncCount`(모든 Sync 호출 시)·`conflictCount`(충돌 감지 시)·
+  `rollbackCount`(Rollback 실행 시). 같은 `lib/data/metrics.json` 파일에 필드만 추가(새 저장소
+  아님). `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도
+  표시 추가.
+- **알려진 제약**(Phase 1~7과 동일) — 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는 통합
+  테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트 밖에서 예외를
+  던져 불가능. 통합 테스트는 라우트 바로 아래 계층(engine+registry)까지 다루고, 라우트 자체는
+  수동 curl/Playwright E2E로 검증.
+- Evidence: `lib/design/{design-sync,design-sync-engine}.ts`,
+  `app/api/design/sync/{route.ts,[id]/route.ts,compare/route.ts,rollback/route.ts}`,
+  `app/developer/design/sync/page.tsx`, `lib/audit/log.ts`(4개 action 추가),
+  `lib/metrics/registry.ts`(3개 counter 추가), `app/developer/design/figma/page.tsx`("Design
+  Sync →" 링크 추가), `lib/design/figma-generator.ts`(`DESIGN_TOKEN_SEED` export로 전환해 재사용)
+- 테스트(신규): `tests/design/design-sync-engine.test.ts`(결정론적 스냅샷 생성, Code Override
+  적용, Patch 생성 added/changed/no-op, Conflict 판정 4가지 경로, computeSync() 통합 시나리오)·
+  `tests/design/design-sync-registry.test.ts`(생성/버전 자동증가/upsert/조회/Rollback
+  append-only/not_found/version_not_found)·`tests/design/design-sync-integration.test.ts`
+  (engine+registry 실 fs 연동 — 최초 sync·무변경 재sync·충돌 발생·충돌 후 Rollback으로 복원까지
+  전체 라이프사이클) + 기존 `tests/metrics/registry.test.ts`에 3개 counter
+  (designSyncCount/conflictCount/rollbackCount) 케이스 1개 추가.

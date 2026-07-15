@@ -83,6 +83,15 @@ export default function MetricsPage() {
           <Card title="Figma Export Count">
             <p className="text-3xl font-bold text-gray-100">{summary.counters.figmaExportCount}</p>
           </Card>
+          <Card title="Design Sync Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.designSyncCount}</p>
+          </Card>
+          <Card title="Conflict Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.conflictCount}</p>
+          </Card>
+          <Card title="Rollback Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.rollbackCount}</p>
+          </Card>
 
           <Card title="Provider Usage" className="sm:col-span-2 lg:col-span-2">
             {summary.providerUsage ? (

@@ -161,7 +161,8 @@ const BREAKPOINT_DIMENSIONS: Record<Breakpoint, { width: number; height: number 
 const BREAKPOINTS: Breakpoint[] = ["desktop", "tablet", "mobile"];
 
 /** DESIGN_SYSTEM.md/CNBIZ_RULES.md의 표준 팔레트·간격·radius를 그대로 반영한 Design Token 시드. */
-const DESIGN_TOKEN_SEED: { name: string; category: FigmaToken["category"]; value: string }[] = [
+/** Phase 8(Design Sync)이 동일 팔레트를 재사용할 수 있도록 export한다(요구사항 "Reuse the existing design registries"). */
+export const DESIGN_TOKEN_SEED: { name: string; category: FigmaToken["category"]; value: string }[] = [
   { name: "Primary", category: "color", value: "#005BAC" },
   { name: "Secondary", category: "color", value: "#1F2937" },
   { name: "Success", category: "color", value: "#10B981" },

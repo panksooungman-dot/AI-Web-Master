@@ -1,6 +1,6 @@
 # AI Business OS Repository Index
 
-> 생성일: 2026-07-14 (최종 갱신: 2026-07-15 — Design Automation Phase 2 반영)
+> 생성일: 2026-07-14 (최종 갱신: 2026-07-15 — Design Automation Phase 5 반영)
 > 이 문서는 저장소의 **현재 소스 코드**만을 근거로 작성되었다.
 > **v1.0.0 릴리스 준비 클린업(2026-07-14)**: 아래에서 "제거 대상"으로 반복 언급되던 `AI-Web-Master/`(broken gitlink)·`docs.zip`·`docs_extract/`·`tree.txt`/`structure.txt`/`apps-tree.txt`/`packages-tree.txt`/`typescript-files.txt`·`test-project/`·`backup.bat`/`start-wor.bat`·구 감사 문서 14종(`docs/*_AUDIT.md`, `PROJECT_STATUS*.md`, `TODO_CURRENT.md` 등)을 실제로 `git rm`했다. 이 문서 본문 중 이 파일들의 존재를 전제로 한 서술은 **이력(과거 상태 설명)으로만** 남겨두고, 실제 처리 결과는 각 섹션과 `docs/RELEASE_CHECKLIST.md`에 반영했다. `docs/08_PLANS/상가분양센터/`(별도 고객사 자료로 추정)는 소유권 미확인으로 이번에도 삭제하지 않았다. 상세 내용은 `Documentation`·`Remaining TODO` 섹션과 `docs/RELEASE_CHECKLIST.md`·`docs/RELEASE_NOTES_v1.0.md` 참고.
 
@@ -16,9 +16,9 @@
 | `npm run build`(루트) | ✅ 통과 |
 | `npm run build`(`apps/cnbiz-web`) | ✅ 통과 |
 | `npm run lint` | ✅ 통과(0 errors, 0 warnings) |
-| `npm test`(Vitest) | ✅ 47 files / 333 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 21개 + Phase 2 25개 + Phase 3 25개 + Phase 4 신규 32개 포함) |
+| `npm test`(Vitest) | ✅ 50 files / 359 tests 전부 통과 (AI Provider Integration v1.1 17개 + Production Validation Timeout 2개 + Operations & Observability v1.1 20개 + Design Automation Phase 1 21개 + Phase 2 25개 + Phase 3 25개 + Phase 4 32개 + Phase 5 신규 25개 포함) |
 
-세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1·Phase 2·Phase 3·Phase 4(`## Design Automation Phase 4` 참고) 반영 이후 재실행한 결과다.
+세부 근거는 `docs/RELEASE_CHECKLIST.md`(클린업·자동 검증)와 `docs/RELEASE_NOTES_v1.0.md`(신규 기능·Known Issues)를 참고. 아래 모듈별 섹션의 `Status` 표기는 이 릴리스 시점 기준으로 유지되며, 위 검증 수치는 AI Provider Integration v1.1·Production Validation·Operations & Observability v1.1·Design Automation Phase 1·Phase 2·Phase 3·Phase 4·Phase 5(`## Design Automation Phase 5` 참고) 반영 이후 재실행한 결과다.
 
 ---
 
@@ -408,6 +408,80 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 ---
 
+## Design Automation Phase 5
+
+**Status: ✅ Implemented (Claude Design Integration, built on top of Phase 4) — 2026-07-15**
+
+- Description: Phase 4의 Prototype(화면·Interaction Map·Component Actions·Animation
+  Previews·User Journeys)을 입력으로, 실제 Claude Design(또는 다른 디자인/이미지 생성 툴)에
+  그대로 넘길 수 있는 Design/UI/Component/Theme/Layout Prompt 5종을 생성하는 "Claude Design
+  Prompt Generator". Phase 1~4와 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무
+  파싱·결정론적 폴백, DI 가능한 `chatFn`)을 그대로 따른다. 새 기능은 기존 API·타입을 하나도
+  변경하지 않고 추가만 했다.
+- **생성 파이프라인**(`lib/design/{claude-design,claude-design-generator}.ts`, 신규 — 요구사항이
+  지정한 두 파일명 그대로: `claude-design.ts`=타입+registry, `claude-design-generator.ts`=생성
+  로직) — 입력은 Phase 4 `PrototypeRecord`(`prototypeId`로 조회) → `chatViaCli()`로 AI에게 JSON
+  생성 요청 → 파싱 실패/Provider 미설정 시 `buildDefaultClaudeDesign()`(Prototype의 화면·
+  인터랙션·컴포넌트 액션·애니메이션·User Journey를 문장으로 직접 엮어 5종 프롬프트를 구성)으로
+  폴백. `lib/data/design-claude.json`에 기존 registry 패턴으로 저장.
+- **API**(`app/api/design/claude/{route.ts,[id]/route.ts}`, 신규) — 요구사항이 명시한
+  `POST /api/design/claude`·`GET /api/design/claude/:id` 그대로. 응답에 5종 프롬프트
+  (`designPrompt`/`uiPrompt`/`componentPrompt`/`themePrompt`/`layoutPrompt`)와 `projectId`
+  (Prototype이 참조하는 Phase 1 Plan의 `id`)를 최상위에 노출하고, Dashboard가 필요로 하는 전체
+  레코드는 `claudeDesign` 필드 아래에 추가 포함(Phase 2~4의 `storyboard`/`wireframe`/
+  `prototype` 필드와 동일한 확장 방식, 스펙 확장이지 축소가 아님). `GET /api/design/claude`
+  (목록, 신규 추가)도 함께 제공.
+- **Dashboard**(`/developer/design/claude`, 신규) — Prototype 선택 → Generate → Project/
+  Prototype 요약 → Design/UI/Component/Theme/Layout Prompt 5종 카드 표시, Export JSON/Export
+  Markdown 버튼(Phase 2~4와 동일한 클라이언트 사이드 blob 다운로드 패턴).
+  `/developer/design/prototype`와 상호 링크("Claude Design →" / "← Prototype")로 연결 —
+  `DeveloperNav`는 변경하지 않음(Phase 2~4와 동일한 관례).
+- **Audit Log**(additive) — `lib/audit/log.ts`의 `AuditAction`에 `"design.claude.generate"`
+  추가(기존 12개 값 무변경). `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵도
+  함께 갱신.
+- **Metrics**(additive) — `lib/metrics/registry.ts`의 `MetricsCounters`에
+  `claudeDesignGenerationCount` 필드 추가(같은 `lib/data/metrics.json` 파일, 새 저장소 아님) —
+  `aiTaskCount`·`storyboardGenerationCount`·`wireframeGenerationCount`·
+  `prototypeGenerationCount`와 분리해 각각 독립 집계. `app/developer/metrics/page.tsx`·
+  `components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가.
+- 명세와 실제 구현의 차이(명세에 없던 세부사항, `DESIGN_AUTOMATION_MASTER.md` 7번에도 기록):
+  - `CLAUDE_DESIGN_INTEGRATION.md`는 Claude Design의 산출물을 "Storyboard/Wireframe/
+    Prototype"이라고 서술하지만 이 3종은 이미 Phase 2~4에서 직접 구현되어 있어, 이번 요청이
+    명시한 "Design/UI/Component/Theme/Layout Prompt 생성"은 Phase 4 산출물을 실제 외부
+    디자인 툴에 바로 넘길 수 있는 프롬프트 산출물로 만드는 새 계층으로 해석해 구현했다.
+  - Registry는 Phase 4의 "Version" 개념(동일 wireframeId 재생성 시 버전 증가) 없이 Phase
+    1~3과 동일한 방식(매번 새 레코드 추가)을 따른다 — 이 Phase에는 버전 요구사항이 없다.
+  - "Developer → Design → Claude Design" 계층을 중첩 네비게이션 메뉴 대신 두 페이지 간
+    상호 링크로 구현(Phase 2~4와 동일한 패턴).
+- **알려진 제약**(Phase 1~4와 동일): 실제 HTTP 라우트 핸들러를 vitest에서 직접 호출하는
+  통합 테스트는 `getCurrentActorEmail()`의 `next/headers` `cookies()`가 요청 컨텍스트 밖에서
+  예외를 던져 불가능 — 통합 테스트는 라우트 바로 아래 계층(claude-design-generator+registry
+  실 연동)까지 다루고, 라우트 자체는 수동 curl/Playwright E2E로 검증.
+- Evidence: `lib/design/{claude-design,claude-design-generator}.ts`,
+  `app/api/design/claude/{route.ts,[id]/route.ts}`, `app/developer/design/claude/page.tsx`,
+  `lib/audit/log.ts`(`design.claude.generate` 추가), `lib/metrics/registry.ts`
+  (`claudeDesignGenerationCount` 추가), `components/developer/dashboard/MetricsWidget.tsx`·
+  `app/developer/metrics/page.tsx`(새 카운터 표시), `app/developer/{audit-log,errors}/page.tsx`
+  (새 action 라벨), `app/developer/design/prototype/page.tsx`("Claude Design →" 링크 추가)
+- 테스트(신규 25개): `tests/design/claude-design-generator.test.ts`(14개 —
+  `buildDefaultClaudeDesign()`/`parseClaudeDesignContent()`의 all-or-nothing 검증·
+  `generateClaudeDesign()`의 성공/실패 폴백), `tests/design/claude-design-registry.test.ts`
+  (7개), `tests/design/claude-design-integration.test.ts`(4개 — generator+registry 실 fs
+  연동 3개 + 실제 CLI 서브프로세스를 통한 end-to-end 폴백 검증 1개),
+  `tests/metrics/registry.test.ts`(`claudeDesignGenerationCount` 1개 추가)
+- 검증: `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성)
+  · `npm test`(50 files / 359 tests 전부 통과, 회귀 없음). 실 E2E: 검증 전용 임시 계정으로
+  로그인 → Design Plan → Storyboard → Wireframe → Prototype → Claude Design 생성까지 전 구간을
+  curl(API 응답 shape 확인)과 실제 브라우저(Playwright, `/developer/design/claude`에서 Project/
+  Prototype 요약과 5종 프롬프트 카드가 실제 생성된 콘텐츠로 정상 렌더링, History 목록 표시,
+  `/developer/design/prototype`의 "Claude Design →"·`/developer/design/claude`의 "← Prototype"
+  상호 링크)로 확인 → `/api/audit?action=design.claude.generate`(정상 기록)·`/api/metrics`
+  (`claudeDesignGenerationCount`가 다른 카운터와 독립적으로 집계됨)·`GET /api/design/claude/:id`
+  (정상 응답)·`GET /api/design/claude/does-not-exist`(404)를 모두 확인. 검증에 사용한 dev
+  서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제.
+
+---
+
 ## Authentication
 
 **Status: ✅ Implemented (Development OS scope) — 2026-07-14**
@@ -488,8 +562,9 @@ CLI 전용 기능(`packages/cli/src/orchestrator/`). Workflow Run의 상태(stat
 
 **Status: ✅ Implemented**
 
-- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 47개 테스트 파일·333개 테스트 케이스(2026-07-15 Design Automation Phase 4 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 21개·Phase 2 25개·Phase 3 25개·Phase 4 신규 32개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
-  - **Design Automation Phase 4(신규)** — `tests/design/prototype-generator.test.ts`(19개) + `tests/design/prototype-registry.test.ts`(8개, version 자동 증가 포함) + `tests/design/prototype-integration.test.ts`(5개, 실 fs 연동 4개(버전 증가 시나리오 포함) + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`prototypeGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 4` 참고.
+- Description: Vitest 기반 테스트 인프라(`vitest.config.ts`, `tests/setup.ts`, `npm test`/`test:watch`/`coverage`)를 신설하고 CI(`test.yml`)에도 연결. 기존 `tests/{e2e,fixtures,integration,mocks,performance,reports,security,unit}/`(README뿐인 빈 스텁)는 그대로 두고, 실제 코드를 검증하는 테스트를 `tests/{cli,workflow,website,agents,auth,projects,providers,websites,marketplace,marketplace-cli,health,ai-platform-cli,prompts,ai,audit,metrics,backup,design}/`에 추가. 50개 테스트 파일·359개 테스트 케이스(2026-07-15 Design Automation Phase 5 기준, Authentication 26개·Dashboard v1 27개·Marketplace v1 49개·AI Platform v1 43개·AI Provider Integration v1.1 17개·Production Validation Timeout 2개·Operations & Observability v1.1 20개·Design Automation Phase 1 21개·Phase 2 25개·Phase 3 25개·Phase 4 32개·Phase 5 신규 25개 포함) 전부 실제 소스(가짜/no-op 아님)를 대상으로 함:
+  - **Design Automation Phase 5(신규)** — `tests/design/claude-design-generator.test.ts`(14개) + `tests/design/claude-design-registry.test.ts`(7개) + `tests/design/claude-design-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`claudeDesignGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 5` 참고.
+  - **Design Automation Phase 4** — `tests/design/prototype-generator.test.ts`(19개) + `tests/design/prototype-registry.test.ts`(8개, version 자동 증가 포함) + `tests/design/prototype-integration.test.ts`(5개, 실 fs 연동 4개(버전 증가 시나리오 포함) + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`prototypeGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 4` 참고.
   - **Design Automation Phase 3** — `tests/design/wireframe-generator.test.ts`(15개) + `tests/design/wireframe-registry.test.ts`(6개) + `tests/design/wireframe-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`wireframeGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 3` 참고.
   - **Design Automation Phase 2** — `tests/design/storyboard-generator.test.ts`(14개) + `tests/design/storyboard-registry.test.ts`(6개) + `tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개) + `tests/metrics/registry.test.ts`(`storyboardGenerationCount` 1개 추가), 자세한 내용은 `## Design Automation Phase 2` 참고.
   - **Design Automation Phase 1** — `tests/design/generator.test.ts`(12개) + `tests/design/registry.test.ts`(5개) + `tests/design/integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개), 자세한 내용은 `## Design Automation Phase 1` 참고.

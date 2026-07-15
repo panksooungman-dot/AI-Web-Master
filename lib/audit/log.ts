@@ -19,7 +19,8 @@ export type AuditAction =
   | "design.generate"
   | "design.storyboard.generate"
   | "design.wireframe.generate"
-  | "design.prototype.generate";
+  | "design.prototype.generate"
+  | "design.claude.generate";
 
 export interface AuditEntry {
   id: string;

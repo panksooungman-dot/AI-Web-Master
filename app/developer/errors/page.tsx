@@ -24,6 +24,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.storyboard.generate": "Storyboard",
   "design.wireframe.generate": "Wireframe",
   "design.prototype.generate": "Prototype",
+  "design.claude.generate": "Claude Design",
 };
 
 /**

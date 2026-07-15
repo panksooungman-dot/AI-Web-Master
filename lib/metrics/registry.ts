@@ -19,6 +19,8 @@ export interface MetricsCounters {
   wireframeGenerationCount: number;
   /** Design Automation Phase 4(Prototype Generator) 신규 — 기존 6개 필드는 무변경. */
   prototypeGenerationCount: number;
+  /** Design Automation Phase 5(Claude Design Integration) 신규 — 기존 7개 필드는 무변경. */
+  claudeDesignGenerationCount: number;
 }
 
 const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
@@ -30,6 +32,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   storyboardGenerationCount: 0,
   wireframeGenerationCount: 0,
   prototypeGenerationCount: 0,
+  claudeDesignGenerationCount: 0,
 };
 
 function registryPath(baseDir: string): string {

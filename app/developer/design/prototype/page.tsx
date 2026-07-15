@@ -216,9 +216,14 @@ export default function PrototypePage() {
         title="Design — Prototype"
         description="Design Automation Phase 4: Click Flow·Navigation Flow·Screen Transition·Interaction Map·Component Actions·User Journey·Animation Preview·Prototype Preview를 Phase 3 Wireframe 위에서 생성합니다."
         actions={
-          <Link href="/developer/design/wireframe" className="text-xs text-blue-400 hover:underline self-center">
-            ← Wireframe
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/developer/design/wireframe" className="text-xs text-blue-400 hover:underline">
+              ← Wireframe
+            </Link>
+            <Link href="/developer/design/claude" className="text-xs text-blue-400 hover:underline">
+              Claude Design →
+            </Link>
+          </div>
         }
       />
 

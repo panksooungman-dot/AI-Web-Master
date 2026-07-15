@@ -23,6 +23,7 @@ export function MetricsWidget() {
           storyboardGenerationCount: 0,
           wireframeGenerationCount: 0,
           prototypeGenerationCount: 0,
+          claudeDesignGenerationCount: 0,
         })
       );
   }, []);
@@ -68,6 +69,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Prototypes Generated</span>
             <span className="text-gray-200">{counters.prototypeGenerationCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Claude Design Prompts Generated</span>
+            <span className="text-gray-200">{counters.claudeDesignGenerationCount}</span>
           </li>
         </ul>
       )}

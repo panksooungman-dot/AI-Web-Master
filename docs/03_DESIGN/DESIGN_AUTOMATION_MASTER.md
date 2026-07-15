@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-4 Implemented
+> Status: Phase 1-5 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -35,7 +35,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | **Phase 2(이 저장소 구현 완료)** | Storyboard(Screen Flow, User Journey, Navigation Flow, Page Sequence, Screen Description) | `DESIGN_WORKFLOW.md` Phase 4, `CLAUDE_DESIGN_INTEGRATION.md` 8번 |
 | **Phase 3(이 저장소 구현 완료)** | Wireframe(Desktop/Tablet/Mobile Layout, Component Layout, Responsive Layout, Screen Sections) | `DESIGN_WORKFLOW.md` Phase 5 |
 | **Phase 4(이 저장소 구현 완료)** | Prototype(Click Flow, Navigation Flow, Screen Transition, Interaction Map, Component Actions, User Journey, Animation Preview, Prototype Preview) | `DESIGN_WORKFLOW.md` Phase 6 |
-| Phase 5(미구현) | Claude Design 연동 + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7 |
+| **Phase 5(이 저장소 구현 완료)** | Claude Design 연동(Design/UI/Component/Theme/Layout Prompt) + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7, `CLAUDE_DESIGN_INTEGRATION.md` 6번("Claude Design 역할") |
 | Phase 6(미구현) | 고객 검토/승인 Workflow | `DESIGN_WORKFLOW.md` Phase 8 |
 | Phase 7(미구현) | Figma Import/Export | `DESIGN_WORKFLOW.md` Phase 9 |
 | Phase 8(미구현) | Design Sync(양방향) | `DESIGN_WORKFLOW.md` Phase 10, `DESIGN_SYNC.md` 전체 |
@@ -215,3 +215,53 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   `tests/metrics/registry.test.ts`에 `prototypeGenerationCount` 케이스 1개 추가.
 - 미구현(Phase 5 이후로 명시적으로 남겨둔 것): Claude Design 연동 + Dashboard Preview, Figma
   Import/Export, Design Sync, 고객 승인 Workflow.
+
+---
+
+# 7. Phase 5 구현 요약 — Claude Design Integration (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 4가 만든 Prototype(Screens/Interaction Map/Component Actions/Animation
+  Previews/User Journeys)을 입력으로 실제 Claude Design(또는 다른 디자인/이미지 생성 툴)에
+  그대로 넘길 수 있는 5종 프롬프트 — Design Prompt·UI Prompt·Component Prompt·Theme Prompt·
+  Layout Prompt — 를 생성하는 "Claude Design Prompt Generator". Phase 1~4와 완전히 동일한
+  원칙 재사용 — `lib/ai/bridge.ts`의 `chatViaCli()`로 AI에게 JSON 생성을 요청하고, Provider
+  미설정이거나 응답 파싱에 실패하면 결정론적 기본값(`buildDefaultClaudeDesign()`, Prototype의
+  화면·인터랙션·컴포넌트 액션·애니메이션·User Journey를 문장으로 직접 엮어 5종 프롬프트를
+  구성)으로 전부-아니면-전무 폴백. Audit Log·Metrics도 새 저장소 없이 기존 인프라만 재사용.
+- 문서와의 차이점(명세에 없던 구현 세부사항):
+  - `CLAUDE_DESIGN_INTEGRATION.md`는 Claude Design의 산출물을 "Storyboard/Wireframe/
+    Prototype"(6번)이라고 서술하지만, 이 3종은 이미 Phase 2~4에서 `chatViaCli()`를 직접
+    호출해 구현되어 있다(별도의 "Claude Design 연동 계층"이 필요하지 않았음). 이번 요청이
+    명시한 "Design/UI/Component/Theme/Layout Prompt 생성"은 그 대신 Phase 4 산출물을 실제
+    외부 디자인 툴(Claude Design 등)에 바로 넘길 수 있는 **프롬프트 산출물**을 만드는 새
+    계층으로 해석해 구현했다 — Phase 1~4가 만든 구조화 데이터(JSON)를 대체하지 않고, 그
+    위에 얹는 확장이다.
+  - Registry는 Phase 1~3과 동일한 방식(버전 없이 매번 새 레코드 추가)을 따른다 — Phase 4의
+    "Version" 요구사항(동일 wireframeId 재생성 시 버전 증가)은 이 Phase에는 없으므로,
+    동일 `prototypeId`로 다시 생성해도 매번 새 레코드가 추가될 뿐 버전 필드는 두지 않았다
+    (히스토리 자체는 Dashboard의 History 목록으로 그대로 보존됨).
+  - 요청한 API(`POST /api/design/claude`, `GET /api/design/claude/:id`)는 명세
+    (`CLAUDE_DESIGN_INTEGRATION.md` 14번)에 없던 신규 엔드포인트다 — 응답은 Dashboard가
+    바로 쓸 수 있도록 5종 프롬프트를 최상위에 노출하고, 전체 레코드는 `claudeDesign` 필드로
+    확장했다(Phase 2~4의 `storyboard`/`wireframe`/`prototype` 필드와 동일한 확장 방식).
+    `GET /api/design/claude`(목록)도 함께 추가했다.
+  - "Developer → Design → Claude Design" 계층 요구는 Phase 2~4와 동일하게 새로운 중첩
+    네비게이션 메뉴를 만들지 않고, `/developer/design/prototype`("Claude Design →" 링크
+    추가)와 신규 `/developer/design/claude` 페이지 사이의 상호 링크("Claude Design →" /
+    "← Prototype")로 구현했다 — `DeveloperNav`는 무변경.
+  - Metrics는 `MetricsCounters`에 `claudeDesignGenerationCount` 필드를 추가(같은
+    `lib/data/metrics.json` 파일, 같은 `readMetrics()`/`incrementMetric()` 함수)했다 — Phase
+    2~4와 동일하게, `aiTaskCount`·`storyboardGenerationCount`·`wireframeGenerationCount`·
+    `prototypeGenerationCount`·`claudeDesignGenerationCount`가 각각 독립적으로 집계되도록
+    유지했다.
+- Evidence: `lib/design/{claude-design,claude-design-generator}.ts`,
+  `app/api/design/claude/{route.ts,[id]/route.ts}`, `app/developer/design/claude/page.tsx`,
+  `lib/audit/log.ts`(`design.claude.generate` 추가), `lib/metrics/registry.ts`
+  (`claudeDesignGenerationCount` 추가), `app/developer/design/prototype/page.tsx`("Claude
+  Design →" 링크 추가)
+- 테스트: `tests/design/claude-design-{generator,registry,integration}.test.ts` + 기존
+  `tests/metrics/registry.test.ts`에 `claudeDesignGenerationCount` 케이스 1개 추가.
+- 미구현(Phase 6 이후로 명시적으로 남겨둔 것): 고객 검토/승인 Workflow, Figma Import/Export,
+  Design Sync, Website Builder 연동.

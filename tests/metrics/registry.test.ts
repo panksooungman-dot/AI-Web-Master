@@ -24,6 +24,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       storyboardGenerationCount: 0,
       wireframeGenerationCount: 0,
       prototypeGenerationCount: 0,
+      claudeDesignGenerationCount: 0,
     });
   });
 
@@ -81,6 +82,18 @@ describe("Metrics — lib/metrics/registry.ts", () => {
 
     const counters = readMetrics(baseDir);
     expect(counters.prototypeGenerationCount).toBe(2);
+    expect(counters.wireframeGenerationCount).toBe(0);
+    expect(counters.storyboardGenerationCount).toBe(0);
+    expect(counters.aiTaskCount).toBe(0);
+  });
+
+  it("incrementMetric() increments claudeDesignGenerationCount (Design Automation Phase 5) independently of other counters", () => {
+    incrementMetric("claudeDesignGenerationCount", undefined, baseDir);
+    incrementMetric("claudeDesignGenerationCount", undefined, baseDir);
+
+    const counters = readMetrics(baseDir);
+    expect(counters.claudeDesignGenerationCount).toBe(2);
+    expect(counters.prototypeGenerationCount).toBe(0);
     expect(counters.wireframeGenerationCount).toBe(0);
     expect(counters.storyboardGenerationCount).toBe(0);
     expect(counters.aiTaskCount).toBe(0);

@@ -24,6 +24,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.storyboard.generate": "Storyboard",
   "design.wireframe.generate": "Wireframe",
   "design.prototype.generate": "Prototype",
+  "design.claude.generate": "Claude Design",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -39,6 +40,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.storyboard.generate": "purple",
   "design.wireframe.generate": "purple",
   "design.prototype.generate": "purple",
+  "design.claude.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -55,6 +57,7 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.storyboard.generate",
   "design.wireframe.generate",
   "design.prototype.generate",
+  "design.claude.generate",
 ];
 
 export default function AuditLogPage() {

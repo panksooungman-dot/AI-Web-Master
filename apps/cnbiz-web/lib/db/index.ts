@@ -9,12 +9,22 @@ export { createSupabaseStore } from "./supabaseStore";
 
 let cached: CollectionStore | null = null;
 
-/**
- * Supabase when `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are set (production),
- * otherwise the fs-backed store.
- */
 export function getDefaultStore(): CollectionStore {
   if (cached) return cached;
+
+  console.log(
+    "[env keys]",
+    Object.keys(process.env)
+      .filter((k) => k.includes("SUPABASE"))
+      .sort()
+  );
+
+  console.log("[env values]", {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? "[SET]"
+      : undefined,
+  });
 
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

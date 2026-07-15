@@ -22,6 +22,7 @@ export function MetricsWidget() {
           marketplaceInstallCount: 0,
           storyboardGenerationCount: 0,
           wireframeGenerationCount: 0,
+          prototypeGenerationCount: 0,
         })
       );
   }, []);
@@ -63,6 +64,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Wireframes Generated</span>
             <span className="text-gray-200">{counters.wireframeGenerationCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Prototypes Generated</span>
+            <span className="text-gray-200">{counters.prototypeGenerationCount}</span>
           </li>
         </ul>
       )}

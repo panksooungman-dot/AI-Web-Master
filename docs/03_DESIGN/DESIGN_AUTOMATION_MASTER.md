@@ -1,7 +1,7 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-3 Implemented
+> Status: Phase 1-4 Implemented
 > Priority: High
 > Owner: AI Business OS
 > Last Updated: 2026-07-15
@@ -34,7 +34,7 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 | **Phase 1(이 저장소 구현 완료)** | Requirement Analysis, Feature List, Site Map, User Flow, Screen List | `DESIGN_WORKFLOW.md` Phase 2("요구사항 분석")+Phase 3("기획") 통합, `CLAUDE_DESIGN_INTEGRATION.md` 7번("Requirement Analysis")·5번("Claude Code 역할") |
 | **Phase 2(이 저장소 구현 완료)** | Storyboard(Screen Flow, User Journey, Navigation Flow, Page Sequence, Screen Description) | `DESIGN_WORKFLOW.md` Phase 4, `CLAUDE_DESIGN_INTEGRATION.md` 8번 |
 | **Phase 3(이 저장소 구현 완료)** | Wireframe(Desktop/Tablet/Mobile Layout, Component Layout, Responsive Layout, Screen Sections) | `DESIGN_WORKFLOW.md` Phase 5 |
-| Phase 4(미구현) | Prototype | `DESIGN_WORKFLOW.md` Phase 6 |
+| **Phase 4(이 저장소 구현 완료)** | Prototype(Click Flow, Navigation Flow, Screen Transition, Interaction Map, Component Actions, User Journey, Animation Preview, Prototype Preview) | `DESIGN_WORKFLOW.md` Phase 6 |
 | Phase 5(미구현) | Claude Design 연동 + Dashboard Preview | `DESIGN_WORKFLOW.md` Phase 7 |
 | Phase 6(미구현) | 고객 검토/승인 Workflow | `DESIGN_WORKFLOW.md` Phase 8 |
 | Phase 7(미구현) | Figma Import/Export | `DESIGN_WORKFLOW.md` Phase 9 |
@@ -161,4 +161,57 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
 - 테스트: `tests/design/wireframe-{generator,registry,integration}.test.ts`(25개) + 기존
   `tests/metrics/registry.test.ts`에 `wireframeGenerationCount` 케이스 1개 추가.
 - 미구현(Phase 4 이후로 명시적으로 남겨둔 것): Prototype, Claude Design 연동, Figma
+  Import/Export, Design Sync, 고객 승인 Workflow.
+
+---
+
+# 6. Phase 4 구현 요약 — Prototype Generator (2026-07-15)
+
+**Status: ✅ Implemented**
+
+- Description: Phase 3이 만든 Wireframe(화면별 Desktop Layout의 컴포넌트 구성)을 입력으로
+  Click Flow·Navigation Flow·Screen Transition·Interaction Map·Component Actions·User Journey·
+  Animation Preview·Prototype Preview를 생성하는 "Prototype Generator". Phase 1~3과 완전히
+  동일한 원칙 재사용 — `lib/ai/bridge.ts`의 `chatViaCli()`로 AI에게 JSON 생성을 요청하고,
+  Provider 미설정이거나 응답 파싱에 실패하면 결정론적 기본값(`buildDefaultPrototype()`, 13종
+  고정 컴포넌트 팔레트별 인터랙션·애니메이션 정의(`COMPONENT_BEHAVIOR`)를 화면 구성에 매핑)로
+  전부-아니면-전무 폴백. Audit Log·Metrics도 새 저장소 없이 기존 인프라만 재사용.
+- 문서와의 차이점(명세에 없던 구현 세부사항):
+  - 요구사항이 예시로 든 API 응답
+    `{ prototypeId, projectId, screens, interactions, transitions, journey, preview }`는 그대로
+    포함하되(`screens`=화면 참조 배열, `interactions`=화면별 인터랙션 맵(`interactionMap`),
+    `transitions`=화면 전환 목록(`screenTransitions`), `journey`=User Journey 배열
+    (`userJourneys`), `preview`=Prototype Preview 요약 객체), Dashboard가 필요로 하는 나머지
+    상세(`clickFlows`/`navigationFlow`/`componentActions`/`animationPreviews`)는 `prototype`
+    필드 아래 전체 레코드로 추가 포함했다 — Phase 2·3의 `storyboard`/`wireframe` 필드와 동일한
+    확장 방식으로 스펙을 축소하지 않고 확장한 것이라 호환성에 영향 없음.
+  - Registry 요구사항의 "Version" 지원: `PrototypeRecord`에 `version` 필드를 추가하고,
+    동일 `wireframeId`에 대해 다시 생성해도 기존 레코드를 덮어쓰지 않고 새 레코드를
+    추가하며 버전을 1씩 증가시킨다(`createPrototype()`이 해당 `wireframeId`의 기존 레코드 수
+    + 1로 자동 계산). 명세에 별도 버전 API가 없어 신규 API는 추가하지 않고, 기존
+    `POST /api/design/prototype`을 같은 `wireframeId`로 다시 호출하는 것 자체가 새 버전을
+    만드는 방식으로 구현했다(Dashboard History 목록에 `v1`/`v2`/`v3`처럼 그대로 표시됨).
+  - 결정론적 폴백의 Click Flow는 각 화면에서 "대표 컴포넌트" 하나(Button > Form > Search >
+    Pagination > Card > Hero > Navigation > Header 우선순위)를 골라 화면 순서대로 이어지는
+    단일 `"Primary Flow"`를 생성한다 — AI 경로는 여러 개의 분기 Click Flow를 자유롭게 생성할
+    수 있도록 프롬프트에서 제한하지 않았다.
+  - "Developer → Design → Prototype" 계층 요구는 Phase 2·3과 동일하게 새로운 중첩 네비게이션
+    메뉴를 만들지 않고, `/developer/design/wireframe`("Prototype →" 링크 추가)와 신규
+    `/developer/design/prototype` 페이지 사이의 상호 링크("Prototype →" / "← Wireframe")로
+    구현했다 — `DeveloperNav`는 무변경. Dashboard 표시 순서(Project → Storyboard → Wireframe →
+    Prototype Preview → Interaction Flow → Screen Transition → Journey → Export)는 요구사항이
+    명시한 순서를 그대로 따랐다(Storyboard/Wireframe 카드는 Phase 1·2·3 레코드를 체인으로
+    조회해 요약만 표시, 재구현이 아닌 참조).
+  - Metrics는 `MetricsCounters`에 `prototypeGenerationCount` 필드를 추가(같은
+    `lib/data/metrics.json` 파일, 같은 `readMetrics()`/`incrementMetric()` 함수)했다 — Phase
+    2·3과 동일하게, `aiTaskCount`·`storyboardGenerationCount`·`wireframeGenerationCount`·
+    `prototypeGenerationCount`가 각각 독립적으로 집계되도록 유지했다.
+- Evidence: `lib/design/{prototype,prototype-generator}.ts`,
+  `app/api/design/prototype/{route.ts,[id]/route.ts}`, `app/developer/design/prototype/page.tsx`,
+  `lib/audit/log.ts`(`design.prototype.generate` 추가), `lib/metrics/registry.ts`
+  (`prototypeGenerationCount` 추가), `app/developer/design/wireframe/page.tsx`("Prototype →"
+  링크 추가)
+- 테스트: `tests/design/prototype-{generator,registry,integration}.test.ts`(32개) + 기존
+  `tests/metrics/registry.test.ts`에 `prototypeGenerationCount` 케이스 1개 추가.
+- 미구현(Phase 5 이후로 명시적으로 남겨둔 것): Claude Design 연동 + Dashboard Preview, Figma
   Import/Export, Design Sync, 고객 승인 Workflow.

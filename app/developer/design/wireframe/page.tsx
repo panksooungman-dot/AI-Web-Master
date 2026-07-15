@@ -157,9 +157,14 @@ export default function WireframePage() {
         title="Design — Wireframe"
         description="Design Automation Phase 3: Desktop·Tablet·Mobile Layout·Component Layout·Responsive Layout·Screen Sections을 Phase 2 Storyboard 위에서 생성합니다."
         actions={
-          <Link href="/developer/design/storyboard" className="text-xs text-blue-400 hover:underline self-center">
-            ← Storyboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/developer/design/storyboard" className="text-xs text-blue-400 hover:underline">
+              ← Storyboard
+            </Link>
+            <Link href="/developer/design/prototype" className="text-xs text-blue-400 hover:underline">
+              Prototype →
+            </Link>
+          </div>
         }
       />
 

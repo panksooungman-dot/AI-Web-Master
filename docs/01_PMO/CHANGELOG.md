@@ -4,26 +4,26 @@
 
 ---
 
-## 2026-07-15
+## 2026-07-15 (3)
 
 ### 추가 (Added)
 
-- **Design Automation Phase 2 — Storyboard Generator**: Phase 1(Requirement Analysis/Feature List/Site Map/User Flow/Screen List) 위에서 Screen Flow/User Journey/Navigation Flow/Page Sequence/Screen Description을 생성. Phase 1과 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
-  - `lib/design/storyboard.ts`(신규, 요구사항이 지정한 파일명 — 타입 + `lib/data/design-storyboards.json` fs registry) · `lib/design/storyboard-generator.ts`(신규, 생성 로직)
-  - `POST /api/design/storyboard`·`GET /api/design/storyboard/:id`(신규, 스펙 명시 엔드포인트) — 응답에 스펙의 `{storyboardId, projectId, screens, flow}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세는 `storyboard` 필드로 확장. `GET /api/design/storyboard`(목록, 신규 추가)도 함께 제공
-  - `/developer/design/storyboard`(신규) — Plan 선택 → Generate → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey 표시, Export JSON/Markdown. `/developer/design`과 상호 링크로 연결(`DeveloperNav` 변경 없음)
-  - `lib/audit/log.ts`의 `AuditAction`에 `"design.storyboard.generate"` 추가(기존 9개 값 무변경)
-  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `storyboardGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — `aiTaskCount`와 분리해 "AI 호출 횟수"와 "Storyboard 생성 횟수"를 구분 가능하게 함
-  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 4번에 기록
-  - 테스트(신규 25개): `tests/design/storyboard-generator.test.ts`(14개)·`tests/design/storyboard-registry.test.ts`(6개)·`tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+- **Design Automation Phase 4 — Prototype Generator**: Phase 3(Wireframe의 화면별 Desktop Layout 컴포넌트 구성) 위에서 Click Flow·Navigation Flow·Screen Transition·Interaction Map·Component Actions·User Journey·Animation Preview·Prototype Preview를 생성. Phase 1~3과 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/prototype.ts`(신규, 요구사항이 지정한 파일명 — 타입 + `lib/data/design-prototypes.json` fs registry. 요구사항의 "Version" 지원: `PrototypeRecord.version`이 동일 `wireframeId` 재생성 시 자동으로 1씩 증가, 기존 레코드는 덮어쓰지 않고 그대로 보존) · `lib/design/prototype-generator.ts`(신규, 생성 로직 — 13종 고정 컴포넌트 팔레트별 결정론적 인터랙션·애니메이션 정의(`COMPONENT_BEHAVIOR`)를 화면 구성에 매핑, 대표 컴포넌트 우선순위로 단일 Click Flow 생성)
+  - `POST /api/design/prototype`·`GET /api/design/prototype/:id`(신규, 요구사항 명시 엔드포인트) — 응답에 요구사항의 `{prototypeId, projectId, screens, interactions, transitions, journey, preview}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세(clickFlows/navigationFlow/componentActions/animationPreviews)는 `prototype` 필드로 확장. `GET /api/design/prototype`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/prototype`(신규) — Wireframe 선택 → Generate → 요구사항이 명시한 순서(Project → Storyboard → Wireframe → Prototype Preview → Interaction Flow → Screen Transition → Journey → Export) 그대로 표시, Export JSON/Markdown. `/developer/design/wireframe`와 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.prototype.generate"` 추가(기존 11개 값 무변경, detail에 버전 번호 포함), `app/developer/{audit-log,errors}/page.tsx`의 라벨/톤/필터 맵 갱신
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `prototypeGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — 다른 Phase 카운터와 분리해 각각 구분 가능하게 함. `app/developer/metrics/page.tsx`·`components/developer/dashboard/MetricsWidget.tsx`에도 표시 추가
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 6번에 기록
+  - 테스트(신규 32개): `tests/design/prototype-generator.test.ts`(19개)·`tests/design/prototype-registry.test.ts`(8개, version 자동 증가 포함)·`tests/design/prototype-integration.test.ts`(5개, 실 fs 연동 4개(버전 증가 시나리오 포함) + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
 
 ### 검증 (Verified)
 
-- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(41 files / 274 tests 전부 통과, 신규 25개 포함, 회귀 없음)
-- 실 E2E: 검증 전용 임시 계정으로 로그인 → Phase 1 Design Plan 생성 → 그 Plan으로 Storyboard 생성 → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey 전부 정상 렌더링(실 브라우저 한글 타이핑, mojibake 없음) 확인 → Export JSON/Markdown 실제 파일 다운로드 확인(Markdown 형식 정상) → `/api/audit?action=design.storyboard.generate`·`/api/metrics`(`storyboardGenerationCount:1`이 `aiTaskCount:1`과 독립 집계)·`GET /api/design/storyboard/:id`·404 케이스 전부 확인
-- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1과 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 E2E로 검증
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(47 files / 333 tests 전부 통과, 신규 32개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → curl로 Design Plan → Storyboard → Wireframe → Prototype 생성 파이프라인 전체를 실행해 API 응답 shape(`prototypeId`/`projectId`/`screens`/`interactions`/`transitions`/`journey`/`preview`) 확인, 동일 wireframeId로 재생성해 `version` 1→2 자동 증가 확인 → Playwright 실 브라우저로 `/developer/design/prototype`에서 "Generate Prototype" 클릭을 반복해 v3까지 생성 → History에 v1/v2/v3 모두 표시 → Project/Storyboard/Wireframe/Prototype Preview/Interaction Flow/Screen Transition/Journey가 요구사항 순서대로 정상 렌더링(콘솔 에러 0건) → Export JSON/Export Markdown 버튼이 실제 파일 다운로드를 트리거함을 확인 → `/developer/design/wireframe`의 "Prototype →" 상호 링크 확인 → `/api/audit?action=design.prototype.generate`(버전 번호 포함 정상 기록)·`/api/metrics`(`prototypeGenerationCount`가 다른 카운터와 독립 집계)·`/developer/metrics`·`/developer/audit-log` 화면에 새 카운터/필터 정상 표시·`GET /api/design/prototype/:id`·404 케이스 전부 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1~3과 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
 - 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
-- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 2`(신규 섹션) · `## Tests` 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(4번 섹션 추가)
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 4`(신규 섹션) · `## Tests`·상단 검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(6번 섹션 추가)
 
 ---
 
@@ -47,6 +47,29 @@
 - 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1·2와 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 curl/Playwright E2E로 검증
 - 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
 - `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 3`(신규 섹션) · `## Tests`·상단 검증 요약 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(5번 섹션 추가)
+
+---
+
+## 2026-07-15
+
+### 추가 (Added)
+
+- **Design Automation Phase 2 — Storyboard Generator**: Phase 1(Requirement Analysis/Feature List/Site Map/User Flow/Screen List) 위에서 Screen Flow/User Journey/Navigation Flow/Page Sequence/Screen Description을 생성. Phase 1과 완전히 동일한 원칙(`chatViaCli()` 재사용, 전부-아니면-전무 파싱·결정론적 폴백) 재사용. 기존 API·타입은 하나도 변경하지 않고 전부 additive
+  - `lib/design/storyboard.ts`(신규, 요구사항이 지정한 파일명 — 타입 + `lib/data/design-storyboards.json` fs registry) · `lib/design/storyboard-generator.ts`(신규, 생성 로직)
+  - `POST /api/design/storyboard`·`GET /api/design/storyboard/:id`(신규, 스펙 명시 엔드포인트) — 응답에 스펙의 `{storyboardId, projectId, screens, flow}`를 그대로 포함하고, Dashboard가 필요로 하는 나머지 상세는 `storyboard` 필드로 확장. `GET /api/design/storyboard`(목록, 신규 추가)도 함께 제공
+  - `/developer/design/storyboard`(신규) — Plan 선택 → Generate → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey 표시, Export JSON/Markdown. `/developer/design`과 상호 링크로 연결(`DeveloperNav` 변경 없음)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.storyboard.generate"` 추가(기존 9개 값 무변경)
+  - `lib/metrics/registry.ts`의 `MetricsCounters`에 `storyboardGenerationCount` 필드 추가(같은 `metrics.json` 파일, 새 저장소 아님) — `aiTaskCount`와 분리해 "AI 호출 횟수"와 "Storyboard 생성 횟수"를 구분 가능하게 함
+  - 문서와 실제 구현의 차이는 `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md` 4번에 기록
+  - 테스트(신규 25개): `tests/design/storyboard-generator.test.ts`(14개)·`tests/design/storyboard-registry.test.ts`(6개)·`tests/design/storyboard-integration.test.ts`(4개, 실 fs 연동 3개 + 실제 CLI 서브프로세스 end-to-end 1개)·`tests/metrics/registry.test.ts`(1개 추가)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run build`(신규 페이지 1개·API 2개 포함 정상 생성) · `npm test`(41 files / 274 tests 전부 통과, 신규 25개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → Phase 1 Design Plan 생성 → 그 Plan으로 Storyboard 생성 → Project/Site Map/Screen List/Screen Flow/Navigation Flow/User Journey 전부 정상 렌더링(실 브라우저 한글 타이핑, mojibake 없음) 확인 → Export JSON/Markdown 실제 파일 다운로드 확인(Markdown 형식 정상) → `/api/audit?action=design.storyboard.generate`·`/api/metrics`(`storyboardGenerationCount:1`이 `aiTaskCount:1`과 독립 집계)·`GET /api/design/storyboard/:id`·404 케이스 전부 확인
+- 실제 라우트 핸들러를 vitest에서 직접 호출하는 통합 테스트는 Phase 1과 동일한 이유(`next/headers`의 `cookies()`가 요청 컨텍스트 밖에서 예외)로 불가능함을 재확인 — 통합 테스트는 라우트 바로 아래 계층까지 다루고 라우트 자체는 수동 E2E로 검증
+- 검증에 사용한 dev 서버·임시 계정·데이터(`lib/data/*`, 전부 `.gitignore` 대상)는 검증 후 전부 종료·삭제
+- `docs/REPOSITORY_INDEX.md` — `## Design Automation Phase 2`(신규 섹션) · `## Tests` 갱신, `docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`(4번 섹션 추가)
 
 ---
 

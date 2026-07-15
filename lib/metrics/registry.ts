@@ -17,6 +17,8 @@ export interface MetricsCounters {
   storyboardGenerationCount: number;
   /** Design Automation Phase 3(Wireframe Generator) 신규 — 기존 5개 필드는 무변경. */
   wireframeGenerationCount: number;
+  /** Design Automation Phase 4(Prototype Generator) 신규 — 기존 6개 필드는 무변경. */
+  prototypeGenerationCount: number;
 }
 
 const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
@@ -27,6 +29,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   marketplaceInstallCount: 0,
   storyboardGenerationCount: 0,
   wireframeGenerationCount: 0,
+  prototypeGenerationCount: 0,
 };
 
 function registryPath(baseDir: string): string {

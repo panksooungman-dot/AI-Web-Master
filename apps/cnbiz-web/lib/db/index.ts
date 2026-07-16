@@ -1,11 +1,13 @@
-import type { CollectionStore } from "./collectionStore";
 import { createFsStore } from "./fsStore";
 import { createSupabaseStore } from "./supabaseStore";
 
-export type { CollectionStore } from "./collectionStore";
 export { createMemoryStore } from "./memoryStore";
 export { createFsStore } from "./fsStore";
 export { createSupabaseStore } from "./supabaseStore";
+
+// Vercel 빌드에서 type 심볼 스코프가 깨지는 문제를 피하려고,
+// import type 대신 import()로 타입을 직접 참조합니다.
+type CollectionStore = import("./collectionStore").CollectionStore;
 
 let cached: CollectionStore | null = null;
 

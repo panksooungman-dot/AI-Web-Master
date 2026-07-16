@@ -44,12 +44,29 @@ export async function POST(request: Request) {
   try {
     result = await login(email, password);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // getDefaultStore()(lib/db/index.ts)의 fail-fast 가드는 Production에서 Supabase
+    // 환경변수가 없으면 이 메시지 prefix로 throw한다 — 서버 코드/스토리지 자체의 결함이
+    // 아니라 배포 설정 누락이므로, 원인 불명 500 대신 즉시 진단 가능한 4xx로 구분해 응답한다.
+    if (message.startsWith("[Production misconfig]")) {
+      console.error("[api/auth/login] Supabase misconfigured", {
+        message,
+        hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+        hasSupabaseServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      });
+      return NextResponse.json(
+        { success: false, error: "서버 설정 오류로 로그인을 처리할 수 없습니다. 관리자에게 문의하세요." },
+        { status: 400 }
+      );
+    }
+
     // A storage-layer failure here (e.g. Supabase env vars missing in this environment,
     // so getDefaultStore() fell back to the fs store, which can't write on a read-only
     // production filesystem) must not crash the route with an opaque 500 — log the real
     // cause server-side (visible in Vercel function logs) and return a diagnosable error.
     console.error("[api/auth/login] login() threw", {
-      message: error instanceof Error ? error.message : String(error),
+      message,
       hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
       hasSupabaseServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     });

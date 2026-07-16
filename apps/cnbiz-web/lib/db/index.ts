@@ -14,28 +14,26 @@ let cached: CollectionStore | null = null;
 export function getDefaultStore(): CollectionStore {
   if (cached) return cached;
 
-  console.log(
-    "[env keys]",
-    Object.keys(process.env)
-      .filter((k) => k.includes("SUPABASE"))
-      .sort()
-  );
-
-  console.log("[env values]", {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
-      ? "[SET]"
-      : undefined,
-  });
+  // NODE_ENV=production은 Vercel(Production/Preview 모두)과 `next start`에서 설정되고,
+  // `next dev`에서는 development이므로 로컬 개발에는 영향을 주지 않는다.
+  const isProd = process.env.NODE_ENV === "production";
 
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   console.log("[getDefaultStore]", {
+    isProd,
     hasUrl: !!url,
     hasKey: !!serviceRoleKey,
-    store: url && serviceRoleKey ? "supabase" : "fs",
+    storeWillBe: url && serviceRoleKey ? "supabase" : isProd ? "throw" : "fs",
   });
+
+  if (isProd) {
+    if (!url) throw new Error("[Production misconfig] SUPABASE_URL is missing");
+    if (!serviceRoleKey) {
+      throw new Error("[Production misconfig] SUPABASE_SERVICE_ROLE_KEY is missing");
+    }
+  }
 
   cached =
     url && serviceRoleKey

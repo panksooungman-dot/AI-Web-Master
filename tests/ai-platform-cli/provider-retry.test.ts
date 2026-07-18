@@ -200,6 +200,7 @@ describe("AI Provider — shared retry/SSE helpers (packages/cli/src/providers/p
       vi.stubGlobal("fetch", fetchMock);
 
       const consume = async () => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- draining the iterator, not reading values
         for await (const _event of providerFetchSseStream("test", "https://example.com/stream", {}, 5000, {
           retries: 2,
           baseDelayMs: 1

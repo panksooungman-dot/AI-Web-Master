@@ -88,6 +88,10 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/projects")).toBeNull();
       expect(resolveProtectedArea("/api/projects/abc")).toBeNull();
     });
+
+    it("leaves /api/contact ungated (backs the public /contact form, submitted with no session)", () => {
+      expect(resolveProtectedArea("/api/contact")).toBeNull();
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

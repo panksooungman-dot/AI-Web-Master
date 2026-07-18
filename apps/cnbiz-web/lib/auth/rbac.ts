@@ -40,13 +40,23 @@ const PAGE_AREA_PREFIXES: ReadonlyArray<readonly [string, ProtectedArea]> = [
  *   Preserved as-is here rather than re-litigated as part of this hardening pass.
  * - /api/projects — backs the /projects page, which is intentionally outside this RBAC's scope
  *   (any authenticated user, not gated by role).
+ * - /api/contact — backs the public /contact page's submission form (release-readiness fix):
+ *   anonymous site visitors submit this with no session, so gating it behind "developer" made
+ *   the production contact form unusable for real visitors.
  */
-const UNGATED_API_PREFIXES = ["/api/auth", "/api/workspaces", "/api/terminal", "/api/devserver", "/api/projects"];
+const UNGATED_API_PREFIXES = [
+  "/api/auth",
+  "/api/workspaces",
+  "/api/terminal",
+  "/api/devserver",
+  "/api/projects",
+  "/api/contact",
+];
 
 /**
  * Returns the protected area a request path belongs to, or null if it isn't role-gated.
  * Every /api/** route not explicitly exempted above is treated as belonging to the "developer"
- * area today, since every current API route under this app is exclusively consumed by the
+ * area today, since every other current API route under this app is exclusively consumed by the
  * /developer dashboard (there is no /api/admin/** surface yet).
  */
 export function resolveProtectedArea(pathname: string): ProtectedArea | null {

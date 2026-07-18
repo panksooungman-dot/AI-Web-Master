@@ -147,6 +147,12 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
       const response = await proxy(new NextRequest("http://localhost/api/devserver/status"));
       expect(response.status).toBe(200);
     });
+
+    it("lets /api/contact through with no session (public contact form, anonymous visitors)", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/contact"));
+      expect(response.status).toBe(200);
+    });
   });
 
   describe("/projects (login required, no specific role)", () => {

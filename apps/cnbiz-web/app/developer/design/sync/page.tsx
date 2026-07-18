@@ -319,7 +319,7 @@ export default function DesignSyncPage() {
             {direction === "code-to-design" && (
               <div>
                 <label className="block text-sm text-gray-400 mb-1">
-                  Code Override (선택, JSON — 예: {"{"}"theme":"...", "components":[{"{"}"name":"Header","code":"..."{"}"}]{"}"})
+                  {'Code Override (선택, JSON — 예: {"theme":"...", "components":[{"name":"Header","code":"..."}]})'}
                 </label>
                 <textarea
                   value={codeOverrideText}

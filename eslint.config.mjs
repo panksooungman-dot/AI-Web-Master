@@ -19,6 +19,9 @@ const eslintConfig = defineConfig([
     // Separate workspace projects (apps/cnbiz-web, packages/*) — each lints itself.
     "**/apps/**",
     "**/packages/**",
+    // Git worktrees created by isolated agent sessions (e.g. .claude/worktrees/<branch>)
+    // are full separate checkouts of this repo on another branch — not this branch's source.
+    "**/.claude/**",
   ]),
 ]);
 

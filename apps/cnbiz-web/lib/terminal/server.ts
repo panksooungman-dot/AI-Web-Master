@@ -28,7 +28,9 @@ function resolveCdTarget(cwd: string, rawTarget: string): string {
   if (!target) return cwd;
   if (target === "~") return os.homedir();
 
-  return path.resolve(cwd, target);
+  // turbopackIgnore: `cwd`/`target` are runtime-arbitrary (any directory a user cd's into),
+  // not a bundling dependency — nothing here should be traced/included in the build output.
+  return path.resolve(/* turbopackIgnore: true */ cwd, target);
 }
 
 export function buildShellInvocation(shell: Shell, command: string): { bin: string; args: string[] } {
@@ -88,7 +90,12 @@ export async function executeShellCommand(
   if (cdMatch) {
     const resolved = resolveCdTarget(cwd, cdMatch[1] ?? "");
 
-    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+    // turbopackIgnore: `resolved` is a runtime-arbitrary directory (any path the user cd's
+    // into), not a bundling dependency — nothing here should be traced into the build output.
+    if (
+      !fs.existsSync(/* turbopackIgnore: true */ resolved) ||
+      !fs.statSync(/* turbopackIgnore: true */ resolved).isDirectory()
+    ) {
       return emitResult({
         success: false,
         error: `경로를 찾을 수 없습니다: ${cdMatch[1] ?? resolved}`,

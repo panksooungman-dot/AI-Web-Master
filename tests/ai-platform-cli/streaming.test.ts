@@ -144,6 +144,7 @@ describe("AI Provider Manager — streamComplete() (packages/cli/src/providers/m
     const manager = getProviderManager(cwd);
 
     const consume = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- draining the iterator, not reading values
       for await (const _chunk of manager.streamComplete({
         providerId: "anthropic",
         systemPrompt: "sys",

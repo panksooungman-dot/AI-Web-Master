@@ -106,6 +106,21 @@
   5. `prompts/*.md` 6개도 동일 원칙으로 축소
   6. 전체 완료 후 `agents/README.md`·`prompts/README.md`에 "역할 상세는 `skills/experts/`가 기준"이라는 안내 추가
 
+- **Status: Complete (Phase 1 — `agents/*.md` 9/9)** · `prompts/*.md` 6개는 **Phase 2로 분리**되어 아직 미착수(계획서: `docs/architecture/P3_PHASE2_PLAN.md`)
+  - **Completed**: 2026-07-18 ~ 2026-07-19
+  - **상세 완료 보고**: `docs/architecture/P3_PHASE1_COMPLETION.md`, 매핑표: `docs/architecture/AI_CONTENT_MAPPING.md`, 중간 점검: `CHECKPOINT_REVIEW.md`
+  - **Commit SHA / Date**:
+    | 단계 | 커밋 | 날짜 | 내용 |
+    |---|---|---|---|
+    | 매핑 작성 | `87e9706` | 2026-07-18 | `AI_CONTENT_MAPPING.md` 신규 작성 |
+    | Pilot #1 | `dfe4b11` | 2026-07-18 | `ai-engineer` 병합 |
+    | 표준 정의 | `062dddc` | 2026-07-19 | `status`/`source` frontmatter 표준 정의 |
+    | Pilot #2 | `78aa65d` | 2026-07-19 | `backend-engineer` 병합 |
+    | Pilot #3 | `f35c2d9` | 2026-07-19 | `frontend-engineer` 병합 |
+    | 체크포인트 | `bed7f19` | 2026-07-19 | `CHECKPOINT_REVIEW.md` 작성 |
+    | Batch 1 | `8094007` | 2026-07-19 | `devops-engineer`·`qa-engineer`·`technical-writer` 병합 |
+    | Batch 2 | `98a454a` | 2026-07-19 | `business-analyst`·`solution-architect`·`product-manager` 병합, Phase 1 종료 |
+
 ### CS-09. `lib/dev/component-marker.ts` 공유 패키지화
 
 - **변경 이유**: `diff` 결과 루트 `lib/dev/component-marker.ts`와 `apps/cnbiz-web/lib/dev/component-marker.ts`가 **byte 단위로 완전히 동일**. 같은 파일이 두 프로젝트에 독립적으로 존재.
@@ -199,7 +214,7 @@
 | CS-05 | `DOCUMENT_INDEX.md` 동기화 | Low | P2 |
 | CS-06 | `WBS.md` 안내 추가 | Low | P2 |
 | CS-07 | `test-project/` 확인 | Low | P2 |
-| CS-08 | agents+prompts → skills 통합 | Medium | P3 |
+| CS-08 | agents+prompts → skills 통합 (Phase 1 `agents/*.md` 9/9 **Complete** — 2026-07-19, Phase 2 `prompts/*.md`는 계획서 수립, 미착수) | Medium | P3 |
 | CS-09 | `component-marker.ts` 공유화 | Medium | P3 |
 | CS-10 | 레거시 트리 안내 표시 | Low | P3 |
 | CS-11 | marketplace 카테고리 정리 | High | P4 |

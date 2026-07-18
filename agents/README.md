@@ -72,7 +72,7 @@ Release
 | Product Manager | Product planning | Pending |
 | Solution Architect | System architecture | Pending |
 | Backend Engineer | API / Database | Merged → `skills/experts/backend-engineer/SKILL.md` |
-| Frontend Engineer | UI / UX | Pending |
+| Frontend Engineer | UI / UX | Merged → `skills/experts/frontend-engineer/SKILL.md` |
 | AI Engineer | LLM / AI features | Merged → `skills/experts/ai-engineer/SKILL.md` |
 | DevOps Engineer | Infrastructure / CI/CD | Pending |
 | QA Engineer | Quality assurance | Pending |

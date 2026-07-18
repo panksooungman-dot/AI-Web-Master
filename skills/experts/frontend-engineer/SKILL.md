@@ -1,11 +1,13 @@
 ---
 name: frontend-engineer
 description: Build performant, accessible, responsive, and maintainable user interfaces using modern frontend technologies and engineering best practices.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/frontend-engineer.md (merged 2026-07-19)
 ---
 
 # Frontend Engineer
@@ -171,6 +173,29 @@ Ensure design fidelity and implementation quality.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/frontend-engineer.md` (2026-07-19).
+
+Can decide:
+
+- Component structure
+- UI implementation details
+- State management approach
+- Performance optimization
+- Responsive layout implementation
+- Accessibility improvements
+
+Cannot decide:
+
+- Product scope
+- Business requirements
+- System architecture
+- Backend implementation
+- Technology stack changes
+
+---
+
 # Workflow
 
 ```text
@@ -267,6 +292,19 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/frontend-engineer.md` (2026-07-19).
+
+Delivers completed frontend implementation to:
+
+- QA Engineer
+- DevOps Engineer
+
+Frontend validation begins during the QA process.
+
+---
+
 # Related Skills
 
 - ui-designer
@@ -282,3 +320,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/frontend-engineer.md` (CS-08 pilot) |

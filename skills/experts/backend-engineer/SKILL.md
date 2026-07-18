@@ -1,7 +1,7 @@
 ---
 name: backend-engineer
 description: Design, implement, and maintain secure, scalable, and reliable backend systems, APIs, databases, and business logic.
-version: 1.1.0
+version: 1.2.0
 author: AI Business OS
 license: MIT
 category: expert
@@ -262,6 +262,73 @@ Generate:
 
 ---
 
+# Expected Output Structure (Coding)
+
+> Merged from `prompts/coder.md` (2026-07-19). Also applied to: `frontend-engineer`,
+> `ai-engineer` (fan-out 3). Named with a `(Coding)` suffix per
+> `docs/architecture/P3_PHASE2_REVIEW.md` section 5 — `backend-engineer` also
+> receives content from `prompts/tester.md` in a future merge (not part of this
+> Pilot), so the source-qualified heading avoids a future collision. Distinct
+> from `# Outputs` above: `# Outputs` lists the artifact types this skill
+> produces, while this section is a response-formatting template to follow when
+> carrying out an implementation task.
+
+## Objective
+
+Describe what is being implemented.
+
+---
+
+## Approach
+
+Explain the implementation strategy.
+
+---
+
+## Implementation
+
+Provide production-ready code.
+
+---
+
+## Error Handling
+
+Describe how failures are handled.
+
+---
+
+## Security Considerations
+
+- Input validation
+- Authentication
+- Authorization
+- Data protection
+
+---
+
+## Performance Considerations
+
+- Complexity
+- Scalability
+- Resource usage
+
+---
+
+## Testing Recommendations
+
+- Unit Tests
+- Integration Tests
+- Edge Cases
+- Error Cases
+
+---
+
+## Documentation Notes
+
+Highlight important implementation details.
+
+---
+
 # Validation Checklist
 
 Before completion verify:
@@ -339,3 +406,4 @@ QA validation begins after backend implementation is complete.
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
 | 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/backend-engineer.md` (CS-08 pilot) |
+| 1.2.0 | 2026-07-19 | Merged Expected Output Structure (Coding) from `prompts/coder.md` (CS-08 Phase 2 Pilot) |

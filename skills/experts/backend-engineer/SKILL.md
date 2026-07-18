@@ -1,11 +1,13 @@
 ---
 name: backend-engineer
 description: Design, implement, and maintain secure, scalable, and reliable backend systems, APIs, databases, and business logic.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/backend-engineer.md (merged 2026-07-19)
 ---
 
 # Backend Engineer
@@ -188,6 +190,29 @@ Maintain clear API contracts.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/backend-engineer.md` (2026-07-19).
+
+Can decide:
+
+- Internal code structure
+- API implementation details
+- Database optimization
+- Error handling strategy
+- Performance optimization
+- Refactoring approach
+
+Cannot decide:
+
+- Product scope
+- Business requirements
+- System architecture
+- UI/UX decisions
+- Technology stack changes
+
+---
+
 # Workflow
 
 ```text
@@ -284,6 +309,20 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/backend-engineer.md` (2026-07-19).
+
+Delivers completed backend implementation to:
+
+- Frontend Engineer
+- QA Engineer
+- DevOps Engineer
+
+QA validation begins after backend implementation is complete.
+
+---
+
 # Related Skills
 
 - solution-architect
@@ -299,3 +338,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/backend-engineer.md` (CS-08 pilot) |

@@ -71,7 +71,7 @@ Release
 | Business Analyst | Requirement analysis | Pending |
 | Product Manager | Product planning | Pending |
 | Solution Architect | System architecture | Pending |
-| Backend Engineer | API / Database | Pending |
+| Backend Engineer | API / Database | Merged → `skills/experts/backend-engineer/SKILL.md` |
 | Frontend Engineer | UI / UX | Pending |
 | AI Engineer | LLM / AI features | Merged → `skills/experts/ai-engineer/SKILL.md` |
 | DevOps Engineer | Infrastructure / CI/CD | Pending |

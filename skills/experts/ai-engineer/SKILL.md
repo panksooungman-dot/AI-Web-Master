@@ -1,7 +1,7 @@
 ---
 name: ai-engineer
 description: Design, build, deploy, evaluate, and operate AI-powered systems using LLMs, machine learning, RAG, agents, and responsible AI engineering practices.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
@@ -189,6 +189,29 @@ Deliver AI solutions aligned with business objectives.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/ai-engineer.md` (2026-07-19).
+
+Can decide:
+
+- Prompt structure
+- LLM integration strategy
+- RAG implementation
+- MCP integration approach
+- AI evaluation methodology
+- AI optimization techniques
+
+Cannot decide:
+
+- Business priorities
+- Product roadmap
+- Overall system architecture
+- Infrastructure strategy
+- Security policy
+
+---
+
 # Workflow
 
 ```text
@@ -285,6 +308,19 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/ai-engineer.md` (2026-07-19).
+
+Delivers completed AI implementation to:
+
+- DevOps Engineer
+- QA Engineer
+
+AI systems proceed to deployment validation and quality assurance.
+
+---
+
 # Related Skills
 
 - data-engineer
@@ -300,3 +336,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/ai-engineer.md` (CS-08 pilot) |

@@ -84,23 +84,23 @@
 
 CS-08 계획대로 **파일 삭제가 아닌 내용 병합**이 대상이다. 아래 15개 소스 파일의 "중복 아닌 부분"(3번 참고)만 대응하는 `skills/experts/*/SKILL.md`에 보완하고, 소스 파일 자체는 요약 + 링크로 축소한다(파일 경로는 유지 — 아래 5번 참고).
 
-| 소스 | 대상 | 보완할 고유 내용 |
-|---|---|---|
-| `agents/ai-engineer.md` | `skills/experts/ai-engineer/SKILL.md` | Decision Authority, Handoff |
-| `agents/backend-engineer.md` | `skills/experts/backend-engineer/SKILL.md` | Decision Authority, Handoff |
-| `agents/business-analyst.md` | `skills/experts/business-analyst/SKILL.md` | Decision Authority, Handoff |
-| `agents/devops-engineer.md` | `skills/experts/devops-engineer/SKILL.md` | Decision Authority, Handoff |
-| `agents/frontend-engineer.md` | `skills/experts/frontend-engineer/SKILL.md` | Decision Authority, Handoff |
-| `agents/product-manager.md` | `skills/experts/product-manager/SKILL.md` | Decision Authority, Handoff |
-| `agents/qa-engineer.md` | `skills/experts/qa-engineer/SKILL.md` | Decision Authority, Handoff |
-| `agents/solution-architect.md` | `skills/experts/solution-architect/SKILL.md` | Decision Authority, Handoff |
-| `agents/technical-writer.md` | `skills/experts/technical-writer/SKILL.md` | Decision Authority, Handoff |
-| `prompts/planner.md` | `business-analyst/`, `product-manager/` | Expected Output Structure(있다면), 워크플로 단계별 절차 |
-| `prompts/coder.md` | `backend-engineer/`, `frontend-engineer/`, `ai-engineer/` | Expected Output Structure |
-| `prompts/reviewer.md` | `solution-architect/`, `devops-engineer/`, `qa-engineer/` | Expected Output Structure |
-| `prompts/tester.md` | `qa-engineer/` (주 대상) 외 4개 | Expected Output Structure |
-| `prompts/documenter.md` | `technical-writer/`, `product-manager/`, `qa-engineer/` | Expected Output Structure |
-| `prompts/system.md` | 15개 전체 공통 | 병합 대신 각 SKILL.md 상단에 "전역 규칙은 prompts/system.md 참고" 각주만 추가(내용 복제 금지 — 이미 전역이므로) |
+| 소스 | 대상 | 보완할 고유 내용 | 상태 |
+|---|---|---|---|
+| `agents/ai-engineer.md` | `skills/experts/ai-engineer/SKILL.md` | Decision Authority, Handoff | ✅ Merged (Pilot, 2026-07-19) |
+| `agents/backend-engineer.md` | `skills/experts/backend-engineer/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/business-analyst.md` | `skills/experts/business-analyst/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/devops-engineer.md` | `skills/experts/devops-engineer/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/frontend-engineer.md` | `skills/experts/frontend-engineer/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/product-manager.md` | `skills/experts/product-manager/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/qa-engineer.md` | `skills/experts/qa-engineer/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/solution-architect.md` | `skills/experts/solution-architect/SKILL.md` | Decision Authority, Handoff | Pending |
+| `agents/technical-writer.md` | `skills/experts/technical-writer/SKILL.md` | Decision Authority, Handoff | Pending |
+| `prompts/planner.md` | `business-analyst/`, `product-manager/` | Expected Output Structure(있다면), 워크플로 단계별 절차 | Pending |
+| `prompts/coder.md` | `backend-engineer/`, `frontend-engineer/`, `ai-engineer/` | Expected Output Structure | Pending |
+| `prompts/reviewer.md` | `solution-architect/`, `devops-engineer/`, `qa-engineer/` | Expected Output Structure | Pending |
+| `prompts/tester.md` | `qa-engineer/` (주 대상) 외 4개 | Expected Output Structure | Pending |
+| `prompts/documenter.md` | `technical-writer/`, `product-manager/`, `qa-engineer/` | Expected Output Structure | Pending |
+| `prompts/system.md` | 15개 전체 공통 | 병합 대신 각 SKILL.md 상단에 "전역 규칙은 prompts/system.md 참고" 각주만 추가(내용 복제 금지 — 이미 전역이므로) | Pending |
 
 **실행 순서 원칙**(CS-08과 동일): 1개 직군(`ai-engineer`)을 시범 사례로 먼저 진행 후 나머지 8개 + `prompts/*.md` 6개로 확대.
 
@@ -182,12 +182,12 @@ skills/experts/
 
 ## 8. 실행 전 재확인 체크리스트 (CS-08 착수 시)
 
-- [ ] 시범 사례(`ai-engineer`) 병합 후 `skills/experts/ai-engineer/SKILL.md`가 여전히 유효한 YAML frontmatter를 유지하는지 확인
-- [ ] `agents/ai-engineer.md` 축소본이 기존 29개 각주 참조 경로를 깨지 않는지 확인(경로 유지, 앵커만 변경 시 재확인)
+- [x] 시범 사례(`ai-engineer`) 병합 후 `skills/experts/ai-engineer/SKILL.md`가 여전히 유효한 YAML frontmatter를 유지하는지 확인 — 2026-07-19 완료(`version: 1.1.0`으로 갱신, frontmatter 유효)
+- [x] `agents/ai-engineer.md` 축소본이 기존 참조 경로를 깨지 않는지 확인 — 2026-07-19 완료(경로 유지, `memory/coding-memory.md`·`agents/devops-engineer.md`·`prompts/coder.md` 3건 재확인, 전부 파일 경로만 참조하므로 영향 없음)
 - [ ] 시범 사례 검토 후 나머지 8개 직군 + `prompts/*.md` 6개로 확대
-- [ ] 전체 완료 후 `agents/README.md`·`prompts/README.md`에 안내 문구 추가
+- [ ] 전체 완료 후 `agents/README.md`·`prompts/README.md`에 안내 문구 추가(`agents/README.md`는 이번 Pilot에서 "Status" 열로 부분 반영 완료, `prompts/README.md`는 아직 미반영)
 - [ ] 각 단계 개별 커밋(CS-08 롤백 방침과 동일)
 
 ---
 
-*본 문서는 계획서입니다. 실제 병합·축소·삭제는 사용자 승인 후 별도 세션에서 진행합니다.*
+*본 문서는 계획서입니다. Pilot 1건(`ai-engineer`, 2026-07-19)만 실행 완료 — 나머지 항목은 사용자 승인 후 별도 세션에서 진행합니다.*

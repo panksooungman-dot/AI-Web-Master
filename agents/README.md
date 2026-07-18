@@ -61,17 +61,22 @@ Release
 
 ## Available Agents
 
-| Agent | Responsibility |
-|--------|----------------|
-| Business Analyst | Requirement analysis |
-| Product Manager | Product planning |
-| Solution Architect | System architecture |
-| Backend Engineer | API / Database |
-| Frontend Engineer | UI / UX |
-| AI Engineer | LLM / AI features |
-| DevOps Engineer | Infrastructure / CI/CD |
-| QA Engineer | Quality assurance |
-| Technical Writer | Documentation |
+> ⚠️ **통합 진행 중 (2026-07-19)**: 각 Agent 문서의 상세 정의는 `skills/experts/<role>/SKILL.md`로
+> 순차 통합되고 있습니다(`docs/architecture/AI_CONTENT_MAPPING.md` 참고). "Status" 열이
+> `Merged`인 항목은 이미 통합 완료 — 해당 `agents/*.md`는 요약 + 링크만 남기고 상세는
+> `skills/experts/`를 기준으로 참고하세요.
+
+| Agent | Responsibility | Status |
+|--------|----------------|--------|
+| Business Analyst | Requirement analysis | Pending |
+| Product Manager | Product planning | Pending |
+| Solution Architect | System architecture | Pending |
+| Backend Engineer | API / Database | Pending |
+| Frontend Engineer | UI / UX | Pending |
+| AI Engineer | LLM / AI features | Merged → `skills/experts/ai-engineer/SKILL.md` |
+| DevOps Engineer | Infrastructure / CI/CD | Pending |
+| QA Engineer | Quality assurance | Pending |
+| Technical Writer | Documentation | Pending |
 
 ---
 

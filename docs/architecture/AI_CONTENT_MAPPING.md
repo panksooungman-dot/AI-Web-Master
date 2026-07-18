@@ -213,7 +213,37 @@ skills/experts/
 | `name` | 존재 | 변경 없음 |
 | `version` | 존재 | 변경 없음(병합 시 minor 증가 — `ai-engineer` 선례: 1.0.0→1.1.0) |
 | `status` | **없음** | `active`(대응하는 `agents/*.md` 없음, 병합 불필요) · `pending-merge`(대응 소스 있으나 미병합) · `merged`(병합 완료) 중 하나 |
-| `source` | **없음** | 병합 대상 없으면 `none`, 대기 중이면 대상 경로 명시, 완료되면 `<경로> (merged YYYY-MM-DD)` |
+| `source` (단일 출처 시절 표기, **2026-07-19부로 `sources` 배열로 대체**) | **없음** | ~~병합 대상 없으면 `none`, 대기 중이면 대상 경로 명시, 완료되면 `<경로> (merged YYYY-MM-DD)`~~ — 아래 9.1.1 참고 |
+
+#### 9.1.1 `sources` 배열 (2026-07-19 설계 개선, Phase 2 Pilot에서 발견된 공백 보완)
+
+Phase 2 Pilot(`prompts/coder.md` → `backend-engineer`/`frontend-engineer`/`ai-engineer`)를
+실행하며 확인된 문제: SKILL.md 하나가 `agents/*`뿐 아니라 `prompts/*`(및 향후 `workflow/*`
+등)에서도 병합받게 되어, 단일 문자열 `source:` 필드로는 **여러 출처를 표현할 수 없다**는
+설계 공백이 드러났다. 이를 아래 배열 구조로 교체한다(대체이지 추가 아님 — 한 파일에
+`source`와 `sources`가 동시에 존재하지 않는다):
+
+```yaml
+sources:
+  - type: agent
+    path: agents/<role>.md
+    merged: "YYYY-MM-DD"
+  - type: prompt
+    path: prompts/<file>.md
+    merged: "YYYY-MM-DD"
+```
+
+- `type`: 출처 종류 — `agent` · `prompt` · (향후) `workflow` 등
+- `path`: 출처 파일 경로(문자열)
+- `merged`: 병합 날짜. **반드시 따옴표로 감싼 문자열**로 작성한다 — 따옴표 없이 쓰면
+  YAML이 `YYYY-MM-DD`를 날짜 스칼라로 자동 해석해 `js-yaml` 파싱 시 문자열이 아닌
+  `Date` 객체(타임존 포함 ISO 문자열)로 바뀌는 것을 실측으로 확인했다.
+- `status` 필드는 변경 없이 그대로 유지한다(`merged`/`pending-merge`/`active`).
+- 아직 `agents/*` 하나만 병합된 파일(6개: `devops-engineer`·`qa-engineer`·
+  `technical-writer`·`business-analyst`·`solution-architect`·`product-manager`)은
+  이번 설계 변경 시점에는 **그대로 두었다** — 단일 `source:` 문자열 그대로 유지, 두
+  번째 출처가 실제로 병합될 때 그 파일만 `sources` 배열로 전환한다(일괄 전환하지
+  않음, CS-08의 "필요한 시점에만 반영" 원칙과 동일).
 
 ### 9.2 섹션 커버리지 (기존 헤더로 이미 충족되는 개념은 그대로 인정)
 
@@ -232,26 +262,26 @@ skills/experts/
 
 **결론**: `Purpose`/`Responsibilities`/`Inputs`/`Outputs`/`References`/`Change History` 6개는 이름만 다를 뿐 이미 15개 전부 충족 상태라 추가 작업이 필요 없다. `Decision Authority`/`Handoff`는 `agents/*.md` 대응 소스가 있던 9개 전부 병합 완료(2026-07-19) — 남은 것은 대응 소스가 없는 6개 직군의 신규 작성뿐이다.
 
-### 9.3 준수 현황 (2026-07-19 기준)
+### 9.3 준수 현황 (2026-07-19 기준, Phase 2 Pilot 이후 갱신)
 
-| 직군 | status | source | Decision Authority / Handoff |
+| 직군 | status | source / sources | Decision Authority / Handoff |
 |---|---|---|---|
-| `ai-engineer` | `merged` (반영 완료) | `agents/ai-engineer.md (merged 2026-07-19)` | ✅ 있음 |
-| `backend-engineer` | `merged` (반영 완료) | `agents/backend-engineer.md (merged 2026-07-19)` | ✅ 있음 |
-| `frontend-engineer` | `merged` (반영 완료) | `agents/frontend-engineer.md (merged 2026-07-19)` | ✅ 있음 |
-| `devops-engineer` | `merged` (반영 완료) | `agents/devops-engineer.md (merged 2026-07-19)` | ✅ 있음 |
-| `qa-engineer` | `merged` (반영 완료) | `agents/qa-engineer.md (merged 2026-07-19)` | ✅ 있음 |
-| `technical-writer` | `merged` (반영 완료) | `agents/technical-writer.md (merged 2026-07-19)` | ✅ 있음 |
-| `business-analyst` | `merged` (반영 완료) | `agents/business-analyst.md (merged 2026-07-19)` | ✅ 있음(`# Workflow` 직전 삽입) |
-| `product-manager` | `merged` (반영 완료) | `agents/product-manager.md (merged 2026-07-19)` | ✅ 있음(`# Workflow` 직전 삽입, `# Decision Framework`와의 관계 각주 포함) |
-| `solution-architect` | `merged` (반영 완료) | `agents/solution-architect.md (merged 2026-07-19)` | ✅ 있음(`# Workflow` 직전 삽입) |
+| `ai-engineer` | `merged` (반영 완료) | **`sources` 배열**(agent: `agents/ai-engineer.md`, prompt: `prompts/coder.md`, 2026-07-19) | ✅ 있음 |
+| `backend-engineer` | `merged` (반영 완료) | **`sources` 배열**(agent: `agents/backend-engineer.md`, prompt: `prompts/coder.md`, 2026-07-19) | ✅ 있음 |
+| `frontend-engineer` | `merged` (반영 완료) | **`sources` 배열**(agent: `agents/frontend-engineer.md`, prompt: `prompts/coder.md`, 2026-07-19) | ✅ 있음 |
+| `devops-engineer` | `merged` (반영 완료) | 단일 `source: agents/devops-engineer.md (merged 2026-07-19)` — Phase 2 미접촉이라 전환 안 함 | ✅ 있음 |
+| `qa-engineer` | `merged` (반영 완료) | 단일 `source: agents/qa-engineer.md (merged 2026-07-19)` — 상동 | ✅ 있음 |
+| `technical-writer` | `merged` (반영 완료) | 단일 `source: agents/technical-writer.md (merged 2026-07-19)` — 상동 | ✅ 있음 |
+| `business-analyst` | `merged` (반영 완료) | 단일 `source: agents/business-analyst.md (merged 2026-07-19)` — 상동 | ✅ 있음(`# Workflow` 직전 삽입) |
+| `product-manager` | `merged` (반영 완료) | 단일 `source: agents/product-manager.md (merged 2026-07-19)` — 상동 | ✅ 있음(`# Workflow` 직전 삽입, `# Decision Framework`와의 관계 각주 포함) |
+| `solution-architect` | `merged` (반영 완료) | 단일 `source: agents/solution-architect.md (merged 2026-07-19)` — 상동 | ✅ 있음(`# Workflow` 직전 삽입) |
 | `data-engineer`·`fullstack-engineer`·`scrum-master`·`security-engineer`·`ui-designer`·`ux-designer` | 미반영 | 미반영(값: `none`) | 없음(대응 소스 없음, 신규 작성 필요) |
 
-**진행 방식 확정(2026-07-19)**: 사용자가 (b)안을 선택 — `status`/`source` frontmatter는 일괄 반영하지 않고, CS-08 개별 Pilot/Batch가 그 파일을 병합할 때마다 함께 반영한다. Pilot(3) + Batch 1(3) + Batch 2(3) = **9/15 전부 이 방식으로 반영 완료**. `agents/*.md` 대응 소스가 있는 직군은 이것으로 전부 소진되었고, 남은 6개는 소스가 없어 신규 작성이 필요한 별도 유형이다.
+**진행 방식 확정(2026-07-19)**: 사용자가 (b)안을 선택 — `status`/`source` frontmatter는 일괄 반영하지 않고, CS-08 개별 Pilot/Batch가 그 파일을 병합할 때마다 함께 반영한다. Pilot(3) + Batch 1(3) + Batch 2(3) = 9/15가 이 방식으로 반영 완료. **이후 Phase 2 Pilot(`prompts/coder.md`)이 `ai-engineer`·`backend-engineer`·`frontend-engineer` 3개에 두 번째 출처를 추가하면서, 이 3개만 단일 `source:` 문자열에서 `sources:` 배열로 전환했다**(9.1.1 참고) — 나머지 6개는 아직 출처가 하나뿐이라 전환하지 않고 그대로 둔다.
 
 ### 9.4 이번에 실행한 것
 
-`skills/experts/ai-engineer/SKILL.md`의 frontmatter에 `status: merged`, `source: agents/ai-engineer.md (merged 2026-07-19)`를 추가해 이 표준의 기준 사례(reference implementation)로 삼았다. 이후 `backend-engineer`·`frontend-engineer`(Pilot #2·#3), `devops-engineer`·`qa-engineer`·`technical-writer`(Batch 1), `business-analyst`·`product-manager`·`solution-architect`(Batch 2)에도 동일하게 적용해 총 9개 파일에 반영 완료 — `agents/*.md` 9개 전부. 기존 7개 키·본문 섹션은 전혀 건드리지 않았다.
+`skills/experts/ai-engineer/SKILL.md`의 frontmatter에 `status: merged`, `source: agents/ai-engineer.md (merged 2026-07-19)`를 추가해 이 표준의 기준 사례(reference implementation)로 삼았다. 이후 `backend-engineer`·`frontend-engineer`(Pilot #2·#3), `devops-engineer`·`qa-engineer`·`technical-writer`(Batch 1), `business-analyst`·`product-manager`·`solution-architect`(Batch 2)에도 동일하게 적용해 총 9개 파일에 반영 완료 — `agents/*.md` 9개 전부. **2026-07-19, Phase 2 Pilot(`prompts/coder.md`) 실행 중 단일 `source:` 문자열로는 다중 출처를 표현할 수 없다는 설계 공백을 발견해, `ai-engineer`·`backend-engineer`·`frontend-engineer` 3개(현재 2개 이상 출처를 가진 파일 전부)의 frontmatter를 `sources:` 배열 구조로 전환했다(9.1.1 참고). 본문 섹션은 이 설계 변경에서 전혀 건드리지 않았다.**
 
 ---
 

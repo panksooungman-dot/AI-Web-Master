@@ -7,7 +7,13 @@ license: MIT
 category: expert
 priority: required
 status: merged
-source: agents/backend-engineer.md (merged 2026-07-19)
+sources:
+  - type: agent
+    path: agents/backend-engineer.md
+    merged: "2026-07-19"
+  - type: prompt
+    path: prompts/coder.md
+    merged: "2026-07-19"
 ---
 
 # Backend Engineer

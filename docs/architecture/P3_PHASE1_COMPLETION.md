@@ -98,6 +98,18 @@ source: agents/<role>.md (merged YYYY-MM-DD)
 `pending-merge`(대응 소스 있으나 미병합) · `active`(대응 소스 없음, 병합 불필요) 중 하나.
 Phase 1 완료 시점 기준 9개 전부 `merged`.
 
+> **추록(2026-07-19, Phase 2 Pilot 이후)**: 위 단일 `source:` 문자열 설계는 SKILL.md
+> 하나가 출처 하나(`agents/*.md`)만 가진다는 Phase 1 시점의 전제 위에 서 있었다.
+> Phase 2 Pilot(`prompts/coder.md` → `backend-engineer`/`frontend-engineer`/
+> `ai-engineer`)을 실행하며 이 전제가 깨졌다 — 같은 SKILL.md가 `agents/*`와
+> `prompts/*` 양쪽에서 병합받는 사례가 실제로 발생했다. 이에 따라 **두 번째 이상의
+> 출처를 갖게 된 파일에 한해** 단일 `source:`를 `sources:` 배열(`type`/`path`/
+> `merged` 3개 필드)로 교체했다 — 나머지 6개(아직 출처가 하나뿐인 파일)는 기존
+> `source:` 문자열 그대로 유지한다. 상세 스펙과 값 규칙은
+> `docs/architecture/AI_CONTENT_MAPPING.md` 9.1.1을 기준 문서로 삼는다. 이 문서의
+> 나머지 서술(Decision Authority/Handoff/버전 증가/YAML 규칙/검증 절차)은 Phase 1
+> 완료 시점 기록이므로 수정하지 않았다.
+
 ## Decision Authority
 
 `agents/<role>.md`의 `# Decision Authority`(Can decide / Cannot decide 목록)를
@@ -133,6 +145,13 @@ Phase 1 완료 시점 기준 9개 전부 `merged`.
 frontmatter는 순수 key: value 평문(quoted string 불필요)으로 작성한다. `source` 값에
 괄호와 공백이 포함되어도(`agents/ai-engineer.md (merged 2026-07-19)`) YAML 콜론(`:`)이
 값 안에 없는 한 파싱에 문제가 없음을 9건 전부 Node.js 스크립트로 직접 파싱해 검증했다.
+
+> **추록(2026-07-19)**: `sources:` 배열 도입 후 실제 `js-yaml` 파서로 재검증하는 과정에서,
+> 따옴표 없는 `merged: 2026-07-19`가 YAML 1.1 스펙상 날짜 스칼라로 자동 해석되어
+> 문자열이 아닌 `Date` 객체(타임존 포함 ISO 문자열)로 파싱됨을 실측으로 발견했다.
+> Phase 1의 `source:` 문자열 안에 있던 날짜는 괄호 안 텍스트 일부라 이 문제가
+> 없었지만, `merged:` 필드처럼 날짜가 **단독 YAML 값**이 되는 경우에는 반드시
+> `merged: "YYYY-MM-DD"`처럼 따옴표로 감싸 문자열 타입을 강제해야 한다.
 
 ## 검증 절차
 

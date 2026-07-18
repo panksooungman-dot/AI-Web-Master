@@ -190,4 +190,58 @@ skills/experts/
 
 ---
 
+## 9. `skills/experts/*/SKILL.md` 공통 운영 표준 (Additive Standard)
+
+> 이 표준은 새 템플릿 파일이 아니다. 15개 `SKILL.md`가 이미 공유하는 기존 구조
+> (`When to Use`/`Objectives`/`Model Management` 류 직군별 고유 섹션, `Validation
+> Checklist`/`Failure Conditions`/`Rules` 등)를 **대체·단순화하지 않고 그대로 둔 채**,
+> 모든 파일이 최소한으로 갖춰야 할 메타데이터·운영 섹션을 확인하는 체크리스트다.
+> 실제 개념이 이미 다른 이름의 섹션으로 존재하면 그 섹션을 그대로 인정하고, 개념 자체가
+> 없을 때만 새 섹션을 추가한다(제목을 강제로 통일하지 않는다).
+
+### 9.1 Frontmatter (추가형)
+
+15개 파일 전부 현재 `name`/`description`/`version`/`author`/`license`/`category`/`priority` 7개
+키로 동일하다(실측 확인, 2026-07-19). 아래 2개 키는 15개 전부에 없음 — 추가 대상.
+
+| 키 | 현재 상태(15개 전부) | 제안 값 규칙 |
+|---|---|---|
+| `name` | 존재 | 변경 없음 |
+| `version` | 존재 | 변경 없음(병합 시 minor 증가 — `ai-engineer` 선례: 1.0.0→1.1.0) |
+| `status` | **없음** | `active`(대응하는 `agents/*.md` 없음, 병합 불필요) · `pending-merge`(대응 소스 있으나 미병합) · `merged`(병합 완료) 중 하나 |
+| `source` | **없음** | 병합 대상 없으면 `none`, 대기 중이면 대상 경로 명시, 완료되면 `<경로> (merged YYYY-MM-DD)` |
+
+### 9.2 섹션 커버리지 (기존 헤더로 이미 충족되는 개념은 그대로 인정)
+
+15개 파일 전체 헤더를 실측 대조한 결과:
+
+| 표준 개념 | 15개 파일의 실제 헤더 | 충족 여부 |
+|---|---|---|
+| Purpose | `## Purpose` | ✅ 15/15 이미 충족 |
+| Responsibilities | `# Core Responsibilities` | ✅ 15/15 이미 충족(헤더명 유지, 개념 동일) |
+| Inputs | `# Inputs` | ✅ 15/15 이미 충족 |
+| Outputs | `# Outputs` | ✅ 15/15 이미 충족 |
+| References | `# Related Skills` | ✅ 15/15 이미 충족(헤더명 유지, 개념 동일) |
+| Change History | `# Version History` | ✅ 15/15 이미 충족(헤더명 유지, 개념 동일) |
+| Decision Authority | 없음(`agents/*.md`에만 존재) | ⚠️ `ai-engineer` 1/15만 충족(CS-08 Pilot으로 병합됨), 나머지 14/15는 대응 `agents/*.md`가 있는 8개는 병합 시 자연히 채워짐, 대응 소스가 없는 6개(`data-engineer`·`fullstack-engineer`·`scrum-master`·`security-engineer`·`ui-designer`·`ux-designer`)는 신규 작성 필요 |
+| Handoff | 없음(`agents/*.md`에만 존재) | ⚠️ 상동 |
+
+**결론**: `Purpose`/`Responsibilities`/`Inputs`/`Outputs`/`References`/`Change History` 6개는 이름만 다를 뿐 이미 15개 전부 충족 상태라 추가 작업이 필요 없다. 실제로 채워야 할 것은 (1) 15개 전부의 frontmatter에 `status`/`source` 2개 키 추가, (2) 대응 `agents/*.md`가 있는 8개 직군은 CS-08 병합 시 `Decision Authority`/`Handoff` 자동 반영, (3) 대응 소스가 없는 6개 직군은 `Decision Authority`/`Handoff`를 신규 작성해야 한다는 점이다.
+
+### 9.3 준수 현황 (2026-07-19 기준)
+
+| 직군 | status | source | Decision Authority / Handoff |
+|---|---|---|---|
+| `ai-engineer` | `merged` (반영 완료) | `agents/ai-engineer.md (merged 2026-07-19)` | ✅ 있음 |
+| `backend-engineer` 외 7개(`business-analyst`·`devops-engineer`·`frontend-engineer`·`product-manager`·`qa-engineer`·`solution-architect`·`technical-writer`) | 미반영 | 미반영(대상: 각 `agents/<role>.md`) | 없음(대응 소스 있음, CS-08 병합 대기) |
+| `data-engineer`·`fullstack-engineer`·`scrum-master`·`security-engineer`·`ui-designer`·`ux-designer` | 미반영 | 미반영(값: `none`) | 없음(대응 소스 없음, 신규 작성 필요) |
+
+**아직 실행하지 않음**: `status`/`source` frontmatter 추가는 이 표준 정의 시점(2026-07-19)에는 `ai-engineer` 1개 파일에만 반영했다(9.4 참고). 나머지 14개는 사용자 확인 후 일괄 반영할지, CS-08 개별 Pilot 진행 시마다 함께 반영할지 결정 필요.
+
+### 9.4 이번에 실행한 것
+
+`skills/experts/ai-engineer/SKILL.md`의 frontmatter에 `status: merged`, `source: agents/ai-engineer.md (merged 2026-07-19)`를 추가해 이 표준의 기준 사례(reference implementation)로 삼았다(아래 diff 참고). 기존 7개 키·본문 섹션은 전혀 건드리지 않았다.
+
+---
+
 *본 문서는 계획서입니다. Pilot 1건(`ai-engineer`, 2026-07-19)만 실행 완료 — 나머지 항목은 사용자 승인 후 별도 세션에서 진행합니다.*

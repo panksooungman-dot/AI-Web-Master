@@ -45,6 +45,11 @@
 | `DESIGN_SYSTEM.md` | 컬러·타이포·레이아웃·컴포넌트 디자인 기준 | Active |
 | `UI_GUIDE.md` | UI 가이드 (빈 문서) | Placeholder |
 | `UX_GUIDE.md` | UX 가이드 (빈 문서) | Placeholder |
+| `DESIGN_AUTOMATION_MASTER.md` | Design Automation 전체 시스템 마스터 인덱스(4개 세부 스펙과 실제 구현 상태 연결) | Phase 1-9 Implemented |
+| `CLAUDE_DESIGN_INTEGRATION.md` | Claude Code-Claude Design 연동 스펙(요구사항→기획→디자인 자동 생성) | Planned |
+| `FIGMA_INTEGRATION.md` | Figma Import/Export 연동 스펙 | Planned |
+| `DESIGN_SYNC.md` | 디자인-코드 양방향 동기화 스펙 | Planned |
+| `DESIGN_WORKFLOW.md` | 요구사항부터 배포까지 전체 프로세스를 하나의 Workflow로 관리하는 스펙 | Planned |
 
 ## 6. Operations Documents (`docs/04_OPERATIONS/`)
 

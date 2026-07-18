@@ -1,11 +1,13 @@
 ---
 name: business-analyst
 description: Analyze business needs, define requirements, model business processes, and bridge communication between stakeholders and development teams.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/business-analyst.md (merged 2026-07-19)
 ---
 
 # Business Analyst
@@ -157,6 +159,30 @@ Verify that:
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/business-analyst.md` (2026-07-19). This file has no `# Collaboration`
+> header, so Decision Authority/Handoff are placed here, immediately before `# Workflow`
+> (per `CHECKPOINT_REVIEW.md` section 5).
+
+Can decide:
+
+- Requirement completeness
+- Requirement priority recommendations
+- Requirement clarification
+- Scope clarification
+- Business assumptions
+
+Cannot decide:
+
+- Product roadmap
+- System architecture
+- Implementation approach
+- Development schedule
+- Infrastructure decisions
+
+---
+
 # Workflow
 
 ```text
@@ -253,6 +279,18 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/business-analyst.md` (2026-07-19).
+
+Delivers all approved outputs to:
+
+**Product Manager**
+
+The Product Manager becomes responsible for product planning after business requirements are accepted.
+
+---
+
 # Related Skills
 
 - product-manager
@@ -268,3 +306,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/business-analyst.md` (CS-08 Batch 2, inserted before `# Workflow` — no `# Collaboration` header) |

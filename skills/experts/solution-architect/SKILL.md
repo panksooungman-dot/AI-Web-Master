@@ -1,11 +1,13 @@
 ---
 name: solution-architect
 description: Design scalable, secure, and maintainable software architectures that align business goals with technical solutions.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/solution-architect.md (merged 2026-07-19)
 ---
 
 # Solution Architect
@@ -158,6 +160,33 @@ Review architecture continuously.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/solution-architect.md` (2026-07-19). This file has no `# Collaboration`
+> header, so Decision Authority/Handoff are placed here, immediately before `# Workflow`
+> (per `CHECKPOINT_REVIEW.md` section 5).
+
+Can decide:
+
+- System Architecture
+- Technology Stack
+- Integration Strategy
+- API Standards
+- Database Design
+- Infrastructure Design
+- Architectural Patterns
+- Technical Standards
+
+Cannot decide:
+
+- Business Priorities
+- Product Roadmap
+- Feature Scope
+- Release Schedule
+- Budget Approval
+
+---
+
 # Workflow
 
 ```text
@@ -254,6 +283,21 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/solution-architect.md` (2026-07-19).
+
+Delivers all approved outputs to:
+
+- Backend Engineer
+- Frontend Engineer
+- AI Engineer
+- DevOps Engineer
+
+Engineering teams begin implementation based on the approved architecture.
+
+---
+
 # Related Skills
 
 - product-manager
@@ -269,3 +313,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/solution-architect.md` (CS-08 Batch 2, inserted before `# Workflow` — no `# Collaboration` header) |

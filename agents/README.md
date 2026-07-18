@@ -61,16 +61,15 @@ Release
 
 ## Available Agents
 
-> ⚠️ **통합 진행 중 (2026-07-19)**: 각 Agent 문서의 상세 정의는 `skills/experts/<role>/SKILL.md`로
-> 순차 통합되고 있습니다(`docs/architecture/AI_CONTENT_MAPPING.md` 참고). "Status" 열이
-> `Merged`인 항목은 이미 통합 완료 — 해당 `agents/*.md`는 요약 + 링크만 남기고 상세는
-> `skills/experts/`를 기준으로 참고하세요.
+> ✅ **통합 완료 (9/9, 2026-07-19)**: 각 Agent 문서의 상세 정의는 전부 `skills/experts/<role>/SKILL.md`로
+> 통합되었습니다(`docs/architecture/AI_CONTENT_MAPPING.md` 참고). 해당 `agents/*.md`는
+> 요약 + 링크만 남긴 Legacy Stub이며, 상세는 `skills/experts/`를 기준으로 참고하세요.
 
 | Agent | Responsibility | Status |
 |--------|----------------|--------|
-| Business Analyst | Requirement analysis | Pending |
-| Product Manager | Product planning | Pending |
-| Solution Architect | System architecture | Pending |
+| Business Analyst | Requirement analysis | Merged → `skills/experts/business-analyst/SKILL.md` |
+| Product Manager | Product planning | Merged → `skills/experts/product-manager/SKILL.md` |
+| Solution Architect | System architecture | Merged → `skills/experts/solution-architect/SKILL.md` |
 | Backend Engineer | API / Database | Merged → `skills/experts/backend-engineer/SKILL.md` |
 | Frontend Engineer | UI / UX | Merged → `skills/experts/frontend-engineer/SKILL.md` |
 | AI Engineer | LLM / AI features | Merged → `skills/experts/ai-engineer/SKILL.md` |
@@ -125,11 +124,12 @@ technical-writer.md
 
 ## Standard Agent Template
 
-> ⚠️ 아래 템플릿은 "Status: Pending"인 Agent 문서에만 적용된다. "Status: Merged"인 문서는
-> Legacy Stub(요약 + `skills/experts/<role>/SKILL.md` 링크)로 축소되어 이 템플릿을 따르지
-> 않는다 — 상세 정의 템플릿은 대상 SKILL.md 쪽 구조를 기준으로 한다.
+> ⚠️ **2026-07-19 기준 9/9 전부 Merged 상태라 이 템플릿을 따르는 현재 문서는 없다.** 아래는
+> Legacy Stub으로 축소되기 전 `agents/*.md`가 따르던 이력상의 템플릿이며, 상세 정의는 전부
+> `skills/experts/<role>/SKILL.md` 쪽 구조를 기준으로 한다. 신규 직군이 추가될 경우에만
+> 참고할 것.
 
-Every **Pending** Agent document must contain:
+Every Agent document previously contained (pre-CS-08 template, kept for historical reference):
 
 - Role
 - Mission

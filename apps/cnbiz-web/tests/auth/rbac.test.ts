@@ -92,6 +92,12 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
     it("leaves /api/contact ungated (backs the public /contact form, submitted with no session)", () => {
       expect(resolveProtectedArea("/api/contact")).toBeNull();
     });
+
+    it("leaves /api/requests/submit ungated (backs the public /request form) but keeps /api/requests and /api/requests/[id] admin-gated (customer PII)", () => {
+      expect(resolveProtectedArea("/api/requests/submit")).toBeNull();
+      expect(resolveProtectedArea("/api/requests")).toBe("developer");
+      expect(resolveProtectedArea("/api/requests/abc123")).toBe("developer");
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

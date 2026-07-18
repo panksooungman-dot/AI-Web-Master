@@ -153,6 +153,32 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
       const response = await proxy(new NextRequest("http://localhost/api/contact"));
       expect(response.status).toBe(200);
     });
+
+    it("lets /api/requests/submit through with no session (public request form, anonymous visitors)", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/requests/submit"));
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("/api/requests and /api/requests/[id] stay admin-gated (customer PII, unlike /api/requests/submit)", () => {
+    it("returns 401 JSON with no session", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/requests"));
+      expect(response.status).toBe(401);
+    });
+
+    it("returns 403 JSON for a 'user' role", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("user"));
+      const response = await proxy(new NextRequest("http://localhost/api/requests/abc123"));
+      expect(response.status).toBe(403);
+    });
+
+    it("allows a developer role through", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("developer"));
+      const response = await proxy(new NextRequest("http://localhost/api/requests"));
+      expect(response.status).toBe(200);
+    });
   });
 
   describe("/projects (login required, no specific role)", () => {

@@ -1,20 +1,61 @@
-# AI Business OS
+# AI-Web-Master
 
-**ai-web-master** — AI가 개발 팀의 반복 업무를 수행하고, 사람은 방향과 품질 기준을 정의하는 **AI Development Operating System**입니다.
+AI Business OS 기반의 CNBIZ 회사 홈페이지 리뉴얼 프로젝트
 
 `v1.0.0` · npm workspaces 모노레포 · Next.js 16 + React 19 + TypeScript 5
 
 ---
 
-## Project Overview
+## Active Application
 
-이 저장소는 세 개의 축으로 구성됩니다.
+현재 개발은 **apps/cnbiz-web**에서 진행됩니다.
 
-| 축 | 위치 | 설명 |
-|---|------|------|
-| **Development OS** | 루트 `app/`, `lib/`, `components/` | Terminal·Workspace·GitHub·AI·Workflow·Marketplace·Health를 관리하는 내부 대시보드(`/developer`) |
-| **AI Business OS CLI** | `packages/cli`(`ai` 명령) | 어떤 컴퓨터·어떤 프로젝트에서도 쓰는 전역 CLI — 프로젝트 생성, 웹사이트 빌더, 워크플로, AI Provider, 패키지 관리 |
-| **CNBIZ Website** | `apps/cnbiz-web` | 실제 프로덕션(`cnbiz.kr`)에 배포되는 고객사 홈페이지 — 이 저장소 안에서 별도 워크스페이스로 관리 |
+다음 디렉터리는 Legacy(v1)이며 신규 기능을 추가하지 않습니다.
+
+- app/
+- components/
+- lib/
+
+---
+
+## Project Structure
+
+### Active Application
+
+`apps/cnbiz-web`
+- 실제 운영 서비스
+- 관리자(Admin)
+- 고객 페이지
+- AI Website Builder
+- API
+
+### Shared Packages
+
+`packages/`
+- ui
+- utils
+- cli
+
+### AI Platform
+
+- `agents/`
+- `skills/`
+- `marketplace/`
+- `orchestration/`
+- `memory/`
+- `prompts/`
+
+### Documentation
+
+`docs/`
+
+### Legacy (Read Only)
+
+- `app/`
+- `components/`
+- `lib/`
+
+유지보수 외에는 수정하지 않습니다.
 
 ---
 

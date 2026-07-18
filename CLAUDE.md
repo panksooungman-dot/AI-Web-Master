@@ -4,6 +4,12 @@
 
 이 프로젝트는 CNBIZ 회사 홈페이지 리뉴얼 프로젝트입니다.
 
+## Active Application
+
+현재 개발은 `apps/cnbiz-web`에서 진행됩니다.
+
+루트의 `app/`은 레거시(v1)이며 유지보수 목적 외에는 수정하지 않습니다.
+
 반드시 아래 문서를 먼저 참고하세요.
 
 @docs/02_DEVELOPMENT/CNBIZ_RULES.md

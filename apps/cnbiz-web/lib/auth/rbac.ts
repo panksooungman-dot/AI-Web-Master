@@ -43,6 +43,10 @@ const PAGE_AREA_PREFIXES: ReadonlyArray<readonly [string, ProtectedArea]> = [
  * - /api/contact — backs the public /contact page's submission form (release-readiness fix):
  *   anonymous site visitors submit this with no session, so gating it behind "developer" made
  *   the production contact form unusable for real visitors.
+ * - /api/requests/submit — backs the public /request page's submission form, same reasoning as
+ *   /api/contact above. Deliberately NOT "/api/requests" itself (prefix match would also ungate
+ *   it) — GET /api/requests and /api/requests/[id] list/manage submissions with customer PII and
+ *   must stay admin-only (the default "developer" gate for any /api/** path not listed here).
  */
 const UNGATED_API_PREFIXES = [
   "/api/auth",
@@ -51,6 +55,7 @@ const UNGATED_API_PREFIXES = [
   "/api/devserver",
   "/api/projects",
   "/api/contact",
+  "/api/requests/submit",
 ];
 
 /**

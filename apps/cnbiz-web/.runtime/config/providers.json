@@ -1,0 +1,20 @@
+{
+  "default": "anthropic",
+  "providers": {
+    "anthropic": {
+      "apiKey": "${ANTHROPIC_API_KEY}"
+    },
+    "openai": {
+      "apiKey": "${OPENAI_API_KEY}"
+    },
+    "gemini": {
+      "apiKey": "${GEMINI_API_KEY}"
+    },
+    "ollama": {
+      "host": "${OLLAMA_HOST}"
+    },
+    "openrouter": {
+      "apiKey": "${OPENROUTER_API_KEY}"
+    }
+  }
+}

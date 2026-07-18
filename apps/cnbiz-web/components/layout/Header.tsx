@@ -6,6 +6,7 @@ const navLinks = [
   { label: "회사소개", href: "/about" },
   { label: "사업소개", href: "/services" },
   { label: "포트폴리오", href: "/portfolio" },
+  { label: "제작 의뢰", href: "/request" },
   { label: "문의하기", href: "/contact" },
 ];
 

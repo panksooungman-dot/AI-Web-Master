@@ -14,6 +14,7 @@ const footerLinks = {
   ],
   고객지원: [
     { label: "포트폴리오", href: "/portfolio" },
+    { label: "제작 의뢰", href: "/request" },
     { label: "문의하기", href: "/contact" },
   ],
 };

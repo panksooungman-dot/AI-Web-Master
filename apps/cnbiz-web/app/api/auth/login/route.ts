@@ -11,21 +11,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
+  console.log("[api/auth/login] POST hit", {
+    method: request.method,
+    url: request.url,
+    contentType: request.headers.get("content-type"),
+  });
+
   let body: unknown;
 
   try {
     body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "요청 본문을 읽을 수 없습니다." },
-      { status: 400 }
-    );
+  } catch (err) {
+    console.error("[api/auth/login] request.json failed", err);
+    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
   }
 
   const email = isRecord(body) && typeof body.email === "string" ? body.email.trim() : "";
   const password = isRecord(body) && typeof body.password === "string" ? body.password : "";
 
   if (!email || !password) {
+    console.warn("[api/auth/login] missing email or password", {
+      hasEmail: Boolean(email),
+      hasPassword: Boolean(password),
+    });
     return NextResponse.json(
       { success: false, error: "이메일과 비밀번호를 모두 입력하세요." },
       { status: 400 }
@@ -33,6 +41,7 @@ export async function POST(request: Request) {
   }
 
   if (!EMAIL_PATTERN.test(email)) {
+    console.warn("[api/auth/login] invalid email format");
     return NextResponse.json(
       { success: false, error: "올바른 이메일 형식이 아닙니다." },
       { status: 400 }

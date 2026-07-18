@@ -32,6 +32,7 @@
 - **Authentication** — 이메일/비밀번호 세션 인증으로 `/developer/**`, `/projects/**` 보호
 
 ### ⌨ AI Business OS CLI
+
 - 프로젝트 생성·전역 런처(`ai new`, `ai project`, `ai devmode`, `ai deploy`, `ai doctor`)
 - Agent/Workflow/Skill 스캐폴딩 및 실행(`ai create`, `ai run`, `ai workflow`, `ai orchestrator`)
 - **Website Builder v2**(`ai website create`) — 11개 사이트 타입, 11페이지 Next.js 프로젝트 자동 생성

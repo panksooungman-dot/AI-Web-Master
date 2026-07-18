@@ -9,6 +9,7 @@ import {
   listPrototypes,
   listPrototypesForWireframe,
 } from "../../lib/design/prototype";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
 import { buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
@@ -32,6 +33,7 @@ import type { ChatResult } from "../../lib/ai/bridge";
  */
 describe("Design Automation Phase 4 — prototype generator + registry integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   const planInput: DesignPlanInput = {
     projectName: "Riverside Cafe",
@@ -67,6 +69,7 @@ describe("Design Automation Phase 4 — prototype generator + registry integrati
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "prototype-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -125,12 +128,12 @@ describe("Design Automation Phase 4 — prototype generator + registry integrati
     const { content, simulated, provider, model } = await generatePrototype(wireframe, fakeChat);
     expect(simulated).toBe(false);
 
-    const record = createPrototype(
+    const record = await createPrototype(
       { wireframeId: wireframe.id, planId: wireframe.planId, content, simulated, provider, model },
-      baseDir
+      store
     );
 
-    const fetched = getPrototype(record.id, baseDir);
+    const fetched = await getPrototype(record.id, store);
     expect(fetched).not.toBeNull();
     expect(fetched?.content).toEqual(aiContent);
     expect(fetched?.provider).toBe("anthropic");
@@ -138,11 +141,11 @@ describe("Design Automation Phase 4 — prototype generator + registry integrati
     expect(fetched?.planId).toBe(plan.id);
     expect(fetched?.version).toBe(1);
 
-    const listed = listPrototypes(baseDir);
+    const listed = await listPrototypes(store);
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(record.id);
 
-    const forWireframe = listPrototypesForWireframe(wireframe.id, baseDir);
+    const forWireframe = await listPrototypesForWireframe(wireframe.id, store);
     expect(forWireframe).toHaveLength(1);
   });
 
@@ -153,8 +156,8 @@ describe("Design Automation Phase 4 — prototype generator + registry integrati
     expect(simulated).toBe(true);
     expect(content).toEqual(buildDefaultPrototype(wireframe));
 
-    const record = createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, content, simulated }, baseDir);
-    expect(getPrototype(record.id, baseDir)?.simulated).toBe(true);
+    const record = await createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, content, simulated }, store);
+    expect((await getPrototype(record.id, store))?.simulated).toBe(true);
   });
 
   it("regenerating for the same wireframe creates a new version rather than overwriting", async () => {
@@ -163,12 +166,12 @@ describe("Design Automation Phase 4 — prototype generator + registry integrati
     const first = await generatePrototype(wireframe, fakeChat);
     const second = await generatePrototype(wireframe, fakeChat);
 
-    const v1 = createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, ...first }, baseDir);
-    const v2 = createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, ...second }, baseDir);
+    const v1 = await createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, ...first }, store);
+    const v2 = await createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, ...second }, store);
 
     expect(v1.version).toBe(1);
     expect(v2.version).toBe(2);
-    expect(listPrototypesForWireframe(wireframe.id, baseDir)).toHaveLength(2);
+    expect(await listPrototypesForWireframe(wireframe.id, store)).toHaveLength(2);
   });
 
   it("keeps prototypes from multiple wireframes independent in the same registry", async () => {
@@ -198,12 +201,12 @@ describe("Design Automation Phase 4 — prototype generator + registry integrati
     const resultA = await generatePrototype(wireframe, fakeChat);
     const resultB = await generatePrototype(otherWireframe, fakeChat);
 
-    createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, ...resultA }, baseDir);
-    createPrototype({ wireframeId: otherWireframe.id, planId: otherWireframe.planId, ...resultB }, baseDir);
+    await createPrototype({ wireframeId: wireframe.id, planId: wireframe.planId, ...resultA }, store);
+    await createPrototype({ wireframeId: otherWireframe.id, planId: otherWireframe.planId, ...resultB }, store);
 
-    expect(listPrototypesForWireframe(wireframe.id, baseDir)).toHaveLength(1);
-    expect(listPrototypesForWireframe(otherWireframe.id, baseDir)).toHaveLength(1);
-    expect(listPrototypes(baseDir)).toHaveLength(2);
+    expect(await listPrototypesForWireframe(wireframe.id, store)).toHaveLength(1);
+    expect(await listPrototypesForWireframe(otherWireframe.id, store)).toHaveLength(1);
+    expect(await listPrototypes(store)).toHaveLength(2);
   });
 
   /**

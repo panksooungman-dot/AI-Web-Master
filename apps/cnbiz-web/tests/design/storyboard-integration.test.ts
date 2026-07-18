@@ -4,6 +4,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generateStoryboard, buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
 import { createStoryboard, getStoryboard, listStoryboards, listStoryboardsForPlan } from "../../lib/design/storyboard";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
 import type { DesignPlanInput, DesignPlanRecord } from "../../lib/design/types";
 import type { ChatResult } from "../../lib/ai/bridge";
@@ -23,6 +24,7 @@ import type { ChatResult } from "../../lib/ai/bridge";
  */
 describe("Design Automation Phase 2 — storyboard generator + registry integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   const planInput: DesignPlanInput = {
     projectName: "Riverside Cafe",
@@ -41,6 +43,7 @@ describe("Design Automation Phase 2 — storyboard generator + registry integrat
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "storyboard-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -84,19 +87,19 @@ describe("Design Automation Phase 2 — storyboard generator + registry integrat
     const { content, simulated, provider, model } = await generateStoryboard(plan, fakeChat);
     expect(simulated).toBe(false);
 
-    const record = createStoryboard({ planId: plan.id, content, simulated, provider, model }, baseDir);
+    const record = await createStoryboard({ planId: plan.id, content, simulated, provider, model }, store);
 
-    const fetched = getStoryboard(record.id, baseDir);
+    const fetched = await getStoryboard(record.id, store);
     expect(fetched).not.toBeNull();
     expect(fetched?.content).toEqual(aiContent);
     expect(fetched?.provider).toBe("anthropic");
     expect(fetched?.planId).toBe(plan.id);
 
-    const listed = listStoryboards(baseDir);
+    const listed = await listStoryboards(store);
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(record.id);
 
-    const forPlan = listStoryboardsForPlan(plan.id, baseDir);
+    const forPlan = await listStoryboardsForPlan(plan.id, store);
     expect(forPlan).toHaveLength(1);
   });
 
@@ -107,8 +110,8 @@ describe("Design Automation Phase 2 — storyboard generator + registry integrat
     expect(simulated).toBe(true);
     expect(content).toEqual(buildDefaultStoryboard(plan));
 
-    const record = createStoryboard({ planId: plan.id, content, simulated }, baseDir);
-    expect(getStoryboard(record.id, baseDir)?.simulated).toBe(true);
+    const record = await createStoryboard({ planId: plan.id, content, simulated }, store);
+    expect((await getStoryboard(record.id, store))?.simulated).toBe(true);
   });
 
   it("keeps storyboards from multiple plans independent in the same registry", async () => {
@@ -125,12 +128,12 @@ describe("Design Automation Phase 2 — storyboard generator + registry integrat
     const resultA = await generateStoryboard(plan, fakeChat);
     const resultB = await generateStoryboard(otherPlan, fakeChat);
 
-    createStoryboard({ planId: plan.id, ...resultA }, baseDir);
-    createStoryboard({ planId: otherPlan.id, ...resultB }, baseDir);
+    await createStoryboard({ planId: plan.id, ...resultA }, store);
+    await createStoryboard({ planId: otherPlan.id, ...resultB }, store);
 
-    expect(listStoryboardsForPlan(plan.id, baseDir)).toHaveLength(1);
-    expect(listStoryboardsForPlan(otherPlan.id, baseDir)).toHaveLength(1);
-    expect(listStoryboards(baseDir)).toHaveLength(2);
+    expect(await listStoryboardsForPlan(plan.id, store)).toHaveLength(1);
+    expect(await listStoryboardsForPlan(otherPlan.id, store)).toHaveLength(1);
+    expect(await listStoryboards(store)).toHaveLength(2);
   });
 
   /**

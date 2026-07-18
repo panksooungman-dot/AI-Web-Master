@@ -4,6 +4,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generateDesignPlan, buildDefaultDesignPlan } from "../../lib/design/generator";
 import { createDesignPlan, getDesignPlan, listDesignPlans } from "../../lib/design/registry";
+import { createFsStore } from "../../lib/db/fsStore";
 import type { DesignPlanInput } from "../../lib/design/types";
 import type { ChatResult } from "../../lib/ai/bridge";
 
@@ -23,9 +24,11 @@ import type { ChatResult } from "../../lib/ai/bridge";
  */
 describe("Design Automation Phase 1 — generator + registry integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "design-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -76,15 +79,15 @@ describe("Design Automation Phase 1 — generator + registry integration", () =>
     const { content, simulated, provider, model } = await generateDesignPlan(input, fakeChat);
     expect(simulated).toBe(false);
 
-    const record = createDesignPlan({ input, content, simulated, provider, model }, baseDir);
+    const record = await createDesignPlan({ input, content, simulated, provider, model }, store);
 
     // Round-trips through the real fs-backed registry.
-    const fetched = getDesignPlan(record.id, baseDir);
+    const fetched = await getDesignPlan(record.id, store);
     expect(fetched).not.toBeNull();
     expect(fetched?.content).toEqual(aiContent);
     expect(fetched?.provider).toBe("anthropic");
 
-    const listed = listDesignPlans(baseDir);
+    const listed = await listDesignPlans(store);
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(record.id);
   });
@@ -96,8 +99,8 @@ describe("Design Automation Phase 1 — generator + registry integration", () =>
     expect(simulated).toBe(true);
     expect(content).toEqual(buildDefaultDesignPlan(input));
 
-    const record = createDesignPlan({ input, content, simulated }, baseDir);
-    expect(getDesignPlan(record.id, baseDir)?.simulated).toBe(true);
+    const record = await createDesignPlan({ input, content, simulated }, store);
+    expect((await getDesignPlan(record.id, store))?.simulated).toBe(true);
   });
 
   it("keeps plans from multiple projects independent in the same registry", async () => {
@@ -106,10 +109,10 @@ describe("Design Automation Phase 1 — generator + registry integration", () =>
     const planA = await generateDesignPlan({ ...input, projectName: "Project A" }, fakeChat);
     const planB = await generateDesignPlan({ ...input, projectName: "Project B" }, fakeChat);
 
-    createDesignPlan({ input: { ...input, projectName: "Project A" }, ...planA }, baseDir);
-    createDesignPlan({ input: { ...input, projectName: "Project B" }, ...planB }, baseDir);
+    await createDesignPlan({ input: { ...input, projectName: "Project A" }, ...planA }, store);
+    await createDesignPlan({ input: { ...input, projectName: "Project B" }, ...planB }, store);
 
-    const plans = listDesignPlans(baseDir);
+    const plans = await listDesignPlans(store);
     expect(plans.map((p) => p.input.projectName).sort()).toEqual(["Project A", "Project B"]);
   });
 

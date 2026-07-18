@@ -9,6 +9,7 @@ import {
   listWireframes,
   listWireframesForStoryboard,
 } from "../../lib/design/wireframe";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
 import type { DesignPlanInput, DesignPlanRecord } from "../../lib/design/types";
@@ -30,6 +31,7 @@ import type { ChatResult } from "../../lib/ai/bridge";
  */
 describe("Design Automation Phase 3 — wireframe generator + registry integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   const planInput: DesignPlanInput = {
     projectName: "Riverside Cafe",
@@ -56,6 +58,7 @@ describe("Design Automation Phase 3 — wireframe generator + registry integrati
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "wireframe-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -103,23 +106,23 @@ describe("Design Automation Phase 3 — wireframe generator + registry integrati
     const { content, simulated, provider, model } = await generateWireframe(storyboard, fakeChat);
     expect(simulated).toBe(false);
 
-    const record = createWireframe(
+    const record = await createWireframe(
       { storyboardId: storyboard.id, planId: storyboard.planId, content, simulated, provider, model },
-      baseDir
+      store
     );
 
-    const fetched = getWireframe(record.id, baseDir);
+    const fetched = await getWireframe(record.id, store);
     expect(fetched).not.toBeNull();
     expect(fetched?.content).toEqual(aiContent);
     expect(fetched?.provider).toBe("anthropic");
     expect(fetched?.storyboardId).toBe(storyboard.id);
     expect(fetched?.planId).toBe(plan.id);
 
-    const listed = listWireframes(baseDir);
+    const listed = await listWireframes(store);
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(record.id);
 
-    const forStoryboard = listWireframesForStoryboard(storyboard.id, baseDir);
+    const forStoryboard = await listWireframesForStoryboard(storyboard.id, store);
     expect(forStoryboard).toHaveLength(1);
   });
 
@@ -130,8 +133,8 @@ describe("Design Automation Phase 3 — wireframe generator + registry integrati
     expect(simulated).toBe(true);
     expect(content).toEqual(buildDefaultWireframe(storyboard));
 
-    const record = createWireframe({ storyboardId: storyboard.id, planId: storyboard.planId, content, simulated }, baseDir);
-    expect(getWireframe(record.id, baseDir)?.simulated).toBe(true);
+    const record = await createWireframe({ storyboardId: storyboard.id, planId: storyboard.planId, content, simulated }, store);
+    expect((await getWireframe(record.id, store))?.simulated).toBe(true);
   });
 
   it("keeps wireframes from multiple storyboards independent in the same registry", async () => {
@@ -154,12 +157,12 @@ describe("Design Automation Phase 3 — wireframe generator + registry integrati
     const resultA = await generateWireframe(storyboard, fakeChat);
     const resultB = await generateWireframe(otherStoryboard, fakeChat);
 
-    createWireframe({ storyboardId: storyboard.id, planId: storyboard.planId, ...resultA }, baseDir);
-    createWireframe({ storyboardId: otherStoryboard.id, planId: otherStoryboard.planId, ...resultB }, baseDir);
+    await createWireframe({ storyboardId: storyboard.id, planId: storyboard.planId, ...resultA }, store);
+    await createWireframe({ storyboardId: otherStoryboard.id, planId: otherStoryboard.planId, ...resultB }, store);
 
-    expect(listWireframesForStoryboard(storyboard.id, baseDir)).toHaveLength(1);
-    expect(listWireframesForStoryboard(otherStoryboard.id, baseDir)).toHaveLength(1);
-    expect(listWireframes(baseDir)).toHaveLength(2);
+    expect(await listWireframesForStoryboard(storyboard.id, store)).toHaveLength(1);
+    expect(await listWireframesForStoryboard(otherStoryboard.id, store)).toHaveLength(1);
+    expect(await listWireframes(store)).toHaveLength(2);
   });
 
   /**

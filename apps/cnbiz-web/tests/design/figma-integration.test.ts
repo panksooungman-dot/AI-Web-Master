@@ -4,6 +4,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { exportFigmaFile, importFigmaFile } from "../../lib/design/figma-generator";
 import { recordFigmaExport, recordFigmaImport, listFigmaRecordsForReview, getFigmaRecord } from "../../lib/design/figma";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
 import { buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
@@ -30,6 +31,7 @@ import type { ReviewRecord, ReviewStatus } from "../../lib/design/review";
  */
 describe("Design Automation Phase 7 — figma generator + registry integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   const planInput: DesignPlanInput = {
     projectName: "Northfield Clinic",
@@ -105,6 +107,7 @@ describe("Design Automation Phase 7 — figma generator + registry integration",
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "figma-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -115,14 +118,14 @@ describe("Design Automation Phase 7 — figma generator + registry integration",
     const review = buildReview("in_review");
     const { content, fileName, simulated } = await importFigmaFile({ figmaFileId: "figma-abc", fileName: "Reference" });
 
-    const record = recordFigmaImport(
+    const record = await recordFigmaImport(
       { reviewId: review.id, planId: review.planId, figmaFileId: "figma-abc", fileName, content, simulated },
-      baseDir
+      store
     );
 
     expect(simulated).toBe(true); // no FIGMA_API_TOKEN in this environment
-    expect(getFigmaRecord(record.id, baseDir)?.reviewId).toBe(review.id);
-    expect(listFigmaRecordsForReview(review.id, baseDir)).toHaveLength(1);
+    expect((await getFigmaRecord(record.id, store))?.reviewId).toBe(review.id);
+    expect(await listFigmaRecordsForReview(review.id, store)).toHaveLength(1);
   });
 
   it("rejects export for a non-approved review before ever calling the generator (Approval Rule)", () => {
@@ -141,7 +144,7 @@ describe("Design Automation Phase 7 — figma generator + registry integration",
       claudeDesign,
     });
 
-    const record = recordFigmaExport(
+    const record = await recordFigmaExport(
       {
         reviewId: review.id,
         planId: review.planId,
@@ -150,14 +153,14 @@ describe("Design Automation Phase 7 — figma generator + registry integration",
         content,
         simulated,
       },
-      baseDir
+      store
     );
 
     expect(record.content.pages).toHaveLength(wireframe.content.layouts.length);
     expect(record.content.tokens.length).toBeGreaterThan(0);
     expect(record.exportHistory).toHaveLength(1);
 
-    const fetched = getFigmaRecord(record.id, baseDir);
+    const fetched = await getFigmaRecord(record.id, store);
     expect(fetched?.planId).toBe(plan.id);
   });
 
@@ -166,16 +169,16 @@ describe("Design Automation Phase 7 — figma generator + registry integration",
     const figmaFileId = "figma-combo";
 
     const imported = await importFigmaFile({ figmaFileId });
-    const afterImport = recordFigmaImport(
+    const afterImport = await recordFigmaImport(
       { reviewId: review.id, planId: review.planId, figmaFileId, fileName: imported.fileName, content: imported.content, simulated: imported.simulated },
-      baseDir
+      store
     );
     expect(afterImport.version).toBe(1);
 
     const exported = await exportFigmaFile({ figmaFileId, wireframe, prototype, claudeDesign });
-    const afterExport = recordFigmaExport(
+    const afterExport = await recordFigmaExport(
       { reviewId: review.id, planId: review.planId, figmaFileId, fileName: afterImport.fileName, content: exported.content, simulated: exported.simulated },
-      baseDir
+      store
     );
 
     expect(afterExport.id).toBe(afterImport.id);

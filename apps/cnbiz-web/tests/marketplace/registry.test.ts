@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getCatalogSummary } from "../../lib/marketplace/registry";
+import { resolveRepoRoot } from "../../lib/paths/repoRoot";
 
 describe("Marketplace — dashboard bridge, catalog summary (lib/marketplace/registry.ts)", () => {
   describe("getCatalogSummary()", () => {
@@ -54,7 +55,7 @@ describe("Marketplace — dashboard bridge, catalog summary (lib/marketplace/reg
       // counts change as packages are published (see docs/PRODUCTION_VALIDATION.md), so this only
       // checks that getCatalogSummary() can read the real file and produces a coherent, non-negative
       // structure rather than snapshotting a transient repo state as a permanent invariant.
-      const realManifestPath = path.join(process.cwd(), "marketplace", "manifest.json");
+      const realManifestPath = path.join(resolveRepoRoot(), "marketplace", "manifest.json");
       const summary = getCatalogSummary(realManifestPath);
 
       expect(summary.categories.length).toBeGreaterThan(0);

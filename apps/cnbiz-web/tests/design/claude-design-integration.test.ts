@@ -9,6 +9,7 @@ import {
   listClaudeDesigns,
   listClaudeDesignsForPrototype,
 } from "../../lib/design/claude-design";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultPrototype } from "../../lib/design/prototype-generator";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
 import { buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
@@ -34,6 +35,7 @@ import type { ChatResult } from "../../lib/ai/bridge";
  */
 describe("Design Automation Phase 5 — claude design generator + registry integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   const planInput: DesignPlanInput = {
     projectName: "Riverside Cafe",
@@ -79,6 +81,7 @@ describe("Design Automation Phase 5 — claude design generator + registry integ
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "claude-design-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -104,23 +107,23 @@ describe("Design Automation Phase 5 — claude design generator + registry integ
     const { content, simulated, provider, model } = await generateClaudeDesign(prototype, fakeChat);
     expect(simulated).toBe(false);
 
-    const record = createClaudeDesign(
+    const record = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content, simulated, provider, model },
-      baseDir
+      store
     );
 
-    const fetched = getClaudeDesign(record.id, baseDir);
+    const fetched = await getClaudeDesign(record.id, store);
     expect(fetched).not.toBeNull();
     expect(fetched?.content).toEqual(aiContent);
     expect(fetched?.provider).toBe("anthropic");
     expect(fetched?.prototypeId).toBe(prototype.id);
     expect(fetched?.planId).toBe(plan.id);
 
-    const listed = listClaudeDesigns(baseDir);
+    const listed = await listClaudeDesigns(store);
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(record.id);
 
-    const forPrototype = listClaudeDesignsForPrototype(prototype.id, baseDir);
+    const forPrototype = await listClaudeDesignsForPrototype(prototype.id, store);
     expect(forPrototype).toHaveLength(1);
   });
 
@@ -131,11 +134,11 @@ describe("Design Automation Phase 5 — claude design generator + registry integ
     expect(simulated).toBe(true);
     expect(content).toEqual(buildDefaultClaudeDesign(prototype));
 
-    const record = createClaudeDesign(
+    const record = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content, simulated },
-      baseDir
+      store
     );
-    expect(getClaudeDesign(record.id, baseDir)?.simulated).toBe(true);
+    expect((await getClaudeDesign(record.id, store))?.simulated).toBe(true);
   });
 
   it("regenerating for the same prototype creates a new record rather than overwriting", async () => {
@@ -144,11 +147,11 @@ describe("Design Automation Phase 5 — claude design generator + registry integ
     const first = await generateClaudeDesign(prototype, fakeChat);
     const second = await generateClaudeDesign(prototype, fakeChat);
 
-    const r1 = createClaudeDesign({ prototypeId: prototype.id, planId: prototype.planId, ...first }, baseDir);
-    const r2 = createClaudeDesign({ prototypeId: prototype.id, planId: prototype.planId, ...second }, baseDir);
+    const r1 = await createClaudeDesign({ prototypeId: prototype.id, planId: prototype.planId, ...first }, store);
+    const r2 = await createClaudeDesign({ prototypeId: prototype.id, planId: prototype.planId, ...second }, store);
 
     expect(r1.id).not.toBe(r2.id);
-    expect(listClaudeDesignsForPrototype(prototype.id, baseDir)).toHaveLength(2);
+    expect(await listClaudeDesignsForPrototype(prototype.id, store)).toHaveLength(2);
   });
 
   /**

@@ -11,6 +11,7 @@ import {
   listReviews,
   listReviewsForClaudeDesign,
 } from "../../lib/design/review-registry";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultClaudeDesign } from "../../lib/design/claude-design-generator";
 import { createClaudeDesign } from "../../lib/design/claude-design";
 import { buildDefaultPrototype } from "../../lib/design/prototype-generator";
@@ -38,6 +39,7 @@ import type { PrototypeRecord } from "../../lib/design/prototype";
  */
 describe("Design Automation Phase 6 — review registry + approval integration", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   const planInput: DesignPlanInput = {
     projectName: "Riverside Cafe",
@@ -83,64 +85,65 @@ describe("Design Automation Phase 6 — review registry + approval integration",
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "review-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("creates a review against a real ClaudeDesignRecord and persists/retrieves it end-to-end", () => {
-    const claudeDesign = createClaudeDesign(
+  it("creates a review against a real ClaudeDesignRecord and persists/retrieves it end-to-end", async () => {
+    const claudeDesign = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content: buildDefaultClaudeDesign(prototype), simulated: true },
-      baseDir
+      store
     );
 
-    const review = createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId, actor: "alice@example.com" }, baseDir);
+    const review = await createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId, actor: "alice@example.com" }, store);
 
-    const fetched = getReview(review.id, baseDir);
+    const fetched = await getReview(review.id, store);
     expect(fetched).not.toBeNull();
     expect(fetched?.claudeDesignId).toBe(claudeDesign.id);
     expect(fetched?.planId).toBe(plan.id);
     expect(fetched?.status).toBe("in_review");
     expect(fetched?.version).toBe(1);
 
-    const listed = listReviews(baseDir);
+    const listed = await listReviews(store);
     expect(listed).toHaveLength(1);
 
-    const forClaudeDesign = listReviewsForClaudeDesign(claudeDesign.id, baseDir);
+    const forClaudeDesign = await listReviewsForClaudeDesign(claudeDesign.id, store);
     expect(forClaudeDesign).toHaveLength(1);
   });
 
-  it("runs a full review lifecycle: comment -> revision -> approve -> cancel -> reject -> archive, preserving full history", () => {
-    const claudeDesign = createClaudeDesign(
+  it("runs a full review lifecycle: comment -> revision -> approve -> cancel -> reject -> archive, preserving full history", async () => {
+    const claudeDesign = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content: buildDefaultClaudeDesign(prototype), simulated: true },
-      baseDir
+      store
     );
-    const review = createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId, actor: "alice@example.com" }, baseDir);
+    const review = await createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId, actor: "alice@example.com" }, store);
 
-    const afterComment = addReviewComment(review.id, { author: "bob@example.com", text: "화면이 잘 나왔네요" }, baseDir);
+    const afterComment = await addReviewComment(review.id, { author: "bob@example.com", text: "화면이 잘 나왔네요" }, store);
     expect(afterComment?.comments).toHaveLength(1);
 
-    const afterRevision = requestRevision(review.id, { actor: "alice@example.com", note: "버튼 색을 조정해주세요" }, baseDir);
+    const afterRevision = await requestRevision(review.id, { actor: "alice@example.com", note: "버튼 색을 조정해주세요" }, store);
     expect(afterRevision.success).toBe(true);
     expect(afterRevision.record?.status).toBe("revision_requested");
 
-    const afterApprove = approveReview(review.id, { actor: "alice@example.com" }, baseDir);
+    const afterApprove = await approveReview(review.id, { actor: "alice@example.com" }, store);
     expect(afterApprove.success).toBe(true);
     expect(afterApprove.record?.status).toBe("approved");
 
-    const afterCancel = cancelApproval(review.id, { actor: "alice@example.com", note: "다시 검토가 필요합니다" }, baseDir);
+    const afterCancel = await cancelApproval(review.id, { actor: "alice@example.com", note: "다시 검토가 필요합니다" }, store);
     expect(afterCancel.success).toBe(true);
     expect(afterCancel.record?.status).toBe("in_review");
 
-    const afterReject = rejectReview(review.id, { actor: "alice@example.com" }, baseDir);
+    const afterReject = await rejectReview(review.id, { actor: "alice@example.com" }, store);
     expect(afterReject.success).toBe(true);
     expect(afterReject.record?.status).toBe("rejected");
 
-    const archived = archiveReview(review.id, { actor: "alice@example.com" }, baseDir);
+    const archived = await archiveReview(review.id, { actor: "alice@example.com" }, store);
     expect(archived?.status).toBe("archived");
 
-    const final = getReview(review.id, baseDir);
+    const final = await getReview(review.id, store);
     expect(final?.comments).toHaveLength(1);
     expect(final?.history.map((h) => h.status)).toEqual([
       "in_review",
@@ -153,35 +156,35 @@ describe("Design Automation Phase 6 — review registry + approval integration",
     ]);
   });
 
-  it("regenerating a review for the same Claude Design creates a new version rather than overwriting", () => {
-    const claudeDesign = createClaudeDesign(
+  it("regenerating a review for the same Claude Design creates a new version rather than overwriting", async () => {
+    const claudeDesign = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content: buildDefaultClaudeDesign(prototype), simulated: true },
-      baseDir
+      store
     );
 
-    const v1 = createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId }, baseDir);
-    const v2 = createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId }, baseDir);
+    const v1 = await createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId }, store);
+    const v2 = await createReview({ claudeDesignId: claudeDesign.id, planId: claudeDesign.planId }, store);
 
     expect(v1.version).toBe(1);
     expect(v2.version).toBe(2);
-    expect(listReviewsForClaudeDesign(claudeDesign.id, baseDir)).toHaveLength(2);
+    expect(await listReviewsForClaudeDesign(claudeDesign.id, store)).toHaveLength(2);
   });
 
-  it("keeps reviews from multiple Claude Design outputs independent in the same registry", () => {
-    const claudeDesignA = createClaudeDesign(
+  it("keeps reviews from multiple Claude Design outputs independent in the same registry", async () => {
+    const claudeDesignA = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content: buildDefaultClaudeDesign(prototype), simulated: true },
-      baseDir
+      store
     );
-    const claudeDesignB = createClaudeDesign(
+    const claudeDesignB = await createClaudeDesign(
       { prototypeId: prototype.id, planId: prototype.planId, content: buildDefaultClaudeDesign(prototype), simulated: true },
-      baseDir
+      store
     );
 
-    createReview({ claudeDesignId: claudeDesignA.id, planId: claudeDesignA.planId }, baseDir);
-    createReview({ claudeDesignId: claudeDesignB.id, planId: claudeDesignB.planId }, baseDir);
+    await createReview({ claudeDesignId: claudeDesignA.id, planId: claudeDesignA.planId }, store);
+    await createReview({ claudeDesignId: claudeDesignB.id, planId: claudeDesignB.planId }, store);
 
-    expect(listReviewsForClaudeDesign(claudeDesignA.id, baseDir)).toHaveLength(1);
-    expect(listReviewsForClaudeDesign(claudeDesignB.id, baseDir)).toHaveLength(1);
-    expect(listReviews(baseDir)).toHaveLength(2);
+    expect(await listReviewsForClaudeDesign(claudeDesignA.id, store)).toHaveLength(1);
+    expect(await listReviewsForClaudeDesign(claudeDesignB.id, store)).toHaveLength(1);
+    expect(await listReviews(store)).toHaveLength(2);
   });
 });

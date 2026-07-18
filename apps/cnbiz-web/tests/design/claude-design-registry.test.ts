@@ -8,6 +8,7 @@ import {
   listClaudeDesigns,
   listClaudeDesignsForPrototype,
 } from "../../lib/design/claude-design";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultClaudeDesign } from "../../lib/design/claude-design-generator";
 import { buildDefaultPrototype } from "../../lib/design/prototype-generator";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
@@ -62,24 +63,26 @@ const PROTOTYPE: PrototypeRecord = {
 
 describe("Claude Design Registry — lib/design/claude-design.ts", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "claude-design-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("listClaudeDesigns() returns an empty array before anything is created", () => {
-    expect(listClaudeDesigns(baseDir)).toEqual([]);
+  it("listClaudeDesigns() returns an empty array before anything is created", async () => {
+    expect(await listClaudeDesigns(store)).toEqual([]);
   });
 
-  it("createClaudeDesign() assigns an id/createdAt and persists to lib/data/design-claude.json", () => {
+  it("createClaudeDesign() assigns an id/createdAt and persists to lib/data/design-claude.json", async () => {
     const content = buildDefaultClaudeDesign(PROTOTYPE);
-    const record = createClaudeDesign(
+    const record = await createClaudeDesign(
       { prototypeId: PROTOTYPE.id, planId: PROTOTYPE.planId, content, simulated: true },
-      baseDir
+      store
     );
 
     expect(record.id).toBeTruthy();
@@ -92,55 +95,55 @@ describe("Claude Design Registry — lib/design/claude-design.ts", () => {
     expect(raw[0].planId).toBe(PLAN.id);
   });
 
-  it("getClaudeDesign() finds a record by id, null for unknown id", () => {
+  it("getClaudeDesign() finds a record by id, null for unknown id", async () => {
     const content = buildDefaultClaudeDesign(PROTOTYPE);
-    const record = createClaudeDesign(
+    const record = await createClaudeDesign(
       { prototypeId: PROTOTYPE.id, planId: PROTOTYPE.planId, content, simulated: true },
-      baseDir
+      store
     );
 
-    expect(getClaudeDesign(record.id, baseDir)?.prototypeId).toBe(PROTOTYPE.id);
-    expect(getClaudeDesign("does-not-exist", baseDir)).toBeNull();
+    expect((await getClaudeDesign(record.id, store))?.prototypeId).toBe(PROTOTYPE.id);
+    expect(await getClaudeDesign("does-not-exist", store)).toBeNull();
   });
 
-  it("listClaudeDesigns() returns entries newest first", () => {
+  it("listClaudeDesigns() returns entries newest first", async () => {
     const content = buildDefaultClaudeDesign(PROTOTYPE);
-    createClaudeDesign({ prototypeId: PROTOTYPE.id, planId: PROTOTYPE.planId, content, simulated: true }, baseDir);
-    createClaudeDesign({ prototypeId: "prototype-other", planId: "plan-other", content, simulated: true }, baseDir);
+    await createClaudeDesign({ prototypeId: PROTOTYPE.id, planId: PROTOTYPE.planId, content, simulated: true }, store);
+    await createClaudeDesign({ prototypeId: "prototype-other", planId: "plan-other", content, simulated: true }, store);
 
-    const records = listClaudeDesigns(baseDir);
+    const records = await listClaudeDesigns(store);
     expect(records.map((r) => r.prototypeId)).toEqual(["prototype-other", PROTOTYPE.id]);
   });
 
-  it("listClaudeDesignsForPrototype() filters to only the given prototype's records", () => {
+  it("listClaudeDesignsForPrototype() filters to only the given prototype's records", async () => {
     const content = buildDefaultClaudeDesign(PROTOTYPE);
-    createClaudeDesign({ prototypeId: "prototype-a", planId: "plan-a", content, simulated: true }, baseDir);
-    createClaudeDesign({ prototypeId: "prototype-b", planId: "plan-b", content, simulated: true }, baseDir);
-    createClaudeDesign({ prototypeId: "prototype-a", planId: "plan-a", content, simulated: true }, baseDir);
+    await createClaudeDesign({ prototypeId: "prototype-a", planId: "plan-a", content, simulated: true }, store);
+    await createClaudeDesign({ prototypeId: "prototype-b", planId: "plan-b", content, simulated: true }, store);
+    await createClaudeDesign({ prototypeId: "prototype-a", planId: "plan-a", content, simulated: true }, store);
 
-    expect(listClaudeDesignsForPrototype("prototype-a", baseDir)).toHaveLength(2);
-    expect(listClaudeDesignsForPrototype("prototype-b", baseDir)).toHaveLength(1);
-    expect(listClaudeDesignsForPrototype("prototype-c", baseDir)).toHaveLength(0);
+    expect(await listClaudeDesignsForPrototype("prototype-a", store)).toHaveLength(2);
+    expect(await listClaudeDesignsForPrototype("prototype-b", store)).toHaveLength(1);
+    expect(await listClaudeDesignsForPrototype("prototype-c", store)).toHaveLength(0);
   });
 
-  it("createClaudeDesign() does not overwrite existing records when called again for the same prototype", () => {
+  it("createClaudeDesign() does not overwrite existing records when called again for the same prototype", async () => {
     const content = buildDefaultClaudeDesign(PROTOTYPE);
-    const first = createClaudeDesign(
+    const first = await createClaudeDesign(
       { prototypeId: PROTOTYPE.id, planId: PROTOTYPE.planId, content, simulated: true },
-      baseDir
+      store
     );
-    const second = createClaudeDesign(
+    const second = await createClaudeDesign(
       { prototypeId: PROTOTYPE.id, planId: PROTOTYPE.planId, content, simulated: true },
-      baseDir
+      store
     );
 
     expect(first.id).not.toBe(second.id);
-    expect(listClaudeDesignsForPrototype(PROTOTYPE.id, baseDir)).toHaveLength(2);
+    expect(await listClaudeDesignsForPrototype(PROTOTYPE.id, store)).toHaveLength(2);
   });
 
-  it("preserves provider/model metadata when provided", () => {
+  it("preserves provider/model metadata when provided", async () => {
     const content = buildDefaultClaudeDesign(PROTOTYPE);
-    const record = createClaudeDesign(
+    const record = await createClaudeDesign(
       {
         prototypeId: PROTOTYPE.id,
         planId: PROTOTYPE.planId,
@@ -149,7 +152,7 @@ describe("Claude Design Registry — lib/design/claude-design.ts", () => {
         provider: "openai",
         model: "gpt-4o-mini",
       },
-      baseDir
+      store
     );
 
     expect(record.provider).toBe("openai");

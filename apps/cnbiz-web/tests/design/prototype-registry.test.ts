@@ -8,6 +8,7 @@ import {
   listPrototypes,
   listPrototypesForWireframe,
 } from "../../lib/design/prototype";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultPrototype } from "../../lib/design/prototype-generator";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
 import { buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
@@ -50,24 +51,26 @@ const WIREFRAME: WireframeRecord = {
 
 describe("Prototype Registry — lib/design/prototype.ts", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "prototype-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("listPrototypes() returns an empty array before anything is created", () => {
-    expect(listPrototypes(baseDir)).toEqual([]);
+  it("listPrototypes() returns an empty array before anything is created", async () => {
+    expect(await listPrototypes(store)).toEqual([]);
   });
 
-  it("createPrototype() assigns an id/createdAt/version(1) and persists to lib/data/design-prototypes.json", () => {
+  it("createPrototype() assigns an id/createdAt/version(1) and persists to lib/data/design-prototypes.json", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    const record = createPrototype(
+    const record = await createPrototype(
       { wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true },
-      baseDir
+      store
     );
 
     expect(record.id).toBeTruthy();
@@ -81,64 +84,64 @@ describe("Prototype Registry — lib/design/prototype.ts", () => {
     expect(raw[0].planId).toBe(PLAN.id);
   });
 
-  it("createPrototype() auto-increments version per wireframeId, preserving history (no overwrite)", () => {
+  it("createPrototype() auto-increments version per wireframeId, preserving history (no overwrite)", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    const v1 = createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, baseDir);
-    const v2 = createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, baseDir);
-    const v3 = createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, baseDir);
+    const v1 = await createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, store);
+    const v2 = await createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, store);
+    const v3 = await createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, store);
 
     expect(v1.version).toBe(1);
     expect(v2.version).toBe(2);
     expect(v3.version).toBe(3);
-    expect(listPrototypesForWireframe(WIREFRAME.id, baseDir)).toHaveLength(3);
+    expect(await listPrototypesForWireframe(WIREFRAME.id, store)).toHaveLength(3);
     expect(v1.id).not.toBe(v2.id);
   });
 
-  it("createPrototype() tracks version independently per wireframeId", () => {
+  it("createPrototype() tracks version independently per wireframeId", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    const aV1 = createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, baseDir);
-    const bV1 = createPrototype({ wireframeId: "wireframe-b", planId: "plan-b", content, simulated: true }, baseDir);
-    const aV2 = createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, baseDir);
+    const aV1 = await createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, store);
+    const bV1 = await createPrototype({ wireframeId: "wireframe-b", planId: "plan-b", content, simulated: true }, store);
+    const aV2 = await createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, store);
 
     expect(aV1.version).toBe(1);
     expect(bV1.version).toBe(1);
     expect(aV2.version).toBe(2);
   });
 
-  it("getPrototype() finds a record by id, null for unknown id", () => {
+  it("getPrototype() finds a record by id, null for unknown id", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    const record = createPrototype(
+    const record = await createPrototype(
       { wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true },
-      baseDir
+      store
     );
 
-    expect(getPrototype(record.id, baseDir)?.wireframeId).toBe(WIREFRAME.id);
-    expect(getPrototype("does-not-exist", baseDir)).toBeNull();
+    expect((await getPrototype(record.id, store))?.wireframeId).toBe(WIREFRAME.id);
+    expect(await getPrototype("does-not-exist", store)).toBeNull();
   });
 
-  it("listPrototypes() returns entries newest first", () => {
+  it("listPrototypes() returns entries newest first", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, baseDir);
-    createPrototype({ wireframeId: "wireframe-other", planId: "plan-other", content, simulated: true }, baseDir);
+    await createPrototype({ wireframeId: WIREFRAME.id, planId: WIREFRAME.planId, content, simulated: true }, store);
+    await createPrototype({ wireframeId: "wireframe-other", planId: "plan-other", content, simulated: true }, store);
 
-    const records = listPrototypes(baseDir);
+    const records = await listPrototypes(store);
     expect(records.map((r) => r.wireframeId)).toEqual(["wireframe-other", WIREFRAME.id]);
   });
 
-  it("listPrototypesForWireframe() filters to only the given wireframe's prototypes", () => {
+  it("listPrototypesForWireframe() filters to only the given wireframe's prototypes", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, baseDir);
-    createPrototype({ wireframeId: "wireframe-b", planId: "plan-b", content, simulated: true }, baseDir);
-    createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, baseDir);
+    await createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, store);
+    await createPrototype({ wireframeId: "wireframe-b", planId: "plan-b", content, simulated: true }, store);
+    await createPrototype({ wireframeId: "wireframe-a", planId: "plan-a", content, simulated: true }, store);
 
-    expect(listPrototypesForWireframe("wireframe-a", baseDir)).toHaveLength(2);
-    expect(listPrototypesForWireframe("wireframe-b", baseDir)).toHaveLength(1);
-    expect(listPrototypesForWireframe("wireframe-c", baseDir)).toHaveLength(0);
+    expect(await listPrototypesForWireframe("wireframe-a", store)).toHaveLength(2);
+    expect(await listPrototypesForWireframe("wireframe-b", store)).toHaveLength(1);
+    expect(await listPrototypesForWireframe("wireframe-c", store)).toHaveLength(0);
   });
 
-  it("preserves provider/model metadata when provided", () => {
+  it("preserves provider/model metadata when provided", async () => {
     const content = buildDefaultPrototype(WIREFRAME);
-    const record = createPrototype(
+    const record = await createPrototype(
       {
         wireframeId: WIREFRAME.id,
         planId: WIREFRAME.planId,
@@ -147,7 +150,7 @@ describe("Prototype Registry — lib/design/prototype.ts", () => {
         provider: "openai",
         model: "gpt-4o-mini",
       },
-      baseDir
+      store
     );
 
     expect(record.provider).toBe("openai");

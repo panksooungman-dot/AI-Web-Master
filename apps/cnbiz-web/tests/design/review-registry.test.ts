@@ -11,24 +11,27 @@ import {
   listReviewsForClaudeDesign,
   transitionReviewStatus,
 } from "../../lib/design/review-registry";
+import { createFsStore } from "../../lib/db/fsStore";
 
 describe("Review Registry — lib/design/review-registry.ts", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "review-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("listReviews() returns an empty array before anything is created", () => {
-    expect(listReviews(baseDir)).toEqual([]);
+  it("listReviews() returns an empty array before anything is created", async () => {
+    expect(await listReviews(store)).toEqual([]);
   });
 
-  it("createReview() starts in_review with version 1, a seeded history entry, and persists to lib/data/design-reviews.json", () => {
-    const record = createReview({ claudeDesignId: "cd-1", planId: "plan-1", actor: "alice@example.com" }, baseDir);
+  it("createReview() starts in_review with version 1, a seeded history entry, and persists to lib/data/design-reviews.json", async () => {
+    const record = await createReview({ claudeDesignId: "cd-1", planId: "plan-1", actor: "alice@example.com" }, store);
 
     expect(record.id).toBeTruthy();
     expect(record.createdAt).toBeTruthy();
@@ -47,56 +50,56 @@ describe("Review Registry — lib/design/review-registry.ts", () => {
     expect(raw[0].planId).toBe("plan-1");
   });
 
-  it("createReview() auto-increments version per claudeDesignId, preserving history (no overwrite)", () => {
-    const v1 = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
-    const v2 = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
-    const v3 = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
+  it("createReview() auto-increments version per claudeDesignId, preserving history (no overwrite)", async () => {
+    const v1 = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
+    const v2 = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
+    const v3 = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
 
     expect(v1.version).toBe(1);
     expect(v2.version).toBe(2);
     expect(v3.version).toBe(3);
-    expect(listReviewsForClaudeDesign("cd-1", baseDir)).toHaveLength(3);
+    expect(await listReviewsForClaudeDesign("cd-1", store)).toHaveLength(3);
     expect(v1.id).not.toBe(v2.id);
   });
 
-  it("createReview() tracks version independently per claudeDesignId", () => {
-    const aV1 = createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, baseDir);
-    const bV1 = createReview({ claudeDesignId: "cd-b", planId: "plan-b" }, baseDir);
-    const aV2 = createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, baseDir);
+  it("createReview() tracks version independently per claudeDesignId", async () => {
+    const aV1 = await createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, store);
+    const bV1 = await createReview({ claudeDesignId: "cd-b", planId: "plan-b" }, store);
+    const aV2 = await createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, store);
 
     expect(aV1.version).toBe(1);
     expect(bV1.version).toBe(1);
     expect(aV2.version).toBe(2);
   });
 
-  it("getReview() finds a record by id, null for unknown id", () => {
-    const record = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
+  it("getReview() finds a record by id, null for unknown id", async () => {
+    const record = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
 
-    expect(getReview(record.id, baseDir)?.claudeDesignId).toBe("cd-1");
-    expect(getReview("does-not-exist", baseDir)).toBeNull();
+    expect((await getReview(record.id, store))?.claudeDesignId).toBe("cd-1");
+    expect(await getReview("does-not-exist", store)).toBeNull();
   });
 
-  it("listReviews() returns entries newest first", () => {
-    createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
-    createReview({ claudeDesignId: "cd-other", planId: "plan-other" }, baseDir);
+  it("listReviews() returns entries newest first", async () => {
+    await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
+    await createReview({ claudeDesignId: "cd-other", planId: "plan-other" }, store);
 
-    const records = listReviews(baseDir);
+    const records = await listReviews(store);
     expect(records.map((r) => r.claudeDesignId)).toEqual(["cd-other", "cd-1"]);
   });
 
-  it("listReviewsForClaudeDesign() filters to only the given claude design's reviews", () => {
-    createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, baseDir);
-    createReview({ claudeDesignId: "cd-b", planId: "plan-b" }, baseDir);
-    createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, baseDir);
+  it("listReviewsForClaudeDesign() filters to only the given claude design's reviews", async () => {
+    await createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, store);
+    await createReview({ claudeDesignId: "cd-b", planId: "plan-b" }, store);
+    await createReview({ claudeDesignId: "cd-a", planId: "plan-a" }, store);
 
-    expect(listReviewsForClaudeDesign("cd-a", baseDir)).toHaveLength(2);
-    expect(listReviewsForClaudeDesign("cd-b", baseDir)).toHaveLength(1);
-    expect(listReviewsForClaudeDesign("cd-c", baseDir)).toHaveLength(0);
+    expect(await listReviewsForClaudeDesign("cd-a", store)).toHaveLength(2);
+    expect(await listReviewsForClaudeDesign("cd-b", store)).toHaveLength(1);
+    expect(await listReviewsForClaudeDesign("cd-c", store)).toHaveLength(0);
   });
 
-  it("addReviewComment() appends a comment and a matching history entry, bumping updatedAt", () => {
-    const record = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
-    const updated = addReviewComment(record.id, { author: "bob@example.com", text: "looks great" }, baseDir);
+  it("addReviewComment() appends a comment and a matching history entry, bumping updatedAt", async () => {
+    const record = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
+    const updated = await addReviewComment(record.id, { author: "bob@example.com", text: "looks great" }, store);
 
     expect(updated).not.toBeNull();
     expect(updated?.comments).toHaveLength(1);
@@ -107,17 +110,17 @@ describe("Review Registry — lib/design/review-registry.ts", () => {
     expect(updated?.updatedAt).not.toBe(record.createdAt);
   });
 
-  it("addReviewComment() returns null for an unknown review id", () => {
-    expect(addReviewComment("does-not-exist", { author: "x", text: "y" }, baseDir)).toBeNull();
+  it("addReviewComment() returns null for an unknown review id", async () => {
+    expect(await addReviewComment("does-not-exist", { author: "x", text: "y" }, store)).toBeNull();
   });
 
-  it("transitionReviewStatus() changes status and appends a history entry", () => {
-    const record = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
-    const updated = transitionReviewStatus(
+  it("transitionReviewStatus() changes status and appends a history entry", async () => {
+    const record = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
+    const updated = await transitionReviewStatus(
       record.id,
       "approved",
       { actor: "carol@example.com", note: "ship it" },
-      baseDir
+      store
     );
 
     expect(updated?.status).toBe("approved");
@@ -127,24 +130,24 @@ describe("Review Registry — lib/design/review-registry.ts", () => {
     expect(updated?.history[1].note).toBe("ship it");
   });
 
-  it("transitionReviewStatus() returns null for an unknown review id", () => {
-    expect(transitionReviewStatus("does-not-exist", "approved", {}, baseDir)).toBeNull();
+  it("transitionReviewStatus() returns null for an unknown review id", async () => {
+    expect(await transitionReviewStatus("does-not-exist", "approved", {}, store)).toBeNull();
   });
 
-  it("archiveReview() sets status to archived and records a note", () => {
-    const record = createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, baseDir);
-    const archived = archiveReview(record.id, { actor: "dave@example.com" }, baseDir);
+  it("archiveReview() sets status to archived and records a note", async () => {
+    const record = await createReview({ claudeDesignId: "cd-1", planId: "plan-1" }, store);
+    const archived = await archiveReview(record.id, { actor: "dave@example.com" }, store);
 
     expect(archived?.status).toBe("archived");
     expect(archived?.history[1].note).toBe("보관 처리");
   });
 
-  it("preserves full history across multiple transitions and comments in chronological order", () => {
-    const record = createReview({ claudeDesignId: "cd-1", planId: "plan-1", actor: "alice" }, baseDir);
-    addReviewComment(record.id, { author: "bob", text: "first pass" }, baseDir);
-    transitionReviewStatus(record.id, "revision_requested", { actor: "alice", note: "needs tweaks" }, baseDir);
-    addReviewComment(record.id, { author: "bob", text: "updated" }, baseDir);
-    const final = transitionReviewStatus(record.id, "approved", { actor: "alice" }, baseDir);
+  it("preserves full history across multiple transitions and comments in chronological order", async () => {
+    const record = await createReview({ claudeDesignId: "cd-1", planId: "plan-1", actor: "alice" }, store);
+    await addReviewComment(record.id, { author: "bob", text: "first pass" }, store);
+    await transitionReviewStatus(record.id, "revision_requested", { actor: "alice", note: "needs tweaks" }, store);
+    await addReviewComment(record.id, { author: "bob", text: "updated" }, store);
+    const final = await transitionReviewStatus(record.id, "approved", { actor: "alice" }, store);
 
     expect(final?.history.map((h) => h.status)).toEqual([
       "in_review",

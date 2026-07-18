@@ -10,29 +10,32 @@ import {
   recordFigmaImport,
   type FigmaContent,
 } from "../../lib/design/figma";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultFigmaImportContent } from "../../lib/design/figma-generator";
 
 const CONTENT: FigmaContent = buildDefaultFigmaImportContent("seed-file");
 
 describe("Figma Registry — lib/design/figma.ts", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "figma-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("listFigmaRecords() returns an empty array before anything is recorded", () => {
-    expect(listFigmaRecords(baseDir)).toEqual([]);
+  it("listFigmaRecords() returns an empty array before anything is recorded", async () => {
+    expect(await listFigmaRecords(store)).toEqual([]);
   });
 
-  it("recordFigmaImport() creates a new record (version 1) and persists to lib/data/design-figma.json", () => {
-    const record = recordFigmaImport(
+  it("recordFigmaImport() creates a new record (version 1) and persists to lib/data/design-figma.json", async () => {
+    const record = await recordFigmaImport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-1", fileName: "My File", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
 
     expect(record.id).toBeTruthy();
@@ -46,12 +49,12 @@ describe("Figma Registry — lib/design/figma.ts", () => {
     expect(raw[0].id).toBe(record.id);
   });
 
-  it("recordFigmaImport() called again for the same (reviewId, figmaFileId) updates the existing record instead of creating a new one", () => {
-    const first = recordFigmaImport(
+  it("recordFigmaImport() called again for the same (reviewId, figmaFileId) updates the existing record instead of creating a new one", async () => {
+    const first = await recordFigmaImport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-1", fileName: "My File", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
-    const second = recordFigmaImport(
+    const second = await recordFigmaImport(
       {
         reviewId: "review-1",
         planId: "plan-1",
@@ -60,24 +63,24 @@ describe("Figma Registry — lib/design/figma.ts", () => {
         content: CONTENT,
         simulated: false,
       },
-      baseDir
+      store
     );
 
     expect(second.id).toBe(first.id);
     expect(second.version).toBe(2);
     expect(second.fileName).toBe("My File (renamed)");
     expect(second.importHistory).toHaveLength(2);
-    expect(listFigmaRecords(baseDir)).toHaveLength(1);
+    expect(await listFigmaRecords(store)).toHaveLength(1);
   });
 
-  it("recordFigmaExport() on a record that only has import history appends to exportHistory and bumps version", () => {
-    recordFigmaImport(
+  it("recordFigmaExport() on a record that only has import history appends to exportHistory and bumps version", async () => {
+    await recordFigmaImport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-1", fileName: "My File", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
-    const exported = recordFigmaExport(
+    const exported = await recordFigmaExport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-1", fileName: "My File", content: CONTENT, simulated: false },
-      baseDir
+      store
     );
 
     expect(exported.version).toBe(2);
@@ -87,59 +90,59 @@ describe("Figma Registry — lib/design/figma.ts", () => {
     expect(exported.simulated).toBe(false);
   });
 
-  it("a different figmaFileId for the same reviewId creates a separate record", () => {
-    recordFigmaImport(
+  it("a different figmaFileId for the same reviewId creates a separate record", async () => {
+    await recordFigmaImport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-1", fileName: "File A", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
-    recordFigmaImport(
+    await recordFigmaImport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-2", fileName: "File B", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
 
-    expect(listFigmaRecords(baseDir)).toHaveLength(2);
-    expect(listFigmaRecordsForReview("review-1", baseDir)).toHaveLength(2);
+    expect(await listFigmaRecords(store)).toHaveLength(2);
+    expect(await listFigmaRecordsForReview("review-1", store)).toHaveLength(2);
   });
 
-  it("getFigmaRecord() finds a record by id, null for unknown id", () => {
-    const record = recordFigmaImport(
+  it("getFigmaRecord() finds a record by id, null for unknown id", async () => {
+    const record = await recordFigmaImport(
       { reviewId: "review-1", planId: "plan-1", figmaFileId: "file-1", fileName: "My File", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
 
-    expect(getFigmaRecord(record.id, baseDir)?.figmaFileId).toBe("file-1");
-    expect(getFigmaRecord("does-not-exist", baseDir)).toBeNull();
+    expect((await getFigmaRecord(record.id, store))?.figmaFileId).toBe("file-1");
+    expect(await getFigmaRecord("does-not-exist", store)).toBeNull();
   });
 
-  it("listFigmaRecords() returns entries newest first", () => {
-    recordFigmaImport(
+  it("listFigmaRecords() returns entries newest first", async () => {
+    await recordFigmaImport(
       { reviewId: "review-a", planId: "plan-a", figmaFileId: "file-a", fileName: "A", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
-    recordFigmaImport(
+    await recordFigmaImport(
       { reviewId: "review-b", planId: "plan-b", figmaFileId: "file-b", fileName: "B", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
 
-    expect(listFigmaRecords(baseDir).map((r) => r.reviewId)).toEqual(["review-b", "review-a"]);
+    expect((await listFigmaRecords(store)).map((r) => r.reviewId)).toEqual(["review-b", "review-a"]);
   });
 
-  it("listFigmaRecordsForReview() filters to only the given review's Figma files", () => {
-    recordFigmaImport(
+  it("listFigmaRecordsForReview() filters to only the given review's Figma files", async () => {
+    await recordFigmaImport(
       { reviewId: "review-a", planId: "plan-a", figmaFileId: "file-a", fileName: "A", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
-    recordFigmaImport(
+    await recordFigmaImport(
       { reviewId: "review-b", planId: "plan-b", figmaFileId: "file-b", fileName: "B", content: CONTENT, simulated: true },
-      baseDir
+      store
     );
 
-    expect(listFigmaRecordsForReview("review-a", baseDir)).toHaveLength(1);
-    expect(listFigmaRecordsForReview("review-c", baseDir)).toHaveLength(0);
+    expect(await listFigmaRecordsForReview("review-a", store)).toHaveLength(1);
+    expect(await listFigmaRecordsForReview("review-c", store)).toHaveLength(0);
   });
 
-  it("records the acting user on each history entry", () => {
-    const record = recordFigmaImport(
+  it("records the acting user on each history entry", async () => {
+    const record = await recordFigmaImport(
       {
         reviewId: "review-1",
         planId: "plan-1",
@@ -149,7 +152,7 @@ describe("Figma Registry — lib/design/figma.ts", () => {
         simulated: true,
         actor: "designer@cnbiz.kr",
       },
-      baseDir
+      store
     );
 
     expect(record.importHistory[0].actor).toBe("designer@cnbiz.kr");

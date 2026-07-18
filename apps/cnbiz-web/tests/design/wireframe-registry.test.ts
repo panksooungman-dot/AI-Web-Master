@@ -8,6 +8,7 @@ import {
   listWireframes,
   listWireframesForStoryboard,
 } from "../../lib/design/wireframe";
+import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
 import { buildDefaultStoryboard } from "../../lib/design/storyboard-generator";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
@@ -39,24 +40,26 @@ const STORYBOARD: StoryboardRecord = {
 
 describe("Wireframe Registry — lib/design/wireframe.ts", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "wireframe-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("listWireframes() returns an empty array before anything is created", () => {
-    expect(listWireframes(baseDir)).toEqual([]);
+  it("listWireframes() returns an empty array before anything is created", async () => {
+    expect(await listWireframes(store)).toEqual([]);
   });
 
-  it("createWireframe() assigns an id/createdAt and persists to lib/data/design-wireframes.json", () => {
+  it("createWireframe() assigns an id/createdAt and persists to lib/data/design-wireframes.json", async () => {
     const content = buildDefaultWireframe(STORYBOARD);
-    const record = createWireframe(
+    const record = await createWireframe(
       { storyboardId: STORYBOARD.id, planId: STORYBOARD.planId, content, simulated: true },
-      baseDir
+      store
     );
 
     expect(record.id).toBeTruthy();
@@ -69,40 +72,40 @@ describe("Wireframe Registry — lib/design/wireframe.ts", () => {
     expect(raw[0].planId).toBe(PLAN.id);
   });
 
-  it("getWireframe() finds a record by id, null for unknown id", () => {
+  it("getWireframe() finds a record by id, null for unknown id", async () => {
     const content = buildDefaultWireframe(STORYBOARD);
-    const record = createWireframe(
+    const record = await createWireframe(
       { storyboardId: STORYBOARD.id, planId: STORYBOARD.planId, content, simulated: true },
-      baseDir
+      store
     );
 
-    expect(getWireframe(record.id, baseDir)?.storyboardId).toBe(STORYBOARD.id);
-    expect(getWireframe("does-not-exist", baseDir)).toBeNull();
+    expect((await getWireframe(record.id, store))?.storyboardId).toBe(STORYBOARD.id);
+    expect(await getWireframe("does-not-exist", store)).toBeNull();
   });
 
-  it("listWireframes() returns entries newest first", () => {
+  it("listWireframes() returns entries newest first", async () => {
     const content = buildDefaultWireframe(STORYBOARD);
-    createWireframe({ storyboardId: STORYBOARD.id, planId: STORYBOARD.planId, content, simulated: true }, baseDir);
-    createWireframe({ storyboardId: "storyboard-other", planId: "plan-other", content, simulated: true }, baseDir);
+    await createWireframe({ storyboardId: STORYBOARD.id, planId: STORYBOARD.planId, content, simulated: true }, store);
+    await createWireframe({ storyboardId: "storyboard-other", planId: "plan-other", content, simulated: true }, store);
 
-    const records = listWireframes(baseDir);
+    const records = await listWireframes(store);
     expect(records.map((r) => r.storyboardId)).toEqual(["storyboard-other", STORYBOARD.id]);
   });
 
-  it("listWireframesForStoryboard() filters to only the given storyboard's wireframes", () => {
+  it("listWireframesForStoryboard() filters to only the given storyboard's wireframes", async () => {
     const content = buildDefaultWireframe(STORYBOARD);
-    createWireframe({ storyboardId: "storyboard-a", planId: "plan-a", content, simulated: true }, baseDir);
-    createWireframe({ storyboardId: "storyboard-b", planId: "plan-b", content, simulated: true }, baseDir);
-    createWireframe({ storyboardId: "storyboard-a", planId: "plan-a", content, simulated: true }, baseDir);
+    await createWireframe({ storyboardId: "storyboard-a", planId: "plan-a", content, simulated: true }, store);
+    await createWireframe({ storyboardId: "storyboard-b", planId: "plan-b", content, simulated: true }, store);
+    await createWireframe({ storyboardId: "storyboard-a", planId: "plan-a", content, simulated: true }, store);
 
-    expect(listWireframesForStoryboard("storyboard-a", baseDir)).toHaveLength(2);
-    expect(listWireframesForStoryboard("storyboard-b", baseDir)).toHaveLength(1);
-    expect(listWireframesForStoryboard("storyboard-c", baseDir)).toHaveLength(0);
+    expect(await listWireframesForStoryboard("storyboard-a", store)).toHaveLength(2);
+    expect(await listWireframesForStoryboard("storyboard-b", store)).toHaveLength(1);
+    expect(await listWireframesForStoryboard("storyboard-c", store)).toHaveLength(0);
   });
 
-  it("preserves provider/model metadata when provided", () => {
+  it("preserves provider/model metadata when provided", async () => {
     const content = buildDefaultWireframe(STORYBOARD);
-    const record = createWireframe(
+    const record = await createWireframe(
       {
         storyboardId: STORYBOARD.id,
         planId: STORYBOARD.planId,
@@ -111,7 +114,7 @@ describe("Wireframe Registry — lib/design/wireframe.ts", () => {
         provider: "openai",
         model: "gpt-4o-mini",
       },
-      baseDir
+      store
     );
 
     expect(record.provider).toBe("openai");

@@ -1,11 +1,13 @@
 ---
 name: qa-engineer
 description: Plan, design, execute, and automate software testing to ensure product quality, reliability, usability, and compliance throughout the development lifecycle.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/qa-engineer.md (merged 2026-07-19)
 ---
 
 # QA Engineer
@@ -174,6 +176,29 @@ Promote quality throughout the SDLC.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/qa-engineer.md` (2026-07-19).
+
+Can decide:
+
+- Test strategy
+- Test coverage
+- Release recommendation
+- Defect severity
+- Test prioritization
+- Quality metrics
+
+Cannot decide:
+
+- Business requirements
+- Product roadmap
+- Architecture
+- Feature implementation
+- Infrastructure decisions
+
+---
+
 # Workflow
 
 ```text
@@ -270,6 +295,18 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/qa-engineer.md` (2026-07-19).
+
+Delivers validated release documentation to:
+
+**Technical Writer**
+
+The Technical Writer prepares the final user and technical documentation based on the verified release.
+
+---
+
 # Related Skills
 
 - frontend-engineer
@@ -285,3 +322,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/qa-engineer.md` (CS-08 Batch 1) |

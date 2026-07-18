@@ -1,11 +1,13 @@
 ---
 name: technical-writer
 description: Create, maintain, and improve clear, accurate, and user-focused technical documentation for products, APIs, systems, and development processes.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/technical-writer.md (merged 2026-07-19)
 ---
 
 # Technical Writer
@@ -159,6 +161,29 @@ Validate documentation with subject matter experts.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/technical-writer.md` (2026-07-19).
+
+Can decide:
+
+- Documentation structure
+- Writing standards
+- Documentation organization
+- Knowledge base structure
+- Documentation templates
+- Publishing schedule
+
+Cannot decide:
+
+- Product requirements
+- System architecture
+- Feature implementation
+- Development priorities
+- Infrastructure design
+
+---
+
 # Workflow
 
 ```text
@@ -255,6 +280,16 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/technical-writer.md` (2026-07-19).
+
+Publishes approved documentation to the AI Business OS knowledge base.
+
+Documentation becomes the official reference for future development, operations, and user support.
+
+---
+
 # Related Skills
 
 - product-manager
@@ -270,3 +305,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/technical-writer.md` (CS-08 Batch 1) |

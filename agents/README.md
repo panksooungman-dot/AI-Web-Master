@@ -74,9 +74,9 @@ Release
 | Backend Engineer | API / Database | Merged → `skills/experts/backend-engineer/SKILL.md` |
 | Frontend Engineer | UI / UX | Merged → `skills/experts/frontend-engineer/SKILL.md` |
 | AI Engineer | LLM / AI features | Merged → `skills/experts/ai-engineer/SKILL.md` |
-| DevOps Engineer | Infrastructure / CI/CD | Pending |
-| QA Engineer | Quality assurance | Pending |
-| Technical Writer | Documentation | Pending |
+| DevOps Engineer | Infrastructure / CI/CD | Merged → `skills/experts/devops-engineer/SKILL.md` |
+| QA Engineer | Quality assurance | Merged → `skills/experts/qa-engineer/SKILL.md` |
+| Technical Writer | Documentation | Merged → `skills/experts/technical-writer/SKILL.md` |
 
 ---
 
@@ -125,7 +125,11 @@ technical-writer.md
 
 ## Standard Agent Template
 
-Every Agent document must contain:
+> ⚠️ 아래 템플릿은 "Status: Pending"인 Agent 문서에만 적용된다. "Status: Merged"인 문서는
+> Legacy Stub(요약 + `skills/experts/<role>/SKILL.md` 링크)로 축소되어 이 템플릿을 따르지
+> 않는다 — 상세 정의 템플릿은 대상 SKILL.md 쪽 구조를 기준으로 한다.
+
+Every **Pending** Agent document must contain:
 
 - Role
 - Mission

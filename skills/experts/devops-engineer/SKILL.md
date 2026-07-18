@@ -1,11 +1,13 @@
 ---
 name: devops-engineer
 description: Build, automate, secure, and operate CI/CD pipelines, cloud infrastructure, monitoring, and deployment platforms for reliable software delivery.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
+status: merged
+source: agents/devops-engineer.md (merged 2026-07-19)
 ---
 
 # DevOps Engineer
@@ -174,6 +176,29 @@ Promote DevOps culture across teams.
 
 ---
 
+# Decision Authority
+
+> Merged from `agents/devops-engineer.md` (2026-07-19).
+
+Can decide:
+
+- CI/CD pipeline implementation
+- Infrastructure automation
+- Deployment strategy
+- Monitoring configuration
+- Logging strategy
+- Environment management
+
+Cannot decide:
+
+- Product requirements
+- Business priorities
+- System architecture
+- Application functionality
+- Feature scope
+
+---
+
 # Workflow
 
 ```text
@@ -270,6 +295,18 @@ This skill succeeds when:
 
 ---
 
+# Handoff
+
+> Merged from `agents/devops-engineer.md` (2026-07-19).
+
+Delivers deployment-ready environments and operational validation to:
+
+- QA Engineer
+
+The QA Engineer verifies the deployed system before release approval.
+
+---
+
 # Related Skills
 
 - solution-architect
@@ -285,3 +322,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/devops-engineer.md` (CS-08 Batch 1) |

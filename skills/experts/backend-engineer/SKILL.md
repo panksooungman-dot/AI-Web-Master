@@ -1,7 +1,7 @@
 ---
 name: backend-engineer
 description: Design, implement, and maintain secure, scalable, and reliable backend systems, APIs, databases, and business logic.
-version: 1.2.0
+version: 1.4.0
 author: AI Business OS
 license: MIT
 category: expert
@@ -14,9 +14,17 @@ sources:
   - type: prompt
     path: prompts/coder.md
     merged: "2026-07-19"
+  - type: prompt
+    path: prompts/tester.md
+    merged: "2026-07-19"
 ---
 
 # Backend Engineer
+
+> 전역 규칙은 `prompts/system.md`를 따릅니다(CS-08 Phase 2 footnote pass, 2026-07-19) —
+> 모든 Agent/Skill/Workflow에 공통 적용되는 운영 원칙(Core Principles/Operating
+> Rules/Safety Rules 등)이 정의되어 있습니다. `prompts/system.md` 자체는 축소되지
+> 않고 그대로 유지되는 기준 문서입니다.
 
 ## Purpose
 
@@ -272,10 +280,9 @@ Generate:
 
 > Merged from `prompts/coder.md` (2026-07-19). Also applied to: `frontend-engineer`,
 > `ai-engineer` (fan-out 3). Named with a `(Coding)` suffix per
-> `docs/architecture/P3_PHASE2_REVIEW.md` section 5 — `backend-engineer` also
-> receives content from `prompts/tester.md` in a future merge (not part of this
-> Pilot), so the source-qualified heading avoids a future collision. Distinct
-> from `# Outputs` above: `# Outputs` lists the artifact types this skill
+> `docs/architecture/P3_PHASE2_REVIEW.md` section 5 — `backend-engineer` also has
+> `# Expected Output Structure (Testing)` below, merged from `prompts/tester.md`.
+> Distinct from `# Outputs` above: `# Outputs` lists the artifact types this skill
 > produces, while this section is a response-formatting template to follow when
 > carrying out an implementation task.
 
@@ -332,6 +339,73 @@ Describe how failures are handled.
 ## Documentation Notes
 
 Highlight important implementation details.
+
+---
+
+# Expected Output Structure (Testing)
+
+> Merged from `prompts/tester.md` (2026-07-19). Also applied to: `qa-engineer`
+> (`# Expected Output Structure (Testing)`), `frontend-engineer`
+> (`# Expected Output Structure (Testing)`), `ai-engineer`
+> (`# Expected Output Structure (Testing)`), `devops-engineer`
+> (`# Expected Output Structure (Testing)`) (fan-out 5, largest in Phase 2). Named
+> with a `(Testing)` suffix per `docs/architecture/P3_PHASE2_REVIEW.md` section 5 —
+> `backend-engineer` also has `# Expected Output Structure (Coding)` above, merged
+> from `prompts/coder.md`. Distinct from `# Outputs` above: `# Outputs` lists the
+> artifact types this skill produces, while this section is a response-formatting
+> template to follow when reporting on a testing task.
+
+## Test Summary
+
+Brief overview of testing performed.
+
+---
+
+## Test Coverage
+
+| Area | Status |
+|------|--------|
+| Functional | ✅ |
+| Integration | ✅ |
+| Security | ✅ |
+| Performance | ⚠ |
+| Regression | ✅ |
+
+---
+
+## Defects
+
+| Severity | Description | Status |
+|----------|-------------|--------|
+| Critical | None | Closed |
+
+---
+
+## Risks
+
+- Risk
+- Impact
+- Recommendation
+
+---
+
+## Release Assessment
+
+Choose one:
+
+- ✅ Ready for Release
+- ⚠ Ready with Minor Issues
+- ❌ Not Ready
+
+Provide supporting evidence.
+
+---
+
+## Recommended Actions
+
+- Action 1
+- Action 2
+- Action 3
 
 ---
 
@@ -413,3 +487,5 @@ QA validation begins after backend implementation is complete.
 | 1.0.0 | 2026-07-10 | Initial release |
 | 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/backend-engineer.md` (CS-08 pilot) |
 | 1.2.0 | 2026-07-19 | Merged Expected Output Structure (Coding) from `prompts/coder.md` (CS-08 Phase 2 Pilot) |
+| 1.3.0 | 2026-07-19 | Merged Expected Output Structure (Testing) from `prompts/tester.md` (CS-08 Phase 2) |
+| 1.4.0 | 2026-07-19 | Added `prompts/system.md` global-rules footnote (CS-08 Phase 2) |

@@ -106,10 +106,15 @@
   5. `prompts/*.md` 6개도 동일 원칙으로 축소
   6. 전체 완료 후 `agents/README.md`·`prompts/README.md`에 "역할 상세는 `skills/experts/`가 기준"이라는 안내 추가
 
-- **Status: Complete (Phase 1 — `agents/*.md` 9/9)** · `prompts/*.md` 6개는 **Phase 2로 분리**되어 아직 미착수(계획서: `docs/architecture/P3_PHASE2_PLAN.md`)
-  - **Completed**: 2026-07-18 ~ 2026-07-19
-  - **상세 완료 보고**: `docs/architecture/P3_PHASE1_COMPLETION.md`, 매핑표: `docs/architecture/AI_CONTENT_MAPPING.md`, 중간 점검: `CHECKPOINT_REVIEW.md`
-  - **Commit SHA / Date**:
+- **Status: Complete (Phase 1 — `agents/*.md` 9/9, Phase 2 — `prompts/*.md` 6/6)** — CS-08 전체 완료.
+  Phase 2는 `docs/architecture/P3_PHASE2_PLAN.md`(초안)와 그 재검토서
+  `docs/architecture/P3_PHASE2_REVIEW.md`(콘텐츠 복잡도 재평가, 순서를
+  `coder→planner→reviewer→documenter→tester→system`로 확정)를 따라 실행됨.
+  - **Completed**: Phase 1 2026-07-18~07-19, Phase 2 2026-07-19("Refactoring Phase 2" 세션)
+  - **상세 완료 보고**: `docs/architecture/P3_PHASE1_COMPLETION.md`(Phase 1), 매핑표:
+    `docs/architecture/AI_CONTENT_MAPPING.md`(Phase 1+2 반영), 중간 점검:
+    `CHECKPOINT_REVIEW.md`(Phase 1 후), 설계 검토: `docs/architecture/P3_PHASE2_REVIEW.md`(Phase 2 착수 전)
+  - **Commit SHA / Date** (Phase 1):
     | 단계 | 커밋 | 날짜 | 내용 |
     |---|---|---|---|
     | 매핑 작성 | `87e9706` | 2026-07-18 | `AI_CONTENT_MAPPING.md` 신규 작성 |
@@ -120,6 +125,18 @@
     | 체크포인트 | `bed7f19` | 2026-07-19 | `CHECKPOINT_REVIEW.md` 작성 |
     | Batch 1 | `8094007` | 2026-07-19 | `devops-engineer`·`qa-engineer`·`technical-writer` 병합 |
     | Batch 2 | `98a454a` | 2026-07-19 | `business-analyst`·`solution-architect`·`product-manager` 병합, Phase 1 종료 |
+  - **Phase 2 실행 내역** (2026-07-19, "Refactoring Phase 2" 세션 — 커밋 SHA는 이 세션
+    종료 시 커밋 후 별도 반영):
+    | 단계 | 대상 | 내용 |
+    |---|---|---|
+    | 설계 검토 | — | `P3_PHASE2_REVIEW.md` 작성, 순서 재평가·fan-in≥2 헤딩 구분 규칙(`(Coding)`/`(Planning)`/`(Review)`/`(Documentation)`/`(Testing)`) 확정 |
+    | `coder.md` | backend/frontend/ai-engineer | 이전 세션에 이미 완료(Pilot) |
+    | `planner.md` | business-analyst, product-manager | 병합 완료, business-analyst는 fan-in 1(plain heading), product-manager는 fan-in 2(`(Planning)`) |
+    | `reviewer.md` | solution-architect, devops-engineer, qa-engineer | 병합 완료, qa-engineer에서 fan-in≥2 헤딩 규칙 최초 적용(`(Review)`) |
+    | `documenter.md` | technical-writer, product-manager, qa-engineer | 병합 완료, product-manager·qa-engineer 두 번째 접촉 검증(`(Documentation)`) |
+    | `tester.md` | qa-engineer, backend/frontend/ai-engineer, devops-engineer | 병합 완료(fan-out 5, 최대), qa-engineer 4번째 소스 병존 확인(`(Testing)`) |
+    | `system.md` | 15개 전체 | 병합 아님 — H1 직후 전역 규칙 각주 1줄만 추가, `system.md` 자신은 축소하지 않음 |
+    | 문서 동기화 | — | `prompts/README.md`·`agents/README.md`(무변경 확인)·`AI_CONTENT_MAPPING.md`·본 CHANGESET 갱신 |
 
 ### CS-09. `lib/dev/component-marker.ts` 공유 패키지화
 
@@ -214,7 +231,7 @@
 | CS-05 | `DOCUMENT_INDEX.md` 동기화 | Low | P2 |
 | CS-06 | `WBS.md` 안내 추가 | Low | P2 |
 | CS-07 | `test-project/` 확인 | Low | P2 |
-| CS-08 | agents+prompts → skills 통합 (Phase 1 `agents/*.md` 9/9 **Complete** — 2026-07-19, Phase 2 `prompts/*.md`는 계획서 수립, 미착수) | Medium | P3 |
+| CS-08 | agents+prompts → skills 통합 (Phase 1 `agents/*.md` 9/9 **Complete**, Phase 2 `prompts/*.md` 6/6 **Complete** — 전부 2026-07-19) | Medium | P3 |
 | CS-09 | `component-marker.ts` 공유화 | Medium | P3 |
 | CS-10 | 레거시 트리 안내 표시 | Low | P3 |
 | CS-11 | marketplace 카테고리 정리 | High | P4 |

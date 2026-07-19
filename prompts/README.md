@@ -50,14 +50,21 @@ Response
 
 # Available Prompts
 
-| Prompt | Purpose |
-|---------|---------|
-| system.md | Global AI behavior and operating rules |
-| planner.md | Business planning and product planning |
-| coder.md | Software development and implementation |
-| reviewer.md | Architecture and code review |
-| tester.md | Quality assurance and testing |
-| documenter.md | Documentation generation |
+> ✅ **통합 완료 (6/6, 2026-07-19)**: `system.md`를 제외한 5개 프롬프트의 `# Expected
+> Output Structure`는 전부 대응하는 `skills/experts/<role>/SKILL.md`로 통합되었습니다
+> (`docs/architecture/AI_CONTENT_MAPPING.md`·`docs/architecture/P3_PHASE2_REVIEW.md`
+> 참고). 해당 `prompts/*.md`는 요약 + 링크만 남긴 Legacy Stub이며, 상세는
+> `skills/experts/`를 기준으로 참고하세요. `system.md`는 병합 대상이 아니라 15개
+> SKILL.md 전체가 참조하는 전역 규칙 문서로 그대로 유지됩니다.
+
+| Prompt | Purpose | Status |
+|---------|---------|--------|
+| system.md | Global AI behavior and operating rules | Kept as-is — referenced (not merged) by all 15 `skills/experts/*/SKILL.md` |
+| planner.md | Business planning and product planning | Merged → `skills/experts/{business-analyst,product-manager}/SKILL.md` |
+| coder.md | Software development and implementation | Merged → `skills/experts/{backend-engineer,frontend-engineer,ai-engineer}/SKILL.md` |
+| reviewer.md | Architecture and code review | Merged → `skills/experts/{solution-architect,devops-engineer,qa-engineer}/SKILL.md` |
+| tester.md | Quality assurance and testing | Merged → `skills/experts/{qa-engineer,backend-engineer,frontend-engineer,ai-engineer,devops-engineer}/SKILL.md` |
+| documenter.md | Documentation generation | Merged → `skills/experts/{technical-writer,product-manager,qa-engineer}/SKILL.md` |
 
 ---
 
@@ -159,6 +166,16 @@ Output
 ↓
 
 Memory Update
+
+---
+
+# Related Directories
+
+```
+skills/experts/
+```
+
+Detailed role definitions — the source of truth for `# Expected Output Structure` since the CS-08 Phase 2 merge (2026-07-19).
 
 ---
 

@@ -22,6 +22,72 @@
 @docs/03_DESIGN/DESIGN_SYSTEM.md
 @docs/02_DEVELOPMENT/AI_COMPONENT_GUIDDE.md
 
+## 신규 프로젝트 추가 규칙
+
+AI Business OS 아래 여러 프로젝트(홈페이지·쇼핑몰·챗봇·CRM·ERP 등)가 계속 추가되는 것을 전제로 한 규칙입니다.
+
+1. 모든 신규 프로젝트는 `apps/<project-name>/` 아래에 생성한다.
+2. 신규 프로젝트는 `apps/cnbiz-web/lib`를 직접 import하지 않는다.
+3. 공통 코드가 2개 이상의 프로젝트에서 필요해지는 시점에만 `packages/`로 승격한다.
+4. `packages/` 승격은 실제 중복이 확인된 이후에만 수행한다(가정만으로 미리 추출하지 않는다).
+5. Legacy(루트 `app/`, 루트 `components/`)는 신규 기능 개발에 사용하지 않는다.
+6. **Packages Responsibility** — `packages/`는 프로젝트에 독립적인 코드만 포함한다.
+   - 허용: UI, Design System, Layout, Authentication, Database, CollectionStore, Shared Types, Shared Utils, CLI, Templates, Build Tool, AI Infrastructure
+   - 금지: CNBIZ·ShoppingMall·CRM·ERP 등 프로젝트 전용 Business Logic, Website Builder 전용 화면, 프로젝트 전용 API/UI
+   - 기준: "여러 프로젝트에서 그대로 사용할 수 있는 코드"만 `packages/`에 둔다.
+7. **Dependency Direction** — 의존성은 `apps → packages`, `packages → packages`만 허용한다. `apps → apps`(예: `apps/shoppingmall`이 `apps/cnbiz-web`을 직접 import) 및 `packages → apps`는 금지한다. 프로젝트 간 공유는 반드시 `packages/`를 통한다.
+
+**Repository Philosophy**: "필요할 때 공통화"를 따른다. "앞으로 필요할 것 같아서" 미리 `packages/`를 만들지 않는다(Rule of Two — 최소 2곳에서 실제로 필요해지기 전까지는 추상화하지 않는다).
+
+### Packages Promotion Checklist
+
+`packages/`로 승격하려면 아래 4가지 조건을 **모두** 만족해야 한다.
+
+- [ ] **Rule 1 — 실사용 2곳 이상**: 최소 두 개 이상의 프로젝트(예: `apps/cnbiz-web`, `apps/shoppingmall`)에서 **실제로** 사용 중이어야 한다. "앞으로 사용할 예정"은 인정하지 않는다.
+- [ ] **Rule 2 — Business Logic 없음**: 프로젝트 고유 Business Logic가 없어야 한다. 허용(UI/Layout/Auth/DB/CollectionStore/Shared Types/Shared Utils/CLI/Templates/AI Infrastructure) vs 금지(CNBIZ Workflow, ShoppingMall Checkout, CRM Customer Pipeline, ERP Inventory Logic, Website Builder Screen 등 프로젝트 전용 로직).
+- [ ] **Rule 3 — 독립 테스트 가능**: `apps/` 없이 `packages/` 단독으로 동작·테스트 가능해야 한다.
+- [ ] **Rule 4 — 이름에서 프로젝트명 제거 가능**: 프로젝트 이름을 제거해도 의미가 유지되어야 한다. 가능(`AuthService`·`Database`·`CollectionStore`·`SharedButton`·`LayoutShell`) vs 금지(`CNBIZDashboard`·`ShoppingMallCart`·`CRMLeadPipeline`·`ERPInventory`·`WebsiteBuilderEditor`).
+
+**판단 순서**(Repository Decision Rule):
+
+1. 실제로 두 프로젝트 이상에서 사용하는가? → 아니오 → `apps/` 안에 둔다.
+2. 프로젝트 전용 코드인가? → 예 → `apps/` 안에 둔다.
+3. 독립 실행 가능한가? → 아니오 → `apps/` 안에 둔다.
+4. 프로젝트 이름을 제거해도 되는가? → 아니오 → `apps/` 안에 둔다.
+5. 위 네 조건을 모두 만족하는가? → 예 → `packages/` 승격 가능.
+
+**Repository Philosophy(순서)**: "먼저 구현" → "실제 중복 확인" → "packages 승격" 순서를 따른다. "미래를 예상해서" 미리 공통화하지 않는다(Rule of Two 유지).
+
+### Repository Review Checklist
+
+새로운 기능을 Merge하기 전에 반드시 아래 항목을 확인한다.
+
+- [ ] **Architecture** — 다른 `apps/*`를 직접 import하지 않았는가? (허용: `apps→packages`, `packages→packages` / 금지: `apps→apps`, `packages→apps`)
+- [ ] **Packages** — `packages/`에 프로젝트 전용 코드가 들어가지 않았는가? (허용: `packages/auth`·`packages/database`·`packages/ui`·`packages/layout-primitives`·`packages/utils` / 금지: `packages/cnbiz-dashboard`·`packages/shoppingmall-cart`·`packages/crm`·`packages/erp`)
+- [ ] **Rule of Two** — packages 승격이 Rule of Two를 만족하는가? 최소 두 프로젝트에서 실제로 사용되는가? 아니라면 `apps/` 안에 둔다.
+- [ ] **Promotion Checklist** — Packages Promotion Checklist 4개 조건(실사용 2곳 이상 / Business Logic 없음 / 독립 테스트 가능 / 프로젝트명 제거 가능)을 모두 통과했는가?
+- [ ] **Legacy** — Legacy(루트 `app/`, 루트 `components/`)에 신규 기능을 추가하지 않았는가?
+- [ ] **Repository Structure** — 새 프로젝트는 `apps/` 아래에 생성되었는가?
+- [ ] **Naming** — `packages/` 이름에 프로젝트명이 포함되어 있지 않은가? (허용: `Auth`·`Database`·`CollectionStore`·`SharedButton`·`LayoutShell` / 금지: `CNBIZ`·`ShoppingMall`·`CRM`·`ERP`·`WebsiteBuilder`)
+- [ ] **Dependency** — 의존성이 `apps→packages→packages` 방향만 따르는가?
+- [ ] **Documentation** — Repository Rules 변경 시 `README.md`·`CLAUDE.md` 두 문서가 동시에 수정되었는가?
+
+**Code Review Rule**: Repository Review Checklist는 사람·AI Agent·Code Reviewer 모두 동일하게 적용한다. Repository Rule보다 우선하지 않는다 — Repository Rule을 실행하기 위한 Review 절차다.
+
+**Repository Governance**: Repository 운영은 다음 순서를 따른다.
+
+```
+Repository Rules
+  ↓
+Packages Promotion Checklist
+  ↓
+Repository Decision Rule
+  ↓
+Repository Review Checklist
+  ↓
+Merge
+```
+
 ## Playwright 사용 원칙
 
 - 기본적으로 browser_snapshot을 사용하여 UI를 확인한다.http://localhost:3000/services#cloud

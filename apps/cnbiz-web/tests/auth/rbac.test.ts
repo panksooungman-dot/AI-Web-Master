@@ -98,6 +98,21 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/requests")).toBe("developer");
       expect(resolveProtectedArea("/api/requests/abc123")).toBe("developer");
     });
+
+    it("leaves /api/external/** ungated (server-to-server chatbot ingestion, authenticated via verifyExternalApiKey() instead of a session)", () => {
+      expect(resolveProtectedArea("/api/external/inquiries")).toBeNull();
+    });
+
+    it("keeps the Inquiry/Client/WebsiteOrder/AiJob admin read/manage APIs developer-gated by default (customer PII, not listed in UNGATED_API_PREFIXES)", () => {
+      expect(resolveProtectedArea("/api/inquiries")).toBe("developer");
+      expect(resolveProtectedArea("/api/inquiries/abc123")).toBe("developer");
+      expect(resolveProtectedArea("/api/clients")).toBe("developer");
+      expect(resolveProtectedArea("/api/clients/abc123")).toBe("developer");
+      expect(resolveProtectedArea("/api/website-orders")).toBe("developer");
+      expect(resolveProtectedArea("/api/website-orders/abc123")).toBe("developer");
+      expect(resolveProtectedArea("/api/ai-jobs")).toBe("developer");
+      expect(resolveProtectedArea("/api/ai-jobs/abc123")).toBe("developer");
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

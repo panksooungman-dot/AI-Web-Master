@@ -1,226 +1,31 @@
 # Review Prompt
 
+> **⚠️ DEPRECATED (2026-07-19):** 이 문서의 `# Expected Output Structure`는
+> 아래 3개 SKILL.md로 통합되었습니다(CS-08 Phase 2,
+> `docs/architecture/P3_PHASE2_REVIEW.md` 참고):
+>
+> - `skills/experts/solution-architect/SKILL.md` (`# Expected Output Structure`)
+> - `skills/experts/devops-engineer/SKILL.md` (`# Expected Output Structure (Review)`)
+> - `skills/experts/qa-engineer/SKILL.md` (`# Expected Output Structure (Review)`)
+>
+> 이 파일은 다른 문서의 각주 링크 호환을 위해 경로만 유지하며, 신규 작업은 위
+> 3개 SKILL.md를 기준으로 진행하세요.
+
 ## Overview
 
 This prompt guides AI Business OS when reviewing software architecture, source code, infrastructure, documentation, and implementation quality.
 
 It is primarily used by the Solution Architect and DevOps Engineer to ensure every deliverable meets technical, security, and quality standards before approval.
 
----
-
-# Purpose
-
-Perform objective, evidence-based reviews that improve software quality, maintainability, security, and long-term sustainability.
-
----
-
-# Primary Responsibilities
-
-- Review architecture
-- Review source code
-- Validate implementation
-- Identify risks
-- Verify coding standards
-- Evaluate security
-- Evaluate performance
-- Recommend improvements
-
----
-
-# Prompt Instructions
-
-When reviewing:
-
-1. Understand the original requirements.
-2. Compare implementation against the approved architecture.
-3. Validate completeness.
-4. Identify technical risks.
-5. Review code quality.
-6. Review security practices.
-7. Review maintainability.
-8. Review performance considerations.
-9. Suggest improvements.
-10. Produce a final recommendation.
-
----
-
-# Review Workflow
-
-Requirements
-
-↓
-
-Architecture Review
-
-↓
-
-Implementation Review
-
-↓
-
-Quality Assessment
-
-↓
-
-Security Review
-
-↓
-
-Performance Review
-
-↓
-
-Recommendations
-
-↓
-
-Approval Decision
-
----
-
-# Review Checklist
-
-## Architecture
-
-- Follows approved architecture
-- Appropriate design patterns
-- Proper modularization
-- Clear separation of concerns
-
----
-
-## Code Quality
-
-- Readable
-- Maintainable
-- Reusable
-- Well structured
-- Proper naming
-- Minimal duplication
-
----
-
-## Security
-
-- Input validation
-- Authentication
-- Authorization
-- Sensitive data protection
-- Error handling
-- Secure configuration
-
----
-
-## Performance
-
-- Efficient algorithms
-- Resource optimization
-- Scalability
-- Database optimization
-- API efficiency
-
----
-
-## Documentation
-
-- Complete
-- Accurate
-- Up to date
-- Easy to understand
-
----
-
-# Expected Output Structure
-
-## Summary
-
-Overall review result.
-
----
-
-## Strengths
-
-- Item
-- Item
-
----
-
-## Issues Found
-
-| Severity | Issue | Recommendation |
-|----------|-------|----------------|
-| High | Description | Fix |
-
----
-
-## Security Findings
-
-- Finding
-- Recommendation
-
----
-
-## Performance Findings
-
-- Finding
-- Recommendation
-
----
-
-## Maintainability Assessment
-
-Describe maintainability concerns and recommendations.
-
----
-
-## Final Recommendation
-
-Choose one:
-
-- ✅ Approve
-- ⚠ Approve with Changes
-- ❌ Reject
-
-Explain the decision with evidence.
-
----
-
-# Quality Guidelines
-
-Every review should be:
-
-- Objective
-- Evidence-based
-- Actionable
-- Consistent
-- Constructive
-- Complete
-
----
-
-# Constraints
-
-Never:
-
-- Approve incomplete work.
-- Ignore security risks.
-- Ignore architectural violations.
-- Make unsupported claims.
-- Rewrite requirements during review.
-- Recommend changes without justification.
-
----
-
-# Related Agents
-
-- Solution Architect
-- DevOps Engineer
-- QA Engineer
+**상세 정의(Purpose/Primary Responsibilities/Prompt Instructions/Review Workflow/Review Checklist/Quality Guidelines/Constraints)는 위 SKILL.md 세 곳을 기준으로 참고하세요.**
 
 ---
 
 # Related Documents
 
+- `skills/experts/solution-architect/SKILL.md`
+- `skills/experts/devops-engineer/SKILL.md`
+- `skills/experts/qa-engineer/SKILL.md`
 - agents/solution-architect.md
 - agents/devops-engineer.md
 - agents/qa-engineer.md

@@ -1,7 +1,7 @@
 ---
 name: ux-designer
 description: Research, design, validate, and continuously improve user experiences that are intuitive, accessible, and aligned with user needs and business goals.
-version: 1.0.0
+version: 1.1.0
 author: AI Business OS
 license: MIT
 category: expert
@@ -9,6 +9,11 @@ priority: required
 ---
 
 # UX Designer
+
+> 전역 규칙은 `prompts/system.md`를 따릅니다(CS-08 Phase 2 footnote pass, 2026-07-19) —
+> 모든 Agent/Skill/Workflow에 공통 적용되는 운영 원칙(Core Principles/Operating
+> Rules/Safety Rules 등)이 정의되어 있습니다. `prompts/system.md` 자체는 축소되지
+> 않고 그대로 유지되는 기준 문서입니다.
 
 ## Purpose
 
@@ -268,3 +273,4 @@ This skill succeeds when:
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
+| 1.1.0 | 2026-07-19 | Added `prompts/system.md` global-rules footnote (CS-08 Phase 2) |

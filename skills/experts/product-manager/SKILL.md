@@ -1,16 +1,30 @@
 ---
 name: product-manager
 description: Lead product strategy, define requirements, prioritize features, and maximize product value throughout the product lifecycle.
-version: 1.1.0
+version: 1.4.0
 author: AI Business OS
 license: MIT
 category: expert
 priority: required
 status: merged
-source: agents/product-manager.md (merged 2026-07-19)
+sources:
+  - type: agent
+    path: agents/product-manager.md
+    merged: "2026-07-19"
+  - type: prompt
+    path: prompts/planner.md
+    merged: "2026-07-19"
+  - type: prompt
+    path: prompts/documenter.md
+    merged: "2026-07-19"
 ---
 
 # Product Manager
+
+> 전역 규칙은 `prompts/system.md`를 따릅니다(CS-08 Phase 2 footnote pass, 2026-07-19) —
+> 모든 Agent/Skill/Workflow에 공통 적용되는 운영 원칙(Core Principles/Operating
+> Rules/Safety Rules 등)이 정의되어 있습니다. `prompts/system.md` 자체는 축소되지
+> 않고 그대로 유지되는 기준 문서입니다.
 
 ## Purpose
 
@@ -263,6 +277,186 @@ Generate:
 
 ---
 
+# Expected Output Structure (Planning)
+
+> Merged from `prompts/planner.md` (2026-07-19). Also applied to: `business-analyst`
+> (fan-out 2). Named with a `(Planning)` suffix per
+> `docs/architecture/P3_PHASE2_REVIEW.md` section 5 — `product-manager` is a fan-in 2
+> target and also has `# Expected Output Structure (Documentation)` below, merged from
+> `prompts/documenter.md`. Distinct from `# Outputs` above: `# Outputs` lists the
+> artifact types this skill produces, while this section is a response-formatting
+> template to follow when carrying out a planning task.
+
+## Executive Summary
+
+Brief overview of the planning outcome.
+
+---
+
+## Objectives
+
+- Primary Objective
+- Secondary Objectives
+
+---
+
+## Scope
+
+### In Scope
+
+- Item
+- Item
+
+### Out of Scope
+
+- Item
+- Item
+
+---
+
+## Stakeholders
+
+| Stakeholder | Responsibility |
+|--------------|----------------|
+| Business | Define business goals |
+| Product | Prioritize features |
+| Engineering | Implement solution |
+
+---
+
+## Functional Requirements
+
+- Requirement 1
+- Requirement 2
+- Requirement 3
+
+---
+
+## Non-functional Requirements
+
+- Performance
+- Security
+- Scalability
+- Reliability
+- Maintainability
+
+---
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Risk | High | Action |
+
+---
+
+## Priorities
+
+1. High
+2. Medium
+3. Low
+
+---
+
+## Roadmap
+
+Phase 1
+
+↓
+
+Phase 2
+
+↓
+
+Phase 3
+
+↓
+
+Release
+
+---
+
+## Success Metrics
+
+- Business KPI
+- Product KPI
+- Technical KPI
+
+---
+
+## Recommended Next Actions
+
+- Action 1
+- Action 2
+- Action 3
+
+---
+
+# Expected Output Structure (Documentation)
+
+> Merged from `prompts/documenter.md` (2026-07-19). Also applied to: `technical-writer`
+> (`# Expected Output Structure`), `qa-engineer`
+> (`# Expected Output Structure (Documentation)`). Named with a `(Documentation)`
+> suffix per `docs/architecture/P3_PHASE2_REVIEW.md` section 5 — `product-manager` is
+> a fan-in 2 target and also has `# Expected Output Structure (Planning)` above,
+> merged from `prompts/planner.md`. Distinct from `# Outputs` above: `# Outputs` lists
+> the artifact types this skill produces, while this section is a response-formatting
+> template to follow when carrying out a documentation task.
+
+## Overview
+
+Brief description of the topic.
+
+---
+
+## Purpose
+
+Explain why it exists.
+
+---
+
+## Prerequisites
+
+List required knowledge, tools, or dependencies.
+
+---
+
+## Instructions
+
+Step-by-step guidance.
+
+---
+
+## Examples
+
+Provide practical examples when useful.
+
+---
+
+## Best Practices
+
+- Recommendation
+- Recommendation
+- Recommendation
+
+---
+
+## Common Issues
+
+| Issue | Cause | Resolution |
+|------|-------|------------|
+| Example | Example | Example |
+
+---
+
+## Related Resources
+
+- Related document
+- Related guide
+- Related workflow
+
+---
+
 # Validation Checklist
 
 Before completion verify:
@@ -338,3 +532,6 @@ The Solution Architect becomes responsible for designing the technical solution 
 |---------|------|-------------|
 | 1.0.0 | 2026-07-10 | Initial release |
 | 1.1.0 | 2026-07-19 | Merged Decision Authority + Handoff from `agents/product-manager.md` (CS-08 Batch 2, inserted before `# Workflow` — no `# Collaboration` header; added disambiguation note vs. existing `# Decision Framework`) |
+| 1.2.0 | 2026-07-19 | Merged Expected Output Structure (Planning) from `prompts/planner.md` (CS-08 Phase 2) |
+| 1.3.0 | 2026-07-19 | Merged Expected Output Structure (Documentation) from `prompts/documenter.md` (CS-08 Phase 2) |
+| 1.4.0 | 2026-07-19 | Added `prompts/system.md` global-rules footnote (CS-08 Phase 2) |

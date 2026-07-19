@@ -1,44 +1,29 @@
-import fs from "fs";
-import path from "path";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 import type { ContactSubmissionInput, ContactSubmissionRecord } from "./types";
 
-const STORE_PATH = path.join(process.cwd(), "lib", "data", "contact-submissions.json");
+const COLLECTION = "contact-submissions";
 
-function ensureStoreFile(): void {
-  const dir = path.dirname(STORE_PATH);
-
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, "[]", "utf-8");
-  }
-}
-
-function readSubmissions(): ContactSubmissionRecord[] {
-  ensureStoreFile();
-
-  try {
-    const raw = fs.readFileSync(STORE_PATH, "utf-8");
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ContactSubmissionRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveContactSubmission(input: ContactSubmissionInput): ContactSubmissionRecord {
+/**
+ * Was a direct fs.readFileSync/writeFileSync against process.cwd()/lib/data — that path is
+ * read-only in Vercel's build output, so production Contact submissions were never durably
+ * saved. Routed through CollectionStore/getDefaultStore() like every other registry (requests,
+ * projects, etc.) so this now lands in Supabase's app_collections table in production and falls
+ * back to the fs store locally, same as everything else.
+ */
+export async function saveContactSubmission(
+  input: ContactSubmissionInput,
+  store: CollectionStore = getDefaultStore()
+): Promise<ContactSubmissionRecord> {
   const record: ContactSubmissionRecord = {
     id: `contact-${Date.now()}`,
     ...input,
     submittedAt: new Date().toISOString(),
   };
 
-  const submissions = readSubmissions();
+  const submissions = await store.list<ContactSubmissionRecord>(COLLECTION);
   submissions.push(record);
-  ensureStoreFile();
-  fs.writeFileSync(STORE_PATH, JSON.stringify(submissions, null, 2), "utf-8");
+  await store.replaceAll(COLLECTION, submissions);
 
   return record;
 }

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, errors }, { status: 400 });
   }
 
-  const submission = saveContactSubmission(input);
+  const submission = await saveContactSubmission(input);
   await notifyContactSubmission(submission);
 
   return NextResponse.json({ success: true }, { status: 200 });

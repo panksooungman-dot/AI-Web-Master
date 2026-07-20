@@ -7,6 +7,7 @@ import { notifyAdminOfNewInquiry } from "@/lib/inquiries/notify";
 import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClientByEmail } from "@/lib/clients/registry";
 import { createWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { createAiJob } from "@/lib/aiJobs/registry";
+import { processJob } from "@/lib/aiJobs/worker";
 
 /**
  * cnbiz.ai.kr 프로젝트 AI 챗봇이 서버-투-서버로 호출하는 단일 진입점 — 새 제작의뢰 UI를
@@ -72,6 +73,14 @@ export async function POST(request: Request) {
     websiteOrderId: websiteOrder.id,
     type: "generate_website",
     payload: { siteType: input.siteType, requirements: input.requirements },
+  });
+
+  // AiJob은 Queued로 생성될 뿐 이를 실행할 스케줄러/cron이 없어 그대로 방치되던 문제의
+  // 연결부 — 생성 직후 곧바로 실행한다. processJob()은 내부적으로 모든 예외를 잡아 Job을
+  // Failed로 기록하므로(worker.ts) 여기서 실패해도 이 요청 자체(Inquiry 접수)는 실패하지
+  // 않는다. 실패한 Job은 관리자가 /api/ai-jobs/[id]/run으로 재시도할 수 있다.
+  await processJob(aiJob.id).catch((error) => {
+    console.error("[external-inquiries] ai job execution failed", error);
   });
 
   await linkInquiryToClientAndOrder(inquiry.id, client.id, websiteOrder.id);

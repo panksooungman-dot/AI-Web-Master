@@ -23,7 +23,8 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 /**
  * status만 수동 변경 가능(예: 관리자가 Cancelled로 정리). progress/result/error는
- * 실행기(worker, 다음 구현 단계)가 채우는 필드라 관리자 PATCH 대상에 포함하지 않는다.
+ * 실행기(lib/aiJobs/worker.ts, POST /api/ai-jobs/[id]/run·/api/ai-jobs/process가 호출)가
+ * 채우는 필드라 관리자 PATCH 대상에 포함하지 않는다.
  */
 export async function PATCH(request: Request, { params }: RouteParams) {
   const { id } = await params;

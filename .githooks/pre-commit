@@ -1,0 +1,52 @@
+#!/bin/sh
+# PROJECT_STATUS.md SSOT freshness guard.
+#
+# PROJECT_STATUS.md declares itself this repo's Single Source of Truth and its own
+# "Working Rules" section says step 5 of every task is "PROJECT_STATUS.md 업데이트" before
+# committing — but nothing ever enforced that; it was just prose. This hook is the first
+# actual enforcement: if a commit stages real feature code (apps/**, packages/**) without
+# also staging a change to PROJECT_STATUS.md, the commit is blocked with a clear message.
+#
+# What this hook deliberately does NOT do: it never writes or regenerates
+# PROJECT_STATUS.md's content. Deciding what changed / what's now "Completed" is a judgment
+# call (this file's own header is written by an actual code-reading review), not something a
+# shell script can safely fabricate on every commit. This hook only catches the omission.
+#
+# Bypass (intentional, e.g. a docs-only or hotfix commit): git commit --no-verify
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+has_substantive_change=0
+status_staged=0
+
+while IFS= read -r file; do
+  case "$file" in
+    apps/*|packages/*)
+      has_substantive_change=1
+      ;;
+  esac
+  if [ "$file" = "PROJECT_STATUS.md" ]; then
+    status_staged=1
+  fi
+done <<EOF
+$staged_files
+EOF
+
+if [ "$has_substantive_change" -eq 1 ] && [ "$status_staged" -eq 0 ]; then
+  echo ""
+  echo "✖ apps/** 또는 packages/** 변경이 감지되었으나 PROJECT_STATUS.md가"
+  echo "  이번 커밋에 포함되지 않았습니다."
+  echo ""
+  echo "  SSOT 정책(PROJECT_STATUS.md 참고)에 따라 진행률/완료 항목을"
+  echo "  갱신한 뒤 다시 커밋해주세요."
+  echo ""
+  echo "  건너뛰려면: git commit --no-verify"
+  echo ""
+  exit 1
+fi
+
+exit 0

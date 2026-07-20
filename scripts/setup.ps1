@@ -245,6 +245,23 @@ if ($aiCmdExists) {
     Add-AIBizSetupResult -Name "Project Registration" -Success $false -Detail "AI CLI가 설치되지 않아 건너뜀"
 }
 
+# 10. Git Hooks (PROJECT_STATUS.md SSOT freshness guard)
+#     .githooks/pre-commit(저장소에 커밋되어 추적됨)를 실제 git hook으로 쓰려면 각
+#     클론(로컬 .git/config)마다 core.hooksPath를 설정해야 한다 — git 설정은 커밋되지
+#     않으므로, 새 PC에서 이 스크립트를 실행할 때마다 매번 다시 설정해준다(멱등).
+# ------------------------------------------------------------
+$gitHooksDir = Join-Path $script:AIBizOSRoot ".githooks"
+if (Test-Path $gitHooksDir) {
+    & git -C $script:AIBizOSRoot config core.hooksPath ".githooks" | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Add-AIBizSetupResult -Name "Git Hooks (SSOT Guard)" -Success $true -Detail "core.hooksPath = .githooks"
+    } else {
+        Add-AIBizSetupResult -Name "Git Hooks (SSOT Guard)" -Success $false -Detail "git config 실행 실패 (종료 코드: $LASTEXITCODE)"
+    }
+} else {
+    Add-AIBizSetupResult -Name "Git Hooks (SSOT Guard)" -Success $false -Detail "$gitHooksDir 를 찾을 수 없음"
+}
+
 # ------------------------------------------------------------
 # 결과 출력
 # ------------------------------------------------------------

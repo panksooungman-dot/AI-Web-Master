@@ -32,7 +32,8 @@ export async function notifyContactSubmission(submission: ContactSubmissionRecor
         `접수 시각: ${submission.submittedAt}`,
       ].join("\n"),
     });
+    console.log(`[contact-email] notification sent for submission ${submission.id} to ${to}`);
   } catch (error) {
-    console.error("[contact-email] failed to send notification email", error);
+    console.error(`[contact-email] failed to send notification email for submission ${submission.id}`, error);
   }
 }

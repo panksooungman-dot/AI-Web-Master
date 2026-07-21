@@ -42,7 +42,8 @@ export async function notifyAdminOfNewInquiry(
         `Website Order ID: ${order.id}`,
       ].join("\n"),
     });
+    console.log(`[inquiry-email] admin notification sent for inquiry ${inquiry.id} to ${to}`);
   } catch (error) {
-    console.error("[inquiry-email] failed to send admin notification", error);
+    console.error(`[inquiry-email] failed to send admin notification for inquiry ${inquiry.id}`, error);
   }
 }

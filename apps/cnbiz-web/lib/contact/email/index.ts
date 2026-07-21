@@ -21,6 +21,9 @@ export function getEmailProvider(): EmailProvider {
       return createResendProvider(apiKey);
     }
     default:
+      console.warn(
+        `[contact-email] CONTACT_EMAIL_PROVIDER is "${provider ?? "(not set)"}", expected "resend" — using noop provider`,
+      );
       return createNoopProvider();
   }
 }

@@ -55,7 +55,8 @@ jobs:
 
           if grep -R -E "(AKIA|AIza|ghp_|xoxb-|-----BEGIN PRIVATE KEY-----)" . \
             --exclude-dir=.git \
-            --exclude-dir=node_modules; then
+            --exclude-dir=node_modules \
+            --exclude=security.yml; then
             echo "Potential secrets detected."
             exit 1
           else

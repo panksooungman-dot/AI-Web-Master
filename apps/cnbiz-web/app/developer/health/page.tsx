@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -131,6 +132,11 @@ export default function HealthPage() {
         icon="🩺"
         title="Health"
         description="Build·Test·Coverage는 수동 실행, Git Status·Disk Usage는 실시간으로 표시합니다."
+        actions={
+          <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline self-center">
+            배포 현황 →
+          </Link>
+        }
       />
 
       {runError && <StatusMessage tone="error" className="mb-4">{runError}</StatusMessage>}

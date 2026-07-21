@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -120,6 +121,11 @@ export default function WorkflowCenterPage() {
         icon="⚙"
         title="Workflow Center"
         description="등록된 Workflow를 실행하고 진행 상황·이력을 확인합니다."
+        actions={
+          <Link href="/developer/planning" className="text-xs text-blue-400 hover:underline self-center">
+            기획 현황 →
+          </Link>
+        }
       />
 
       {actionError && <StatusMessage tone="error" className="mb-4">{actionError}</StatusMessage>}

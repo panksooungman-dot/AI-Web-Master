@@ -148,16 +148,16 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
       expect(response.status).toBe(200);
     });
 
-    it("lets /api/contact through with no session (public contact form, anonymous visitors)", async () => {
+    it("no longer lets /api/contact through with no session (the public Contact form/route were removed — CNBIZ.KR no longer takes requests directly; the path is developer-gated like any other unlisted /api/** route)", async () => {
       resolveSessionUserMock.mockReturnValue(null);
       const response = await proxy(new NextRequest("http://localhost/api/contact"));
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(401);
     });
 
-    it("lets /api/requests/submit through with no session (public request form, anonymous visitors)", async () => {
+    it("no longer lets /api/requests/submit through with no session (the public /request form/route were removed)", async () => {
       resolveSessionUserMock.mockReturnValue(null);
       const response = await proxy(new NextRequest("http://localhost/api/requests/submit"));
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(401);
     });
   });
 

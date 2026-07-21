@@ -15,7 +15,24 @@ function asSource(value: unknown): InquirySource {
 }
 
 function asOptionalRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function asOptionalStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  return strings.length > 0 ? strings : undefined;
+}
+
+/** 여러 후보 키 중 처음으로 값이 있는 것을 사용한다(필드명이 다른 호출자와의 호환용). */
+function pickString(record: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = asString(record[key]).trim();
+    if (value) return value;
+  }
+  return "";
 }
 
 export function parseInquiryInput(body: unknown): InquiryInput {
@@ -24,13 +41,18 @@ export function parseInquiryInput(body: unknown): InquiryInput {
   return {
     source: asSource(record.source),
     externalConversationId: asString(record.externalConversationId).trim() || undefined,
-    companyName: asString(record.companyName).trim(),
-    contactName: asString(record.contactName).trim(),
-    email: asString(record.email).trim(),
-    phone: asString(record.phone).trim(),
-    siteType: asString(record.siteType).trim(),
-    requirements: asString(record.requirements).trim(),
-    budget: asString(record.budget).trim() || undefined,
+    companyName: pickString(record, ["companyName"]),
+    // customerName: AI Business OS Phase 1 스펙의 필드명 — 기존 contactName과 동일한 의미.
+    contactName: pickString(record, ["contactName", "customerName"]),
+    email: pickString(record, ["email"]),
+    phone: pickString(record, ["phone"]),
+    siteType: pickString(record, ["siteType"]),
+    // consultation: AI Business OS Phase 1 스펙의 필드명 — 기존 requirements와 동일한 의미.
+    requirements: pickString(record, ["requirements", "consultation"]),
+    budget: pickString(record, ["budget"]) || undefined,
+    industry: pickString(record, ["industry"]) || undefined,
+    survey: asOptionalRecord(record.survey),
+    uploadedFiles: asOptionalStringArray(record.uploadedFiles),
     rawPayload: asOptionalRecord(record.rawPayload),
   };
 }

@@ -1,5 +1,6 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
+import { CNBIZ_AI_URL } from "@/lib/links";
 
 export function HeroSection() {
   return (
@@ -28,8 +29,8 @@ export function HeroSection() {
 
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
           <LinkButton href="/services">서비스 알아보기</LinkButton>
-          <LinkButton href="/contact" variant="secondary">
-            무료 상담 신청
+          <LinkButton href={CNBIZ_AI_URL} variant="secondary">
+            AI 홈페이지 무료 제작
           </LinkButton>
         </div>
       </Container>

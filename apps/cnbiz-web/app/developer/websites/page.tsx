@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -115,6 +116,11 @@ export default function WebsiteBuilderPage() {
         icon="🌐"
         title="Website Builder"
         description="AI Business OS CLI의 Website Builder(ai website create)를 대시보드에서 실행합니다."
+        actions={
+          <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline self-center">
+            Deployment →
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

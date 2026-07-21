@@ -40,19 +40,17 @@ const PAGE_AREA_PREFIXES: ReadonlyArray<readonly [string, ProtectedArea]> = [
  *   Preserved as-is here rather than re-litigated as part of this hardening pass.
  * - /api/projects — backs the /projects page, which is intentionally outside this RBAC's scope
  *   (any authenticated user, not gated by role).
- * - /api/contact — backs the public /contact page's submission form (release-readiness fix):
- *   anonymous site visitors submit this with no session, so gating it behind "developer" made
- *   the production contact form unusable for real visitors.
- * - /api/requests/submit — backs the public /request page's submission form, same reasoning as
- *   /api/contact above. Deliberately NOT "/api/requests" itself (prefix match would also ungate
- *   it) — GET /api/requests and /api/requests/[id] list/manage submissions with customer PII and
- *   must stay admin-only (the default "developer" gate for any /api/** path not listed here).
  * - /api/external — server-to-server ingestion from the cnbiz.ai.kr chatbot (no browser session
  *   possible). Ungating here only removes the role check; the routes under this prefix must call
  *   lib/auth/apiKey.ts's verifyExternalApiKey() themselves, or they become fully public with no
  *   auth at all. /api/inquiries, /api/clients, /api/website-orders, /api/ai-jobs (the admin
  *   read/manage APIs over the same data) are deliberately NOT listed here and stay
- *   "developer"-gated by default, same reasoning as /api/requests above.
+ *   "developer"-gated by default, same reasoning as /api/requests below.
+ *
+ * /api/contact and /api/requests/submit used to be listed here (public Contact/Request form
+ * submission endpoints) — both routes were deleted when CNBIZ.KR stopped taking website-creation
+ * requests directly (see /contact and /request redirects in next.config.ts). GET /api/requests
+ * and /api/requests/[id] remain admin-only ("developer" gate) for viewing historical submissions.
  */
 const UNGATED_API_PREFIXES = [
   "/api/auth",
@@ -60,8 +58,6 @@ const UNGATED_API_PREFIXES = [
   "/api/terminal",
   "/api/devserver",
   "/api/projects",
-  "/api/contact",
-  "/api/requests/submit",
   "/api/external",
 ];
 

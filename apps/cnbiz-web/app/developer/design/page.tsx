@@ -83,9 +83,14 @@ export default function DesignRequirementsPage() {
         title="Design — Requirements"
         description="Design Automation Phase 1: Requirement Analysis·Feature List·Site Map·User Flow·Screen List를 자동 생성합니다."
         actions={
-          <Link href="/developer/design/storyboard" className="text-xs text-blue-400 hover:underline self-center">
-            Storyboard →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline">
+              Deployment →
+            </Link>
+            <Link href="/developer/design/storyboard" className="text-xs text-blue-400 hover:underline self-center">
+              Storyboard →
+            </Link>
+          </div>
         }
       />
 

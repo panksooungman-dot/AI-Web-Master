@@ -4,6 +4,12 @@ import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 
 /**
+ * 아키텍처 SSOT(CNBIZ.KR → CNBIZ.AI.KR → AI Business OS)상 "관리자 알림"은 CNBIZ.AI.KR의
+ * 책임이다. CNBIZ.AI.KR이 아직 이 알림을 자체적으로 보내지 않아(2026-07-21 확인), AI Business OS가
+ * app/api/external/inquiries/route.ts에서 이 함수를 호출해 임시로 대행하고 있다 — CNBIZ.AI.KR이
+ * 구축되면 이 함수(및 이 호출)는 이관 대상이다(PROJECT_STATUS.md 참고). 그 전까지는 기존 동작을
+ * 그대로 유지한다.
+ *
  * lib/contact/email의 provider 추상화(EmailProvider, CONTACT_EMAIL_PROVIDER/TO/FROM)를 그대로
  * 재사용한다 — 이름은 "contact"지만 인터페이스 자체는 범용이라, 새 provider 계층을 만들지
  * 않고 관리자 알림 수신함(CONTACT_EMAIL_TO)을 그대로 공유한다.

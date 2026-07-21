@@ -89,12 +89,12 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/projects/abc")).toBeNull();
     });
 
-    it("leaves /api/contact ungated (backs the public /contact form, submitted with no session)", () => {
-      expect(resolveProtectedArea("/api/contact")).toBeNull();
+    it("no longer has /api/contact as an ungated exception (the public Contact form/route were removed — CNBIZ.KR no longer takes requests directly)", () => {
+      expect(resolveProtectedArea("/api/contact")).toBe("developer");
     });
 
-    it("leaves /api/requests/submit ungated (backs the public /request form) but keeps /api/requests and /api/requests/[id] admin-gated (customer PII)", () => {
-      expect(resolveProtectedArea("/api/requests/submit")).toBeNull();
+    it("no longer has /api/requests/submit as an ungated exception (the public /request form/route were removed); /api/requests and /api/requests/[id] stay admin-gated (customer PII)", () => {
+      expect(resolveProtectedArea("/api/requests/submit")).toBe("developer");
       expect(resolveProtectedArea("/api/requests")).toBe("developer");
       expect(resolveProtectedArea("/api/requests/abc123")).toBe("developer");
     });

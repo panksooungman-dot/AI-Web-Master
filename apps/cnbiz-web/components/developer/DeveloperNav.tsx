@@ -8,8 +8,11 @@ import { roleCanAccessArea } from "@/lib/auth/rbac";
 
 const NAV_LINKS = [
   { href: "/developer", label: "Dashboard" },
+  { href: "/developer/analysis", label: "Analysis" },
+  { href: "/developer/planning", label: "Planning" },
   { href: "/projects", label: "프로젝트 관리" },
   { href: "/developer/requests", label: "의뢰 관리" },
+  { href: "/developer/inquiries", label: "AI 의뢰 관리" },
   { href: "/developer/workspace", label: "Workspace" },
   { href: "/developer/terminal", label: "Terminal" },
   { href: "/developer/github", label: "GitHub" },
@@ -25,6 +28,7 @@ const NAV_LINKS = [
   { href: "/developer/metrics", label: "Metrics" },
   { href: "/developer/backup", label: "Backup" },
   { href: "/developer/errors", label: "Error Report" },
+  { href: "/developer/deployment", label: "Deployment" },
   { href: "/developer/settings", label: "Settings" },
   { href: "/developer/ui-map", label: "UI Explorer" },
 ];

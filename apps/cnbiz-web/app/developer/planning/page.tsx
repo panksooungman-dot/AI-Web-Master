@@ -3,11 +3,14 @@ import { PageHeader } from "@/components/developer/PageHeader";
 import { Card } from "@/components/developer/Card";
 import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { DocList } from "@/components/developer/DocList";
+import { PlanningJobCard } from "@/components/developer/planning/PlanningJobCard";
 import { resolveRepoRoot } from "@/lib/paths/repoRoot";
 import { readDocEntry, joinRepoPath } from "@/lib/docs/readDocEntry";
 import { listWorkflows } from "@/lib/workflows/registry";
 import { workflowEngine } from "@/lib/workflows/engine";
 import type { WorkflowRunStatus } from "@/lib/workflows/types";
+import { listAiJobs } from "@/lib/aiJobs/registry";
+import { getInquiry } from "@/lib/inquiries/registry";
 
 // 요청 시점 데이터(Workflow Run 목록)를 읽으므로 정적 프리렌더 대상에서 제외한다.
 export const dynamic = "force-dynamic";
@@ -29,7 +32,7 @@ const STATUS_TONES: Record<WorkflowRunStatus, BadgeTone> = {
   Cancelled: "neutral",
 };
 
-export default function PlanningPhasePage() {
+export default async function PlanningPhasePage() {
   const repoRoot = resolveRepoRoot();
   const docs = DOC_TARGETS.map(({ label, segments }) => {
     const { absolute, display } = joinRepoPath(repoRoot, ...segments);
@@ -38,6 +41,19 @@ export default function PlanningPhasePage() {
 
   const workflows = listWorkflows();
   const runs = workflowEngine.listRuns();
+
+  // AI Business OS Phase 3 — Planning 문서(기술 견적서·기능 명세서·프로젝트 일정). 새 Registry를
+  // 만들지 않고 기존 lib/aiJobs(AiJobRecord.result)를 그대로 읽는다 — "generate_planning" 타입만
+  // 걸러서 보여준다(lib/aiJobs/executor.ts의 executePlanningJob() 참고).
+  const allAiJobs = await listAiJobs();
+  const planningJobs = allAiJobs.filter((job) => job.type === "generate_planning").slice(0, 10);
+  const planningJobsWithInquiry = await Promise.all(
+    planningJobs.map(async (job) => {
+      const inquiryId = typeof job.payload.inquiryId === "string" ? job.payload.inquiryId : undefined;
+      const inquiry = inquiryId ? (await getInquiry(inquiryId)) ?? null : null;
+      return { job, inquiry };
+    })
+  );
 
   const statusCounts = new Map<WorkflowRunStatus, number>();
   for (const run of runs) {
@@ -51,14 +67,20 @@ export default function PlanningPhasePage() {
       <PageHeader
         icon="🗺️"
         title="Phase 02 · Planning"
-        description="기존 기획 문서(WBS·로드맵·Plan)와 Workflow Engine(lib/workflows) 실행 현황을 연결해 보여줍니다. 새 Planning 엔진은 없습니다 — Workflow Center(/developer/workflows)가 이미 쓰는 것과 동일한 데이터입니다."
+        description="기존 기획 문서(WBS·로드맵·Plan)·Workflow Engine(lib/workflows) 실행 현황·AI Analysis 기반 자동 생성 Planning 문서(기술 견적서·기능 명세서·프로젝트 일정)를 연결해 보여줍니다. 새 Planning 엔진·Registry는 없습니다 — 각각 Workflow Center(/developer/workflows)·기존 AiJob 파이프라인(lib/aiJobs)이 이미 쓰는 것과 동일한 데이터입니다."
         actions={
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Link href="/developer/analysis" className="text-xs text-blue-400 hover:underline">
               ← Analysis
             </Link>
+            <Link href="/developer/inquiries" className="text-xs text-blue-400 hover:underline">
+              Inquiries
+            </Link>
             <Link href="/developer/workflows" className="text-xs text-blue-400 hover:underline">
               Workflow Center
+            </Link>
+            <Link href="/developer/design" className="text-xs text-blue-400 hover:underline">
+              Design Automation
             </Link>
             <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline">
               Deployment →
@@ -66,6 +88,22 @@ export default function PlanningPhasePage() {
           </div>
         }
       />
+
+      <Card title="Planning 문서 (AI Analysis 기반 자동 생성)" className="mb-6">
+        <p className="text-xs text-gray-500 mb-3">
+          Inquiry 접수 시 AI Analysis 직후 자동 실행됩니다(lib/aiJobs, 타입: <code>generate_planning</code>). 최근{" "}
+          {planningJobsWithInquiry.length}건.
+        </p>
+        {planningJobsWithInquiry.length === 0 ? (
+          <p className="text-sm text-gray-600">아직 생성된 Planning 문서가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {planningJobsWithInquiry.map(({ job, inquiry }) => (
+              <PlanningJobCard key={job.id} job={job} inquiry={inquiry} />
+            ))}
+          </div>
+        )}
+      </Card>
 
       <Card title="Workflow 실행 현황 (기존 lib/workflows 결과 집계)" className="mb-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">

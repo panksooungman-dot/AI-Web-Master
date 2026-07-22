@@ -53,7 +53,15 @@ jobs:
 
       - name: Check Empty Markdown Files
         run: |
-          EMPTY=$(find . -name "*.md" -size 0)
+          # docs/{getting-started,installation,faq}.md are intentionally empty placeholders for
+          # a not-yet-started future phase (Phase 5, AI Business OS Productization) — explicitly
+          # documented file-by-file in docs/01_PMO/PROJECT_ROADMAP.md ("폴더·파일은 삭제하지
+          # 않고 유지한다"). Excluded here so this check keeps failing on genuinely unintended
+          # empty markdown files elsewhere in the repo, without flagging documented placeholders.
+          EMPTY=$(find . -name "*.md" -size 0 \
+            ! -path "./docs/getting-started.md" \
+            ! -path "./docs/installation.md" \
+            ! -path "./docs/faq.md")
 
           if [ -n "$EMPTY" ]; then
             echo "Empty Markdown files detected:"

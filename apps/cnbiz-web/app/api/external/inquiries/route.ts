@@ -68,6 +68,9 @@ export async function POST(request: Request) {
   // 파이프라인과 독립적이라 실패해도(Provider 미설정 등은 generateAnalysis() 내부에서 이미
   // 결정론적 폴백으로 처리되므로 여기 catch는 진짜 예외 상황만 대비) 이 요청 자체(Inquiry
   // 접수·AiJob 실행)를 막지 않는다. 새 컬렉션을 만들지 않고 기존 inquiries 레코드에 저장.
+  // analysisSaved는 아래 Planning(Phase 3) 트리거 여부를 결정하는 데만 쓰인다 — `inquiry`
+  // 변수 자체는 saveInquiryAnalysis() 이후에도 재조회하지 않아 analysis 필드를 담고 있지 않다.
+  let analysisSaved = false;
   try {
     const analysisOutcome = await generateAnalysis({
       companyName: input.companyName,
@@ -81,6 +84,7 @@ export async function POST(request: Request) {
       uploadedFiles: input.uploadedFiles,
     });
     await saveInquiryAnalysis(inquiry.id, analysisOutcome.result);
+    analysisSaved = true;
   } catch (error) {
     console.error("[external-inquiries] AI analysis failed", error);
   }
@@ -117,6 +121,27 @@ export async function POST(request: Request) {
     console.error("[external-inquiries] ai job execution failed", error);
   });
 
+  // AI Business OS Phase 3 — Planning(lib/planning). AI Analysis(위 saveInquiryAnalysis)가
+  // 이미 성공적으로 끝난 Inquiry에 한해, 동일한 기존 AiJob 파이프라인(createAiJob→processJob,
+  // 새 Registry·새 Workflow Engine 없음)으로 기술 견적서·기능 명세서·프로젝트 일정을 자동
+  // 생성한다. websiteOrderId가 필요해(AiJobInput 필수 필드, 무변경) WebsiteOrder 생성 이후인
+  // 이 시점에 실행하며, 실제 입력(inquiry.analysis)은 executor가 Inquiry를 다시 조회해 얻는다
+  // — analysis 자체가 없으면(Provider 실패 등) 이 Job도 곧바로 Failed로 끝나고 나머지 파이프라인
+  // (Inquiry 접수·웹사이트 생성)에는 영향을 주지 않는다.
+  const planningJob = analysisSaved
+    ? await createAiJob({
+        websiteOrderId: websiteOrder.id,
+        type: "generate_planning",
+        payload: { inquiryId: inquiry.id },
+      })
+    : null;
+
+  if (planningJob) {
+    await processJob(planningJob.id).catch((error) => {
+      console.error("[external-inquiries] planning job execution failed", error);
+    });
+  }
+
   const linkedInquiry = await linkInquiryToClientAndOrder(inquiry.id, client.id, websiteOrder.id);
 
   // 아키텍처 SSOT상 "관리자 알림"도 CNBIZ.AI.KR의 책임이다 — 위 Inquiry 저장과 동일한 이유로
@@ -138,6 +163,8 @@ export async function POST(request: Request) {
       clientId: client.id,
       websiteOrderId: websiteOrder.id,
       aiJobId: aiJob.id,
+      // AI Business OS Phase 3 — analysisSaved가 false였으면(AI Analysis 실패) null.
+      planningJobId: planningJob?.id ?? null,
     },
     { status: 200 },
   );

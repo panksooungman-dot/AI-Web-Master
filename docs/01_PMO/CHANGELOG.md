@@ -4,6 +4,261 @@
 
 ---
 
+## 2026-07-22 (6)
+
+### 추가 (Added)
+
+- **Website Orders Dashboard**: `app/developer/website-orders/{page.tsx,[id]/page.tsx}`(신규).
+  WebsiteOrder Domain(`lib/websiteOrders/*`, `app/api/website-orders*`)은 이미 Registry·API가
+  전부 완결되어 있어 Clients Dashboard와 동일한 원칙으로 코드 한 줄도 수정하지 않고 UI만 구현
+  - 목록(`/developer/website-orders`) — 요구사항대로 기존 `GET /api/website-orders` 하나만
+    사용. 고객사명 표시에는 기존 `GET /api/clients`를 함께 호출(Clients 목록이 상태 파생을
+    위해 `GET /api/website-orders`를 함께 쓴 것과 동일한 원칙, 새 API 아님). 주문명·사이트
+    유형·고객사 검색, 최신순/오래된순/주문명 정렬은 클라이언트 사이드로 구현. 상태 배지는
+    `WebsiteOrderRecord`가 이미 갖고 있는 `WebsiteOrderStatus` 5종(Requested/InProgress/
+    Review/Delivered/Cancelled)을 그대로 표시(새 Status 없음)
+  - 상세(`/developer/website-orders/[id]`) — 주문 정보·요구사항·연결된 AI Job·연결된
+    Website 레코드·상태 변경 섹션 구성. 상태 변경은 기존 `PATCH /api/website-orders/[id]`,
+    Job 재실행은 기존 `POST /api/ai-jobs/[id]/run`을 그대로 재사용(신규 API 없음)
+  - `components/developer`의 기존 Card/Badge/PageHeader/StatusMessage만 재사용.
+    `components/developer/DeveloperNav.tsx`에 "Website Order 관리" 링크 1개 추가
+
+### 수정 (Fixed)
+
+- **`WebsiteOrderRecord.aiJobIds`가 실제 파이프라인에서 항상 빈 배열이던 기존 갭 발견 및 회피**:
+  구현 중 요구사항대로 `order.aiJobIds`로 연결된 AI Job 개수를 세려 했으나 항상 0으로 표시됨을
+  발견. `grep -rn "addAiJobToWebsiteOrder"`로 조사한 결과, `lib/websiteOrders/registry.ts`에
+  이미 정의돼 있던 이 함수가 실제 프로덕션 경로(`app/api/external/inquiries/route.ts`,
+  `lib/aiJobs/executor.ts`)에서는 한 번도 호출되지 않고 테스트 코드에서만 참조됨을 확인 —
+  Registry에 이미 존재하던 기존 갭이며 이번 작업 범위(신규 Registry/API 생성 금지) 밖이라
+  `lib/websiteOrders/registry.ts` 자체는 수정하지 않음. 대신 생성 시점에 정확히 설정되고
+  이후 변경되지 않는 `AiJobRecord.websiteOrderId` 필드로 join하도록 목록·상세 페이지를
+  구현(목록은 `GET /api/ai-jobs`를 추가로 호출해 `job.websiteOrderId` 기준으로 집계). 참고로
+  `websiteIds`는 `addWebsiteToOrder()`가 실제로 호출되고 있어 원래 필드 그대로 정상 동작함을
+  확인(수정 불필요)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(신규 라우트 2개
+  포함 정상 생성) · `npx vitest run`(62 files/481 tests 중 477 통과, 나머지는 기존에 문서화된
+  동일 밀리초 timestamp 타이밍 플레이크로 이번 변경과 무관, 회귀 없음)
+- 실 E2E: 임시 계정으로 로그인 → 챗봇 파이프라인으로 WebsiteOrder 생성 → Playwright 실
+  브라우저로 목록(검색·정렬·AI Job/Website 개수 배지)·상세(주문 정보·요구사항·연결된 AI
+  Job·Website 레코드·상태 변경) 전부 정상 렌더링·상호작용 확인. 위 `aiJobIds` 갭을 이 과정에서
+  실제로 재현(개수 0 표시)한 뒤 `websiteOrderId` join으로 수정, 재검증에서 정확한 개수(예:
+  "AI Job 2")가 표시됨을 확인, 콘솔 에러 0건. 검증에 사용한 dev 서버·임시 계정·데이터는 검증
+  후 전부 삭제
+- `PROJECT_STATUS.md` — Development OS 대시보드 페이지 수·설명 갱신(WebsiteOrder 목록 화면
+  완료 반영, 남은 것은 AiJob 전용 목록 화면뿐), "다음 작업 우선순위"에서 관련 항목 제거,
+  "최근 완료 작업"에 이번 작업 기록(발견한 기존 데이터 갭 포함)
+
+---
+
+## 2026-07-22 (5)
+
+### 수정 (Fixed) — CI 안정화
+
+- **`.github/workflows/security.yml` — Secret Scan 자체 매칭 버그 수정**: AWS/Google API
+  키·GitHub 토큰·Slack 토큰·PEM 개인키 패턴을 찾는 grep 명령이 저장소 전체를 스캔하면서
+  그 패턴 자체가 정의된 `security.yml`의 해당 줄을 스스로 매칭해 항상 `exit 1`로 실패하던
+  버그를 실제로 재현·확인(주의: 이 CHANGELOG 항목도 grep 대상이므로, 위에서 그 패턴 문자열을
+  그대로 인용하면 동일하게 자기매칭이 재발한다 — 그래서 의도적으로 패턴을 인용하지 않고
+  설명으로만 서술함). 실제 시크릿은 이 저장소 어디에도 없음을 확인(`--exclude-dir=.github`
+  적용 전/후 각각 grep 결과 비교, 매칭이 그 한 줄뿐이었음을 확인).
+  `--exclude-dir=.github` 1줄만 추가(CI 워크플로·PR 템플릿만 담긴 디렉터리라 실질적인 시크릿
+  탐지 범위 손실 없음) — Security Scan의 목적(실제 소스에서 유출된 시크릿 탐지)은 그대로 유지
+- **`skills/README.md` 신규 추가**: `docs.yml`이 요구하는 10개 필수 문서 중 유일하게 누락되어
+  있던 파일(`agents/`·`prompts/`·`memory/`·`orchestration/`·`examples/`·`mcp/`·`marketplace/`·
+  `tests/`는 전부 이미 `README.md` 보유, `skills/`만 없었음 — `REPORT.md`에 이미 기록되어 있던
+  기존 gap). `skills/`는 core/domains/experts/shared/templates/workflows 6개 카테고리에 걸쳐
+  125개의 실제 `SKILL.md`를 담은, 비어있지 않은 활성 스킬 라이브러리라 형제 디렉터리(`agents/
+  README.md`·`mcp/README.md`)의 관례를 따르되 실제 구조를 그대로 기술하는 내용으로 작성
+- **`.github/workflows/docs.yml` — 빈 마크다운 검사에 문서화된 placeholder 3개만 제외**:
+  `skills/README.md`를 추가하고 나면 "Verify Required Documentation" 다음 단계인 "Check Empty
+  Markdown Files"(`find . -name "*.md" -size 0`)가 최초로 끝까지 실행되는데, 이 검사가 그동안
+  한 번도 끝까지 실행된 적이 없어 숨겨져 있던 사실을 발견: 저장소에 0바이트 `.md` 파일이 40개
+  존재. `docs/01_PMO/PROJECT_ROADMAP.md`의 Phase 5 표를 대조해 이 중 **파일 단위로 명시적으로
+  문서화된 것은 `docs/getting-started.md`·`docs/installation.md`·`docs/faq.md` 3개뿐**임을
+  확인(같은 표의 `marketplace/`·`mcp/`·`examples/`는 디렉터리 단위 항목이라, 그 안의 개별 파일을
+  "문서화된 placeholder"로 간주하지 않음 — 예: `examples/ai-agent-example.md`는 제외 대상에서
+  뺌). `find` 명령에 이 3개 파일만 `! -path`로 제외하는 3줄 추가. **나머지 37개 미문서화
+  빈 파일에는 내용을 채우거나 목록에서 빼지 않음** — 지시대로 이 검사는 이 37개에 대해서는
+  계속 실패해야 정상이며, 실제로 로컬 재현 결과 정확히 그렇게 동작함을 확인(아래 검증 참고).
+  즉 이번 수정 이후에도 "Validate Documentation" CI는 계속 실패하지만, 실패 사유가 "문서화된
+  의도적 placeholder를 잘못 지적"에서 "실제로 비어있는 37개 파일"로 정확해짐
+
+### 검증 (Verified)
+
+- 로컬에서 `docs.yml`·`security.yml`의 각 step을 그대로 재현: Secret Scan은 매칭 0건(정상),
+  "Verify Required Documentation"은 10개 파일 전부 확인되어 통과, "Check Empty Markdown
+  Files"는 정확히 3개(`getting-started`/`installation`/`faq`)만 제외되고 나머지 40개(원래
+  37개 미문서화 + 이번에 신규 확인된 것 포함, 정확한 목록은 위 참고)가 여전히 감지되어
+  의도대로 실패함을 확인
+- `apps/cnbiz-web`에서 `npm run lint`(0 errors)·`npm run build`(전체 라우트 정상 생성) —
+  이번 변경은 `.github/workflows/*.yml`과 `skills/README.md`뿐이라 애플리케이션 코드에
+  영향 없음을 재확인
+- 새 Workflow·새 CI는 추가하지 않음, 기존 `docs.yml`·`security.yml`의 구조(job·step 구성)는
+  그대로 유지하고 각각 최소 1줄(그리고 예외 3줄)만 수정
+
+---
+
+## 2026-07-22 (4)
+
+### 추가 (Added)
+
+- **Clients Dashboard**: `app/developer/clients/{page.tsx,[id]/page.tsx}`(신규). Client
+  Domain(`lib/clients/*`, `app/api/clients*`)은 이미 Registry·API·Database가 전부 완결되어
+  있어 코드 한 줄도 수정하지 않고 UI만 구현
+  - 목록(`/developer/clients`) — 요구사항대로 기존 `GET /api/clients` 하나만 사용. 연결된
+    Inquiry/Website Order 수는 `ClientRecord`가 이미 갖고 있는 `inquiryIds`/`websiteOrderIds`
+    배열 길이를 그대로 표시(추가 API 불필요). 회사명·담당자·이메일 검색, 최신순/오래된순/
+    회사명 정렬은 클라이언트 사이드로 구현. 상태 배지(신규/진행중/완료/취소)는 `ClientRecord`
+    자체에 상태 필드가 없어(`app/api/clients/[id]/route.ts`의 기존 주석: "Client는 상태 전이가
+    없는 순수 신원 레코드") 새 Status를 만드는 대신 연결된 WebsiteOrder의 기존
+    `WebsiteOrderStatus`를 화면에서만 파생(`app/developer/inquiries/page.tsx`가 Inquiry+AiJob
+    조합으로 파생 상태를 만드는 것과 동일한 원칙, 재사용 목적으로 이 목록 조회에 한해 기존
+    `GET /api/website-orders`도 함께 호출)
+  - 상세(`/developer/clients/[id]`) — `app/developer/inquiries/[id]/page.tsx`와 동일한
+    fetch-and-combine 패턴으로 기존 `GET /api/inquiries`·`GET /api/website-orders`·
+    `GET /api/ai-jobs`(전부 기존 API, 신규 라우트 없음)를 호출해 `client.inquiryIds`/
+    `websiteOrderIds`로 필터링한 연결 레코드(Inquiry/Website Order/AI Job)를 표시
+  - `components/developer`의 기존 Card/Badge/PageHeader/StatusMessage만 재사용. 요구사항의
+    "Table" 컴포넌트는 이 저장소에 존재하지 않아(`components/developer/` 전수 확인), 대신
+    Inquiries/Requests 등 이 저장소의 모든 기존 목록 화면이 쓰는 Card 기반 행 레이아웃을
+    그대로 따름(새 디자인 시스템 없음)
+  - `components/developer/DeveloperNav.tsx`에 "고객사 관리" 링크 1개 추가(다른 모든 대시보드
+    섹션과 동일한 관례)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors, 첫 시도에서 JSDoc 주석 안의 `lib/*/registry.ts` 문자열이 중첩
+  블록 코멘트로 해석돼 파싱 에러가 난 것을 발견해 주석 문구 수정) · `npm run lint`(0 errors,
+  상세 페이지의 `useEffect` 내 직접 `setState` 호출을 다른 모든 페이지와 동일한
+  `queueMicrotask(load)` 패턴으로 수정) · `npm run build`(신규 라우트 2개 포함 정상 생성)
+- 실 E2E: `scripts/create-auth-user.cjs`로 임시 계정 생성 시도 중, 이 스크립트가 실제로는
+  `./lib/data/users.json`(상대 경로)에 쓰는데 `lib/db/fsStore.ts`의 실제 기본 저장 경로는
+  `os.tmpdir()/cnbiz-web/data`라 서로 다른 파일임을 발견(스크립트 주석의 "matches
+  lib/db/fsStore.ts" 설명과 실제 동작이 어긋나는 기존 버그 — 이번 작업 범위 밖이라 수정하지
+  않고, 검증을 위해 해당 파일을 올바른 경로로 직접 복사만 함). 챗봇 파이프라인으로 고객사 2건
+  생성 → Playwright 실 브라우저로 로그인 → 목록에서 검색("브라이트" 입력 시 2건→1건 정상
+  필터링)·정렬(회사명 클릭) 확인 → 상세 페이지 진입 → Inquiry 1건·Website Order 1건·AI Job
+  2건(직전 세션의 Planning 작업이 만든 `generate_planning` Job이 여기서도 정확히 표시됨을
+  교차 확인) 정상 렌더링, 콘솔 에러 0건(로그인 전 `/api/auth/me` 401은 모든 페이지에 공통인
+  기존 동작, 회귀 아님) 확인. 검증에 사용한 임시 계정·데이터는 검증 후 전부 삭제
+- `PROJECT_STATUS.md` — Development OS 대시보드 진행률·페이지 수 갱신, "다음 작업 우선순위"
+  6번을 "WebsiteOrder만 남음"으로 갱신, "최근 완료 작업"에 이번 작업 기록
+
+---
+
+## 2026-07-22 (3)
+
+### 추가 (Added)
+
+- **AI Business OS Phase 3 — Planning 자동 문서 생성**: AI Analysis Engine(`lib/ai-analysis`,
+  무변경)의 `AIAnalysisResult`를 입력으로 기술 견적서·기능 명세서·프로젝트 일정 3종을 자동
+  생성. 새 Workflow Engine·새 Registry·새 CollectionStore 없이, Design Automation Phase 1의
+  generator/types 패턴(chatViaCli → all-or-nothing JSON 검증 → 결정론적 폴백)만 그대로 따름
+  - `lib/planning/{types,generator,design-plan-adapter}.ts`(신규) — `generator.ts`의 결정론적
+    폴백(`buildDefaultPlanning()`)은 페이지/기능 개수 기반 규칙(rule-based) 계산이라 AI 판단과
+    무관하게 항상 신뢰 가능(`lib/ai-analysis/score.ts`와 동일 원칙). `design-plan-adapter.ts`는
+    Design Automation Phase 1이 요구하는 입력 형태로 옮기기만 하는 순수 매핑(`lib/design/
+    website-build-adapter.ts`와 동일한 원칙, fs·AI 호출 없음)
+  - `lib/aiJobs/types.ts`의 `AiJobType`에 `"generate_planning"` 1개 값만 추가(기존 2개 값
+    무변경). 저장은 새 컬렉션 없이 `AiJobRecord`가 이미 갖고 있던 범용 `result` 필드를 그대로
+    사용(`lib/aiJobs/executor.ts`의 `executePlanningJob()`, 신규 함수 — 기존 Website Builder
+    실행 분기는 무변경)
+  - `app/api/external/inquiries/route.ts` — AI Analysis 저장 성공 시에만 기존
+    `createAiJob()`/`processJob()` 파이프라인으로 Planning Job을 추가 생성·실행(WebsiteOrder
+    생성 이후 시점, 기존 `generate_website` Job과 동일한 위치). 응답에 `planningJobId` 필드
+    추가. 새 API 라우트는 추가하지 않음 — 기존 `GET/POST /api/ai-jobs*`가 타입에 무관하게
+    그대로 재사용됨(`POST /api/ai-jobs/[id]/run`으로 관리자 수동 재시도도 이미 가능)
+  - `app/developer/planning/page.tsx`(기존 대시보드 확장, 신규 대시보드 아님) — "Planning
+    문서" 카드 추가, `components/developer/planning/PlanningJobCard.tsx`(신규, Client
+    Component)로 문서 상세(견적 항목·일정 단계)와 "Design Automation으로 전달" 버튼 제공.
+    이 버튼은 어댑터로 만든 입력을 Design Automation의 기존·미변경 진입점(`POST
+    /api/design/requirements`)에 그대로 전달 — Design Automation 코드는 한 줄도 수정하지 않음
+  - **설계 결정**: 모든 Inquiry에 대해 DesignPlanRecord를 조용히 자동 생성하지 않음(Design
+    Automation의 다른 모든 Phase 전환이 항상 사람이 트리거하는 액션인 것과 다르게, 검증되지
+    않은 대량 자동화가 될 위험으로 판단). "Inquiry→AI Analysis→Planning" 체인은 완전 자동,
+    "→Design Automation" 진입은 검증된 원클릭 수동 액션으로 구현
+  - 테스트(신규 16개): `tests/planning/generator.test.ts`(12개 — AI 성공/실패/파싱실패 3경로,
+    코드펜스 스트리핑, 규칙 기반 견적·일정 계산 — 기능 개수 증가 시 총액 증가, 5단계 타임라인
+    오프셋 순차성)·`tests/planning/design-plan-adapter.test.ts`(4개 — 매핑 정상 케이스 +
+    companyName/analysis/industry 결측 시 폴백 3가지)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(전체 라우트 정상
+  생성, `/developer/planning` 포함, 회귀 없음)
+- `npx vitest run` — Planning/AiJob/Design/AI Analysis 관련 262개 테스트는 매 실행마다 전부
+  통과. 전체 스위트(62 files/481 tests)는 실행마다 476~478개 통과, 나머지 3~5개는
+  `tests/{agents/taskQueue-retry,design/review-registry,requests/registry,websites/
+  registry}`의 동일 밀리초 timestamp 충돌로 인한 기존 타이밍 플레이크(이 세션 환경의 빠른
+  CPU에서만 재현, 단독 재실행 시 통과 확인) — Planning 변경과 무관, 회귀 아님
+- 실 E2E: 로컬 dev 서버로 `POST /api/external/inquiries` 실제 호출 → 응답에 `planningJobId`
+  확인 → 생성된 AiJob 레코드가 `status:"Success"`, `result`에 정확한 계산값(4페이지×50만원 +
+  1기능×80만원 + 기본 300만원 = 부가세 포함 638만원, 5단계 총 36일 일정)으로 채워짐을 직접
+  확인 → `POST /api/design/requirements`(어댑터가 만드는 것과 동일한 입력 형태)가 developer
+  세션 게이팅으로 정상 거부됨을 확인(다른 모든 관리자 API와 동일한 인증 계층, 회귀 아님).
+  같은 요청에서 `generate_website` Job은 이 Linux 샌드박스에 `powershell.exe`가 없어 실패
+  (Windows 전용 기존 `lib/commandEngine/engine.ts` 동작 — 이번 변경 이전부터 있던 환경 제약,
+  코드 회귀 아님)
+
+---
+
+## 2026-07-22 (2)
+
+### 확인 (Verified) — "AI Provider 실제 연결" 요청 처리
+
+- "AI Analysis·Design Automation·AI Job·Website Builder를 실제 AI 호출로 연결"하는 작업을 요청받아
+  기존 구조(`apps/cnbiz-web/lib/ai/bridge.ts`의 `chatViaCli()` → `packages/cli/src/providers/
+  {registry,manager,provider,types}.ts` + anthropic/openai/gemini/ollama/openrouter 5개 벤더
+  구현체)를 전수 분석. **Provider Registry·Manager·5개 벤더 구현 모두 이미 완결되어 있어 추가
+  구현이 필요한 지점이 전혀 없음을 확인** — resolve→chat/streamChat→simulate 폴백(명시적
+  provider 요청 시엔 에러를 감추지 않고 그대로 throw, 기본 provider 사용 시엔 실패를 삼키고
+  `[simulated] ...` 텍스트로 변환), 재시도(`withRetry`, TIMEOUT/429/5xx만 재시도, 4xx는 즉시
+  실패), 스트리밍(Anthropic/OpenAI `chatStream()`, 나머지는 `chat()`으로 자동 폴백)까지 전부
+  기존 코드로 구현되어 있음. 새 AI Engine·새 Provider 구조·Workflow Engine·Registry·
+  CollectionStore는 요청받은 원칙대로 전혀 수정하지 않음(additive한 문서 변경 1건만 진행)
+  - AI Analysis(`lib/ai-analysis/analysis.ts`)·Design Automation 9종(`lib/design/*-generator.ts`)
+    ·Website Builder 콘텐츠 생성(`packages/cli/src/website/content.ts`, `lib/aiJobs/executor.ts`가
+    child process로 실행)까지 실제 호출 흐름을 코드 레벨로 추적 완료 — 전부 동일한
+    `chatViaCli()`/`ProviderManager.complete()` 경로를 공유하며 중복된 별도 로직 없음
+  - 이 환경에는 5개 Provider 전부 API 키가 없고(`.env.local` 없음, 프로세스 env에도 없음) 로컬
+    Ollama도 미실행 상태임을 재확인 — 사용자 지시에 따라 API 키를 요구하지도, Ollama를
+    설치하지도, AI 응답을 모킹/조작하지도 않음. 실제 AI 응답을 통한 검증은 유효한 Provider API
+    키가 실제로 연결된 이후로 명시적으로 이월(`PROJECT_STATUS.md`에 기록)
+
+### 추가 (Added)
+
+- **`apps/cnbiz-web/.env.example`에 AI Provider 환경변수 4종 문서화** — 위 분석에서 발견된
+  유일한 실제 공백: `ANTHROPIC_API_KEY`·`OPENAI_API_KEY`(+선택적 표시 전용 `OPENAI_MODEL`)·
+  `GEMINI_API_KEY`(+선택적 `GEMINI_MODEL`)·`OPENROUTER_API_KEY`가 이 파일에 전혀 기재되어 있지
+  않아, 운영자가 Vercel 프로덕션 환경변수에 어떤 키를 넣어야 하는지 알 수 없었음. 이 앱이
+  `packages/cli`를 in-process import하지 않고 child process로 shell-out해 env를 그대로
+  상속받는 구조, 키가 하나도 없으면 모든 호출이 결정론적 fallback으로 귀결되는 것이 정상
+  동작임을 주석으로 명시. 기존 `OLLAMA_HOST` 항목은 유지하되 "Vercel 서버리스에서는 로컬
+  Ollama에 접근 불가, 로컬 개발 전용" 설명 추가
+
+### 검증 (Verified)
+
+- `npm install`(루트, 504 packages) → `packages/cli` 빌드(`npm run build --workspace=@ai-business-os/cli`, 0 errors) →
+  `apps/cnbiz-web`에서 `npx vitest run` 465 tests 중 461 통과. AI/Provider 관련 테스트
+  (`tests/ai/bridge.test.ts`·`tests/providers/status.test.ts`·`tests/ai-analysis/{analysis,
+  score}.test.ts`·`tests/aiJobs/registry.test.ts`, 총 32개)는 **전부 통과**해 키가 없는 이
+  환경에서도 fallback 경로가 정확히 동작함을 재확인. 나머지 4개 실패(`tests/agents/
+  taskQueue-retry`·`tests/design/review-registry`·`tests/requests/registry`·`tests/websites/
+  registry`)는 개별 파일 단독 재실행으로도 동일하게 실패해, 동일 밀리초에 생성된 두 레코드의
+  timestamp 비교/정렬 문제로 인한 이 세션 환경(빠른 CPU) 고유의 기존 타이밍 이슈임을 확인 —
+  AI Provider 코드와 무관하고 이번 `.env.example` 변경으로 인한 회귀가 아님
+- `npm run lint`(`apps/cnbiz-web`, 0 errors) · `npm run build`(`apps/cnbiz-web`, 전체 라우트
+  정상 생성 — Design Automation 9개 페이지·AI 의뢰 관리·Analysis/Planning/Deployment 대시보드
+  전부 포함, 회귀 없음)
+- `PROJECT_STATUS.md` — "최근 완료 작업"에 이번 분석·검증 결과 기록, "다음 작업 우선순위" 4번을
+  "배선은 완결, 남은 것은 순수 환경설정(API 키)뿐"으로 갱신
+
+---
+
 ## 2026-07-15 (7)
 
 ### 추가 (Added)

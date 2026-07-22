@@ -1,14 +1,16 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { createRecordId } from "@/lib/utils/id";
 import type { WebsiteOrderInput, WebsiteOrderRecord, WebsiteOrderStatus } from "./types";
 
 const COLLECTION = "website-orders";
 
+/** Newest first — creates always append, so the store's array order is already oldest→newest. */
 export async function listWebsiteOrders(
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord[]> {
   const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...records].reverse();
 }
 
 export async function getWebsiteOrder(
@@ -33,7 +35,7 @@ export async function createWebsiteOrder(
 ): Promise<WebsiteOrderRecord> {
   const now = new Date().toISOString();
   const record: WebsiteOrderRecord = {
-    id: `website-order-${Date.now()}`,
+    id: createRecordId("website-order"),
     ...input,
     status: "Requested",
     aiJobIds: [],

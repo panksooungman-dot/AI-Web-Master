@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createRecordId } from "@/lib/utils/id";
 
 export interface PromptVersion {
   version: number;
@@ -78,7 +79,7 @@ export function createPrompt(
   const now = new Date().toISOString();
 
   const record: PromptRecord = {
-    id: `prompt-${Date.now()}`,
+    id: createRecordId("prompt"),
     name,
     description,
     category: category || DEFAULT_CATEGORY,

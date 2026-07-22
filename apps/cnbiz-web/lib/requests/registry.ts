@@ -1,14 +1,16 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { createRecordId } from "@/lib/utils/id";
 import type { ProjectRequestInput, ProjectRequestRecord, RequestStatus } from "./types";
 
 const COLLECTION = "project-requests";
 
+/** Newest first — creates always append, so the store's array order is already oldest→newest. */
 export async function listRequests(
   store: CollectionStore = getDefaultStore()
 ): Promise<ProjectRequestRecord[]> {
   const records = await store.list<ProjectRequestRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...records].reverse();
 }
 
 export async function getRequest(
@@ -25,7 +27,7 @@ export async function createRequest(
 ): Promise<ProjectRequestRecord> {
   const now = new Date().toISOString();
   const record: ProjectRequestRecord = {
-    id: `request-${Date.now()}`,
+    id: createRecordId("request"),
     ...input,
     status: "New",
     createdAt: now,

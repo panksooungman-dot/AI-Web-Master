@@ -4,6 +4,60 @@
 
 ---
 
+## 2026-07-22
+
+### 수정 (Fixed)
+
+- **Admin Inquiry Pipeline — 관리자 수동 의뢰 등록의 끊긴 연결부 수정**: 관리자 의뢰 파이프라인
+  (New Inquiry→Inquiry→AI Analysis→Planning→WebsiteOrder→AiJob→Website Builder) 전 구간을
+  코드 추적으로 검증한 결과, `POST /api/external/inquiries`(cnbiz.ai.kr 챗봇 전용) 경로는 이미
+  전 구간 정상 연결되어 있었으나, 관리자 UI `/developer/inquiries/new`의 "AI 분석 시작" 버튼은
+  `console.log`만 남기고 어떤 레코드도 만들지 않는 TODO 스텁으로 남아 있었다(유일한 끊긴 연결부)
+  - `app/api/inquiries/route.ts`에 `POST` 핸들러 신규 추가 — 기존 GET(목록 조회) 라우트에 추가한
+    것으로, 새 API 경로를 만들지 않음. `POST /api/external/inquiries`가 이미 구현해 둔
+    Inquiry 생성 → `lib/ai-analysis/analysis.ts`의 `generateAnalysis()`/`saveInquiryAnalysis()` →
+    `findOrCreateClientByEmail()` → `createWebsiteOrder()` → `createAiJob()` → `processJob()`
+    (AI Job 실행 → Website Builder 트리거) → `linkInquiryToClientAndOrder()` →
+    `notifyAdminOfNewInquiry()` 파이프라인을 그대로 재사용(새 Registry·CollectionStore·API·
+    Workflow Engine·AI Analysis·WebsiteOrder 로직 없음, `source`만 `"manual"`로 구분). 이 라우트는
+    `proxy.ts`/`lib/auth/rbac.ts`의 기본 규칙으로 이미 "developer" 세션 게이팅을 받고 있어
+    x-api-key 인증 없이도 안전
+  - `app/developer/inquiries/new/page.tsx` — "AI 분석 시작" 버튼이 위 `POST /api/inquiries`를
+    실제로 호출하도록 연결, 성공 시 생성된 Inquiry 상세(`/developer/inquiries/[id]`)로 이동.
+    이메일 입력 필드 신규 추가(`InquiryInput.email`이 파이프라인 필수 필드인데 폼에 없었음) +
+    고객명 클라이언트 측 필수 검증 추가(`validateInquiryInput()`이 서버에서 이미 요구하는데
+    폼에는 검증이 없어 값 누락 시 안내 없이 400 오류만 발생하던 문제). 문의 제목은 별도 스키마
+    필드가 없어 요구사항 본문 앞에 포함시켜 입력값을 유실하지 않음. Supabase Storage 업로드·OCR은
+    여전히 TODO로 남김(첨부파일은 파일명만 요구사항 텍스트에 기록)
+  - "Planning" 단계는 이 저장소에 Inquiry 전용 Planning Job이 별도로 존재하지 않고
+    `/developer/planning`(기존 Workflow Engine 실행 현황 집계 대시보드, Phase 02)이 그 역할을
+    대신하고 있음을 확인 — 새 Planning 엔진·Workflow Engine을 추가로 만들지 않고 기존 구조를
+    그대로 유지
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(정상, `/api/inquiries`·
+  `/developer/inquiries/new` 포함 전 라우트 생성 확인) · `npm test`(461/465 통과 — 나머지
+  4건은 `tests/agents/taskQueue-retry.test.ts`·`tests/requests/registry.test.ts`·
+  `tests/websites/registry.test.ts`의 `Date.now()` 밀리초 충돌 기반 기존 타이밍 플레이크로,
+  이번 변경이 건드리지 않은 파일이며 격리 실행해도 동일하게 실패해 이번 수정과 무관함을 확인)
+- 실 E2E: 임시 developer 계정으로 로그인 → Playwright 실 브라우저로 `/developer/inquiries/new`
+  폼(문의 제목·고객명·회사명·이메일·문의 내용)을 실제 입력 → "AI 분석 시작" 클릭 →
+  `/developer/inquiries/[id]`로 정상 이동 확인 → 생성된 Inquiry/Client/WebsiteOrder/AiJob/
+  Website 레코드가 FK로 전부 정확히 연결되고(`clientId`·`websiteOrderId`·`aiJobIds`·`websiteIds`)
+  AI Analysis 결과(completeness/missingItems/detectedBusinessType/recommendedPages/
+  recommendedFunctions/summary)가 Inquiry 레코드에 저장됨을 직접 확인
+- AiJob의 Website Builder 실행 단계는 이 Linux 샌드박스에 `powershell.exe`가 없어(`lib/terminal/
+  server.ts`가 플랫폼 분기 없이 하드코딩 — 기존에 이미 완성된 Windows 전용 모듈, 이번 범위에서
+  변경하지 않음) `spawn powershell.exe ENOENT`로 Failed 처리되었으나, 동일 CLI 명령
+  (`node packages/cli/dist/index.js website create ...`)을 직접 실행하면 정상적으로 프로젝트가
+  생성됨을 별도로 확인 — 파이프라인 연결 자체는 정상이며, 실패 원인은 이번 샌드박스의 플랫폼
+  제약(코드 결함 아님)임을 검증
+- 검증에 사용한 임시 developer 계정(`lib/data/users.json`)·테스트 Inquiry/Client/WebsiteOrder/
+  AiJob/Website 레코드·생성된 스크래치 웹사이트 프로젝트는 검증 후 전부 삭제
+
+---
+
 ## 2026-07-15 (7)
 
 ### 추가 (Added)

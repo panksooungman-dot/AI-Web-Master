@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-07-22 (Claude Code, apps/**·packages/** 변경 수동 반영 — pre-commit SSOT 자동
+> 최종 분석: 2026-07-22 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `d3248d2` 기준)
 > 동기화 훅이 로컬 `claude` CLI 헤드리스 호출 타임아웃으로 실패해 이번 커밋은 `--no-verify`로
 > 진행하고 이 섹션들을 수동으로 갱신함, 사용자 승인 하에 진행)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
@@ -94,6 +94,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 
 ## 최근 완료 작업
 
+- **문의 이메일 알림 로깅 보강**(2026-07-22) — `lib/contact/email/index.ts`에 `CONTACT_EMAIL_PROVIDER`가 `resend`가 아니거나 미설정일 때 noop provider로 폴백됨을 알리는 경고 로그 추가, `lib/inquiries/notify.ts`의 관리자 알림 성공/실패 로그에 `inquiry.id`를 포함하도록 개선(문제 추적 용이성 향상, 로직 변경 없음). `packages/cli/README.md`(신규, CLI 개요·설치·주요 명령 안내)·`packages/cli/src/templates/agent/examples.md`(신규, Agent 스캐폴딩 템플릿의 예시 섹션) 작성
 - **Phase 01·02·09 대시보드 + AI 의뢰 관리 "새 문의 등록" UI**(2026-07-22) — Development OS에
   Analysis(`/developer/analysis`)·Planning(`/developer/planning`)·Deployment(`/developer/deployment`)
   3개 신규 대시보드를 추가. 새 분석/기획/배포 엔진·새 API·새 DB 컬렉션은 만들지 않고, 기존

@@ -4,6 +4,59 @@
 
 ---
 
+## 2026-07-22 (2)
+
+### 확인 (Verified) — "AI Provider 실제 연결" 요청 처리
+
+- "AI Analysis·Design Automation·AI Job·Website Builder를 실제 AI 호출로 연결"하는 작업을 요청받아
+  기존 구조(`apps/cnbiz-web/lib/ai/bridge.ts`의 `chatViaCli()` → `packages/cli/src/providers/
+  {registry,manager,provider,types}.ts` + anthropic/openai/gemini/ollama/openrouter 5개 벤더
+  구현체)를 전수 분석. **Provider Registry·Manager·5개 벤더 구현 모두 이미 완결되어 있어 추가
+  구현이 필요한 지점이 전혀 없음을 확인** — resolve→chat/streamChat→simulate 폴백(명시적
+  provider 요청 시엔 에러를 감추지 않고 그대로 throw, 기본 provider 사용 시엔 실패를 삼키고
+  `[simulated] ...` 텍스트로 변환), 재시도(`withRetry`, TIMEOUT/429/5xx만 재시도, 4xx는 즉시
+  실패), 스트리밍(Anthropic/OpenAI `chatStream()`, 나머지는 `chat()`으로 자동 폴백)까지 전부
+  기존 코드로 구현되어 있음. 새 AI Engine·새 Provider 구조·Workflow Engine·Registry·
+  CollectionStore는 요청받은 원칙대로 전혀 수정하지 않음(additive한 문서 변경 1건만 진행)
+  - AI Analysis(`lib/ai-analysis/analysis.ts`)·Design Automation 9종(`lib/design/*-generator.ts`)
+    ·Website Builder 콘텐츠 생성(`packages/cli/src/website/content.ts`, `lib/aiJobs/executor.ts`가
+    child process로 실행)까지 실제 호출 흐름을 코드 레벨로 추적 완료 — 전부 동일한
+    `chatViaCli()`/`ProviderManager.complete()` 경로를 공유하며 중복된 별도 로직 없음
+  - 이 환경에는 5개 Provider 전부 API 키가 없고(`.env.local` 없음, 프로세스 env에도 없음) 로컬
+    Ollama도 미실행 상태임을 재확인 — 사용자 지시에 따라 API 키를 요구하지도, Ollama를
+    설치하지도, AI 응답을 모킹/조작하지도 않음. 실제 AI 응답을 통한 검증은 유효한 Provider API
+    키가 실제로 연결된 이후로 명시적으로 이월(`PROJECT_STATUS.md`에 기록)
+
+### 추가 (Added)
+
+- **`apps/cnbiz-web/.env.example`에 AI Provider 환경변수 4종 문서화** — 위 분석에서 발견된
+  유일한 실제 공백: `ANTHROPIC_API_KEY`·`OPENAI_API_KEY`(+선택적 표시 전용 `OPENAI_MODEL`)·
+  `GEMINI_API_KEY`(+선택적 `GEMINI_MODEL`)·`OPENROUTER_API_KEY`가 이 파일에 전혀 기재되어 있지
+  않아, 운영자가 Vercel 프로덕션 환경변수에 어떤 키를 넣어야 하는지 알 수 없었음. 이 앱이
+  `packages/cli`를 in-process import하지 않고 child process로 shell-out해 env를 그대로
+  상속받는 구조, 키가 하나도 없으면 모든 호출이 결정론적 fallback으로 귀결되는 것이 정상
+  동작임을 주석으로 명시. 기존 `OLLAMA_HOST` 항목은 유지하되 "Vercel 서버리스에서는 로컬
+  Ollama에 접근 불가, 로컬 개발 전용" 설명 추가
+
+### 검증 (Verified)
+
+- `npm install`(루트, 504 packages) → `packages/cli` 빌드(`npm run build --workspace=@ai-business-os/cli`, 0 errors) →
+  `apps/cnbiz-web`에서 `npx vitest run` 465 tests 중 461 통과. AI/Provider 관련 테스트
+  (`tests/ai/bridge.test.ts`·`tests/providers/status.test.ts`·`tests/ai-analysis/{analysis,
+  score}.test.ts`·`tests/aiJobs/registry.test.ts`, 총 32개)는 **전부 통과**해 키가 없는 이
+  환경에서도 fallback 경로가 정확히 동작함을 재확인. 나머지 4개 실패(`tests/agents/
+  taskQueue-retry`·`tests/design/review-registry`·`tests/requests/registry`·`tests/websites/
+  registry`)는 개별 파일 단독 재실행으로도 동일하게 실패해, 동일 밀리초에 생성된 두 레코드의
+  timestamp 비교/정렬 문제로 인한 이 세션 환경(빠른 CPU) 고유의 기존 타이밍 이슈임을 확인 —
+  AI Provider 코드와 무관하고 이번 `.env.example` 변경으로 인한 회귀가 아님
+- `npm run lint`(`apps/cnbiz-web`, 0 errors) · `npm run build`(`apps/cnbiz-web`, 전체 라우트
+  정상 생성 — Design Automation 9개 페이지·AI 의뢰 관리·Analysis/Planning/Deployment 대시보드
+  전부 포함, 회귀 없음)
+- `PROJECT_STATUS.md` — "최근 완료 작업"에 이번 분석·검증 결과 기록, "다음 작업 우선순위" 4번을
+  "배선은 완결, 남은 것은 순수 환경설정(API 키)뿐"으로 갱신
+
+---
+
 ## 2026-07-15 (7)
 
 ### 추가 (Added)

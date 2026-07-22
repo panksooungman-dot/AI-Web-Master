@@ -94,6 +94,35 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 
 ## 최근 완료 작업
 
+- **AI Provider 연결 배선 점검 + `.env.example` 문서화**(2026-07-22) — "실제 AI Provider 연결"
+  작업 요청에 따라 기존 구조(`lib/ai/bridge.ts`의 `chatViaCli()` → `packages/cli/src/providers/
+  {registry,manager,provider,types}.ts` + 5개 벤더 구현체)를 전수 점검. **Provider Registry·
+  Manager·5개 벤더(anthropic/openai/gemini/ollama/openrouter) 구현 모두 이미 완결 상태이며 코드
+  추가·수정이 필요한 지점이 없음을 확인**(resolve→chat→simulate 폴백, 재시도, 스트리밍 전부
+  기존 코드로 완비) — 새 AI Engine·새 Provider 구조·Workflow·Registry·CollectionStore는 전혀
+  건드리지 않음(요청 원칙 그대로 준수). 유일하게 실제로 비어 있던 지점은 **문서화**뿐이었음:
+  `apps/cnbiz-web/.env.example`에 AI Provider 키 4종(`ANTHROPIC_API_KEY`·`OPENAI_API_KEY`
+  (+선택 `OPENAI_MODEL`)·`GEMINI_API_KEY`(+선택 `GEMINI_MODEL`)·`OPENROUTER_API_KEY`)이 전혀
+  기재되어 있지 않아 운영자가 Vercel에 어떤 키를 넣어야 하는지 알 수 없었음 — 이번에 전부
+  추가하고, 이 앱이 `packages/cli`를 in-process import하지 않고 child process로 shell-out해
+  env를 상속받는 구조·아무 키도 없으면 모든 호출이 결정론적 fallback으로 귀결되는 것이 정상
+  동작임을 주석으로 명시
+- **검증**: `npm test`(`apps/cnbiz-web`) 465 tests 중 461 통과 — AI/Provider 관련 테스트
+  (`tests/ai/bridge.test.ts`·`tests/providers/status.test.ts`·`tests/ai-analysis/{analysis,
+  score}.test.ts`·`tests/aiJobs/registry.test.ts`, 총 32개)는 **전부 통과**하여 키가 없는
+  이 환경에서도 fallback 경로가 정확히 동작함을 재확인. 나머지 4개 실패(`tests/agents/
+  taskQueue-retry`·`tests/design/review-registry`·`tests/requests/registry`·`tests/websites/
+  registry`)는 전부 동일 밀리초에 생성된 두 레코드의 timestamp 비교/정렬 문제로, 단독 재실행
+  시에도 동일하게 실패해 이 세션의 빠른 CPU 환경에서 발생하는 기존 타이밍 이슈로 확인 —
+  AI Provider 관련 코드와 무관하고 이번 변경(`​.env.example`만 수정)으로 인한 회귀가 아님.
+  `npm run lint`(0 errors)·`npm run build`(전체 라우트 정상 생성, Design Automation 9개 페이지
+  포함) 통과
+  - **실제 AI 응답을 통한 검증은 이번 범위에서 수행하지 않음** — 이 환경에는 5개 Provider
+    전부에 대해 API 키가 없고(`.env.local` 없음, 프로세스 env에도 없음), 로컬 Ollama도
+    실행되지 않음. 사용자 지시에 따라 API 키를 요구하거나 Ollama를 설치하지 않았으며,
+    AI 응답을 모킹·조작하지도 않음(모든 검증은 fallback 경로 자체의 정확성에 한정). **실제
+    AI 응답 검증은 유효한 Provider API 키(Vercel 프로덕션 환경변수 또는 로컬 `.env.local`)가
+    실제로 연결된 후에만 가능함**을 아래 "다음 작업 우선순위" 4번에 그대로 유지
 - **Phase 01·02·09 대시보드 + AI 의뢰 관리 "새 문의 등록" UI**(2026-07-22) — Development OS에
   Analysis(`/developer/analysis`)·Planning(`/developer/planning`)·Deployment(`/developer/deployment`)
   3개 신규 대시보드를 추가. 새 분석/기획/배포 엔진·새 API·새 DB 컬렉션은 만들지 않고, 기존
@@ -129,7 +158,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 
 1. **CNBIZ.AI.KR 구축 후 Inquiry 저장·관리자 알림 책임 이관** — 위 "알려진 아키텍처 부채" 참고. CNBIZ.AI.KR이 자체 DB·알림을 갖추면 `app/api/external/inquiries/route.ts`의 `createInquiry()`/`notifyAdminOfNewInquiry()` 호출부(이미 "임시 대행" 주석 표시됨)를 이관
 3. **기술 견적서 / 기능 명세서 / 프로젝트 타임라인 생성**(AI Business OS Phase 3) — Phase 2의 `AIAnalysisResult`를 입력으로 사용하는 새 AiJobType(또는 별도 서비스) 설계·구현
-4. **실제 AI Provider 연결** — 2026-07-20에 재확인: 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`/`OPENROUTER_API_KEY` 중 하나라도 이 앱(Vercel 프로덕션 환경변수 또는 로컬 `.env.local`)에 실제로 연결되어야 AI Analysis Engine의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
+4. **실제 AI Provider 연결** — 2026-07-22 재확인: 배선(Bridge→Provider Registry/Manager→5개 벤더)은 **이미 완결되어 추가 구현이 필요 없음**, `.env.example`도 이번에 4개 키 전부 문서화 완료. 남은 것은 순수 환경설정뿐 — `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`/`OPENROUTER_API_KEY` 중 하나라도 이 앱(Vercel 프로덕션 환경변수 또는 로컬 `.env.local`)에 실제 값으로 설정되어야 AI Analysis/Design Automation/Website Builder의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 실제 AI 응답으로 검증할 수 있음. 로컬 Ollama(`OLLAMA_HOST`)도 대안이 될 수 있으나, Vercel 프로덕션(서버리스)에서는 로컬 Ollama에 접근할 수 없어 로컬 개발 검증 용도로만 유효함
 5. **cnbiz.ai.kr 쪽 실제 챗봇 연동 검증** — 지금까지는 이쪽 저장소에서 직접 curl/Playwright로만 검증. 실제 cnbiz.ai.kr이 보내는 페이로드 필드명이 지원 중인 별칭(`customerName`/`consultation`)과 정확히 일치하는지 실제 연동 테스트 필요
 6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세에서만 연결된 레코드 확인 가능
 7. **회원가입 백엔드 + 역할관리 UI**

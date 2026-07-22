@@ -4,6 +4,52 @@
 
 ---
 
+## 2026-07-22 (5)
+
+### 수정 (Fixed) — CI 안정화
+
+- **`.github/workflows/security.yml` — Secret Scan 자체 매칭 버그 수정**: 시크릿 패턴을 찾는
+  `grep -R -E "(AKIA|AIza|ghp_|xoxb-|-----BEGIN PRIVATE KEY-----)" .` 명령이 저장소 전체를
+  스캔하면서 이 명령 자신이 정의된 `security.yml`의 그 줄(패턴 문자열 자체)을 매칭해 항상
+  `exit 1`로 실패하던 버그를 실제로 재현·확인. 실제 시크릿은 이 저장소 어디에도 없음을
+  확인(`--exclude-dir=.github` 적용 전/후 각각 grep 결과 비교, 매칭이 그 한 줄뿐이었음을 확인).
+  `--exclude-dir=.github` 1줄만 추가(CI 워크플로·PR 템플릿만 담긴 디렉터리라 실질적인 시크릿
+  탐지 범위 손실 없음) — Security Scan의 목적(실제 소스에서 유출된 시크릿 탐지)은 그대로 유지
+- **`skills/README.md` 신규 추가**: `docs.yml`이 요구하는 10개 필수 문서 중 유일하게 누락되어
+  있던 파일(`agents/`·`prompts/`·`memory/`·`orchestration/`·`examples/`·`mcp/`·`marketplace/`·
+  `tests/`는 전부 이미 `README.md` 보유, `skills/`만 없었음 — `REPORT.md`에 이미 기록되어 있던
+  기존 gap). `skills/`는 core/domains/experts/shared/templates/workflows 6개 카테고리에 걸쳐
+  125개의 실제 `SKILL.md`를 담은, 비어있지 않은 활성 스킬 라이브러리라 형제 디렉터리(`agents/
+  README.md`·`mcp/README.md`)의 관례를 따르되 실제 구조를 그대로 기술하는 내용으로 작성
+- **`.github/workflows/docs.yml` — 빈 마크다운 검사에 문서화된 placeholder 3개만 제외**:
+  `skills/README.md`를 추가하고 나면 "Verify Required Documentation" 다음 단계인 "Check Empty
+  Markdown Files"(`find . -name "*.md" -size 0`)가 최초로 끝까지 실행되는데, 이 검사가 그동안
+  한 번도 끝까지 실행된 적이 없어 숨겨져 있던 사실을 발견: 저장소에 0바이트 `.md` 파일이 40개
+  존재. `docs/01_PMO/PROJECT_ROADMAP.md`의 Phase 5 표를 대조해 이 중 **파일 단위로 명시적으로
+  문서화된 것은 `docs/getting-started.md`·`docs/installation.md`·`docs/faq.md` 3개뿐**임을
+  확인(같은 표의 `marketplace/`·`mcp/`·`examples/`는 디렉터리 단위 항목이라, 그 안의 개별 파일을
+  "문서화된 placeholder"로 간주하지 않음 — 예: `examples/ai-agent-example.md`는 제외 대상에서
+  뺌). `find` 명령에 이 3개 파일만 `! -path`로 제외하는 3줄 추가. **나머지 37개 미문서화
+  빈 파일에는 내용을 채우거나 목록에서 빼지 않음** — 지시대로 이 검사는 이 37개에 대해서는
+  계속 실패해야 정상이며, 실제로 로컬 재현 결과 정확히 그렇게 동작함을 확인(아래 검증 참고).
+  즉 이번 수정 이후에도 "Validate Documentation" CI는 계속 실패하지만, 실패 사유가 "문서화된
+  의도적 placeholder를 잘못 지적"에서 "실제로 비어있는 37개 파일"로 정확해짐
+
+### 검증 (Verified)
+
+- 로컬에서 `docs.yml`·`security.yml`의 각 step을 그대로 재현: Secret Scan은 매칭 0건(정상),
+  "Verify Required Documentation"은 10개 파일 전부 확인되어 통과, "Check Empty Markdown
+  Files"는 정확히 3개(`getting-started`/`installation`/`faq`)만 제외되고 나머지 40개(원래
+  37개 미문서화 + 이번에 신규 확인된 것 포함, 정확한 목록은 위 참고)가 여전히 감지되어
+  의도대로 실패함을 확인
+- `apps/cnbiz-web`에서 `npm run lint`(0 errors)·`npm run build`(전체 라우트 정상 생성) —
+  이번 변경은 `.github/workflows/*.yml`과 `skills/README.md`뿐이라 애플리케이션 코드에
+  영향 없음을 재확인
+- 새 Workflow·새 CI는 추가하지 않음, 기존 `docs.yml`·`security.yml`의 구조(job·step 구성)는
+  그대로 유지하고 각각 최소 1줄(그리고 예외 3줄)만 수정
+
+---
+
 ## 2026-07-22 (4)
 
 ### 추가 (Added)

@@ -1,3 +1,5 @@
+import type { DesignDocument } from "@cnbiz/design-system/types/design";
+
 /**
  * Design Automation — Phase 1 (docs/03_DESIGN/DESIGN_WORKFLOW.md의 Phase 2 "요구사항 분석" +
  * Phase 3 "기획"을 하나로 묶은 범위): Requirement Analysis, Feature List, Site Map, User Flow,
@@ -75,4 +77,10 @@ export interface DesignPlanRecord {
   provider?: string;
   model?: string;
   createdAt: string;
+  /**
+   * Design JSON Standardization Phase 2(docs/architecture/DESIGN_JSON_SPEC.md) — `content`를
+   * 표준 DesignDocument 형태로 파생시킨 결과(design-document-adapter.ts). 기존 `content` 필드는
+   * 그대로 유지되며 이 필드는 추가로만 존재한다(옵셔널, 기존 소비자는 무시해도 무방).
+   */
+  document?: DesignDocument;
 }

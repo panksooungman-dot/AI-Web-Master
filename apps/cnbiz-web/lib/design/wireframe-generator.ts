@@ -1,5 +1,6 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
 import type { StoryboardRecord } from "./storyboard";
+import { storyboardToWireframeSource, type WireframeSource } from "./wireframe-document-adapter";
 import {
   COMPONENT_TYPES,
   type Breakpoint,
@@ -38,12 +39,13 @@ const SYSTEM_PROMPT =
   ". Follow the shape the user message describes exactly, and keep screen names consistent with " +
   "the screen list provided.";
 
-function buildUserPrompt(storyboard: StoryboardRecord): string {
-  return `Screens (from the Storyboard's Screen Descriptions):
-${JSON.stringify(storyboard.content.screenDescriptions)}
+/** `source`는 storyboardToWireframeSource()가 만든 DesignDocument 기준 입력(Phase 4 Adapter). */
+function buildUserPrompt(source: WireframeSource): string {
+  return `Design Document Pages (id/title/path — docs/architecture/DESIGN_JSON_SPEC.md):
+${JSON.stringify(source.document.pages.map((page) => ({ id: page.id, title: page.title, path: page.path })))}
 
-Screen Flow:
-${JSON.stringify(storyboard.content.screenFlow)}
+Screens (key elements per page):
+${JSON.stringify(source.screens)}
 
 Allowed component types: ${COMPONENT_TYPES.join(", ")}
 
@@ -233,12 +235,17 @@ function buildSections(components: ComponentType[]): WireframeSection[] {
 }
 
 /**
- * Phase 2의 Screen Description(keyElements)만으로 항상 유효한 Wireframe을 만드는 결정론적
- * 폴백 — Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다
- * (lib/design/storyboard-generator.ts의 buildDefaultStoryboard()와 동일한 역할).
+ * DesignDocument(+ Phase 2 원본으로 보강된 keyElements)만으로 항상 유효한 Wireframe을 만드는
+ * 결정론적 폴백 — Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다
+ * (lib/design/storyboard-generator.ts의 buildDefaultStoryboard()와 동일한 역할). 화면 구조 자체는
+ * storyboardToWireframeSource()가 DesignDocument.pages를 기준으로 만든 `screens`에서 가져온다.
  */
 export function buildDefaultWireframe(storyboard: StoryboardRecord): WireframeContent {
-  const screens = storyboard.content.screenDescriptions;
+  return buildWireframeFromSource(storyboardToWireframeSource(storyboard));
+}
+
+function buildWireframeFromSource(source: WireframeSource): WireframeContent {
+  const screens = source.screens;
 
   const layouts: ScreenLayout[] = screens.map((screen) => {
     const matched = screen.keyElements
@@ -289,7 +296,8 @@ export async function generateWireframe(
   storyboard: StoryboardRecord,
   chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateWireframeResult> {
-  const result = await chatFn(buildUserPrompt(storyboard), { system: SYSTEM_PROMPT });
+  const source = storyboardToWireframeSource(storyboard);
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {
     const parsed = parseWireframeContent(result.content);

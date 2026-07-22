@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-business-os.dev/schema/design.schema.json",
+
+  "title": "DesignDocument",
+  "description": "AI Business OS Design Document — Content Model + Rendering Contract (Phase 7.5)",
+  "type": "object",
+
+  "required": [
+    "version",
+    "metadata",
+    "theme",
+    "pages"
+  ],
+
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+
+    "theme": {
+      "$ref": "#/$defs/theme"
+    },
+
+    "pages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    }
+  },
+
+  "additionalProperties": false,
+
+  "$defs": {
+    "metadata": {
+      "type": "object",
+
+      "required": [
+        "projectName",
+        "createdAt",
+        "updatedAt"
+      ],
+
+      "properties": {
+        "projectId": {
+          "type": "string"
+        },
+
+        "projectName": {
+          "type": "string"
+        },
+
+        "clientName": {
+          "type": "string"
+        },
+
+        "createdAt": {
+          "type": "string"
+        },
+
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "theme": {
+      "type": "object",
+
+      "properties": {
+        "colors": {
+          "type": "object"
+        },
+
+        "typography": {
+          "type": "object"
+        },
+
+        "spacing": {
+          "type": "object"
+        },
+
+        "radius": {
+          "type": "object"
+        },
+
+        "shadow": {
+          "type": "object"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "page": {
+      "type": "object",
+
+      "required": [
+        "id",
+        "title",
+        "path",
+        "sections"
+      ],
+
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+
+        "title": {
+          "type": "string"
+        },
+
+        "path": {
+          "type": "string"
+        },
+
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        },
+
+        "layout": {
+          "$ref": "#/$defs/layoutContract"
+        },
+
+        "responsive": {
+          "$ref": "#/$defs/responsiveConfig"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "section": {
+      "type": "object",
+
+      "required": [
+        "id",
+        "type",
+        "components"
+      ],
+
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+
+        "type": {
+          "type": "string"
+        },
+
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+
+        "layout": {
+          "$ref": "#/$defs/layoutContract"
+        },
+
+        "style": {
+          "$ref": "#/$defs/styleContract"
+        },
+
+        "responsive": {
+          "$ref": "#/$defs/responsiveConfig"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "component": {
+      "type": "object",
+
+      "required": [
+        "id",
+        "type",
+        "props"
+      ],
+
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+
+        "type": {
+          "type": "string"
+        },
+
+        "props": {
+          "type": "object"
+        },
+
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+
+        "style": {
+          "$ref": "#/$defs/styleContract"
+        },
+
+        "layout": {
+          "$ref": "#/$defs/layoutContract"
+        },
+
+        "responsive": {
+          "$ref": "#/$defs/responsiveConfig"
+        },
+
+        "events": {
+          "$ref": "#/$defs/eventsContract"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "layoutContract": {
+      "type": "object",
+
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["row", "column"]
+        },
+
+        "columns": {
+          "type": "number"
+        },
+
+        "rows": {
+          "type": "number"
+        },
+
+        "gap": {
+          "type": "string"
+        },
+
+        "align": {
+          "type": "string",
+          "enum": ["start", "center", "end", "stretch", "baseline"]
+        },
+
+        "justify": {
+          "type": "string",
+          "enum": ["start", "center", "end", "space-between", "space-around", "space-evenly"]
+        },
+
+        "width": {
+          "type": "string"
+        },
+
+        "maxWidth": {
+          "type": "string"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "styleContract": {
+      "type": "object",
+
+      "properties": {
+        "margin": {
+          "type": "string"
+        },
+
+        "padding": {
+          "type": "string"
+        },
+
+        "radius": {
+          "type": "string"
+        },
+
+        "shadow": {
+          "type": "string"
+        },
+
+        "background": {
+          "type": "string"
+        },
+
+        "border": {
+          "type": "string"
+        },
+
+        "opacity": {
+          "type": "number"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "responsiveVariant": {
+      "type": "object",
+
+      "properties": {
+        "layout": {
+          "$ref": "#/$defs/layoutContract"
+        },
+
+        "style": {
+          "$ref": "#/$defs/styleContract"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "responsiveConfig": {
+      "type": "object",
+
+      "properties": {
+        "desktop": {
+          "$ref": "#/$defs/responsiveVariant"
+        },
+
+        "tablet": {
+          "$ref": "#/$defs/responsiveVariant"
+        },
+
+        "mobile": {
+          "$ref": "#/$defs/responsiveVariant"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "animationSpec": {
+      "type": "object",
+
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+
+        "durationMs": {
+          "type": "number"
+        },
+
+        "easing": {
+          "type": "string"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "transitionSpec": {
+      "type": "object",
+
+      "properties": {
+        "property": {
+          "type": "string"
+        },
+
+        "durationMs": {
+          "type": "number"
+        },
+
+        "easing": {
+          "type": "string"
+        }
+      },
+
+      "additionalProperties": false
+    },
+
+    "eventsContract": {
+      "type": "object",
+
+      "properties": {
+        "onClick": {
+          "type": "string"
+        },
+
+        "hover": {
+          "type": "string"
+        },
+
+        "focus": {
+          "type": "string"
+        },
+
+        "animation": {
+          "$ref": "#/$defs/animationSpec"
+        },
+
+        "transition": {
+          "$ref": "#/$defs/transitionSpec"
+        }
+      },
+
+      "additionalProperties": false
+    }
+  }
+}

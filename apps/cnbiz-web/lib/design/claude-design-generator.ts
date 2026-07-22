@@ -1,6 +1,7 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
 import type { PrototypeRecord } from "./prototype";
 import type { ClaudeDesignContent } from "./claude-design";
+import { prototypeToClaudeDesignSource, type ClaudeDesignSource } from "./claude-design-document-adapter";
 
 const SYSTEM_PROMPT =
   "You are a senior design prompt engineer for AI Business OS's Design Automation system " +
@@ -12,24 +13,31 @@ const SYSTEM_PROMPT =
   "tool (such as Claude Design) to actually render the UI. Follow the shape the user message " +
   "describes exactly, and keep screen/component names consistent with the prototype provided.";
 
-function buildUserPrompt(prototype: PrototypeRecord): string {
-  return `Prototype Screens (from Phase 4's prototype):
-${JSON.stringify(prototype.content.screens)}
+/** `source`는 prototypeToClaudeDesignSource()가 만든 DesignDocument 기준 입력(Phase 6 Adapter). */
+function buildUserPrompt(source: ClaudeDesignSource): string {
+  return `Design Document Pages (id/title/path/sections — docs/architecture/DESIGN_JSON_SPEC.md):
+${JSON.stringify(source.document.pages)}
+
+Design Document Theme:
+${JSON.stringify(source.document.theme)}
+
+Prototype Screens (from Phase 4's prototype):
+${JSON.stringify(source.screens)}
 
 Component Actions:
-${JSON.stringify(prototype.content.componentActions)}
+${JSON.stringify(source.componentActions)}
 
 Interaction Map:
-${JSON.stringify(prototype.content.interactionMap)}
+${JSON.stringify(source.interactionMap)}
 
 Animation Previews:
-${JSON.stringify(prototype.content.animationPreviews)}
+${JSON.stringify(source.animationPreviews)}
 
 User Journeys:
-${JSON.stringify(prototype.content.userJourneys)}
+${JSON.stringify(source.userJourneys)}
 
 Prototype Preview Summary:
-${JSON.stringify(prototype.content.preview)}
+${JSON.stringify(source.preview)}
 
 Return ONLY a JSON object shaped like:
 {
@@ -85,12 +93,16 @@ export function parseClaudeDesignContent(raw: string): ClaudeDesignContent | nul
 }
 
 /**
- * Phase 4의 화면·인터랙션·컴포넌트 구성만으로 항상 유효한 5종 프롬프트를 만드는 결정론적
- * 폴백 — Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다
- * (lib/design/prototype-generator.ts의 buildDefaultPrototype()과 동일한 역할).
+ * DesignDocument(+ Phase 4 원본에서 그대로 옮긴 화면·인터랙션·컴포넌트 구성)만으로 항상 유효한
+ * 5종 프롬프트를 만드는 결정론적 폴백 — Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈
+ * 상태가 되지 않는다(lib/design/prototype-generator.ts의 buildDefaultPrototype()과 동일한 역할).
  */
 export function buildDefaultClaudeDesign(prototype: PrototypeRecord): ClaudeDesignContent {
-  const { screens, componentActions, interactionMap, animationPreviews, userJourneys, preview } = prototype.content;
+  return buildClaudeDesignFromSource(prototypeToClaudeDesignSource(prototype));
+}
+
+function buildClaudeDesignFromSource(source: ClaudeDesignSource): ClaudeDesignContent {
+  const { screens, componentActions, interactionMap, animationPreviews, userJourneys, preview } = source;
 
   const screenNames = screens.map((s) => s.screen).join(", ") || "the site's screens";
   const componentNames = [...new Set(componentActions.map((a) => a.component))];
@@ -150,7 +162,8 @@ export async function generateClaudeDesign(
   prototype: PrototypeRecord,
   chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateClaudeDesignResult> {
-  const result = await chatFn(buildUserPrompt(prototype), { system: SYSTEM_PROMPT });
+  const source = prototypeToClaudeDesignSource(prototype);
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {
     const parsed = parseClaudeDesignContent(result.content);

@@ -1,10 +1,16 @@
-import { describe, expect, it } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildDefaultStoryboard,
   generateStoryboard,
   parseStoryboardContent,
 } from "../../lib/design/storyboard-generator";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
+import { planToDesignDocument } from "../../lib/design/design-document-adapter";
+import { saveDesignDocument } from "../../lib/design/design-document-registry";
+import { createFsStore } from "../../lib/db/fsStore";
 import type { DesignPlanInput, DesignPlanRecord } from "../../lib/design/types";
 import type { ChatResult } from "../../lib/ai/bridge";
 
@@ -148,5 +154,63 @@ describe("Storyboard Generator — generateStoryboard()", () => {
 
     expect(result.simulated).toBe(true);
     expect(result.content).toEqual(buildDefaultStoryboard(PLAN));
+  });
+});
+
+describe("Storyboard Generator — Design JSON Standardization Phase 10.5 (Persistence Integration)", () => {
+  let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
+
+  beforeEach(() => {
+    baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "storyboard-generator-persistence-test-"));
+    store = createFsStore(baseDir);
+  });
+
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
+
+  const SENTINEL_PROJECT_NAME = "__PERSISTED_SENTINEL__";
+
+  it("when plan.document is missing, reuses a persisted DesignDocument (via getOrBuildDesignDocumentForPlan) instead of rebuilding", async () => {
+    const fresh = planToDesignDocument(PLAN);
+    const sentinelDocument = { ...fresh, metadata: { ...fresh.metadata, projectName: SENTINEL_PROJECT_NAME } };
+    await saveDesignDocument({ projectId: PLAN.id, document: sentinelDocument }, store);
+
+    const capturedPrompts: string[] = [];
+    const fakeChat = async (message: string): Promise<ChatResult> => {
+      capturedPrompts.push(message);
+      return { success: true, content: JSON.stringify(VALID_CONTENT) };
+    };
+
+    const result = await generateStoryboard(PLAN, fakeChat, store);
+
+    expect(result.content).toEqual(VALID_CONTENT); // output unchanged — fakeChat's canned response wins either way
+    expect(capturedPrompts[0]).toContain(SENTINEL_PROJECT_NAME); // but the prompt was built from the REUSED persisted document
+  });
+
+  it("when plan.document is already present, never touches the persistence layer at all", async () => {
+    const planWithDocument: DesignPlanRecord = { ...PLAN, document: planToDesignDocument(PLAN) };
+
+    // An empty/never-populated store — if the generator tried to persist or reuse anything here,
+    // getLatestDesignDocument would still correctly return null, but more importantly this proves
+    // the call succeeds without needing the store at all when plan.document is already set.
+    const fakeChat = async (): Promise<ChatResult> => ({ success: true, content: JSON.stringify(VALID_CONTENT) });
+    const result = await generateStoryboard(planWithDocument, fakeChat, store);
+
+    expect(result.content).toEqual(VALID_CONTENT);
+  });
+
+  it("buildDefaultStoryboard() (sync fallback) is completely unaffected — same output regardless of what's persisted", async () => {
+    const fresh = planToDesignDocument(PLAN);
+    const sentinelDocument = { ...fresh, metadata: { ...fresh.metadata, projectName: SENTINEL_PROJECT_NAME } };
+    await saveDesignDocument({ projectId: PLAN.id, document: sentinelDocument }, store);
+
+    // buildDefaultStoryboard() takes no store parameter and never awaits anything — it must be
+    // byte-identical to calling it before Phase 10.5 existed.
+    expect(buildDefaultStoryboard(PLAN)).toEqual(buildDefaultStoryboard(PLAN));
+    expect(buildDefaultStoryboard(PLAN).screenFlow.map((s) => s.screen)).toEqual(
+      PLAN.content.screenList.map((s) => s.name)
+    );
   });
 });

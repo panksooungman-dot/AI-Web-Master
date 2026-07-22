@@ -1,5 +1,6 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
-import { COMPONENT_TYPES, type ComponentType, type ScreenLayout, type WireframeRecord } from "./wireframe";
+import { COMPONENT_TYPES, type ComponentType, type WireframeRecord } from "./wireframe";
+import { wireframeToPrototypeSource, type PrototypeSource } from "./prototype-document-adapter";
 import type {
   AnimationPreview,
   ClickFlow,
@@ -160,26 +161,22 @@ const SYSTEM_PROMPT =
   ". Follow the shape the user message describes exactly, and keep screen names consistent with " +
   "the wireframe screens provided.";
 
-function componentsForScreen(layout: ScreenLayout): ComponentType[] {
-  return [...new Set(layout.desktop.sections.flatMap((section) => section.components))];
-}
-
 function pickPrimaryComponent(components: ComponentType[]): ComponentType {
   return PRIMARY_COMPONENT_PRIORITY.find((type) => components.includes(type)) ?? components[0] ?? "Header";
 }
 
-function buildUserPrompt(wireframe: WireframeRecord): string {
-  return `Wireframe Screens (from Phase 3's screen layouts):
-${JSON.stringify(
-  wireframe.content.layouts.map((layout) => ({
-    screen: layout.screen,
-    path: layout.path,
-    components: componentsForScreen(layout),
-  }))
-)}
+/** `source`는 wireframeToPrototypeSource()가 만든 DesignDocument 기준 입력(Phase 5 Adapter). */
+function buildUserPrompt(source: PrototypeSource): string {
+  const componentInventory = [...new Set(source.screens.flatMap((screen) => screen.components))];
+
+  return `Design Document Pages (id/title/path — docs/architecture/DESIGN_JSON_SPEC.md):
+${JSON.stringify(source.document.pages.map((page) => ({ id: page.id, title: page.title, path: page.path })))}
+
+Screens (components per page):
+${JSON.stringify(source.screens)}
 
 Component Inventory:
-${JSON.stringify(wireframe.content.components.map((c) => c.type))}
+${JSON.stringify(componentInventory)}
 
 Allowed component types: ${COMPONENT_TYPES.join(", ")}
 Allowed transition types: ${TRANSITION_TYPES.join(", ")}
@@ -361,26 +358,31 @@ export function parsePrototypeContent(raw: string): PrototypeContent | null {
 }
 
 /**
- * Phase 3의 화면·컴포넌트 구성만으로 항상 유효한 Prototype을 만드는 결정론적 폴백 — Provider
- * 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다(lib/design/wireframe-generator.ts의
- * buildDefaultWireframe()과 동일한 역할).
+ * DesignDocument(+ Phase 3 원본으로 보강된 화면별 컴포넌트 구성)만으로 항상 유효한 Prototype을
+ * 만드는 결정론적 폴백 — Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다
+ * (lib/design/wireframe-generator.ts의 buildDefaultWireframe()과 동일한 역할). 화면 구조 자체는
+ * wireframeToPrototypeSource()가 DesignDocument.pages를 기준으로 만든 `screens`에서 가져온다.
  */
 export function buildDefaultPrototype(wireframe: WireframeRecord): PrototypeContent {
-  const layouts = wireframe.content.layouts;
-  const screens: PrototypeScreenRef[] = layouts.map((layout) => ({ screen: layout.screen, path: layout.path }));
+  return buildPrototypeFromSource(wireframeToPrototypeSource(wireframe));
+}
+
+function buildPrototypeFromSource(source: PrototypeSource): PrototypeContent {
+  const sourceScreens = source.screens;
+  const screens: PrototypeScreenRef[] = sourceScreens.map((screen) => ({ screen: screen.screen, path: screen.path }));
   const componentsByScreen = new Map<string, ComponentType[]>();
-  for (const layout of layouts) {
-    componentsByScreen.set(layout.screen, componentsForScreen(layout));
+  for (const screen of sourceScreens) {
+    componentsByScreen.set(screen.screen, screen.components);
   }
 
-  const clickSteps: ClickFlowStep[] = layouts.map((layout, index) => {
-    const components = componentsByScreen.get(layout.screen) ?? [];
+  const clickSteps: ClickFlowStep[] = sourceScreens.map((screen, index) => {
+    const components = componentsByScreen.get(screen.screen) ?? [];
     const primary = pickPrimaryComponent(components);
-    const next = layouts[index + 1]?.screen ?? "Complete";
+    const next = sourceScreens[index + 1]?.screen ?? "Complete";
 
     return {
       step: index + 1,
-      screen: layout.screen,
+      screen: screen.screen,
       element: primary,
       action: COMPONENT_BEHAVIOR[primary].action,
       leadsTo: next,
@@ -388,10 +390,10 @@ export function buildDefaultPrototype(wireframe: WireframeRecord): PrototypeCont
   });
   const clickFlows: ClickFlow[] = [{ name: "Primary Flow", steps: clickSteps }];
 
-  const navigationFlow: NavigationEdge[] = layouts.slice(0, -1).map((layout, index) => ({
-    from: layout.screen,
-    to: layouts[index + 1].screen,
-    trigger: `${layout.screen}에서 ${layouts[index + 1].screen}로 이동`,
+  const navigationFlow: NavigationEdge[] = sourceScreens.slice(0, -1).map((screen, index) => ({
+    from: screen.screen,
+    to: sourceScreens[index + 1].screen,
+    trigger: `${screen.screen}에서 ${sourceScreens[index + 1].screen}로 이동`,
   }));
 
   const screenTransitions: ScreenTransition[] = navigationFlow.map((edge) => {
@@ -405,17 +407,19 @@ export function buildDefaultPrototype(wireframe: WireframeRecord): PrototypeCont
     };
   });
 
-  const interactionMap: ScreenInteractionMap[] = layouts.map((layout) => {
-    const components = componentsByScreen.get(layout.screen) ?? [];
+  const interactionMap: ScreenInteractionMap[] = sourceScreens.map((screen) => {
+    const components = componentsByScreen.get(screen.screen) ?? [];
     const interactions: InteractionSpec[] = components.map((type) => ({
       element: type,
       trigger: COMPONENT_BEHAVIOR[type].trigger,
       result: COMPONENT_BEHAVIOR[type].result,
     }));
-    return { screen: layout.screen, interactions };
+    return { screen: screen.screen, interactions };
   });
 
-  const usedComponents = [...new Set(layouts.flatMap((layout) => componentsByScreen.get(layout.screen) ?? []))];
+  const usedComponents = [
+    ...new Set(sourceScreens.flatMap((screen) => componentsByScreen.get(screen.screen) ?? [])),
+  ];
   const componentActions: ComponentAction[] = COMPONENT_TYPES.filter((type) => usedComponents.includes(type)).map(
     (type) => ({ component: type, action: COMPONENT_BEHAVIOR[type].action, description: COMPONENT_BEHAVIOR[type].result })
   );
@@ -425,21 +429,21 @@ export function buildDefaultPrototype(wireframe: WireframeRecord): PrototypeCont
     {
       persona: "일반 방문자",
       goal: `${startScreen}부터 시작해 주요 화면을 탐색하고 핵심 액션을 완료한다.`,
-      steps: layouts.map((layout, index) => ({
+      steps: sourceScreens.map((screen, index) => ({
         step: index + 1,
-        screen: layout.screen,
-        action: `${layout.screen} 화면에서 주요 인터랙션을 수행한다.`,
-        emotion: index === layouts.length - 1 ? "만족" : "탐색",
+        screen: screen.screen,
+        action: `${screen.screen} 화면에서 주요 인터랙션을 수행한다.`,
+        emotion: index === sourceScreens.length - 1 ? "만족" : "탐색",
       })),
     },
   ];
 
-  const animationPreviews: AnimationPreview[] = layouts.map((layout) => {
-    const components = componentsByScreen.get(layout.screen) ?? [];
+  const animationPreviews: AnimationPreview[] = sourceScreens.map((screen) => {
+    const components = componentsByScreen.get(screen.screen) ?? [];
     const primary = pickPrimaryComponent(components);
     const behavior = COMPONENT_BEHAVIOR[primary];
     return {
-      screen: layout.screen,
+      screen: screen.screen,
       animation: behavior.animation,
       trigger: behavior.animationTrigger,
       durationMs: behavior.durationMs,
@@ -483,7 +487,8 @@ export async function generatePrototype(
   wireframe: WireframeRecord,
   chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
 ): Promise<GeneratePrototypeResult> {
-  const result = await chatFn(buildUserPrompt(wireframe), { system: SYSTEM_PROMPT });
+  const source = wireframeToPrototypeSource(wireframe);
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {
     const parsed = parsePrototypeContent(result.content);

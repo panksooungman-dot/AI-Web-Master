@@ -6,6 +6,9 @@
   "types": "./tokens.ts",
   "exports": {
     ".": "./tokens.ts",
-    "./theme.css": "./theme.css"
+    "./theme.css": "./theme.css",
+    "./types/design": "./types/design.ts",
+    "./schemas/design.schema.json": "./schemas/design.schema.json",
+    "./validators/design-validator": "./validators/design-validator.ts"
   }
 }

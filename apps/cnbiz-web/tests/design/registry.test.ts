@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
 import { createDesignPlan, getDesignPlan, listDesignPlans } from "../../lib/design/registry";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
+import { getLatestDesignDocument } from "../../lib/design/design-document-registry";
 import type { DesignPlanInput } from "../../lib/design/types";
 
 const INPUT: DesignPlanInput = {
@@ -69,5 +70,36 @@ describe("Design Registry — lib/design/registry.ts", () => {
 
     expect(record.provider).toBe("openai");
     expect(record.model).toBe("gpt-4o-mini");
+  });
+
+  describe("Design JSON Standardization Phase 10.5 — Planning as the first persistence point", () => {
+    it("createDesignPlan() also persists a Version 1 DesignDocument in the dedicated registry", async () => {
+      const content = buildDefaultDesignPlan(INPUT);
+      const record = await createDesignPlan({ input: INPUT, content, simulated: true }, store);
+
+      const persisted = await getLatestDesignDocument(record.id, store);
+      expect(persisted).not.toBeNull();
+      expect(persisted?.version).toBe(1);
+      expect(persisted?.status).toBe("current");
+      expect(persisted?.document).toEqual(record.document);
+    });
+
+    it("does not change createDesignPlan()'s returned shape/values (Backward Compatibility)", async () => {
+      const content = buildDefaultDesignPlan(INPUT);
+      const record = await createDesignPlan({ input: INPUT, content, simulated: true }, store);
+
+      // Every field that existed before Phase 10.5 is still exactly what it was.
+      expect(Object.keys(record).sort()).toEqual(["content", "createdAt", "document", "id", "input", "simulated"].sort());
+      expect(record.document).toBeDefined();
+    });
+
+    it("a second createDesignPlan() call for a different plan persists an independent Version 1 (not a shared version counter)", async () => {
+      const content = buildDefaultDesignPlan(INPUT);
+      const first = await createDesignPlan({ input: INPUT, content, simulated: true }, store);
+      const second = await createDesignPlan({ input: { ...INPUT, projectName: "Second" }, content, simulated: true }, store);
+
+      expect((await getLatestDesignDocument(first.id, store))?.version).toBe(1);
+      expect((await getLatestDesignDocument(second.id, store))?.version).toBe(1);
+    });
   });
 });

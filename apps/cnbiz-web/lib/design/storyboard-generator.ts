@@ -1,5 +1,9 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 import type { DesignPlanRecord } from "./types";
+import { planToStoryboardSource, type StoryboardSource } from "./storyboard-document-adapter";
+import { getOrBuildDesignDocumentForPlan } from "./design-document-service";
 import type {
   NavigationFlowEdge,
   PageSequenceItem,
@@ -17,16 +21,17 @@ const SYSTEM_PROMPT =
   "shape the user message describes exactly, and keep screen names consistent with the Screen " +
   "List provided.";
 
-function buildUserPrompt(plan: DesignPlanRecord): string {
-  return `Project Name: ${plan.input.projectName}
-Project Summary: ${plan.content.requirementAnalysis.projectSummary}
-Target Users: ${plan.content.requirementAnalysis.targetUsers.join(", ")}
+/** `source`는 planToStoryboardSource()가 만든 DesignDocument 기준 입력(Phase 3 Adapter). */
+function buildUserPrompt(source: StoryboardSource): string {
+  return `Project Name: ${source.projectName}
+Project Summary: ${source.projectSummary}
+Target Users: ${source.targetUsers.join(", ")}
 
-Site Map:
-${JSON.stringify(plan.content.siteMap)}
+Design Document Pages (id/title/path — docs/architecture/DESIGN_JSON_SPEC.md):
+${JSON.stringify(source.document.pages.map((page) => ({ id: page.id, title: page.title, path: page.path })))}
 
-Screen List:
-${JSON.stringify(plan.content.screenList)}
+Screen Details:
+${JSON.stringify(source.screens)}
 
 Return ONLY a JSON object shaped like:
 {
@@ -137,34 +142,39 @@ export function parseStoryboardContent(raw: string): StoryboardContent | null {
 }
 
 /**
- * Phase 1의 Site Map/Screen List만으로 항상 유효한 Storyboard를 만드는 결정론적 폴백 —
- * Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다
- * (lib/design/generator.ts의 buildDefaultDesignPlan()과 동일한 역할).
+ * DesignDocument(+ Phase 1 원본으로 보강된 화면 설명)만으로 항상 유효한 Storyboard를 만드는
+ * 결정론적 폴백 — Provider 미설정이거나 응답 파싱에 실패해도 화면이 빈 상태가 되지 않는다
+ * (lib/design/generator.ts의 buildDefaultDesignPlan()과 동일한 역할). 화면 구조 자체는
+ * planToStoryboardSource()가 DesignDocument.pages를 기준으로 만든 `screens`에서 가져온다.
  */
 export function buildDefaultStoryboard(plan: DesignPlanRecord): StoryboardContent {
-  const screens = plan.content.screenList;
-  const persona = plan.content.requirementAnalysis.targetUsers[0] ?? "일반 방문자";
+  return buildStoryboardFromSource(planToStoryboardSource(plan));
+}
+
+function buildStoryboardFromSource(source: StoryboardSource): StoryboardContent {
+  const screens = source.screens;
+  const persona = source.targetUsers[0] ?? "일반 방문자";
 
   const screenFlow: ScreenFlowNode[] = screens.map((screen) => ({
-    screen: screen.name,
+    screen: screen.screen,
     path: screen.path,
     description: screen.description,
   }));
 
   const navigationFlow: NavigationFlowEdge[] = screens.slice(0, -1).map((screen, index) => ({
-    from: screen.name,
-    to: screens[index + 1].name,
-    trigger: `${screen.name}에서 다음 화면으로 이동`,
+    from: screen.screen,
+    to: screens[index + 1].screen,
+    trigger: `${screen.screen}에서 다음 화면으로 이동`,
   }));
 
   const pageSequence: PageSequenceItem[] = screens.map((screen, index) => ({
     order: index + 1,
-    screen: screen.name,
+    screen: screen.screen,
     path: screen.path,
   }));
 
   const screenDescriptions: ScreenDescription[] = screens.map((screen) => ({
-    screen: screen.name,
+    screen: screen.screen,
     path: screen.path,
     purpose: screen.description,
     keyElements: screen.components,
@@ -173,10 +183,10 @@ export function buildDefaultStoryboard(plan: DesignPlanRecord): StoryboardConten
   const userJourneys: UserJourney[] = [
     {
       persona,
-      goal: `${plan.input.projectName} 웹사이트에서 필요한 정보를 확인하고 문의를 남긴다.`,
+      goal: `${source.projectName} 웹사이트에서 필요한 정보를 확인하고 문의를 남긴다.`,
       steps: screens.map((screen, index) => ({
         step: index + 1,
-        screen: screen.name,
+        screen: screen.screen,
         goal: screen.description,
         emotion: index === screens.length - 1 ? "만족" : "탐색",
       })),
@@ -200,9 +210,22 @@ export interface GenerateStoryboardResult {
  */
 export async function generateStoryboard(
   plan: DesignPlanRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli,
+  store: CollectionStore = getDefaultStore()
 ): Promise<GenerateStoryboardResult> {
-  const result = await chatFn(buildUserPrompt(plan), { system: SYSTEM_PROMPT });
+  // Design JSON Standardization Phase 10.5 — plan.document가 이미 있으면(Planning이 이미 채워
+  // 둔 경우, 통상적인 경로) 그대로 쓰고, 없으면 Phase 10 영속 계층에서 재사용하거나 새로 만들어
+  // 저장한다(getOrBuildDesignDocumentForPlan() 재사용 — 새 로직 아님). Storyboard Adapter
+  // (storyboard-document-adapter.ts)는 이번 Phase에서 전혀 수정하지 않는다 — 그 파일의 기존
+  // `plan.document ?? planToDesignDocument(plan)` 폴백이 여기서 이미 채워 넣은 document를
+  // 그대로 재사용하게 될 뿐이다. buildDefaultStoryboard()(동기 폴백, 아래)는 원래 `plan`을
+  // 그대로 사용하므로 이 변경과 무관하게 기존과 100% 동일하게 동작한다.
+  const planForSource: DesignPlanRecord = plan.document
+    ? plan
+    : { ...plan, document: await getOrBuildDesignDocumentForPlan(plan, store) };
+
+  const source = planToStoryboardSource(planForSource);
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {
     const parsed = parseStoryboardContent(result.content);

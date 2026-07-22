@@ -30,7 +30,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 90% | Home/About/Services/Portfolio(공개 4페이지). 문의·제작의뢰 폼은 의도적으로 제거, `/contact`·`/request`는 cnbiz.ai.kr로 308 redirect. Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
-| Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작(Inquiry 관리자 화면에 AI 분석 카드 포함). 신규: Phase 01·02·09 대시보드(`/developer/{analysis,planning,deployment}`, 아래 참고), AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`, UI 스캐폴딩·TODO 스텁). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세에서 연결된 레코드는 확인 가능) |
+| Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작(Inquiry 관리자 화면에 AI 분석 카드 포함). Phase 01·02·09 대시보드(`/developer/{analysis,planning,deployment}`, 아래 참고). AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`) — 2026-07-22 파이프라인 점검에서 "AI 분석 시작" 버튼이 console.log만 남기고 아무 레코드도 만들지 않던 끊긴 연결부였음을 확인·수정, 이제 실제로 Inquiry→AI Analysis→Client→WebsiteOrder→AiJob→AI Job 실행까지 연결됨(아래 "최근 완료 작업" 참고). Supabase Storage 업로드·OCR만 여전히 TODO(첨부파일은 파일명만 요구사항에 기록). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세에서 연결된 레코드는 확인 가능) |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
 | **Customer Inquiry Pipeline** | **93%** | 데이터 계층·External API·Worker·Executor·자동 실행 트리거·관리자 UI·**AI Analysis Engine(Completeness/Missing Items/Business Type/추천 페이지·기능/Summary)**까지 전부 연결되어 실사용 가능(아래 참고). 기술 견적서/기능 명세서/프로젝트 타임라인은 의도적으로 다음 Phase로 분리(입력값으로 이 Analysis 결과를 사용할 예정) |
 | 인증/권한 | 82% | 세션 인증 + API Key 인증(x-api-key) + RBAC 4-role 완비. signup 백엔드·역할관리 UI만 없음 |
@@ -45,7 +45,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 - CNBIZ.KR 브랜드 홈페이지(Home/About/Services/Portfolio) — 문의·제작 의뢰 폼은 의도적으로 제거(아래 참고)
 - Development OS 대시보드 38개 페이지(Terminal/Workspace/GitHub/AI Workspace/Website Builder/Workflow Center/Marketplace/Settings/Logs/Health/Audit Log/Metrics/Backup/Design Automation 9종/AI 의뢰 관리 등)
 - **Phase 01·02·09 대시보드**(`/developer/analysis`, `/developer/planning`, `/developer/deployment`, 신규) — 새 분석·기획·배포 엔진을 만들지 않고 기존 문서·기존 API/lib 함수만 연결한 읽기 전용 집계 화면. Analysis는 `lib/inquiries/registry.ts`의 `listInquiries()`로 AI 분석 완성도·업종 분포를 집계하고 `PROJECT_STATUS.md`(본 문서)·`REQUEST.md`류를 fs로 직접 읽어 표시. Planning은 `lib/workflows/registry.ts`·`lib/workflows/engine.ts`의 기존 Workflow 정의·Run 이력을 집계. Deployment는 `lib/health/checks.ts`(`/api/health`와 동일 함수)로 Git 상태·Health 캐시를 보여주고 `.github/workflows/*.yml`을 정적 파싱해 CI 파이프라인 목록을 표시. 3개 페이지와 그 데이터 원본 화면(AI 의뢰 관리·Workflow Center·Health·Design·Website Builder) 사이에 상호 탐색 링크를 추가해 Design Automation이 이미 쓰던 "이전/다음 단계" 내비게이션 관례를 따름
-- AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`, 신규) — 문의 제목/고객명/회사명/문의 내용/첨부파일(드래그앤드롭) 입력 UI. "AI 분석 시작" 버튼은 현재 OpenAI를 호출하지 않고 콘솔 로그만 남기는 TODO 스텁(Supabase Storage 업로드·OCR·AI 분석·요구사항 문서 생성 등은 코드에 TODO로 명시, 향후 `lib/ai-analysis/analysis.ts`의 `generateAnalysis()` 재사용 예정)
+- AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`) — 문의 제목/고객명/회사명/이메일/문의 내용/첨부파일(드래그앤드롭) 입력 UI. "AI 분석 시작" 버튼이 `POST /api/inquiries`(신규 POST 핸들러, 기존 GET 라우트에 추가)를 호출해 `POST /api/external/inquiries`와 동일한 Inquiry→AI Analysis→Client→WebsiteOrder→AiJob→AI Job 실행→관리자 알림 파이프라인을 그대로 재사용(source만 "manual"로 구분, 새 Registry/API/Engine 없음). 성공 시 생성된 Inquiry 상세 화면으로 이동. Supabase Storage 업로드·OCR만 여전히 TODO(첨부파일은 파일명만 요구사항 텍스트에 기록, 실제 업로드 없음)
 - 인증(이메일/비밀번호 세션) + RBAC 4-role — `lib/auth/{types,password,users,session,auth,middleware,rbac}.ts`, `proxy.ts`
 - Website Builder v2(CLI `ai website create` + 대시보드) — `packages/cli/src/website/*`, `lib/websites/registry.ts`, `/developer/websites`
 - Database — `lib/db/{collectionStore,fsStore,memoryStore,supabaseStore,index}.ts`(단일 Supabase 테이블 `app_collections`)
@@ -94,6 +94,31 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 
 ## 최근 완료 작업
 
+- **Admin Inquiry Pipeline 전수 점검 + 끊긴 연결부 수정**(2026-07-22) — 관리자 의뢰 파이프라인
+  (New Inquiry→Inquiry→AI Analysis→Planning→WebsiteOrder→AiJob→Website Builder) 전체를
+  코드 추적으로 검증. `POST /api/external/inquiries`(챗봇 전용) 경로는 이미 전 구간 정상
+  연결되어 있음을 확인. 유일하게 끊긴 지점은 관리자 UI `/developer/inquiries/new`의
+  "AI 분석 시작" 버튼 — console.log만 남기고 어떤 레코드도 만들지 않는 TODO 스텁이었다.
+  `app/api/inquiries/route.ts`에 `POST` 핸들러를 신규 추가해 이미 완성된 파이프라인
+  (`createInquiry`·`generateAnalysis`/`saveInquiryAnalysis`·`findOrCreateClientByEmail`·
+  `createWebsiteOrder`·`createAiJob`·`processJob`·`linkInquiryToClientAndOrder`·
+  `notifyAdminOfNewInquiry`)을 그대로 재사용해 연결(source: "manual", 새 Registry·
+  CollectionStore·API·Workflow Engine·AI Analysis·WebsiteOrder 로직 없음 — 이 라우트는
+  proxy.ts 기본 규칙으로 이미 "developer" 세션 게이팅을 받고 있어 별도 인증 코드도 불필요).
+  이 연결에 필요했던 이메일 입력 필드(`InquiryInput.email`이 필수인데 폼에 없었음)와
+  고객명 클라이언트 측 필수 검증(`validateInquiryInput()`이 서버에서 이미 요구하는데 폼에는
+  검증이 없었음)을 함께 추가. "Planning" 단계는 이 저장소에 Inquiry 전용 Planning Job이
+  별도로 존재하지 않고 `/developer/planning`(기존 Workflow Engine 집계 대시보드, Phase 02)이
+  이를 대신함을 확인 — 새 Planning 엔진을 만들지 않고 기존 구조를 그대로 유지. `npx tsc
+  --noEmit`·`npm run lint`·`npm run build` 전부 통과. 실 E2E: 임시 developer 계정으로 로그인 →
+  Playwright 실 브라우저로 `/developer/inquiries/new` 폼 작성 → "AI 분석 시작" 클릭 →
+  `/developer/inquiries/[id]`로 정상 이동 확인 → 생성된 Inquiry/Client/WebsiteOrder/AiJob/
+  Website 레코드가 FK로 전부 정확히 연결되고 AI Analysis 결과가 저장됨을 직접 확인. AiJob의
+  Website Builder 실행 단계는 이 Linux 샌드박스에 `powershell.exe`가 없어(`lib/terminal/
+  server.ts`가 OS 무관하게 하드코딩— 기존에 알려진 Windows 전용 완성 모듈, 이번 범위에서
+  변경하지 않음) Failed로 종료되었으나, 동일 CLI 명령을 `node packages/cli/dist/index.js
+  website create ...`로 직접 실행하면 정상적으로 프로젝트를 생성함을 별도로 확인해, 파이프라인
+  연결 자체는 정상이고 실패 원인이 샌드박스의 플랫폼 제약임을 검증
 - **Phase 01·02·09 대시보드 + AI 의뢰 관리 "새 문의 등록" UI**(2026-07-22) — Development OS에
   Analysis(`/developer/analysis`)·Planning(`/developer/planning`)·Deployment(`/developer/deployment`)
   3개 신규 대시보드를 추가. 새 분석/기획/배포 엔진·새 API·새 DB 컬렉션은 만들지 않고, 기존

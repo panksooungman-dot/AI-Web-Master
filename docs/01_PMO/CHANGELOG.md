@@ -8,11 +8,13 @@
 
 ### 수정 (Fixed) — CI 안정화
 
-- **`.github/workflows/security.yml` — Secret Scan 자체 매칭 버그 수정**: 시크릿 패턴을 찾는
-  `grep -R -E "(AKIA|AIza|ghp_|xoxb-|-----BEGIN PRIVATE KEY-----)" .` 명령이 저장소 전체를
-  스캔하면서 이 명령 자신이 정의된 `security.yml`의 그 줄(패턴 문자열 자체)을 매칭해 항상
-  `exit 1`로 실패하던 버그를 실제로 재현·확인. 실제 시크릿은 이 저장소 어디에도 없음을
-  확인(`--exclude-dir=.github` 적용 전/후 각각 grep 결과 비교, 매칭이 그 한 줄뿐이었음을 확인).
+- **`.github/workflows/security.yml` — Secret Scan 자체 매칭 버그 수정**: AWS/Google API
+  키·GitHub 토큰·Slack 토큰·PEM 개인키 패턴을 찾는 grep 명령이 저장소 전체를 스캔하면서
+  그 패턴 자체가 정의된 `security.yml`의 해당 줄을 스스로 매칭해 항상 `exit 1`로 실패하던
+  버그를 실제로 재현·확인(주의: 이 CHANGELOG 항목도 grep 대상이므로, 위에서 그 패턴 문자열을
+  그대로 인용하면 동일하게 자기매칭이 재발한다 — 그래서 의도적으로 패턴을 인용하지 않고
+  설명으로만 서술함). 실제 시크릿은 이 저장소 어디에도 없음을 확인(`--exclude-dir=.github`
+  적용 전/후 각각 grep 결과 비교, 매칭이 그 한 줄뿐이었음을 확인).
   `--exclude-dir=.github` 1줄만 추가(CI 워크플로·PR 템플릿만 담긴 디렉터리라 실질적인 시크릿
   탐지 범위 손실 없음) — Security Scan의 목적(실제 소스에서 유출된 시크릿 탐지)은 그대로 유지
 - **`skills/README.md` 신규 추가**: `docs.yml`이 요구하는 10개 필수 문서 중 유일하게 누락되어

@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-07-22 (4)
+
+### 추가 (Added)
+
+- **Clients Dashboard**: `app/developer/clients/{page.tsx,[id]/page.tsx}`(신규). Client
+  Domain(`lib/clients/*`, `app/api/clients*`)은 이미 Registry·API·Database가 전부 완결되어
+  있어 코드 한 줄도 수정하지 않고 UI만 구현
+  - 목록(`/developer/clients`) — 요구사항대로 기존 `GET /api/clients` 하나만 사용. 연결된
+    Inquiry/Website Order 수는 `ClientRecord`가 이미 갖고 있는 `inquiryIds`/`websiteOrderIds`
+    배열 길이를 그대로 표시(추가 API 불필요). 회사명·담당자·이메일 검색, 최신순/오래된순/
+    회사명 정렬은 클라이언트 사이드로 구현. 상태 배지(신규/진행중/완료/취소)는 `ClientRecord`
+    자체에 상태 필드가 없어(`app/api/clients/[id]/route.ts`의 기존 주석: "Client는 상태 전이가
+    없는 순수 신원 레코드") 새 Status를 만드는 대신 연결된 WebsiteOrder의 기존
+    `WebsiteOrderStatus`를 화면에서만 파생(`app/developer/inquiries/page.tsx`가 Inquiry+AiJob
+    조합으로 파생 상태를 만드는 것과 동일한 원칙, 재사용 목적으로 이 목록 조회에 한해 기존
+    `GET /api/website-orders`도 함께 호출)
+  - 상세(`/developer/clients/[id]`) — `app/developer/inquiries/[id]/page.tsx`와 동일한
+    fetch-and-combine 패턴으로 기존 `GET /api/inquiries`·`GET /api/website-orders`·
+    `GET /api/ai-jobs`(전부 기존 API, 신규 라우트 없음)를 호출해 `client.inquiryIds`/
+    `websiteOrderIds`로 필터링한 연결 레코드(Inquiry/Website Order/AI Job)를 표시
+  - `components/developer`의 기존 Card/Badge/PageHeader/StatusMessage만 재사용. 요구사항의
+    "Table" 컴포넌트는 이 저장소에 존재하지 않아(`components/developer/` 전수 확인), 대신
+    Inquiries/Requests 등 이 저장소의 모든 기존 목록 화면이 쓰는 Card 기반 행 레이아웃을
+    그대로 따름(새 디자인 시스템 없음)
+  - `components/developer/DeveloperNav.tsx`에 "고객사 관리" 링크 1개 추가(다른 모든 대시보드
+    섹션과 동일한 관례)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors, 첫 시도에서 JSDoc 주석 안의 `lib/*/registry.ts` 문자열이 중첩
+  블록 코멘트로 해석돼 파싱 에러가 난 것을 발견해 주석 문구 수정) · `npm run lint`(0 errors,
+  상세 페이지의 `useEffect` 내 직접 `setState` 호출을 다른 모든 페이지와 동일한
+  `queueMicrotask(load)` 패턴으로 수정) · `npm run build`(신규 라우트 2개 포함 정상 생성)
+- 실 E2E: `scripts/create-auth-user.cjs`로 임시 계정 생성 시도 중, 이 스크립트가 실제로는
+  `./lib/data/users.json`(상대 경로)에 쓰는데 `lib/db/fsStore.ts`의 실제 기본 저장 경로는
+  `os.tmpdir()/cnbiz-web/data`라 서로 다른 파일임을 발견(스크립트 주석의 "matches
+  lib/db/fsStore.ts" 설명과 실제 동작이 어긋나는 기존 버그 — 이번 작업 범위 밖이라 수정하지
+  않고, 검증을 위해 해당 파일을 올바른 경로로 직접 복사만 함). 챗봇 파이프라인으로 고객사 2건
+  생성 → Playwright 실 브라우저로 로그인 → 목록에서 검색("브라이트" 입력 시 2건→1건 정상
+  필터링)·정렬(회사명 클릭) 확인 → 상세 페이지 진입 → Inquiry 1건·Website Order 1건·AI Job
+  2건(직전 세션의 Planning 작업이 만든 `generate_planning` Job이 여기서도 정확히 표시됨을
+  교차 확인) 정상 렌더링, 콘솔 에러 0건(로그인 전 `/api/auth/me` 401은 모든 페이지에 공통인
+  기존 동작, 회귀 아님) 확인. 검증에 사용한 임시 계정·데이터는 검증 후 전부 삭제
+- `PROJECT_STATUS.md` — Development OS 대시보드 진행률·페이지 수 갱신, "다음 작업 우선순위"
+  6번을 "WebsiteOrder만 남음"으로 갱신, "최근 완료 작업"에 이번 작업 기록
+
+---
+
 ## 2026-07-22 (3)
 
 ### 추가 (Added)

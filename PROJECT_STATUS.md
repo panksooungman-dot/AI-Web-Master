@@ -30,7 +30,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 90% | Home/About/Services/Portfolio(공개 4페이지). 문의·제작의뢰 폼은 의도적으로 제거, `/contact`·`/request`는 cnbiz.ai.kr로 308 redirect. Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
-| Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작(Inquiry 관리자 화면에 AI 분석 카드 포함). 신규: Phase 01·02·09 대시보드(`/developer/{analysis,planning,deployment}`, 아래 참고), AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`, UI 스캐폴딩·TODO 스텁). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세에서 연결된 레코드는 확인 가능) |
+| Development OS 대시보드 | 94% | `/developer/**` 40개 페이지 실동작(Inquiry 관리자 화면에 AI 분석 카드 포함). 신규: Phase 01·02·09 대시보드(`/developer/{analysis,planning,deployment}`), AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`, UI 스캐폴딩·TODO 스텁), **Clients Dashboard**(`/developer/clients`, `/developer/clients/[id]`, 아래 참고). WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry·Client 상세에서 연결된 레코드는 확인 가능) |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
 | **Customer Inquiry Pipeline** | **96%** | 데이터 계층·External API·Worker·Executor·자동 실행 트리거·관리자 UI·**AI Analysis Engine(Completeness/Missing Items/Business Type/추천 페이지·기능/Summary)**·**Planning Engine(기술 견적서/기능 명세서/프로젝트 일정, AI Business OS Phase 3)**까지 전부 연결되어 실사용 가능(아래 참고) |
 | 인증/권한 | 82% | 세션 인증 + API Key 인증(x-api-key) + RBAC 4-role 완비. signup 백엔드·역할관리 UI만 없음 |
@@ -78,7 +78,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 
 - Design Automation Phase 9(Website Build 연동) — 코드 존재, CHANGELOG 검증 기록 없음
 - 인증 — signup 백엔드·앱 내 역할관리 UI 없음(CLI 스크립트로만 가능)
-- Client/WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/clients/[id]`, `/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/clients`·`/developer/website-orders` 같은 자체 목록 화면은 아직 없음
+- WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`·`/developer/clients/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/website-orders` 같은 자체 목록 화면은 아직 없음(Client는 2026-07-22에 완료 — 아래 참고)
 
 ---
 
@@ -93,6 +93,29 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 ---
 
 ## 최근 완료 작업
+
+- **Clients Dashboard**(2026-07-22) — `/developer/clients`(목록)·`/developer/clients/[id]`(상세) 신규.
+  Client Domain(`lib/clients/*`, `app/api/clients*`)은 이미 완결되어 있어 전혀 수정하지 않음 —
+  UI만 구현. 목록은 요구사항대로 기존 `GET /api/clients` 하나만 사용(연결된 Inquiry/Order 수는
+  `ClientRecord`가 이미 갖고 있는 `inquiryIds`/`websiteOrderIds` 배열 길이를 그대로 표시, 추가
+  API 불필요), 회사명·담당자·이메일 검색과 최신순/오래된순/회사명 정렬은 클라이언트 사이드로
+  구현. 상태 배지(신규/진행중/완료/취소)는 `ClientRecord` 자체에는 상태 필드가 없어("Client는
+  상태 전이가 없는 순수 신원 레코드") 새 Status를 만드는 대신 연결된 WebsiteOrder의 기존
+  `WebsiteOrderStatus`를 화면에서만 파생(`/developer/inquiries`가 Inquiry+AiJob으로 파생 상태를
+  만드는 것과 동일한 원칙). 상세 페이지는 `/developer/inquiries/[id]`와 동일한
+  fetch-and-combine 패턴으로 기존 `/api/inquiries`·`/api/website-orders`·`/api/ai-jobs`(전부
+  기존 API, 신규 없음)를 호출해 `client.inquiryIds`/`websiteOrderIds`로 필터링한 연결 레코드를
+  표시. `components/developer`의 기존 Card/Badge/PageHeader/StatusMessage만 재사용(요구사항의
+  "Table"은 이 저장소에 애초에 존재하지 않아 — 대신 Inquiries/Requests 등 모든 기존 목록
+  화면이 쓰는 Card 기반 행 레이아웃을 그대로 따름). `DeveloperNav`에 "고객사 관리" 링크 1개
+  추가(다른 모든 대시보드 섹션과 동일한 관례)
+  - 실 E2E: 임시 계정으로 로그인 → 챗봇 파이프라인으로 고객사 2건 생성 → Playwright 실 브라우저로
+    목록(검색 "브라이트" 필터링 2건→1건, 회사명 정렬 클릭)·상세(Inquiry 1건·Website Order 1건·
+    AI Job 2건 — 직전 Planning 작업의 `generate_planning` Job이 여기서도 정확히 표시됨을
+    교차 확인) 전부 정상 렌더링 확인, 콘솔 에러 0건(로그인 전 `/api/auth/me` 401은 다른 모든
+    페이지에도 있는 기존 동작, 회귀 아님)
+  - `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(신규 라우트 2개
+    포함 정상 생성)
 
 - **AI Business OS Phase 3 — Planning 자동 문서 생성**(2026-07-22) — AI Analysis Engine
   (`lib/ai-analysis`, 무변경)의 `AIAnalysisResult`를 입력으로 기술 견적서·기능 명세서·프로젝트
@@ -196,7 +219,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 1. **CNBIZ.AI.KR 구축 후 Inquiry 저장·관리자 알림 책임 이관** — 위 "알려진 아키텍처 부채" 참고. CNBIZ.AI.KR이 자체 DB·알림을 갖추면 `app/api/external/inquiries/route.ts`의 `createInquiry()`/`notifyAdminOfNewInquiry()` 호출부(이미 "임시 대행" 주석 표시됨)를 이관
 4. **실제 AI Provider 연결** — 2026-07-22 재확인: 배선(Bridge→Provider Registry/Manager→5개 벤더)은 **이미 완결되어 추가 구현이 필요 없음**, `.env.example`도 이번에 4개 키 전부 문서화 완료. 남은 것은 순수 환경설정뿐 — `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`/`OPENROUTER_API_KEY` 중 하나라도 이 앱(Vercel 프로덕션 환경변수 또는 로컬 `.env.local`)에 실제 값으로 설정되어야 AI Analysis/Design Automation/Website Builder의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 실제 AI 응답으로 검증할 수 있음. 로컬 Ollama(`OLLAMA_HOST`)도 대안이 될 수 있으나, Vercel 프로덕션(서버리스)에서는 로컬 Ollama에 접근할 수 없어 로컬 개발 검증 용도로만 유효함
 5. **cnbiz.ai.kr 쪽 실제 챗봇 연동 검증** — 지금까지는 이쪽 저장소에서 직접 curl/Playwright로만 검증. 실제 cnbiz.ai.kr이 보내는 페이로드 필드명이 지원 중인 별칭(`customerName`/`consultation`)과 정확히 일치하는지 실제 연동 테스트 필요
-6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세에서만 연결된 레코드 확인 가능
+6. **WebsiteOrder 전용 관리자 목록 화면** — Client는 2026-07-22에 완료(`/developer/clients`), WebsiteOrder는 여전히 Inquiry/Client 상세에서만 연결된 레코드 확인 가능
 7. **회원가입 백엔드 + 역할관리 UI**
 8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
 9. **Design Automation Phase 9 실사용 검증**

@@ -5,6 +5,7 @@
 > 이 문서는 **분석 전용**입니다 — 코드는 수정하지 않았습니다.
 > 참고: 이 문서는 이전 버전(2026-07-18, 저장소 구조 분석)을 대체합니다. 저장소 구조·중복 분석은 `Repository_Modernization_Report.md`/`REFACTOR_CHECK_REPORT.md` 등 다른 문서를 참고하세요.
 > 참고2: 세션 시작 시 두 워크스페이스 모두 `node_modules`가 설치되어 있지 않아(`npm install` 미실행 상태) 1차 `tsc`/`eslint` 시도가 전부 "Cannot find module 'next'/'react'" 오류로 나왔습니다. 이는 코드 결함이 아니라 미설치 상태였을 뿐이며, 루트에서 `npm install`(npm workspaces로 `apps/*`·`packages/*` 전체 설치) 실행 후 아래 모든 검증을 재실행했습니다.
+> **업데이트(2026-07-22, 후속 세션): C-3(ID 충돌) 수정 완료.** 상세 내용은 2번 섹션의 "✅ 수정 완료" 박스와 6-1절을 참고하세요. C-1·C-2는 아직 미착수입니다.
 
 ---
 
@@ -16,8 +17,8 @@
 
 1. **`CollectionStore.replaceAll()`(Supabase 백엔드)가 "전체 DELETE 후 전체 INSERT"로 구현되어 있어, 동시 쓰기가 있으면 레코드 전체가 유실될 수 있습니다.** (Critical)
 2. **Design Automation Phase 8·9(`design-sync.ts`·`website-build.ts`)와 Prompt/Workflow/Workspace/Health 4개 레지스트리가 이번 마이그레이션에서 누락되어, 여전히 `process.cwd()` 기준 fs에 직접 쓰고 있습니다.** Vercel 프로덕션은 배포 번들 경로가 읽기 전용이라 이 기능들은 실제 배포 환경에서 정상 동작하지 않을 가능성이 높습니다. (Critical)
-3. **다수 레지스트리의 레코드 ID가 `Date.now()`만으로 생성되어(랜덤 접미사 없음) 같은 밀리초에 두 레코드가 생성되면 ID가 충돌합니다.** 이는 추측이 아니라 **실제로 재현되는 테스트 실패**로 확인했습니다(`tests/websites/registry.test.ts`, `tests/requests/registry.test.ts`). 이 패턴은 고객 문의(`lib/inquiries/registry.ts`) 등 실사용 데이터 레지스트리에도 동일하게 존재합니다. (Critical)
-4. 위 3번의 결과로 `apps/cnbiz-web`의 테스트 스위트(465개)가 **플레이키(flaky)** 합니다 — 4회 반복 실행에서 3~5개가 매번 다르게 실패했습니다. (High)
+3. ~~**다수 레지스트리의 레코드 ID가 `Date.now()`만으로 생성되어(랜덤 접미사 없음) 같은 밀리초에 두 레코드가 생성되면 ID가 충돌합니다.**~~ **[2026-07-22 수정 완료]** 이는 추측이 아니라 **실제로 재현되는 테스트 실패**로 확인했었고(`tests/websites/registry.test.ts`, `tests/requests/registry.test.ts`), 10개 레지스트리 전부에 대해 수정·재검증까지 완료했습니다. 상세는 2번 섹션 C-3과 6-1절 참고. (원래 Critical → 수정 완료)
+4. ~~위 3번의 결과로 `apps/cnbiz-web`의 테스트 스위트(465개)가 **플레이키(flaky)** 합니다~~ **[2026-07-22 수정 완료]** — C-3 수정 후 대상 레지스트리 테스트를 10회 이상 반복 실행해 재발하지 않음을 확인했습니다(6-1절 참고). 다만 `tests/agents/taskQueue-retry.test.ts`(C-3과 무관한 기존 이슈, L-1 참고)는 이 검증 환경에서 여전히 실패합니다. (원래 High → 대상 범위 내 수정 완료)
 
 아래에 전체 목록을 Critical → Low 순으로 정리합니다.
 
@@ -30,7 +31,7 @@
 | 1. TypeScript(`tsc --noEmit`) | ✅ 0 errors | ✅ 0 errors |
 | 2. ESLint | ✅ 0 errors/warnings | ✅ 0 errors/warnings |
 | 3. Build(`next build`) | ✅ 9개 라우트 정상 생성 | ✅ 90개 라우트 정상 생성(Proxy 포함) |
-| 4. 테스트(`vitest run`) | ✅ 16 files / 126 tests 전부 통과 | ⚠️ 60 files / 465 tests, **3~5개가 실행마다 다르게 실패(플레이키)** |
+| 4. 테스트(`vitest run`) | ✅ 16 files / 126 tests 전부 통과 | ⚠️→✅ 60 files / 465 tests. **C-3 수정 전**: 3~5개가 실행마다 다르게 실패(플레이키). **C-3 수정 후(6-1절)**: 464/465 고정 통과, 유일한 잔여 실패(`tests/agents/taskQueue-retry.test.ts`)는 이번 수정과 무관한 별개 이슈(L-1) |
 
 TypeScript·ESLint·Build가 전부 깨끗하다는 사실이 "안전하다"를 의미하지 않습니다 — 아래 Critical 항목들은 전부 **타입 시스템이 볼 수 없는 런타임/동시성/환경 문제**이기 때문에 정적 검사를 통과하고도 존재합니다. 이는 4번 항목(테스트)에서 실제로 드러났습니다.
 
@@ -89,6 +90,8 @@ TypeScript·ESLint·Build가 전부 깨끗하다는 사실이 "안전하다"를 
 
 ### C-3. 다수 레지스트리가 `Date.now()`만으로 ID를 생성해 같은 밀리초에 생성된 레코드끼리 ID가 충돌한다 — 실제 테스트 실패로 재현됨
 
+> **✅ 수정 완료(2026-07-22)** — 아래 원인·재현 방법은 수정 전 상태를 그대로 기록해 둔 것입니다. 실제로 적용한 수정과 재검증 결과는 6-1절("C-3 수정 내역")을 참고하세요.
+
 - **원인**: 아래 레지스트리들은 레코드 `id`를 `` `<prefix>-${Date.now()}` `` 형태로만 생성합니다(랜덤 접미사 없음, `Math.random()`도 없음):
   - `lib/inquiries/registry.ts` → `inquiry-${Date.now()}`
   - `lib/clients/registry.ts` → `client-${Date.now()}`
@@ -129,6 +132,8 @@ TypeScript·ESLint·Build가 전부 깨끗하다는 사실이 "안전하다"를 
 ## 3. High
 
 ### H-1. `apps/cnbiz-web` 테스트 스위트가 플레이키하다 — 4회 실행에서 3~5개 테스트가 매번 다르게 실패
+
+> **✅ 수정 완료(2026-07-22)** — C-3 수정과 함께 해소됨을 재검증했습니다. 아래 원인·재현 방법은 수정 전 상태 기록이며, 재검증 결과는 6-1절 참고.
 
 - **원인**: C-3(밀리초 ID/타임스탬프 충돌)의 직접적 결과입니다.
 - **영향 범위**: `apps/cnbiz-web`의 CI 게이팅 신뢰도 전체. "테스트 전체 실행" 결과가 실행마다 달라지므로, 실제 회귀가 있어도 "원래 플레이키한 테스트겠지"로 오인해 지나칠 위험이 커집니다. 실제로 이 저장소의 `docs/01_PMO/CHANGELOG.md`에도 과거 세션에서 `tests/agents/taskQueue-retry.test.ts`를 "기존에 알려진 무관한 타이밍 플레이크"로 반복 언급한 전례가 있어(2026-07-15 항목 다수), 이런 식으로 실제 결함이 "알려진 플레이크"로 묻힐 패턴이 이미 있습니다.
@@ -186,9 +191,10 @@ TypeScript·ESLint·Build가 전부 깨끗하다는 사실이 "안전하다"를 
 ### L-1. `tests/agents/taskQueue-retry.test.ts`의 기존 타이밍 플레이크(Persistence Integration과 무관)
 
 - **원인**: `retry() returns null for a task that is not Failed (e.g. Success)` 테스트가 이번 4회 실행 중 3회 실패했습니다. `docs/01_PMO/CHANGELOG.md`의 2026-07-15 항목에 이미 "전체 병렬 실행 시 무관한 기존 타이밍 플레이크로 확인, 단독 재실행 시 통과"라고 기록되어 있어 **이번 마이그레이션 이전부터 존재하던 별개의 문제**로 판단됩니다.
+- **[2026-07-22 후속 확인]** C-3 수정 검증 과정에서 이 테스트만 단독으로 3회 반복 실행했더니 **3/3 전부 실패**했고, `git stash`로 이번 세션의 모든 변경을 되돌린 원본 커밋 상태에서도 동일하게 실패함을 확인했습니다 — 즉 이번 검증 환경(컨테이너 샌드박스)에서는 CHANGELOG가 기록한 "단독 재실행 시 통과"와 달리 **일관되게 실패**합니다(`echo hi`를 shell agent로 실행한 태스크가 `Success`가 아닌 `Failed`로 귀결). `lib/agents/taskQueue.ts`·`tests/agents/taskQueue-retry.test.ts` 어느 쪽도 이번 세션에서 건드리지 않았으므로 C-3 수정과는 무관하며, 원래 개발 환경(Windows)과 이 검증 환경(Linux 컨테이너) 간 shell 실행 방식 차이가 원인일 가능성이 높습니다(추정, 확정 진단은 아님).
 - **영향 범위**: 테스트 스위트 신뢰도(H-1과 합쳐서 봐야 함). Persistence Integration 자체의 결함은 아닙니다.
-- **재현 방법**: 위 테스트 스위트 반복 실행.
-- **수정 방법**: 이번 리포트 범위 밖 — 별도 조사 필요(리포트에는 기록만 남김).
+- **재현 방법**: `npx vitest run tests/agents/taskQueue-retry.test.ts`(이 검증 환경에서는 단독 실행도 매번 재현됨).
+- **수정 방법**: 이번 리포트 범위 밖 — `lib/agents/taskQueue.ts`의 shell agent 실행 경로가 Linux 환경에서 왜 `Failed`로 귀결되는지 별도 조사 필요(리포트에는 기록만 남김).
 - **수정 난이도**: 미산정(별도 조사 필요).
 
 ### L-2. 순환 의존성 없음 / import-export 깨짐 없음 (정보성, 문제 아님)
@@ -212,6 +218,30 @@ TypeScript·ESLint·Build가 전부 깨끗하다는 사실이 "안전하다"를 
 - 다만 C-3에서 지적한 대로 이 id들 자체가 밀리초 충돌에 취약하므로(Design Automation Phase 1~7도 접미사가 있을 뿐 여전히 `Date.now()` 기반), 파이프라인 전체가 "타입은 맞지만 런타임에 잘못된 레코드를 가리킬 수 있다"는 위험을 이론적으로 안고 있습니다 — 다만 랜덤 접미사가 있어 실제 충돌 확률은 C-3 목록의 레지스트리들보다 훨씬 낮습니다.
 - Phase 6→7→8→9 사이의 "Approval Rule"(Review가 `approved` 상태가 아니면 409)은 Figma export(`app/api/design/figma/export`)와 Website Build(`app/api/design/website`) 양쪽에서 일관되게 구현되어 있음을 확인했습니다(코드 검토 기준, 정상).
 - Phase 8(Design Sync)은 CHANGELOG 자체가 "이 저장소에는 Design으로부터 실제 파일을 생성하는 진짜 코드베이스가 없다"고 명시하고 있어, "Code" 스냅샷은 항상 결정론적으로 재생성되는 문자열이지 실제 파일시스템 상태가 아닙니다 — 즉 Phase 8은 설계상 시뮬레이션이며 이번 검증에서 별도의 데이터 불일치는 발견되지 않았으나, C-2로 인해 이 Phase 자체의 영속화가 프로덕션에서 실패할 수 있다는 점이 더 근본적인 문제입니다.
+
+---
+
+## 6-1. C-3 수정 내역(2026-07-22)
+
+### 변경한 파일
+
+- **신규**: `lib/utils/id.ts` — `createRecordId(prefix)`(`` `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` ``, `lib/design/*.ts`·`lib/events/eventBus.ts`가 이미 쓰던 안전한 패턴을 그대로 재사용).
+- **ID 생성 교체**(10개 레지스트리, `` `<prefix>-${Date.now()}` `` → `createRecordId("<prefix>")`): `lib/inquiries/registry.ts`, `lib/clients/registry.ts`, `lib/websites/registry.ts`, `lib/prompts/registry.ts`, `lib/requests/registry.ts`, `lib/workspaces/registry.ts`, `lib/aiJobs/registry.ts`, `lib/workflows/registry.ts`, `lib/websiteOrders/registry.ts`, `lib/projects/registry.ts`.
+- **"newest first" 정렬 방식 교체**(밀리초 `createdAt` 동률에 취약한 `.sort((a,b) => b.createdAt.localeCompare(a.createdAt))` → `lib/design/registry.ts`가 이미 쓰던 `.reverse()`, 즉 store가 보존하는 삽입 순서를 그대로 뒤집는 방식): `lib/inquiries/registry.ts`(`listInquiries`), `lib/clients/registry.ts`(`listClients`), `lib/websites/registry.ts`(`listWebsites`), `lib/requests/registry.ts`(`listRequests`), `lib/aiJobs/registry.ts`(`listAiJobs`), `lib/websiteOrders/registry.ts`(`listWebsiteOrders`). (`lib/prompts/registry.ts`·`lib/workspaces/registry.ts`·`lib/workflows/registry.ts`·`lib/projects/registry.ts`는 애초에 이 정렬을 하지 않아 해당 없음.)
+- **테스트 보정**(같은 근본 원인의 다른 증상 — ID 충돌이 아니라 `createdAt`/`updatedAt` 밀리초 동률로 인한 실패, C-3 본문에 이미 함께 기록했던 항목): `tests/requests/registry.test.ts`·`tests/design/review-registry.test.ts`의 `expect(updated.updatedAt).not.toBe(created.createdAt)`(동률이면 항상 실패)를 `expect(updated.updatedAt >= created.createdAt).toBe(true)`(동률도 허용, "createdAt 이후로 갱신됐다"는 의미는 그대로 유지)로 교정.
+
+### 검증
+
+- `npx tsc --noEmit`(apps/cnbiz-web) — 0 errors
+- `npx eslint .`(apps/cnbiz-web) — 0 errors
+- `npm run build`(apps/cnbiz-web) — 90 routes, 정상 생성
+- 원인이 됐던 레지스트리 테스트(`tests/{websites,requests,design/review-registry,clients,inquiries,aiJobs,websiteOrders,projects}`)만 **10회 반복 실행 → 10/10 통과** (수정 전에는 반복 실행마다 ID 충돌로 인한 실패가 재현됐음)
+- `apps/cnbiz-web` 전체 스위트(`npm test -- --run`)를 3회 반복 실행 → **매번 465개 중 464개 통과, 실패는 `tests/agents/taskQueue-retry.test.ts` 1건으로 고정**. 이 1건은 L-1에서 다루는 대로 이번 수정과 무관한 별개 이슈임을 `git stash`로 수정 전 커밋 상태에서도 동일하게 재현됨을 확인해 재검증했습니다.
+- 루트 워크스페이스(`npm test -- --run`, 16 files / 126 tests)는 변경 대상이 아니라 영향 없음 — 재확인 결과 그대로 통과.
+
+### 남은 작업
+
+C-1(Supabase `replaceAll()` 비원자적 delete+insert)과 C-2(Phase 8·9 + Prompt/Workflow/Workspace/Health 미이관)는 이번 수정 범위에 포함되지 않았습니다 — 리포트의 해당 섹션 그대로 미해결 상태입니다.
 
 ---
 

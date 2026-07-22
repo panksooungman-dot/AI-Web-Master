@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { createRecordId } from "@/lib/utils/id";
 
 export type WebsiteGenerationStatus = "Success" | "Failed";
 
@@ -25,10 +26,13 @@ export interface CreateWebsiteRecordInput {
 
 const COLLECTION = "websites";
 
-/** Newest first — this is the "Recent Websites / Generation History" list. */
+/**
+ * Newest first — this is the "Recent Websites / Generation History" list. Creates always
+ * append, so the store's array order is already oldest→newest.
+ */
 export async function listWebsites(store: CollectionStore = getDefaultStore()): Promise<WebsiteRecord[]> {
   const records = await store.list<WebsiteRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...records].reverse();
 }
 
 export async function createWebsiteRecord(
@@ -36,7 +40,7 @@ export async function createWebsiteRecord(
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteRecord> {
   const record: WebsiteRecord = {
-    id: `website-${Date.now()}`,
+    id: createRecordId("website"),
     name: input.name,
     siteType: input.siteType,
     outDir: input.outDir,

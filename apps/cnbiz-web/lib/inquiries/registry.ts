@@ -1,15 +1,17 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { createRecordId } from "@/lib/utils/id";
 import type { AIAnalysisResult } from "@/lib/ai-analysis/types";
 import type { InquiryInput, InquiryRecord, InquiryStatus } from "./types";
 
 const COLLECTION = "inquiries";
 
+/** Newest first — creates always append, so the store's array order is already oldest→newest. */
 export async function listInquiries(
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord[]> {
   const records = await store.list<InquiryRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...records].reverse();
 }
 
 export async function getInquiry(
@@ -26,7 +28,7 @@ export async function createInquiry(
 ): Promise<InquiryRecord> {
   const now = new Date().toISOString();
   const record: InquiryRecord = {
-    id: `inquiry-${Date.now()}`,
+    id: createRecordId("inquiry"),
     ...input,
     status: "New",
     clientId: null,

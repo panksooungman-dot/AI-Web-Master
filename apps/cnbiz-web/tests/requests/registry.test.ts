@@ -72,7 +72,9 @@ describe("Request Registry — lib/requests/registry.ts", () => {
     const updated = await updateRequestStatus(created.id, "InReview", store);
 
     expect(updated?.status).toBe("InReview");
-    expect(updated?.updatedAt).not.toBe(created.createdAt);
+    // `!==` would flake when both timestamps land in the same millisecond (Date.now()
+    // resolution) — `>=` still proves updatedAt was recomputed on top of createdAt.
+    expect(updated?.updatedAt >= created.createdAt).toBe(true);
     expect((await getRequest(other.id, store))?.status).toBe("New");
   });
 

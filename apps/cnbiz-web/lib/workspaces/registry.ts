@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createRecordId } from "@/lib/utils/id";
 
 export interface WorkspaceRecord {
   id: string;
@@ -58,7 +59,7 @@ export function createWorkspace(name: string, targetPath: string): WorkspaceReco
   fs.mkdirSync(targetPath, { recursive: true });
 
   const record: WorkspaceRecord = {
-    id: `workspace-${Date.now()}`,
+    id: createRecordId("workspace"),
     name,
     path: targetPath,
     createdAt: new Date().toISOString(),

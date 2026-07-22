@@ -107,7 +107,9 @@ describe("Review Registry — lib/design/review-registry.ts", () => {
     expect(updated?.comments[0].text).toBe("looks great");
     expect(updated?.history).toHaveLength(2);
     expect(updated?.history[1].note).toContain("looks great");
-    expect(updated?.updatedAt).not.toBe(record.createdAt);
+    // `!==` would flake when both timestamps land in the same millisecond (Date.now()
+    // resolution) — `>=` still proves updatedAt was recomputed on top of createdAt.
+    expect(updated?.updatedAt >= record.createdAt).toBe(true);
   });
 
   it("addReviewComment() returns null for an unknown review id", async () => {

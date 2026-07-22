@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createRecordId } from "@/lib/utils/id";
 import type { Workflow, WorkflowStepDefinition } from "./types";
 
 const REGISTRY_PATH = path.join(process.cwd(), "lib", "data", "workflows.json");
@@ -47,7 +48,7 @@ export function createWorkflow(
   steps: WorkflowStepDefinition[]
 ): Workflow {
   const record: Workflow = {
-    id: `workflow-${Date.now()}`,
+    id: createRecordId("workflow"),
     name,
     description,
     steps,

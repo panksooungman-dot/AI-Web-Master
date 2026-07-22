@@ -1,14 +1,16 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { createRecordId } from "@/lib/utils/id";
 import type { ClientInput, ClientRecord } from "./types";
 
 const COLLECTION = "clients";
 
+/** Newest first — creates always append, so the store's array order is already oldest→newest. */
 export async function listClients(
   store: CollectionStore = getDefaultStore()
 ): Promise<ClientRecord[]> {
   const records = await store.list<ClientRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...records].reverse();
 }
 
 export async function getClient(
@@ -35,7 +37,7 @@ export async function createClient(
 ): Promise<ClientRecord> {
   const now = new Date().toISOString();
   const record: ClientRecord = {
-    id: `client-${Date.now()}`,
+    id: createRecordId("client"),
     ...input,
     inquiryIds: [],
     websiteOrderIds: [],

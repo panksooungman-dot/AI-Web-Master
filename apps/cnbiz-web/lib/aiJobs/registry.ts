@@ -1,14 +1,16 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { createRecordId } from "@/lib/utils/id";
 import type { AiJobInput, AiJobRecord, AiJobStatus } from "./types";
 
 const COLLECTION = "ai-jobs";
 
+/** Newest first — creates always append, so the store's array order is already oldest→newest. */
 export async function listAiJobs(
   store: CollectionStore = getDefaultStore()
 ): Promise<AiJobRecord[]> {
   const records = await store.list<AiJobRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...records].reverse();
 }
 
 export async function getAiJob(
@@ -33,7 +35,7 @@ export async function createAiJob(
 ): Promise<AiJobRecord> {
   const now = new Date().toISOString();
   const record: AiJobRecord = {
-    id: `ai-job-${Date.now()}`,
+    id: createRecordId("ai-job"),
     ...input,
     status: "Queued",
     progress: 0,

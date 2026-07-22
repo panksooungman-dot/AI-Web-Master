@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-07-22 (6)
+
+### 추가 (Added)
+
+- **Website Orders Dashboard**: `app/developer/website-orders/{page.tsx,[id]/page.tsx}`(신규).
+  WebsiteOrder Domain(`lib/websiteOrders/*`, `app/api/website-orders*`)은 이미 Registry·API가
+  전부 완결되어 있어 Clients Dashboard와 동일한 원칙으로 코드 한 줄도 수정하지 않고 UI만 구현
+  - 목록(`/developer/website-orders`) — 요구사항대로 기존 `GET /api/website-orders` 하나만
+    사용. 고객사명 표시에는 기존 `GET /api/clients`를 함께 호출(Clients 목록이 상태 파생을
+    위해 `GET /api/website-orders`를 함께 쓴 것과 동일한 원칙, 새 API 아님). 주문명·사이트
+    유형·고객사 검색, 최신순/오래된순/주문명 정렬은 클라이언트 사이드로 구현. 상태 배지는
+    `WebsiteOrderRecord`가 이미 갖고 있는 `WebsiteOrderStatus` 5종(Requested/InProgress/
+    Review/Delivered/Cancelled)을 그대로 표시(새 Status 없음)
+  - 상세(`/developer/website-orders/[id]`) — 주문 정보·요구사항·연결된 AI Job·연결된
+    Website 레코드·상태 변경 섹션 구성. 상태 변경은 기존 `PATCH /api/website-orders/[id]`,
+    Job 재실행은 기존 `POST /api/ai-jobs/[id]/run`을 그대로 재사용(신규 API 없음)
+  - `components/developer`의 기존 Card/Badge/PageHeader/StatusMessage만 재사용.
+    `components/developer/DeveloperNav.tsx`에 "Website Order 관리" 링크 1개 추가
+
+### 수정 (Fixed)
+
+- **`WebsiteOrderRecord.aiJobIds`가 실제 파이프라인에서 항상 빈 배열이던 기존 갭 발견 및 회피**:
+  구현 중 요구사항대로 `order.aiJobIds`로 연결된 AI Job 개수를 세려 했으나 항상 0으로 표시됨을
+  발견. `grep -rn "addAiJobToWebsiteOrder"`로 조사한 결과, `lib/websiteOrders/registry.ts`에
+  이미 정의돼 있던 이 함수가 실제 프로덕션 경로(`app/api/external/inquiries/route.ts`,
+  `lib/aiJobs/executor.ts`)에서는 한 번도 호출되지 않고 테스트 코드에서만 참조됨을 확인 —
+  Registry에 이미 존재하던 기존 갭이며 이번 작업 범위(신규 Registry/API 생성 금지) 밖이라
+  `lib/websiteOrders/registry.ts` 자체는 수정하지 않음. 대신 생성 시점에 정확히 설정되고
+  이후 변경되지 않는 `AiJobRecord.websiteOrderId` 필드로 join하도록 목록·상세 페이지를
+  구현(목록은 `GET /api/ai-jobs`를 추가로 호출해 `job.websiteOrderId` 기준으로 집계). 참고로
+  `websiteIds`는 `addWebsiteToOrder()`가 실제로 호출되고 있어 원래 필드 그대로 정상 동작함을
+  확인(수정 불필요)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(신규 라우트 2개
+  포함 정상 생성) · `npx vitest run`(62 files/481 tests 중 477 통과, 나머지는 기존에 문서화된
+  동일 밀리초 timestamp 타이밍 플레이크로 이번 변경과 무관, 회귀 없음)
+- 실 E2E: 임시 계정으로 로그인 → 챗봇 파이프라인으로 WebsiteOrder 생성 → Playwright 실
+  브라우저로 목록(검색·정렬·AI Job/Website 개수 배지)·상세(주문 정보·요구사항·연결된 AI
+  Job·Website 레코드·상태 변경) 전부 정상 렌더링·상호작용 확인. 위 `aiJobIds` 갭을 이 과정에서
+  실제로 재현(개수 0 표시)한 뒤 `websiteOrderId` join으로 수정, 재검증에서 정확한 개수(예:
+  "AI Job 2")가 표시됨을 확인, 콘솔 에러 0건. 검증에 사용한 dev 서버·임시 계정·데이터는 검증
+  후 전부 삭제
+- `PROJECT_STATUS.md` — Development OS 대시보드 페이지 수·설명 갱신(WebsiteOrder 목록 화면
+  완료 반영, 남은 것은 AiJob 전용 목록 화면뿐), "다음 작업 우선순위"에서 관련 항목 제거,
+  "최근 완료 작업"에 이번 작업 기록(발견한 기존 데이터 갭 포함)
+
+---
+
 ## 2026-07-22 (5)
 
 ### 수정 (Fixed) — CI 안정화

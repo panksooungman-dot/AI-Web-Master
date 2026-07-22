@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: "/developer/requests", label: "의뢰 관리" },
   { href: "/developer/inquiries", label: "AI 의뢰 관리" },
   { href: "/developer/clients", label: "고객사 관리" },
+  { href: "/developer/website-orders", label: "Website Order 관리" },
   { href: "/developer/workspace", label: "Workspace" },
   { href: "/developer/terminal", label: "Terminal" },
   { href: "/developer/github", label: "GitHub" },

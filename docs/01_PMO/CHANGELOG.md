@@ -4,6 +4,62 @@
 
 ---
 
+## 2026-07-22 (3)
+
+### 추가 (Added)
+
+- **AI Business OS Phase 3 — Planning 자동 문서 생성**: AI Analysis Engine(`lib/ai-analysis`,
+  무변경)의 `AIAnalysisResult`를 입력으로 기술 견적서·기능 명세서·프로젝트 일정 3종을 자동
+  생성. 새 Workflow Engine·새 Registry·새 CollectionStore 없이, Design Automation Phase 1의
+  generator/types 패턴(chatViaCli → all-or-nothing JSON 검증 → 결정론적 폴백)만 그대로 따름
+  - `lib/planning/{types,generator,design-plan-adapter}.ts`(신규) — `generator.ts`의 결정론적
+    폴백(`buildDefaultPlanning()`)은 페이지/기능 개수 기반 규칙(rule-based) 계산이라 AI 판단과
+    무관하게 항상 신뢰 가능(`lib/ai-analysis/score.ts`와 동일 원칙). `design-plan-adapter.ts`는
+    Design Automation Phase 1이 요구하는 입력 형태로 옮기기만 하는 순수 매핑(`lib/design/
+    website-build-adapter.ts`와 동일한 원칙, fs·AI 호출 없음)
+  - `lib/aiJobs/types.ts`의 `AiJobType`에 `"generate_planning"` 1개 값만 추가(기존 2개 값
+    무변경). 저장은 새 컬렉션 없이 `AiJobRecord`가 이미 갖고 있던 범용 `result` 필드를 그대로
+    사용(`lib/aiJobs/executor.ts`의 `executePlanningJob()`, 신규 함수 — 기존 Website Builder
+    실행 분기는 무변경)
+  - `app/api/external/inquiries/route.ts` — AI Analysis 저장 성공 시에만 기존
+    `createAiJob()`/`processJob()` 파이프라인으로 Planning Job을 추가 생성·실행(WebsiteOrder
+    생성 이후 시점, 기존 `generate_website` Job과 동일한 위치). 응답에 `planningJobId` 필드
+    추가. 새 API 라우트는 추가하지 않음 — 기존 `GET/POST /api/ai-jobs*`가 타입에 무관하게
+    그대로 재사용됨(`POST /api/ai-jobs/[id]/run`으로 관리자 수동 재시도도 이미 가능)
+  - `app/developer/planning/page.tsx`(기존 대시보드 확장, 신규 대시보드 아님) — "Planning
+    문서" 카드 추가, `components/developer/planning/PlanningJobCard.tsx`(신규, Client
+    Component)로 문서 상세(견적 항목·일정 단계)와 "Design Automation으로 전달" 버튼 제공.
+    이 버튼은 어댑터로 만든 입력을 Design Automation의 기존·미변경 진입점(`POST
+    /api/design/requirements`)에 그대로 전달 — Design Automation 코드는 한 줄도 수정하지 않음
+  - **설계 결정**: 모든 Inquiry에 대해 DesignPlanRecord를 조용히 자동 생성하지 않음(Design
+    Automation의 다른 모든 Phase 전환이 항상 사람이 트리거하는 액션인 것과 다르게, 검증되지
+    않은 대량 자동화가 될 위험으로 판단). "Inquiry→AI Analysis→Planning" 체인은 완전 자동,
+    "→Design Automation" 진입은 검증된 원클릭 수동 액션으로 구현
+  - 테스트(신규 16개): `tests/planning/generator.test.ts`(12개 — AI 성공/실패/파싱실패 3경로,
+    코드펜스 스트리핑, 규칙 기반 견적·일정 계산 — 기능 개수 증가 시 총액 증가, 5단계 타임라인
+    오프셋 순차성)·`tests/planning/design-plan-adapter.test.ts`(4개 — 매핑 정상 케이스 +
+    companyName/analysis/industry 결측 시 폴백 3가지)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(전체 라우트 정상
+  생성, `/developer/planning` 포함, 회귀 없음)
+- `npx vitest run` — Planning/AiJob/Design/AI Analysis 관련 262개 테스트는 매 실행마다 전부
+  통과. 전체 스위트(62 files/481 tests)는 실행마다 476~478개 통과, 나머지 3~5개는
+  `tests/{agents/taskQueue-retry,design/review-registry,requests/registry,websites/
+  registry}`의 동일 밀리초 timestamp 충돌로 인한 기존 타이밍 플레이크(이 세션 환경의 빠른
+  CPU에서만 재현, 단독 재실행 시 통과 확인) — Planning 변경과 무관, 회귀 아님
+- 실 E2E: 로컬 dev 서버로 `POST /api/external/inquiries` 실제 호출 → 응답에 `planningJobId`
+  확인 → 생성된 AiJob 레코드가 `status:"Success"`, `result`에 정확한 계산값(4페이지×50만원 +
+  1기능×80만원 + 기본 300만원 = 부가세 포함 638만원, 5단계 총 36일 일정)으로 채워짐을 직접
+  확인 → `POST /api/design/requirements`(어댑터가 만드는 것과 동일한 입력 형태)가 developer
+  세션 게이팅으로 정상 거부됨을 확인(다른 모든 관리자 API와 동일한 인증 계층, 회귀 아님).
+  같은 요청에서 `generate_website` Job은 이 Linux 샌드박스에 `powershell.exe`가 없어 실패
+  (Windows 전용 기존 `lib/commandEngine/engine.ts` 동작 — 이번 변경 이전부터 있던 환경 제약,
+  코드 회귀 아님)
+
+---
+
 ## 2026-07-22 (2)
 
 ### 확인 (Verified) — "AI Provider 실제 연결" 요청 처리

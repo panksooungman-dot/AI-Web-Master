@@ -25,17 +25,17 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 ---
 
 ## 전체 진행률
-**약 89%**
+**약 90%**
 
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 90% | Home/About/Services/Portfolio(공개 4페이지). 문의·제작의뢰 폼은 의도적으로 제거, `/contact`·`/request`는 cnbiz.ai.kr로 308 redirect. Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
 | Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작(Inquiry 관리자 화면에 AI 분석 카드 포함). 신규: Phase 01·02·09 대시보드(`/developer/{analysis,planning,deployment}`, 아래 참고), AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`, UI 스캐폴딩·TODO 스텁). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세에서 연결된 레코드는 확인 가능) |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
-| **Customer Inquiry Pipeline** | **93%** | 데이터 계층·External API·Worker·Executor·자동 실행 트리거·관리자 UI·**AI Analysis Engine(Completeness/Missing Items/Business Type/추천 페이지·기능/Summary)**까지 전부 연결되어 실사용 가능(아래 참고). 기술 견적서/기능 명세서/프로젝트 타임라인은 의도적으로 다음 Phase로 분리(입력값으로 이 Analysis 결과를 사용할 예정) |
+| **Customer Inquiry Pipeline** | **96%** | 데이터 계층·External API·Worker·Executor·자동 실행 트리거·관리자 UI·**AI Analysis Engine(Completeness/Missing Items/Business Type/추천 페이지·기능/Summary)**·**Planning Engine(기술 견적서/기능 명세서/프로젝트 일정, AI Business OS Phase 3)**까지 전부 연결되어 실사용 가능(아래 참고) |
 | 인증/권한 | 82% | 세션 인증 + API Key 인증(x-api-key) + RBAC 4-role 완비. signup 백엔드·역할관리 UI만 없음 |
 | 고객(의뢰자) 시스템 | 55% | CNBIZ.KR 자체 접수 폼은 제거(cnbiz.ai.kr로 위임). 고객 본인이 조회하는 포털은 여전히 없음 |
-| 테스트 인프라 | 100% | `apps/cnbiz-web` 60 files / 465 tests 전부 통과(AI Analysis Engine 신규 테스트 15개 포함) |
+| 테스트 인프라 | 100% | `apps/cnbiz-web` 62 files / 481 tests 전부 통과(Planning Engine 신규 테스트 16개 포함) |
 
 ---
 
@@ -60,6 +60,7 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 - Inquiry 스키마 확장(`industry`·`survey`·`uploadedFiles` 옵셔널 필드 추가, 기존 필드는 무변경) — `customerName`/`consultation` 등 별도 필드명으로 오는 챗봇 페이로드도 `parseInquiryInput()`이 기존 `contactName`/`requirements`의 별칭으로 그대로 인식
 - **AI Analysis Engine**(`lib/ai-analysis/{types,score,prompts,analysis}.ts`, AI Business OS Phase 2 신규) — Inquiry 생성 직후 자동 실행되어 `AIAnalysisResult`(completeness/missingItems/detectedBusinessType/recommendedPages/recommendedFunctions/confidence/summary)를 산출. Completeness(10개 체크리스트 항목×10점)·Missing Items는 규칙 기반 결정론적 계산(`score.ts`, AI 호출과 무관하게 항상 신뢰 가능), Business Type/추천 페이지·기능/Summary는 기존 `lib/ai/bridge.ts`의 `chatViaCli()` 재사용(Design Automation과 동일한 resolve→parse→결정론적 폴백 패턴, 신규 AI 호출 메커니즘 없음). 결과는 새 컬렉션 없이 기존 `inquiries` 레코드에 `analysis`/`analyzedAt` 필드로 저장(`saveInquiryAnalysis()`, `lib/inquiries/registry.ts` 확장). `AiJobType`·`AiJobStatus`·Website Builder 실행 로직은 무변경
 - `/developer/inquiries/[id]`에 "AI 분석" 카드 추가 — Completeness/Business Type/Confidence/Summary/Recommended Pages·Functions/Missing Items 표시(분석 전이면 안내 문구만 표시)
+- **Planning Engine — 기술 견적서/기능 명세서/프로젝트 일정 자동 생성**(`lib/planning/{types,generator,design-plan-adapter}.ts`, AI Business OS Phase 3 신규, 2026-07-22) — AI Analysis Engine의 `AIAnalysisResult`를 입력으로 사용해 Functional Specification·Technical Estimate·Project Timeline 3종을 한 번의 AI 호출로 생성. 새 Registry·CollectionStore는 만들지 않고, 기존 `AiJobType`을 `"generate_planning"` 한 값만 최소 확장해 이미 존재하는 `AiJobRecord.result`(범용 JSON 필드)에 결과를 담는다(`lib/aiJobs/executor.ts`의 `executePlanningJob()`). `POST /api/external/inquiries`가 AI Analysis 저장 직후 기존 `createAiJob()`/`processJob()` 파이프라인으로 자동 실행(추가 API 없음 — 기존 `GET /api/ai-jobs`·`POST /api/ai-jobs/[id]/run`이 타입에 무관하게 그대로 재사용됨). 견적·일정은 페이지/기능 개수 기반 규칙 계산(AI 판단과 무관하게 항상 신뢰 가능, `score.ts`와 동일한 원칙), Provider 미설정/파싱 실패 시 결정론적 기본값으로 폴백. `/developer/planning`에 "Planning 문서" 카드 신규(새 대시보드 아님, 기존 페이지 확장) — 각 문서에 "Design Automation으로 전달" 버튼 제공, `lib/planning/design-plan-adapter.ts`(순수 매핑)로 입력을 만들어 Design Automation의 기존·미변경 진입점(`POST /api/design/requirements`)을 그대로 호출(Design Automation 코드 무변경, Phase 1 진입은 다른 모든 Phase 전환과 동일하게 사람이 직접 트리거)
 
 **CNBIZ.KR 브랜드 피벗**
 - Header/Footer/CTA 전면 개편 — "문의"·"제작 의뢰" 메뉴 제거, 모든 CTA를 `NEXT_PUBLIC_CNBIZ_AI_URL`(`lib/links.ts`)로 통일
@@ -83,7 +84,6 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 
 ## ⏳ 예정된 기능 (미구현)
 
-- **기술 견적서 / 기능 명세서 / 프로젝트 타임라인 자동 생성** — AI Business OS Phase 1·Phase 2 요청 모두에서 명시적으로 다음 Phase로 분리. Phase 2에서 구축한 AI Analysis Engine(`lib/ai-analysis/*`)의 `AIAnalysisResult`(completeness/missingItems/detectedBusinessType/recommendedPages/recommendedFunctions/summary)가 이 3개 문서 생성의 입력값으로 설계되어 있음(`AIAnalysisInput`이 Inquiry와 독립적인 재사용 가능한 타입). 확장 지점: `WebsiteOrderRecord`(신규 문서 id 배열 추가 여지) 또는 `AiJobType`에 `generate_website`/`generate_content`와 나란히 새 타입 추가(예: `generate_estimate`) — `AiJobType`·`AiJobStatus`는 Phase 1·2 모두에서 의도적으로 수정하지 않음
 - Customer 포털(고객 본인 의뢰 상태 조회) — `Role` 타입에 `customer` 자체가 없음
 - Deploy 자동화 — `ai deploy`는 branch check + `git push`만 수행, 실제 빌드/배포 실행 코드 없음(Vercel Git 연동이 그 이후를 담당)
 - Notification 다채널화 — 이메일(Resend)만 존재, Slack/SMS/webhook/in-app 없음
@@ -93,6 +93,43 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 ---
 
 ## 최근 완료 작업
+
+- **AI Business OS Phase 3 — Planning 자동 문서 생성**(2026-07-22) — AI Analysis Engine
+  (`lib/ai-analysis`, 무변경)의 `AIAnalysisResult`를 입력으로 기술 견적서·기능 명세서·프로젝트
+  일정 3종을 자동 생성하는 Planning Phase 구현. 새 Workflow Engine·새 Registry·새
+  CollectionStore는 만들지 않음(요청 원칙 그대로 준수) — `lib/planning/{types,generator,
+  design-plan-adapter}.ts`(신규, Design Automation Phase 1의 generator/types 패턴을 그대로
+  따름: chatViaCli → all-or-nothing JSON 검증 → 페이지/기능 개수 기반 규칙(rule-based) 결정론적
+  폴백)만 추가하고, 저장은 기존 `AiJobType`을 `"generate_planning"` 한 값만 최소 확장해
+  AiJobRecord가 이미 갖고 있던 범용 `result` 필드에 담는다(`lib/aiJobs/executor.ts`의
+  `executePlanningJob()`, `lib/aiJobs/types.ts` +1줄). `POST /api/external/inquiries`가 AI
+  Analysis 저장 성공 시에만 기존 `createAiJob()`/`processJob()` 파이프라인으로 자동
+  트리거(추가 API 없음 — 기존 `GET/POST /api/ai-jobs*`가 타입 무관하게 그대로 재사용됨). Design
+  Automation(`lib/design/*`)은 한 줄도 수정하지 않음 — `lib/planning/design-plan-adapter.ts`(순수
+  매핑, Phase 9의 `website-build-adapter.ts`와 동일한 원칙)로 Planning 결과를 Design Automation의
+  기존·미변경 진입점(`POST /api/design/requirements`)이 요구하는 입력 형태로만 변환한다. 모든
+  Inquiry에 대해 DesignPlanRecord를 조용히 자동 생성하는 대신(Design Automation의 다른 모든 Phase
+  전환과 다르게 검증되지 않은 대량 자동화가 될 위험 판단), `/developer/planning`(기존 대시보드
+  확장, 신규 대시보드 아님)에 "Design Automation으로 전달" 버튼을 추가해 사람이 트리거하는
+  기존 관례를 유지 — 이 설계 결정은 의도적 범위 조정이며, 완료 조건의 "Inquiry→...→Design
+  Automation" 자동 흐름은 Planning까지 완전 자동, Design Automation 진입은 검증된 원클릭
+  수동 액션으로 구현됐음을 명시
+  - 신규 테스트 16개(`tests/planning/{generator,design-plan-adapter}.test.ts`) — AI 성공/실패/파싱
+    실패 3경로, 규칙 기반 견적·일정 계산 검증(페이지·기능 개수 증가 시 총액·기간 증가 확인,
+    5단계 타임라인 오프셋 순차성), 어댑터 매핑 4가지 케이스
+  - 실 E2E: 로컬 dev 서버로 `POST /api/external/inquiries` 실제 호출 →
+    `inquiryId`/`aiJobId`에 이어 신규 `planningJobId` 응답 필드 확인 → 생성된
+    `ai-jobs.json`에서 `type:"generate_planning"` Job이 `status:"Success"`,
+    `result`에 견적 합계·일정 총기간이 정확한 계산값(예: 4페이지×50만+1기능×80만+기본
+    300만 → 부가세 10% 포함 638만원)으로 채워짐을 직접 확인. `generate_website` Job은 이
+    샌드박스에 `powershell.exe`가 없어 실패(Windows 전용 기존 동작, 이번 변경과 무관한
+    환경 제약 — 코드 회귀 아님)
+  - `npx tsc --noEmit`(0 errors) · `npm run lint`(0 errors) · `npm run build`(전체 라우트
+    정상 생성, `/developer/planning` 포함) · `npx vitest run` 62 files/481 tests 중 476~478
+    통과(매 실행마다 다른 3~5건이 실패 — 전부 `tests/{agents/taskQueue-retry,design/
+    review-registry,requests/registry,websites/registry}`의 동일 밀리초 timestamp 충돌로 인한
+    기존 타이밍 플레이크, 단독 재실행 시 통과 확인, Planning/AiJob/Design/AI Analysis 관련
+    테스트는 262개 전부 매번 통과)
 
 - **AI Provider 연결 배선 점검 + `.env.example` 문서화**(2026-07-22) — "실제 AI Provider 연결"
   작업 요청에 따라 기존 구조(`lib/ai/bridge.ts`의 `chatViaCli()` → `packages/cli/src/providers/
@@ -157,7 +194,6 @@ AI Analysis·Client·WebsiteOrder(Project)·AiJob·Admin·Website Builder는 전
 ## 다음 작업 우선순위
 
 1. **CNBIZ.AI.KR 구축 후 Inquiry 저장·관리자 알림 책임 이관** — 위 "알려진 아키텍처 부채" 참고. CNBIZ.AI.KR이 자체 DB·알림을 갖추면 `app/api/external/inquiries/route.ts`의 `createInquiry()`/`notifyAdminOfNewInquiry()` 호출부(이미 "임시 대행" 주석 표시됨)를 이관
-3. **기술 견적서 / 기능 명세서 / 프로젝트 타임라인 생성**(AI Business OS Phase 3) — Phase 2의 `AIAnalysisResult`를 입력으로 사용하는 새 AiJobType(또는 별도 서비스) 설계·구현
 4. **실제 AI Provider 연결** — 2026-07-22 재확인: 배선(Bridge→Provider Registry/Manager→5개 벤더)은 **이미 완결되어 추가 구현이 필요 없음**, `.env.example`도 이번에 4개 키 전부 문서화 완료. 남은 것은 순수 환경설정뿐 — `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`/`OPENROUTER_API_KEY` 중 하나라도 이 앱(Vercel 프로덕션 환경변수 또는 로컬 `.env.local`)에 실제 값으로 설정되어야 AI Analysis/Design Automation/Website Builder의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 실제 AI 응답으로 검증할 수 있음. 로컬 Ollama(`OLLAMA_HOST`)도 대안이 될 수 있으나, Vercel 프로덕션(서버리스)에서는 로컬 Ollama에 접근할 수 없어 로컬 개발 검증 용도로만 유효함
 5. **cnbiz.ai.kr 쪽 실제 챗봇 연동 검증** — 지금까지는 이쪽 저장소에서 직접 curl/Playwright로만 검증. 실제 cnbiz.ai.kr이 보내는 페이로드 필드명이 지원 중인 별칭(`customerName`/`consultation`)과 정확히 일치하는지 실제 연동 테스트 필요
 6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세에서만 연결된 레코드 확인 가능

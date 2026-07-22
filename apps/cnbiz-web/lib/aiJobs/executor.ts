@@ -2,11 +2,49 @@ import fs from "fs";
 import path from "path";
 import { execute } from "@/lib/commandEngine/engine";
 import { resolveRepoRoot } from "@/lib/paths/repoRoot";
-import { getAiJob } from "./registry";
+import { getAiJob, updateAiJobStatus } from "./registry";
+import type { AiJobRecord } from "./types";
 import { getWebsiteOrder, addWebsiteToOrder } from "@/lib/websiteOrders/registry";
 import { getClient } from "@/lib/clients/registry";
 import { createWebsiteRecord } from "@/lib/websites/registry";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
+import { getInquiry } from "@/lib/inquiries/registry";
+import { generatePlanning } from "@/lib/planning/generator";
+
+/**
+ * AI Business OS Phase 3(Planning) — "generate_planning" Job 전용 실행기. 새 저장소를 만들지
+ * 않고 이 Job이 이미 갖고 있는 기존 `result` 필드(AiJobRecord, lib/aiJobs/types.ts)에
+ * PlanningContent를 그대로 담는다. lib/ai-analysis(AI Analysis Engine)는 호출만 하고 전혀
+ * 수정하지 않는다 — job.payload.inquiryId로 Inquiry를 다시 조회해 이미 저장되어 있는
+ * `inquiry.analysis`(AIAnalysisResult)를 그대로 입력으로 사용한다.
+ */
+async function executePlanningJob(job: AiJobRecord): Promise<void> {
+  const inquiryId = typeof job.payload.inquiryId === "string" ? job.payload.inquiryId : undefined;
+  if (!inquiryId) {
+    throw new Error('"generate_planning" Job은 payload.inquiryId가 필요합니다.');
+  }
+
+  const inquiry = await getInquiry(inquiryId);
+  if (!inquiry) {
+    throw new Error(`Inquiry를 찾을 수 없습니다: ${inquiryId}`);
+  }
+  if (!inquiry.analysis) {
+    throw new Error(`Inquiry "${inquiryId}"에 AI Analysis 결과가 없어 Planning을 생성할 수 없습니다.`);
+  }
+
+  const { content, simulated, provider, model } = await generatePlanning({
+    companyName: inquiry.companyName,
+    siteType: inquiry.siteType,
+    requirements: inquiry.requirements,
+    analysis: inquiry.analysis,
+  });
+
+  // status는 그대로 두고(worker.ts가 이 함수 이후 곧바로 Success로 전이) result만 채운다 —
+  // updateAiJobStatus()는 patch에 없는 필드를 보존하므로 안전하다.
+  await updateAiJobStatus(job.id, job.status, {
+    result: { ...content, simulated, provider: provider ?? null, model: model ?? null },
+  });
+}
 
 /**
  * AI Job 1건을 처리한다 — worker.ts가 Running/Completed/Failed 상태 전이를 담당하므로,
@@ -21,6 +59,11 @@ export async function executeJob(jobId: string): Promise<void> {
   const job = await getAiJob(jobId);
   if (!job) {
     throw new Error(`AI Job을 찾을 수 없습니다: ${jobId}`);
+  }
+
+  if (job.type === "generate_planning") {
+    await executePlanningJob(job);
+    return;
   }
 
   const websiteOrder = await getWebsiteOrder(job.websiteOrderId);

@@ -1,5 +1,6 @@
-import fs from "fs";
-import path from "path";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design Automation — Phase 8 (docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md 2번의 Phase 구분,
@@ -92,71 +93,46 @@ export interface SyncRecord {
   updatedAt: string;
 }
 
-const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
-
-function registryPath(baseDir: string): string {
-  return path.join(baseDir, "design-sync.json");
-}
-
-function ensureRegistryFile(baseDir: string): void {
-  if (!fs.existsSync(baseDir)) {
-    fs.mkdirSync(baseDir, { recursive: true });
-  }
-
-  const file = registryPath(baseDir);
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, "[]", "utf-8");
-  }
-}
-
-function readRegistry(baseDir: string): SyncRecord[] {
-  ensureRegistryFile(baseDir);
-
-  try {
-    const raw = fs.readFileSync(registryPath(baseDir), "utf-8");
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SyncRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeRegistry(baseDir: string, records: SyncRecord[]): void {
-  ensureRegistryFile(baseDir);
-  fs.writeFileSync(registryPath(baseDir), JSON.stringify(records, null, 2), "utf-8");
-}
+const COLLECTION = "design-sync";
 
 function createRecordId(): string {
-  return `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("sync");
 }
 
 function createHistoryId(): string {
-  return `sync-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("sync-history");
 }
 
 /** 최신순(newest first). */
-export function listSyncRecords(baseDir: string = DEFAULT_BASE_DIR): SyncRecord[] {
-  return [...readRegistry(baseDir)].reverse();
+export async function listSyncRecords(store: CollectionStore = getDefaultStore()): Promise<SyncRecord[]> {
+  const records = await store.list<SyncRecord>(COLLECTION);
+  return [...records].reverse();
 }
 
-export function getSyncRecord(id: string, baseDir: string = DEFAULT_BASE_DIR): SyncRecord | null {
-  return readRegistry(baseDir).find((record) => record.id === id) ?? null;
+export async function getSyncRecord(
+  id: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<SyncRecord | null> {
+  const records = await store.list<SyncRecord>(COLLECTION);
+  return records.find((record) => record.id === id) ?? null;
 }
 
 /** 특정 Review에 연결된 Sync 레코드만(최신순 — Review당 최대 1개이므로 사실상 0/1개). */
-export function listSyncRecordsForReview(
+export async function listSyncRecordsForReview(
   reviewId: string,
-  baseDir: string = DEFAULT_BASE_DIR
-): SyncRecord[] {
-  return listSyncRecords(baseDir).filter((record) => record.reviewId === reviewId);
+  store: CollectionStore = getDefaultStore()
+): Promise<SyncRecord[]> {
+  const records = await listSyncRecords(store);
+  return records.filter((record) => record.reviewId === reviewId);
 }
 
 /** Review당 Sync 레코드는 하나만 유지한다(1:1) — 없으면 null. */
-export function getLatestSyncForReview(
+export async function getLatestSyncForReview(
   reviewId: string,
-  baseDir: string = DEFAULT_BASE_DIR
-): SyncRecord | null {
-  return listSyncRecordsForReview(reviewId, baseDir)[0] ?? null;
+  store: CollectionStore = getDefaultStore()
+): Promise<SyncRecord | null> {
+  const records = await listSyncRecordsForReview(reviewId, store);
+  return records[0] ?? null;
 }
 
 export interface RecordSyncEntry {
@@ -175,10 +151,13 @@ export interface RecordSyncEntry {
 
 /**
  * reviewId로 기존 레코드를 찾아 새 히스토리 항목을 추가(version+1)하거나, 없으면 새로 만든다
- * (version 1). Auto Save 원칙(Phase 6과 동일) — 매 Sync 호출마다 즉시 fs에 재저장한다.
+ * (version 1). Auto Save 원칙(Phase 6과 동일) — 매 Sync 호출마다 즉시 저장소에 재저장한다.
  */
-export function recordSync(entry: RecordSyncEntry, baseDir: string = DEFAULT_BASE_DIR): SyncRecord {
-  const records = readRegistry(baseDir);
+export async function recordSync(
+  entry: RecordSyncEntry,
+  store: CollectionStore = getDefaultStore()
+): Promise<SyncRecord> {
+  const records = await store.list<SyncRecord>(COLLECTION);
   const now = new Date().toISOString();
   const existingIndex = records.findIndex((record) => record.reviewId === entry.reviewId);
 
@@ -216,7 +195,7 @@ export function recordSync(entry: RecordSyncEntry, baseDir: string = DEFAULT_BAS
     };
 
     records.push(record);
-    writeRegistry(baseDir, records);
+    await store.replaceAll(COLLECTION, records);
     return record;
   }
 
@@ -235,7 +214,7 @@ export function recordSync(entry: RecordSyncEntry, baseDir: string = DEFAULT_BAS
   };
 
   records[existingIndex] = updated;
-  writeRegistry(baseDir, records);
+  await store.replaceAll(COLLECTION, records);
   return updated;
 }
 
@@ -252,13 +231,13 @@ export interface RollbackResult {
  * 되돌리고, 그 사실 자체를 새 히스토리 항목(action:"rollback", version+1)으로 남긴다 — 히스토리를
  * 지우거나 덮어쓰지 않고 그대로 보존한다(Phase 6 Review Engine과 동일한 append-only 원칙).
  */
-export function rollbackSyncRecord(
+export async function rollbackSyncRecord(
   id: string,
   toVersion: number,
   options: { actor?: string | null; note?: string } = {},
-  baseDir: string = DEFAULT_BASE_DIR
-): RollbackResult {
-  const records = readRegistry(baseDir);
+  store: CollectionStore = getDefaultStore()
+): Promise<RollbackResult> {
+  const records = await store.list<SyncRecord>(COLLECTION);
   const index = records.findIndex((record) => record.id === id);
   if (index === -1) {
     return { success: false, errorCode: "not_found", error: `Sync "${id}"을(를) 찾을 수 없습니다.` };
@@ -301,6 +280,6 @@ export function rollbackSyncRecord(
   };
 
   records[index] = updated;
-  writeRegistry(baseDir, records);
+  await store.replaceAll(COLLECTION, records);
   return { success: true, record: updated };
 }

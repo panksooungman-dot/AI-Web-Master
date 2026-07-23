@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import type { ProjectRequestInput, ProjectRequestRecord, RequestStatus } from "./types";
 
 const COLLECTION = "project-requests";
@@ -25,7 +26,7 @@ export async function createRequest(
 ): Promise<ProjectRequestRecord> {
   const now = new Date().toISOString();
   const record: ProjectRequestRecord = {
-    id: `request-${Date.now()}`,
+    id: generateId("request"),
     ...input,
     status: "New",
     createdAt: now,

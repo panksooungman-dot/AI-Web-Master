@@ -8,7 +8,7 @@ interface RouteParams {
 /** `GET /api/design/website/:id`. */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const record = getWebsiteBuildRecord(id);
+  const record = await getWebsiteBuildRecord(id);
 
   if (!record) {
     return NextResponse.json({ success: false, error: `Build "${id}"을(를) 찾을 수 없습니다.` }, { status: 404 });

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const actor = await getCurrentActorEmail();
-  const result = rollbackSyncRecord(syncId, toVersion, { actor, note });
+  const result = await rollbackSyncRecord(syncId, toVersion, { actor, note });
 
   if (!result.success || !result.record) {
     const status = result.errorCode === "not_found" ? 404 : 400;

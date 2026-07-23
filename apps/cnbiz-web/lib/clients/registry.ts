@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import type { ClientInput, ClientRecord } from "./types";
 
 const COLLECTION = "clients";
@@ -35,7 +36,7 @@ export async function createClient(
 ): Promise<ClientRecord> {
   const now = new Date().toISOString();
   const record: ClientRecord = {
-    id: `client-${Date.now()}`,
+    id: generateId("client"),
     ...input,
     inquiryIds: [],
     websiteOrderIds: [],

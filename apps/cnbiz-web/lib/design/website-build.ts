@@ -1,5 +1,6 @@
-import fs from "fs";
-import path from "path";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import type { WebsiteGenerationStatus } from "@/lib/websites/registry";
 
 /**
@@ -41,73 +42,45 @@ export interface WebsiteBuildRecord {
   updatedAt: string;
 }
 
-const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
-
-function registryPath(baseDir: string): string {
-  return path.join(baseDir, "design-website-builds.json");
-}
-
-function ensureRegistryFile(baseDir: string): void {
-  if (!fs.existsSync(baseDir)) {
-    fs.mkdirSync(baseDir, { recursive: true });
-  }
-
-  const file = registryPath(baseDir);
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, "[]", "utf-8");
-  }
-}
-
-function readRegistry(baseDir: string): WebsiteBuildRecord[] {
-  ensureRegistryFile(baseDir);
-
-  try {
-    const raw = fs.readFileSync(registryPath(baseDir), "utf-8");
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as WebsiteBuildRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeRegistry(baseDir: string, records: WebsiteBuildRecord[]): void {
-  ensureRegistryFile(baseDir);
-  fs.writeFileSync(registryPath(baseDir), JSON.stringify(records, null, 2), "utf-8");
-}
+const COLLECTION = "design-website-builds";
 
 function createRecordId(): string {
-  return `website-build-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("website-build");
 }
 
 function createHistoryId(): string {
-  return `website-build-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("website-build-history");
 }
 
 /** 최신순(newest first). */
-export function listWebsiteBuilds(baseDir: string = DEFAULT_BASE_DIR): WebsiteBuildRecord[] {
-  return [...readRegistry(baseDir)].reverse();
+export async function listWebsiteBuilds(store: CollectionStore = getDefaultStore()): Promise<WebsiteBuildRecord[]> {
+  const records = await store.list<WebsiteBuildRecord>(COLLECTION);
+  return [...records].reverse();
 }
 
-export function getWebsiteBuildRecord(
+export async function getWebsiteBuildRecord(
   id: string,
-  baseDir: string = DEFAULT_BASE_DIR
-): WebsiteBuildRecord | null {
-  return readRegistry(baseDir).find((record) => record.id === id) ?? null;
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteBuildRecord | null> {
+  const records = await store.list<WebsiteBuildRecord>(COLLECTION);
+  return records.find((record) => record.id === id) ?? null;
 }
 
 /** 특정 Review에 연결된 Build 레코드만(최신순 — Review당 최대 1개이므로 사실상 0/1개). */
-export function listWebsiteBuildsForReview(
+export async function listWebsiteBuildsForReview(
   reviewId: string,
-  baseDir: string = DEFAULT_BASE_DIR
-): WebsiteBuildRecord[] {
-  return listWebsiteBuilds(baseDir).filter((record) => record.reviewId === reviewId);
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteBuildRecord[]> {
+  const records = await listWebsiteBuilds(store);
+  return records.filter((record) => record.reviewId === reviewId);
 }
 
-export function getLatestWebsiteBuildForReview(
+export async function getLatestWebsiteBuildForReview(
   reviewId: string,
-  baseDir: string = DEFAULT_BASE_DIR
-): WebsiteBuildRecord | null {
-  return listWebsiteBuildsForReview(reviewId, baseDir)[0] ?? null;
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteBuildRecord | null> {
+  const records = await listWebsiteBuildsForReview(reviewId, store);
+  return records[0] ?? null;
 }
 
 export interface RecordWebsiteBuildEntry {
@@ -123,13 +96,13 @@ export interface RecordWebsiteBuildEntry {
 
 /**
  * reviewId로 기존 레코드를 찾아 새 history 항목을 추가(version+1)하거나, 없으면 새로 만든다
- * (version 1). Auto Save 원칙(Phase 6~8과 동일) — 매 Build 호출마다 즉시 fs에 재저장한다.
+ * (version 1). Auto Save 원칙(Phase 6~8과 동일) — 매 Build 호출마다 즉시 저장소에 재저장한다.
  */
-export function recordWebsiteBuild(
+export async function recordWebsiteBuild(
   entry: RecordWebsiteBuildEntry,
-  baseDir: string = DEFAULT_BASE_DIR
-): WebsiteBuildRecord {
-  const records = readRegistry(baseDir);
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteBuildRecord> {
+  const records = await store.list<WebsiteBuildRecord>(COLLECTION);
   const now = new Date().toISOString();
   const existingIndex = records.findIndex((record) => record.reviewId === entry.reviewId);
 
@@ -162,7 +135,7 @@ export function recordWebsiteBuild(
     };
 
     records.push(record);
-    writeRegistry(baseDir, records);
+    await store.replaceAll(COLLECTION, records);
     return record;
   }
 
@@ -179,6 +152,6 @@ export function recordWebsiteBuild(
   };
 
   records[existingIndex] = updated;
-  writeRegistry(baseDir, records);
+  await store.replaceAll(COLLECTION, records);
   return updated;
 }

@@ -34,7 +34,7 @@ function toResponse(record: SyncRecord) {
 }
 
 export async function GET() {
-  return NextResponse.json({ syncs: listSyncRecords() });
+  return NextResponse.json({ syncs: await listSyncRecords() });
 }
 
 /**
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
   }
 
   const figma = (await listFigmaRecordsForReview(reviewId))[0] ?? null;
-  const previous = getLatestSyncForReview(reviewId);
+  const previous = await getLatestSyncForReview(reviewId);
   const actor = await getCurrentActorEmail();
 
   await recordAuditEvent({
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 
   const result = computeSync({ direction, wireframe, figma, previous, codeOverride });
 
-  const record = recordSync({
+  const record = await recordSync({
     reviewId,
     planId: review.planId,
     figmaId: figma?.id ?? null,

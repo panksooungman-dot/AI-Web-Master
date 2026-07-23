@@ -1,3 +1,4 @@
+import { generateId } from "@/lib/id";
 import type {
   FigmaAsset,
   FigmaComponentSpec,
@@ -25,7 +26,7 @@ const FIGMA_API_BASE = "https://api.figma.com/v1";
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 function createId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId(prefix);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

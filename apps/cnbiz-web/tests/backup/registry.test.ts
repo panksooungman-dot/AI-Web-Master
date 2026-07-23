@@ -6,18 +6,24 @@ import { exportBackup, importBackup } from "../../lib/backup/registry";
 
 describe("Backup — lib/backup/registry.ts", () => {
   let cwd: string;
+  let fsStoreDataDir: string;
 
   beforeEach(() => {
-    cwd = fs.mkdtempSync(path.join(os.tmpdir(), "backup-test-"));
+    cwd = fs.mkdtempSync(path.join(os.tmpdir(), "backup-test-cwd-"));
+    // Mirrors lib/db/fsStore.ts's DEFAULT_BASE_DIR shape (os.tmpdir()-rooted, not cwd-rooted) —
+    // prompts.json/workflows.json live here, not under cwd/lib/data (see registry.ts's header
+    // comment: fsStore's local fallback moved off process.cwd() in commit 0954f09).
+    fsStoreDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-test-fsstore-"));
   });
 
   afterEach(() => {
     fs.rmSync(cwd, { recursive: true, force: true });
+    fs.rmSync(fsStoreDataDir, { recursive: true, force: true });
   });
 
   describe("exportBackup()", () => {
     it("returns null configuration and empty arrays when nothing exists yet", () => {
-      const bundle = exportBackup(cwd);
+      const bundle = exportBackup(cwd, fsStoreDataDir);
 
       expect(bundle.version).toBe(1);
       expect(bundle.configuration).toBeNull();
@@ -34,12 +40,11 @@ describe("Backup — lib/backup/registry.ts", () => {
         JSON.stringify({ default: "anthropic", providers: { anthropic: { apiKey: "${ANTHROPIC_API_KEY}" } } })
       );
 
-      const dataDir = path.join(cwd, "lib", "data");
-      fs.mkdirSync(dataDir, { recursive: true });
-      fs.writeFileSync(path.join(dataDir, "prompts.json"), JSON.stringify([{ id: "p1", name: "Prompt 1" }]));
-      fs.writeFileSync(path.join(dataDir, "workflows.json"), JSON.stringify([{ id: "w1", name: "Workflow 1" }]));
+      fs.mkdirSync(fsStoreDataDir, { recursive: true });
+      fs.writeFileSync(path.join(fsStoreDataDir, "prompts.json"), JSON.stringify([{ id: "p1", name: "Prompt 1" }]));
+      fs.writeFileSync(path.join(fsStoreDataDir, "workflows.json"), JSON.stringify([{ id: "w1", name: "Workflow 1" }]));
 
-      const bundle = exportBackup(cwd);
+      const bundle = exportBackup(cwd, fsStoreDataDir);
 
       expect(bundle.configuration).toEqual({ default: "anthropic", providers: { anthropic: { apiKey: "${ANTHROPIC_API_KEY}" } } });
       expect(bundle.prompts).toEqual([{ id: "p1", name: "Prompt 1" }]);
@@ -49,7 +54,7 @@ describe("Backup — lib/backup/registry.ts", () => {
 
   describe("importBackup()", () => {
     it("rejects a non-object bundle", () => {
-      const result = importBackup("not an object", cwd);
+      const result = importBackup("not an object", cwd, fsStoreDataDir);
       expect(result.success).toBe(false);
       expect(result.error).toBeTruthy();
     });
@@ -63,24 +68,24 @@ describe("Backup — lib/backup/registry.ts", () => {
         workflows: [{ id: "w1", name: "Restored Workflow" }],
       };
 
-      const result = importBackup(bundle, cwd);
+      const result = importBackup(bundle, cwd, fsStoreDataDir);
 
       expect(result.success).toBe(true);
       expect(result.imported).toEqual({ configuration: true, prompts: 1, workflows: 1 });
 
-      const roundTrip = exportBackup(cwd);
+      const roundTrip = exportBackup(cwd, fsStoreDataDir);
       expect(roundTrip.configuration).toEqual(bundle.configuration);
       expect(roundTrip.prompts).toEqual(bundle.prompts);
       expect(roundTrip.workflows).toEqual(bundle.workflows);
     });
 
     it("supports a partial bundle — only restores the sections present", () => {
-      const result = importBackup({ prompts: [{ id: "p1" }] }, cwd);
+      const result = importBackup({ prompts: [{ id: "p1" }] }, cwd, fsStoreDataDir);
 
       expect(result.success).toBe(true);
       expect(result.imported).toEqual({ configuration: false, prompts: 1, workflows: 0 });
 
-      const roundTrip = exportBackup(cwd);
+      const roundTrip = exportBackup(cwd, fsStoreDataDir);
       expect(roundTrip.prompts).toEqual([{ id: "p1" }]);
       expect(roundTrip.configuration).toBeNull();
       expect(roundTrip.workflows).toEqual([]);

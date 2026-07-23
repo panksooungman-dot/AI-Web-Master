@@ -1,19 +1,20 @@
 import type { ReviewComment, ReviewHistoryEntry, ReviewRecord, ReviewStatus } from "./review";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 const COLLECTION = "design-reviews";
 
 function createRecordId(): string {
-  return `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("review");
 }
 
 function createCommentId(): string {
-  return `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("comment");
 }
 
 function createHistoryId(): string {
-  return `history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("history");
 }
 
 export interface CreateReviewEntry {

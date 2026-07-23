@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 /**
@@ -9,6 +10,15 @@ import path from "path";
  * marketplace/manifest.json을 직접 읽는 것과 동일한 원칙 — 파일 자체가 안정적인 계약이다).
  * "configuration"은 `.runtime/config/providers.json`을 의미한다 — 실제 비밀값이 아니라
  * `${ENV_VAR}` 참조 템플릿만 담고 있어(packages/cli/src/providers/manager.ts 참고) 내보내도 안전하다.
+ *
+ * prompts/workflows는 이제 CollectionStore(`lib/prompts/registry.ts`·`lib/workflows/registry.ts`,
+ * Supabase 프로덕션 / fs 로컬 폴백)로 관리된다 — 로컬 fs 폴백의 실제 기본 경로는
+ * `lib/db/fsStore.ts`의 DEFAULT_BASE_DIR(os.tmpdir()/cnbiz-web/data)이며 `cwd/lib/data`가 아니다
+ * (2026-07-16 커밋 0954f09로 변경됨). 이 파일은 그 기본 경로가 바뀌었을 때 함께 갱신되지 않아
+ * 로컬 개발에서도 매번 빈 배열만 내보내고 있었다 — Supabase가 store로 선택되는 프로덕션에서는
+ * 애초에 이 경로에 파일 자체가 없으므로(Export가 항상 빈 배열, Import가 아무도 읽지 않는 파일에
+ * 쓰기만 함) 여전히 공백으로 남는다(별도 후속 작업 필요, 이번엔 fsStore 기본 경로와의 불일치만
+ * 수정했다).
  */
 export interface BackupBundle {
   version: 1;
@@ -22,12 +32,15 @@ function configPath(cwd: string): string {
   return path.join(cwd, ".runtime", "config", "providers.json");
 }
 
-function promptsPath(cwd: string): string {
-  return path.join(cwd, "lib", "data", "prompts.json");
+/** lib/db/fsStore.ts의 DEFAULT_BASE_DIR과 반드시 일치해야 한다. */
+const DEFAULT_FS_STORE_DATA_DIR = path.join(os.tmpdir(), "cnbiz-web", "data");
+
+function promptsPath(dataDir: string): string {
+  return path.join(dataDir, "prompts.json");
 }
 
-function workflowsPath(cwd: string): string {
-  return path.join(cwd, "lib", "data", "workflows.json");
+function workflowsPath(dataDir: string): string {
+  return path.join(dataDir, "workflows.json");
 }
 
 function readJsonSafe(file: string): unknown {
@@ -38,10 +51,13 @@ function readJsonSafe(file: string): unknown {
   }
 }
 
-export function exportBackup(cwd: string = process.cwd()): BackupBundle {
+export function exportBackup(
+  cwd: string = process.cwd(),
+  fsStoreDataDir: string = DEFAULT_FS_STORE_DATA_DIR
+): BackupBundle {
   const configuration = readJsonSafe(configPath(cwd));
-  const prompts = readJsonSafe(promptsPath(cwd));
-  const workflows = readJsonSafe(workflowsPath(cwd));
+  const prompts = readJsonSafe(promptsPath(fsStoreDataDir));
+  const workflows = readJsonSafe(workflowsPath(fsStoreDataDir));
 
   return {
     version: 1,
@@ -70,7 +86,11 @@ function isBackupBundle(value: unknown): value is Partial<BackupBundle> {
  * 번들에 있는 섹션만 복원한다(부분 번들 허용) — 없는 섹션은 건드리지 않는다.
  * 기존 파일을 완전히 교체(overwrite)한다 — merge가 아니다, 복원(restore) 의미론이기 때문.
  */
-export function importBackup(bundle: unknown, cwd: string = process.cwd()): ImportResult {
+export function importBackup(
+  bundle: unknown,
+  cwd: string = process.cwd(),
+  fsStoreDataDir: string = DEFAULT_FS_STORE_DATA_DIR
+): ImportResult {
   if (!isBackupBundle(bundle)) {
     return {
       success: false,
@@ -90,14 +110,14 @@ export function importBackup(bundle: unknown, cwd: string = process.cwd()): Impo
     }
 
     if (Array.isArray(bundle.prompts)) {
-      const file = promptsPath(cwd);
+      const file = promptsPath(fsStoreDataDir);
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(bundle.prompts, null, 2), "utf-8");
       imported.prompts = bundle.prompts.length;
     }
 
     if (Array.isArray(bundle.workflows)) {
-      const file = workflowsPath(cwd);
+      const file = workflowsPath(fsStoreDataDir);
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(bundle.workflows, null, 2), "utf-8");
       imported.workflows = bundle.workflows.length;

@@ -12,10 +12,14 @@
  * Writes to Supabase (table `app_collections`, same shape lib/db/supabaseStore.ts uses) when
  * SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set in the environment — that's required to
  * create a login account against a deployed (Vercel) app, since its filesystem is read-only.
- * Falls back to the local lib/data/users.json file otherwise (matches lib/db/fsStore.ts).
+ * Falls back to the local fs store otherwise (matches lib/db/fsStore.ts's DEFAULT_BASE_DIR:
+ * os.tmpdir()/cnbiz-web/data, NOT lib/data — the local fallback moved off process.cwd() in
+ * commit 0954f09 so it never tries to write into a read-only bundle path; this script must
+ * target the same directory or the account it creates is invisible to the running app).
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- standalone CommonJS script, see screenshot.cjs for the same precedent */
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -61,7 +65,7 @@ async function createViaSupabase(record, normalizedEmail) {
 }
 
 function createViaFs(record, normalizedEmail) {
-  const dataDir = path.join(process.cwd(), "lib", "data");
+  const dataDir = path.join(os.tmpdir(), "cnbiz-web", "data");
   const usersFile = path.join(dataDir, "users.json");
 
   if (!fs.existsSync(dataDir)) {

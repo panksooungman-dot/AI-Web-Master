@@ -1,6 +1,7 @@
 import { execFile, spawn, type ChildProcess } from "child_process";
 import { eventBus } from "@/lib/events/eventBus";
 import { buildShellInvocation } from "@/lib/terminal/server";
+import { generateId } from "@/lib/id";
 import { buildOpenUrlCommand, getCommandDefinition, type CommandDefinition } from "./commands";
 import { commandHistoryStore } from "./history";
 import type {
@@ -17,7 +18,7 @@ const DEFAULT_SETTLE_MS = 2000;
 const TASKKILL_PID_NOT_FOUND_CODE = 128;
 
 function createRecordId(): string {
-  return `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("cmd");
 }
 
 function inferCategory(command: string): CommandCategory {

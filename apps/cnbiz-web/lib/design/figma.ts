@@ -1,6 +1,7 @@
 import type { Breakpoint, ComponentType } from "./wireframe";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design Automation — Phase 7 (docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md 2번의 Phase 구분,
@@ -97,11 +98,11 @@ export interface FigmaRecord {
 const COLLECTION = "design-figma";
 
 function createRecordId(): string {
-  return `figma-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("figma");
 }
 
 function createHistoryId(): string {
-  return `figma-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("figma-history");
 }
 
 /** 최신순(newest first). */

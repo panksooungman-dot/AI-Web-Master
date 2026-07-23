@@ -1,6 +1,7 @@
 import { getAgent } from "./registry";
 import type { AgentContext, AgentOutput } from "./types";
 import { eventBus } from "@/lib/events/eventBus";
+import { generateId } from "@/lib/id";
 
 export type TaskStatus = "Queued" | "Running" | "Success" | "Failed" | "Cancelled";
 
@@ -18,7 +19,7 @@ export interface AgentTask {
 }
 
 function createTaskId(): string {
-  return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("task");
 }
 
 class TaskQueue {

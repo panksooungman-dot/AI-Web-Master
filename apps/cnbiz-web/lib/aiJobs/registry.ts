@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import type { AiJobInput, AiJobRecord, AiJobStatus } from "./types";
 
 const COLLECTION = "ai-jobs";
@@ -33,7 +34,7 @@ export async function createAiJob(
 ): Promise<AiJobRecord> {
   const now = new Date().toISOString();
   const record: AiJobRecord = {
-    id: `ai-job-${Date.now()}`,
+    id: generateId("ai-job"),
     ...input,
     status: "Queued",
     progress: 0,

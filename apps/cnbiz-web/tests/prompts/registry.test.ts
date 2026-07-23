@@ -2,42 +2,45 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createFsStore } from "../../lib/db/fsStore";
 import { addPromptVersion, createPrompt, getLatestVersion, getPrompt, listPrompts } from "../../lib/prompts/registry";
 
 describe("Prompt Library — registry (lib/prompts/registry.ts)", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "prompts-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("createPrompt() defaults category to 'General' when omitted", () => {
-    const created = createPrompt("Untitled", "", "content", undefined, undefined, baseDir);
+  it("createPrompt() defaults category to 'General' when omitted", async () => {
+    const created = await createPrompt("Untitled", "", "content", undefined, undefined, store);
     expect(created.category).toBe("General");
   });
 
-  it("createPrompt() stores category and per-version variables", () => {
-    const created = createPrompt("Copy", "desc", "Hi {{name}}", "Marketing", ["name"], baseDir);
+  it("createPrompt() stores category and per-version variables", async () => {
+    const created = await createPrompt("Copy", "desc", "Hi {{name}}", "Marketing", ["name"], store);
 
     expect(created.category).toBe("Marketing");
     expect(getLatestVersion(created).variables).toEqual(["name"]);
   });
 
-  it("listPrompts()/getPrompt() round-trip the same record", () => {
-    const created = createPrompt("A", "", "content", "General", undefined, baseDir);
+  it("listPrompts()/getPrompt() round-trip the same record", async () => {
+    const created = await createPrompt("A", "", "content", "General", undefined, store);
 
-    expect(listPrompts(baseDir)).toHaveLength(1);
-    expect(getPrompt(created.id, baseDir)?.name).toBe("A");
-    expect(getPrompt("does-not-exist", baseDir)).toBeUndefined();
+    expect(await listPrompts(store)).toHaveLength(1);
+    expect((await getPrompt(created.id, store))?.name).toBe("A");
+    expect(await getPrompt("does-not-exist", store)).toBeUndefined();
   });
 
-  it("addPromptVersion() preserves version history (regression: existing versioning behavior)", () => {
-    const created = createPrompt("A", "", "v1 content", "General", undefined, baseDir);
-    const updated = addPromptVersion(created.id, "v2 content", ["x"], baseDir);
+  it("addPromptVersion() preserves version history (regression: existing versioning behavior)", async () => {
+    const created = await createPrompt("A", "", "v1 content", "General", undefined, store);
+    const updated = await addPromptVersion(created.id, "v2 content", ["x"], store);
 
     expect(updated?.versions).toHaveLength(2);
     expect(updated?.versions[0].content).toBe("v1 content");
@@ -46,11 +49,11 @@ describe("Prompt Library — registry (lib/prompts/registry.ts)", () => {
     expect(getLatestVersion(updated!).version).toBe(2);
   });
 
-  it("addPromptVersion() returns undefined for an unknown prompt id", () => {
-    expect(addPromptVersion("does-not-exist", "content", undefined, baseDir)).toBeUndefined();
+  it("addPromptVersion() returns undefined for an unknown prompt id", async () => {
+    expect(await addPromptVersion("does-not-exist", "content", undefined, store)).toBeUndefined();
   });
 
-  it("reading legacy records (no category field) defaults category to 'General'", () => {
+  it("reading legacy records (no category field) defaults category to 'General'", async () => {
     const file = path.join(baseDir, "prompts.json");
     fs.mkdirSync(baseDir, { recursive: true });
     fs.writeFileSync(
@@ -68,6 +71,6 @@ describe("Prompt Library — registry (lib/prompts/registry.ts)", () => {
       "utf-8"
     );
 
-    expect(getPrompt("prompt-legacy", baseDir)?.category).toBe("General");
+    expect((await getPrompt("prompt-legacy", store))?.category).toBe("General");
   });
 });

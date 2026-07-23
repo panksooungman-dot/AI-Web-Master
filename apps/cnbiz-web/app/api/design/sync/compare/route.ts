@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   const figma = (await listFigmaRecordsForReview(reviewId))[0] ?? null;
-  const previous = getLatestSyncForReview(reviewId);
+  const previous = await getLatestSyncForReview(reviewId);
   const result = computeSync({ direction, wireframe, figma, previous, codeOverride });
 
   return NextResponse.json({

@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design Automation — Phase 2 (docs/03_DESIGN/DESIGN_WORKFLOW.md의 Phase 4 "Storyboard").
@@ -72,7 +73,7 @@ export interface StoryboardRecord {
 const COLLECTION = "design-storyboards";
 
 function createRecordId(): string {
-  return `storyboard-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("storyboard");
 }
 
 export async function createStoryboard(

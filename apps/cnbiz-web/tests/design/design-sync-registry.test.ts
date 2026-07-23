@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createFsStore } from "../../lib/db/fsStore";
 import {
   getLatestSyncForReview,
   getSyncRecord,
@@ -31,21 +32,23 @@ const CODE_SNAPSHOT: CodeSnapshot = {
 
 describe("Design Sync Registry — lib/design/design-sync.ts", () => {
   let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "design-sync-registry-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("listSyncRecords() returns an empty array before anything is recorded", () => {
-    expect(listSyncRecords(baseDir)).toEqual([]);
+  it("listSyncRecords() returns an empty array before anything is recorded", async () => {
+    expect(await listSyncRecords(store)).toEqual([]);
   });
 
-  it("recordSync() creates a new record (version 1) and persists to lib/data/design-sync.json", () => {
-    const record = recordSync(
+  it("recordSync() creates a new record (version 1) and persists it", async () => {
+    const record = await recordSync(
       {
         reviewId: "review-1",
         planId: "plan-1",
@@ -57,7 +60,7 @@ describe("Design Sync Registry — lib/design/design-sync.ts", () => {
         conflicts: [],
         status: "in_sync",
       },
-      baseDir
+      store
     );
 
     expect(record.id).toBeTruthy();
@@ -70,49 +73,49 @@ describe("Design Sync Registry — lib/design/design-sync.ts", () => {
     expect(raw[0].id).toBe(record.id);
   });
 
-  it("recordSync() called again for the same reviewId updates the existing record (version+1) instead of creating a new one", () => {
-    const first = recordSync(
+  it("recordSync() called again for the same reviewId updates the existing record (version+1) instead of creating a new one", async () => {
+    const first = await recordSync(
       { reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" },
-      baseDir
+      store
     );
-    const second = recordSync(
+    const second = await recordSync(
       { reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "code-to-design", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "conflict" },
-      baseDir
+      store
     );
 
     expect(second.id).toBe(first.id);
     expect(second.version).toBe(2);
     expect(second.status).toBe("conflict");
     expect(second.history).toHaveLength(2);
-    expect(listSyncRecords(baseDir)).toHaveLength(1);
+    expect(await listSyncRecords(store)).toHaveLength(1);
   });
 
-  it("a different reviewId creates a separate record", () => {
-    recordSync({ reviewId: "review-a", planId: "plan-a", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, baseDir);
-    recordSync({ reviewId: "review-b", planId: "plan-b", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, baseDir);
+  it("a different reviewId creates a separate record", async () => {
+    await recordSync({ reviewId: "review-a", planId: "plan-a", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, store);
+    await recordSync({ reviewId: "review-b", planId: "plan-b", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, store);
 
-    expect(listSyncRecords(baseDir)).toHaveLength(2);
-    expect(listSyncRecordsForReview("review-a", baseDir)).toHaveLength(1);
+    expect(await listSyncRecords(store)).toHaveLength(2);
+    expect(await listSyncRecordsForReview("review-a", store)).toHaveLength(1);
   });
 
-  it("getLatestSyncForReview() returns null when nothing has been synced for that review", () => {
-    expect(getLatestSyncForReview("does-not-exist", baseDir)).toBeNull();
+  it("getLatestSyncForReview() returns null when nothing has been synced for that review", async () => {
+    expect(await getLatestSyncForReview("does-not-exist", store)).toBeNull();
   });
 
-  it("getSyncRecord() finds a record by id, null for unknown id", () => {
-    const record = recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, baseDir);
-    expect(getSyncRecord(record.id, baseDir)?.reviewId).toBe("review-1");
-    expect(getSyncRecord("does-not-exist", baseDir)).toBeNull();
+  it("getSyncRecord() finds a record by id, null for unknown id", async () => {
+    const record = await recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, store);
+    expect((await getSyncRecord(record.id, store))?.reviewId).toBe("review-1");
+    expect(await getSyncRecord("does-not-exist", store)).toBeNull();
   });
 
-  it("rollbackSyncRecord() restores a past version's snapshots and appends a new history entry instead of deleting history", () => {
-    const first = recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, baseDir);
+  it("rollbackSyncRecord() restores a past version's snapshots and appends a new history entry instead of deleting history", async () => {
+    const first = await recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, store);
 
     const changedDesign: DesignSnapshot = { ...DESIGN_SNAPSHOT, hash: "design-hash-2" };
     const changedCode: CodeSnapshot = { ...CODE_SNAPSHOT, hash: "code-hash-2" };
-    recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: changedDesign, codeSnapshot: changedCode, patch: [], conflicts: [], status: "in_sync" }, baseDir);
+    await recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: changedDesign, codeSnapshot: changedCode, patch: [], conflicts: [], status: "in_sync" }, store);
 
-    const result = rollbackSyncRecord(first.id, 1, { actor: "designer@cnbiz.kr" }, baseDir);
+    const result = await rollbackSyncRecord(first.id, 1, { actor: "designer@cnbiz.kr" }, store);
 
     expect(result.success).toBe(true);
     expect(result.record?.version).toBe(3);
@@ -126,15 +129,15 @@ describe("Design Sync Registry — lib/design/design-sync.ts", () => {
     expect(result.record?.history[1].designSnapshot.hash).toBe("design-hash-2");
   });
 
-  it("rollbackSyncRecord() returns not_found for an unknown sync id", () => {
-    const result = rollbackSyncRecord("does-not-exist", 1, {}, baseDir);
+  it("rollbackSyncRecord() returns not_found for an unknown sync id", async () => {
+    const result = await rollbackSyncRecord("does-not-exist", 1, {}, store);
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe("not_found");
   });
 
-  it("rollbackSyncRecord() returns version_not_found for a version that never existed", () => {
-    const record = recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, baseDir);
-    const result = rollbackSyncRecord(record.id, 99, {}, baseDir);
+  it("rollbackSyncRecord() returns version_not_found for a version that never existed", async () => {
+    const record = await recordSync({ reviewId: "review-1", planId: "plan-1", figmaId: null, direction: "design-to-code", designSnapshot: DESIGN_SNAPSHOT, codeSnapshot: CODE_SNAPSHOT, patch: [], conflicts: [], status: "in_sync" }, store);
+    const result = await rollbackSyncRecord(record.id, 99, {}, store);
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe("version_not_found");
   });

@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import type { AIAnalysisResult } from "@/lib/ai-analysis/types";
 import type { InquiryInput, InquiryRecord, InquiryStatus } from "./types";
 
@@ -26,7 +27,7 @@ export async function createInquiry(
 ): Promise<InquiryRecord> {
   const now = new Date().toISOString();
   const record: InquiryRecord = {
-    id: `inquiry-${Date.now()}`,
+    id: generateId("inquiry"),
     ...input,
     status: "New",
     clientId: null,

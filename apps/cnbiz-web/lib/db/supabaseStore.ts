@@ -29,27 +29,38 @@ export function createSupabaseStore(url: string, serviceRoleKey: string): Collec
     },
 
     async replaceAll<T extends { id: string }>(collection: string, records: T[]): Promise<void> {
-      const { error: deleteError } = await client
-        .from("app_collections")
-        .delete()
-        .eq("collection", collection);
+      // Upsert-then-delete-stale instead of delete-then-insert: writing the new/updated rows
+      // first means the collection never passes through an empty state. If this call is
+      // interrupted between the two steps, the worst case is a few stale rows left behind
+      // (cleaned up by the next successful replaceAll) rather than the whole collection's data
+      // being lost — the old delete-then-insert order lost everything on a crash in that window.
+      if (records.length > 0) {
+        const rows = records.map((record) => ({
+          collection,
+          id: record.id,
+          data: record,
+        }));
+
+        const { error: upsertError } = await client
+          .from("app_collections")
+          .upsert(rows, { onConflict: "collection,id" });
+
+        if (upsertError) {
+          throw new Error(`[supabaseStore] replaceAll("${collection}") upsert failed: ${upsertError.message}`);
+        }
+      }
+
+      let deleteQuery = client.from("app_collections").delete().eq("collection", collection);
+
+      if (records.length > 0) {
+        const keepIds = records.map((record) => `"${record.id}"`).join(",");
+        deleteQuery = deleteQuery.not("id", "in", `(${keepIds})`);
+      }
+
+      const { error: deleteError } = await deleteQuery;
 
       if (deleteError) {
         throw new Error(`[supabaseStore] replaceAll("${collection}") delete failed: ${deleteError.message}`);
-      }
-
-      if (records.length === 0) return;
-
-      const rows = records.map((record) => ({
-        collection,
-        id: record.id,
-        data: record,
-      }));
-
-      const { error: insertError } = await client.from("app_collections").insert(rows);
-
-      if (insertError) {
-        throw new Error(`[supabaseStore] replaceAll("${collection}") insert failed: ${insertError.message}`);
       }
     },
 

@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ success: false, error: "cwd는 필수입니다." }, { status: 400 });
     }
 
-    const run = workflowEngine.createRun(id, { cwd, workspaceId, workspaceName });
+    const run = await workflowEngine.createRun(id, { cwd, workspaceId, workspaceName });
 
     return NextResponse.json({ success: true, run });
   } catch (error) {

@@ -1,4 +1,5 @@
 import { taskQueue, type AgentTask } from "./taskQueue";
+import { generateId } from "@/lib/id";
 
 export interface AiSession {
   id: string;
@@ -17,7 +18,7 @@ export interface CreateSessionInput {
 }
 
 function createSessionId(): string {
-  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("session");
 }
 
 class SessionManager {

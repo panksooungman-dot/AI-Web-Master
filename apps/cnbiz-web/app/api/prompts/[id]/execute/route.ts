@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     if (sessionId) {
-      const task = executePromptInSession(id, sessionId, agentId, version);
+      const task = await executePromptInSession(id, sessionId, agentId, version);
       return NextResponse.json({ success: true, task });
     }
 
@@ -50,7 +50,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const task = executePrompt(id, agentId, { cwd, workspaceId, workspaceName }, version);
+    const task = await executePrompt(id, agentId, { cwd, workspaceId, workspaceName }, version);
 
     return NextResponse.json({ success: true, task });
   } catch (error) {

@@ -1,6 +1,7 @@
 import type { ComponentType } from "./wireframe";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design Automation — Phase 4 (docs/03_DESIGN/DESIGN_WORKFLOW.md의 Phase 6 "Prototype").
@@ -130,7 +131,7 @@ export interface PrototypeRecord {
 const COLLECTION = "design-prototypes";
 
 function createRecordId(): string {
-  return `prototype-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("prototype");
 }
 
 /**

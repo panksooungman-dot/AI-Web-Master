@@ -54,7 +54,7 @@ function parseSteps(value: unknown): WorkflowStepDefinition[] | null {
 }
 
 export async function GET() {
-  return NextResponse.json({ workflows: listWorkflows() });
+  return NextResponse.json({ workflows: await listWorkflows() });
 }
 
 export async function POST(request: Request) {
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const workflow = createWorkflow(name, description, steps);
+    const workflow = await createWorkflow(name, description, steps);
 
     return NextResponse.json({ success: true, workflow });
   } catch (error) {

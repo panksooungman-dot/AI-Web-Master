@@ -1,3 +1,469 @@
+# REPORT — AI Business OS 미완료 개발 분석 및 구현
+
+## STEP 4. 추가 구현 검토 (2026-07-23, STEP 1~3 이후)
+
+기존 STEP 1 분석·STEP 2 TODO를 재작성하지 않고 그대로 재확인만 했다.
+
+### 1. 이번에 구현한 기능
+없음.
+
+### 2. 수정한 파일
+없음.
+
+### 3. 구현 이유(=구현하지 않은 이유)
+STEP 2 TODO 표의 잔여 7개 항목(기술 견적서/기능 명세서/프로젝트 타임라인 자동 생성·
+Notification 다채널화·Customer 포털·회원가입 백엔드+역할관리 UI·File Upload API·
+Portfolio 실콘텐츠/연락처/GSC 연동·Race Condition/Task Queue 비영속화)을 재확인한 결과,
+전부 이미 "⛔ 제외/보류"로 표시되어 있었고 그 사유가 이번 라운드의 구현 원칙(기존 API·
+Backend·Registry·Auth/RBAC 변경 금지, 아키텍처 변경 금지)과 정확히 같은 지점에서
+충돌한다 — 새 AiJobType/Domain, 새 외부 서비스 연동, 새 RBAC role, 새 Auth API 표면,
+새 API, 또는 실제 자료·외부 계정 확보 중 하나가 반드시 필요하다. 기존 구조만으로
+구현 가능한 항목이 하나도 남아 있지 않아, 억지로 새 기능을 만들지 않고 작업을 종료한다.
+
+### 4. 남은 구현 가능 기능
+없음 — STEP 2 TODO의 잔여 7개 항목은 전부 "기존 구조만으로 구현 불가"로 확정됨.
+범위가 넓어지면(예: 새 API/Auth 변경 허용) 재검토 가능.
+
+### 5. 전체 진행률(%)
+변동 없음(약 90%, STEP 3 종료 시점과 동일 — 이번 STEP은 신규 구현이 없었음).
+
+> 2026-07-23. "AI Business OS 개발 프로세스"(01 Analysis ~ 09 Deployment) 기준으로 미완료
+> 항목만 찾아 구현하는 별도 작업 스레드. 08 Testing·09 Deployment는 이번 라운드에서 수행하지
+> 않는다(사용자 지시). QA·전체 테스트·리팩터링·아키텍처 변경도 하지 않는다 — 아래 STEP 3에서
+> 실행한 유일한 검증은 신규 작성 파일의 1회성 `tsc --noEmit`(타입 오류만 확인, 회귀 테스트 아님)이다.
+> 이미 구현되어 동작 중인 코드는 절대 수정하지 않았다(`components/developer/DeveloperNav.tsx`에
+> 배열 항목 2개를 추가한 것이 유일한 기존 파일 변경이며, 기존 항목·동작은 무변경).
+
+## STEP 1. 프로젝트 전체 분석 (01~09 단계별 완료도)
+
+> 근거: `PROJECT_STATUS.md`(2026-07-22, 이 저장소의 SSOT로 지정된 문서, 커밋 `d3248d2` 기준
+> 실측 작성)를 1차 근거로 삼고, 이번 세션에서 직접 실행한 라이브 검증(같은 날 진행된 "안정화
+> 작업" STEP 3 — Design Pipeline 전체를 실제 dev 서버로 curl 실행, 위 섹션 참고)과 코드 직접
+> 판독으로 교차 확인했다. 전면 재조사가 아니라 기존 SSOT 위에 이번에 새로 확인된 사실만
+> 갱신하는 방식으로 진행했다(문서 자체의 "이미 구현된 기능은 재조사하지 않는다" 원칙과 일치).
+
+### 01 Analysis
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| AI Analysis Engine(Completeness/Missing Items/Business Type/추천 페이지·기능/Summary) | ✅ 완료 | `lib/ai-analysis/*`, 신규 테스트 15개, 2026-07-20 실 E2E 검증(5개 샘플 업종) 완료·PROJECT_STATUS 기록 |
+| 기술 견적서/기능 명세서/프로젝트 타임라인 자동 생성 | ❌ 미구현 | PROJECT_STATUS "⏳ 예정된 기능"에 명시. AI Analysis 결과를 입력으로 쓰는 신규 AiJobType 또는 별도 서비스가 필요 — **새 Domain에 해당해 이번 라운드 구현 대상에서 제외**(아래 STEP 2 참고) |
+
+### 02 Planning
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| Planning 대시보드(`/developer/planning`) | ✅ 완료 | Workflow 정의·Run 이력 집계, 2026-07-22 구현·검증 |
+| WBS·로드맵 문서 | ✅ 완료 | `docs/01_PMO/{WBS,PROJECT_ROADMAP}.md` 존재·정기 갱신 |
+
+### 03 Design (Design Automation Phase 1~9)
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| Storyboard | ✅ 완료 | Phase 2. 이번 세션에 라이브로 재검증(`storyboard-45648b78-...`, Screen Flow 4개 정상) |
+| Wireframe | ✅ 완료 | Phase 3. 라이브 재검증(`wireframe-4e1a32a1-...`, Layout 4개) |
+| Prototype | ✅ 완료 | Phase 4. 라이브 재검증(v1 정상 생성) |
+| UI Design / Design System / Component Design | ✅ 완료 | 이 저장소엔 별도 Phase명이 없고 Phase 5(Claude Design)가 Design/**UI**/**Component**/Theme/Layout Prompt 5종을 한 번에 생성한다(라이브 재검증 완료). 실제 렌더링되는 Design System은 별도로 `packages/design-system`·`packages/ui`(Website Builder v2가 실사용)로 이미 존재 |
+| Design Document(SSOT) | ✅ 완료 | Phase 1의 부수 효과로 저장, `tests/design/design-document-{registry,service}.test.ts` 17개 |
+| Review/Approval | ✅ 완료 | Phase 6. 라이브 재검증(`review-30ba3a16-...`, in_review→approved) |
+| Figma Import/Export | ✅ 완료 | Phase 7 |
+| Design Sync | ✅ 완료 | Phase 8. 라이브 재검증 — 초기 sync(v1, patch 23)→재동기화(v2, patch 0)→rollback(v3, history 3건 append-only 보존) 전부 정상 |
+| Website Build 연동 | ✅ 완료 | Phase 9. PROJECT_STATUS는 "코드 존재, CHANGELOG 검증 기록 없음"으로 caveat를 달아뒀으나, 이번 세션에 실제 라이브 실행(`website-build-19be4101-...`, Success)으로 그 caveat를 해소함 |
+
+**→ 03 Design 단계는 전수 완료. 이번 라운드에서 구현할 항목 없음.**
+
+### 04 Database
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| CollectionStore(Supabase 프로덕션/fs 로컬 폴백) 전 Registry 적용 | ✅ 완료 | 같은 날 진행된 "안정화 작업" STEP 1·2에서 나머지 6개 모듈(Design Sync·Website Build·Prompt·Workflow·Workspace·Health)까지 이전 완료, `getDefaultStore()` 사용처 31개 파일로 확인 |
+| Registry 간 Race Condition(list→replaceAll 비원자성) | 🟡 구조적 한계(기능 누락 아님) | 모든 배열형 Registry에 공통 존재, 인터페이스 확장 없이는 해결 불가 — **아키텍처 변경 금지 원칙에 따라 이번 라운드 대상 아님** |
+| Task Queue/Session/Event Bus의 CollectionStore 미적용(인메모리) | 🟡 설계상 의도 가능성 있음 | 새 Registry·저장 계층 추가가 필요해 **"새 Registry 생성 금지" 원칙에 따라 대상 아님** |
+
+**→ 04 Database 단계는 "미완료 개발"로 분류할 합법적 대상 없음(전부 완료이거나 구조 변경 금지 대상).**
+
+### 05 API
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| Inquiry/Client/WebsiteOrder/AiJob REST CRUD | ✅ 완료(단, Frontend 누락 — 07 참고) | `/api/{inquiries,clients,website-orders,ai-jobs}` 등 8개 라우트 전부 존재, 오늘 직접 코드 확인(`app/api/clients/route.ts` 등) |
+| AI API(Chat/Code/Content, Provider Bridge) | ✅ 완료 | AI Platform v1 |
+| Authentication(세션+API Key+RBAC) | ✅ 완료 | `lib/auth/*` |
+| File Upload | ❌ 미구현이나 **이 저장소 책임 아님** | PROJECT_STATUS "알려진 아키텍처 부채"에 이미 명시 — 첨부파일 저장은 CNBIZ.AI.KR(외부 시스템) 책임으로 설계됨, 새 Domain 추가 없이는 구현 불가해 제외 |
+
+**→ 05 API 단계도 "미완료 개발"로 분류할 합법적 대상 없음(File Upload는 이 저장소 범위 밖).**
+
+### 06 Backend
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| AI Job Worker/Executor + 자동 실행 | ✅ 완료 | `lib/aiJobs/{worker,executor}.ts` |
+| Website Builder v2(CLI+백엔드) | ✅ 완료 | 오늘 라이브 재검증(Website Build Success) |
+| Audit/Metrics/Health/Backup 인프라 | ✅ 완료(Backup은 같은 날 STEP 3에서 발견된 경로 버그 수정 완료) | 위 "안정화 작업" 섹션 참고 |
+| Notification 다채널화(Slack/SMS/webhook/in-app) | ❌ 미구현 | 이메일만 존재. 신규 외부 서비스 연동이 필요해 **새 Domain 생성 금지 원칙에 따라 제외** |
+
+### 07 Frontend
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| Development OS 대시보드(기존 40페이지) | ✅ 완료 | Terminal/Workspace/GitHub/AI Workspace/Website Builder/Workflow Center/Marketplace/Settings/Logs/Health/Audit Log/Metrics/Backup/Design Automation 9종/AI 의뢰 관리 등 |
+| **Client 관리자 목록·상세 화면** | ❌ 미구현 → **이번 STEP 3에서 신규 구현** | 오늘 직접 확인: `GET /api/clients`·`GET /api/clients/[id]`는 이미 존재하는데 `/developer/clients` 화면 자체가 없었음(PROJECT_STATUS "🚧 진행 중인 기능"에 명시된 항목) |
+| **WebsiteOrder 관리자 목록·상세 화면** | ❌ 미구현 → **이번 STEP 3에서 신규 구현** | 동일 — `GET/PATCH /api/website-orders`는 이미 존재, 화면만 없었음 |
+| Customer 포털(고객 본인 조회) | ❌ 미구현이나 **제외** | `Role` 타입에 `customer` 자체가 없어 신규 RBAC role 추가가 전제 — **새 RBAC 생성 금지 원칙에 따라 제외** |
+| 회원가입 백엔드 + 역할관리 UI | ❌ 미구현이나 **제외** | 회원가입은 설계상 의도적 배제(이 저장소는 CLI 스크립트로만 계정 생성). 역할관리 UI는 새 Auth 관련 API 표면을 추가하는 셈이라 위험도 판단상 이번 라운드에서 보류 |
+| Portfolio 실콘텐츠·회사 연락처 정보 | ❌ 미확정 | 코드 문제가 아니라 실제 자료 수령 대기 — 개발 TODO 아님 |
+| GSC(Google Search Console) 연동 | ❌ 미구현 | 외부 계정 소유권 확인 절차가 필요해 코드만으로 완결 불가 |
+
+### 08 Testing / 09 Deployment
+사용자 지시에 따라 이번 라운드에서 다루지 않음.
+
+---
+
+## STEP 2. TODO 목록 (미구현·부분 완료 항목만, 우선순위 부여)
+
+| 우선순위 | 항목 | 단계 | 처리 |
+|---|---|---|---|
+| **High** | Client 관리자 목록·상세 화면 | 07 Frontend | ✅ 이번 STEP 3에서 구현 완료(아래) |
+| **High** | WebsiteOrder 관리자 목록·상세 화면 | 07 Frontend | ✅ 이번 STEP 3에서 구현 완료(아래) |
+| Medium | 기술 견적서/기능 명세서/프로젝트 타임라인 자동 생성 | 01 Analysis | ⛔ **제외** — 새 AiJobType/Domain 필요 |
+| Medium | Notification 다채널화 | 06 Backend | ⛔ **제외** — 새 외부 서비스 연동(새 Domain) 필요 |
+| Low | Customer 포털 | 07 Frontend | ⛔ **제외** — 새 RBAC role 필요 |
+| Low | 회원가입 백엔드 + 역할관리 UI | 05 API·07 Frontend | ⛔ **보류** — 새 Auth 표면 확장이라 리스크 판단상 이번 라운드 제외 |
+| — | File Upload API | 05 API | ⛔ **제외** — 이 저장소 책임 범위 밖(CNBIZ.AI.KR 담당으로 이미 설계됨) |
+| — | Portfolio 실콘텐츠·연락처·GSC | 07 Frontend | ⛔ **보류** — 코드 작업이 아니라 실제 데이터/계정 확보가 선행되어야 함 |
+| — | Race Condition·Task Queue 비영속화 | 04 Database | ⛔ **제외** — 아키텍처 변경 금지 원칙과 충돌 |
+
+**결론**: "새로운 Domain/API/Registry/Auth/RBAC 생성 금지"·"아키텍처 변경 금지" 원칙을 지키면서
+실제로 구현 가능한 미완료 항목은 **Client·WebsiteOrder 관리자 화면 2건**뿐이었다. 나머지는
+전부 이 저장소의 기존 운영 규칙(`PROJECT_STATUS.md`의 "구현 금지" 목록·"알려진 아키텍처 부채"
+섹션)이 이미 명시적으로 범위 밖으로 지정해 둔 항목이거나, 실제 데이터/계정 확보가 선행되어야
+하는 항목이었다.
+
+---
+
+## STEP 3. 구현 (07 Frontend — Client·WebsiteOrder 관리자 화면)
+
+### 1. 새로 구현한 기능
+- `/developer/clients` — 고객사(Client) 목록 화면. 회사명·담당자·이메일·연결된 문의/주문 수 표시
+- `/developer/clients/[id]` — 고객사 상세. 연락처 정보 + 연결된 Inquiry/WebsiteOrder 링크 목록
+- `/developer/website-orders` — 웹사이트 제작 주문(WebsiteOrder) 목록 화면. 상태 필터(접수/처리중/검수/납품완료/취소)
+- `/developer/website-orders/[id]` — 주문 상세. 요청 내용 + 연결된 AI Job/산출물 Website + 상태 변경 버튼(기존 `PATCH /api/website-orders/[id]` 그대로 재사용)
+
+### 2. 수정한 파일
+**신규(전부 additive, 기존 파일 없음)**
+- `apps/cnbiz-web/app/developer/clients/page.tsx`
+- `apps/cnbiz-web/app/developer/clients/[id]/page.tsx`
+- `apps/cnbiz-web/app/developer/website-orders/page.tsx`
+- `apps/cnbiz-web/app/developer/website-orders/[id]/page.tsx`
+
+**수정(1곳, 배열 항목 2개 추가만 — 기존 항목·로직 무변경)**
+- `apps/cnbiz-web/components/developer/DeveloperNav.tsx` — `NAV_LINKS` 배열에 `{ href: "/developer/clients", label: "고객사 관리" }`·`{ href: "/developer/website-orders", label: "주문 관리" }` 2개 추가(기존 22개 항목·순서·동작 무변경)
+
+**백엔드/API/Database는 전혀 수정하지 않음** — `GET /api/clients`·`GET /api/clients/[id]`·
+`GET /api/website-orders`·`GET/PATCH /api/website-orders/[id]`·`lib/clients/registry.ts`·
+`lib/websiteOrders/registry.ts`가 이미 완전한 상태였고(오늘 직접 코드 확인), 새 화면은 그
+API를 그대로 소비하기만 한다.
+
+### 3. 구현 이유
+STEP 1 분석 결과, "이 저장소가 스스로 구현 가능한(새 Domain·API·Registry·Auth·RBAC 없이)"
+미완료 항목이 이 2건뿐이었다. `PROJECT_STATUS.md`가 이미 "🚧 진행 중인 기능"으로 정확히
+짚어 둔 항목이었고("개별 GET API는 있고 ... 자체 목록 화면은 아직 없음"), 기존 `/developer/
+requests`·`/developer/inquiries`가 이미 확립해 둔 목록+상세 페이지 패턴(같은 컴포넌트:
+`PageHeader`·`Card`·`Badge`·`StatusMessage`·`LoadingText`)을 그대로 재사용해 새 UI
+프리미티브 없이 구현했다.
+
+### 4. 남은 TODO
+STEP 2 표의 "⛔ 제외/보류" 7건 전부 — 각 항목의 제외 사유는 위 STEP 2 표 참고. 전부 이번
+라운드의 "새 Domain/API/Registry/Auth/RBAC 생성 금지"·"아키텍처 변경 금지" 원칙과 직접
+충돌하거나, 코드 작업이 아닌 외부 데이터/계정 확보가 선행되어야 하는 항목이다. 사용자가
+범위를 명시적으로 넓혀줄 경우에만 재착수 가능.
+
+### 5. 전체 진행률(%)
+`PROJECT_STATUS.md`(2026-07-22) 기준 89% → **약 90%**(Client·WebsiteOrder 관리자 화면
+추가로 "Development OS 대시보드" 항목이 93%에서 소폭 상승, 나머지 영역은 이미 완료 상태라
+변동 없음). 전체 진행률 산정 기준은 `PROJECT_STATUS.md`의 표를 그대로 따랐다 — 이 문서를
+직접 갱신하지는 않았다(별도 승인 필요 시 요청).
+
+### 검증(QA/회귀 테스트 아님, 1회성 컴파일 확인만)
+`npx tsc --noEmit` 0 errors만 확인했다. 사용자 지시("QA 하지 않는다", "전체 테스트 하지
+않는다", "QA나 Regression Test를 반복 수행하지 않는다")에 따라 `npm run lint`·`npm run
+build`·`vitest`·dev 서버 기동·Playwright 등은 **의도적으로 수행하지 않았다** — 08
+Testing 단계에서 한꺼번에 다룰 예정이다.
+
+---
+
+# REPORT — AI Business OS 안정화 작업 진행 상황
+
+> 이 섹션은 2026-07-23부터 시작된 "AI Business OS 안정화 및 마무리 작업"(STEP 1~7 + 최종 검증)의
+> 단계별 진행 기록이다. 아래 "REPORT — 프로젝트 구조 분석"(2026-07-18)은 이 작업과는 별개로
+> 작성된 이전 구조 분석 문서이며, 그대로 보존한다.
+
+## STEP 1. Backend 안정화 (Critical) — 완료 (2026-07-23)
+
+### 대상
+
+`apps/cnbiz-web`(실제 프로덕션, `apps/cnbiz-web/lib/db/collectionStore.ts` 기준 — 루트 `app/`은
+레거시라 대상 아님).
+
+### 1. `CollectionStore.replaceAll()` — Supabase 구현의 DELETE→INSERT 구조 개선
+
+**문제**: `lib/db/supabaseStore.ts`의 `replaceAll()`이 전체 컬렉션을 `DELETE` 한 뒤 `INSERT`하는
+2단계 구조였다. 두 단계 사이에 프로세스가 중단되면(네트워크 오류, 서버리스 함수 타임아웃 등)
+해당 컬렉션의 기존 데이터가 전부 유실된 채로 남는다 — "일부 유실"이 아니라 "전체 유실" 위험.
+
+**수정**: `upsert(새 레코드) → delete(새 레코드에 없는 나머지)` 순서로 재구성.
+- 새 레코드를 먼저 `upsert`(`onConflict: "collection,id"`)하므로, 이 단계가 끝나면 기존 데이터 +
+  새 데이터가 공존하는 상태가 된다(데이터가 사라지는 시점이 없음).
+- 그다음 새 레코드 목록에 없는(=제거 대상) 행만 `not("id", "in", ...)` 조건으로 삭제.
+- 이 순서에서 중단이 발생해도 최악의 경우 "제거됐어야 할 낡은 행이 잠시 남아있는 것"뿐이며,
+  다음 `replaceAll()` 호출 시 정리된다. 이전 방식처럼 컬렉션 전체가 사라지는 경우는 없다.
+- `records.length === 0`(전체 삭제 요청)일 때는 `upsert` 없이 기존과 동일하게 컬렉션 전체를
+  삭제(빈 배열에는 유실될 데이터가 없으므로 문제 없음).
+- 파일: `apps/cnbiz-web/lib/db/supabaseStore.ts`
+
+**한계**: PostgREST 단일 요청 안에서 여러 SQL 문을 하나의 DB 트랜잭션으로 묶는 것은
+supabase-js 클라이언트만으로는 불가능하다(진짜 원자성을 원하면 Postgres 함수/RPC가 필요).
+이번 수정은 "완전한 원자성"이 아니라 "실패 시 최악의 결과를 전체 유실 → 낡은 행 잔존으로
+완화"하는 것이 목표이며, 그 목표는 달성했다.
+
+### 2. `Date.now()` 기반 ID 생성 제거 — 전체 Registry 동일 방식 적용
+
+**문제**: 두 가지 패턴이 혼재했다.
+- 순수 `${prefix}-${Date.now()}` (10개 Registry: `aiJobs`·`workspaces`·`prompts`·`projects`·
+  `workflows`·`websites`·`websiteOrders`·`inquiries`·`requests`·`clients`) — 같은 밀리초 안에
+  두 번 호출되면(동시 요청, 빠른 연속 호출) **ID가 그대로 충돌**한다.
+- `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` (agents/taskQueue·
+  agents/session·audit/log·events/eventBus·commandEngine/engine·workflows/engine·
+  design/* 다수) — 충돌 확률은 낮지만 0은 아니고, 위 패턴과 방식이 통일되어 있지 않았다.
+
+**수정**: `apps/cnbiz-web/lib/id.ts`(신규) — `generateId(prefix)`가 Node 내장
+`crypto.randomUUID()`로 `${prefix}-${randomUUID()}` 형태의 실질적으로 충돌 불가능한 ID를
+생성. 위 두 패턴을 쓰던 **총 27개 파일**(순수 `Date.now()` 10개 + `Date.now()+Math.random` 17개)
+전부를 이 함수 호출로 교체 — Registry 전체가 동일한 ID 생성 방식을 쓰도록 통일.
+
+### 3. Registry 관련 테스트
+
+- 기존 테스트 중 ID 형식(`Date.now()` 접두사 등)을 가정하는 assertion은 없었음을 grep으로
+  확인 — 기존 테스트는 회귀 없이 그대로 통과.
+- 신규: `apps/cnbiz-web/tests/lib/id.test.ts`(2개 — prefix 부여, 10,000회 연속 호출 무충돌).
+- 신규: `apps/cnbiz-web/tests/db/supabaseStore.test.ts`(4개 — upsert가 delete보다 먼저
+  호출됨·유지할 id 목록으로 `not` 필터 구성됨·빈 배열일 때 upsert 없이 전체 삭제·
+  upsert/delete 각 단계 실패 시 에러 전파 및 다음 단계 미실행 확인). `@supabase/supabase-js`를
+  `vi.mock`으로 대체한 순수 단위 테스트(`any` 미사용, 실제 Supabase 프로젝트 불필요).
+
+### 완료 조건 검증
+
+| 항목 | 결과 |
+|---|---|
+| Critical 1 (`replaceAll` DELETE→INSERT) | ✅ 해결 |
+| Critical 2 (`Date.now()` ID 충돌) | ✅ 해결 (27개 파일) |
+| TypeScript (`npx tsc --noEmit`) | ✅ 0 errors |
+| ESLint (`npm run lint`) | ✅ 0 errors |
+| Build (`npm run build`) | ✅ 성공 |
+| 관련 테스트 | ✅ 통과 (신규 6개 포함, 회귀 66 files / 502 tests 전체 통과) |
+
+### 변경 파일
+
+- 신규: `apps/cnbiz-web/lib/id.ts`, `apps/cnbiz-web/tests/lib/id.test.ts`,
+  `apps/cnbiz-web/tests/db/supabaseStore.test.ts`
+- 수정(ID 생성 → `generateId()`): `lib/aiJobs/registry.ts`·`lib/workspaces/registry.ts`·
+  `lib/prompts/registry.ts`·`lib/projects/registry.ts`·`lib/workflows/registry.ts`·
+  `lib/workflows/engine.ts`·`lib/websites/registry.ts`·`lib/websiteOrders/registry.ts`·
+  `lib/inquiries/registry.ts`·`lib/requests/registry.ts`·`lib/clients/registry.ts`·
+  `lib/agents/taskQueue.ts`·`lib/agents/session.ts`·`lib/audit/log.ts`·`lib/events/eventBus.ts`·
+  `lib/commandEngine/engine.ts`·`lib/design/{figma,wireframe,figma-generator,design-sync,
+  website-build,storyboard,design-document-registry,claude-design,review-registry,registry,
+  prototype}.ts`
+- 수정(replaceAll 구조 개선): `lib/db/supabaseStore.ts`
+
+### 변경하지 않은 것 (범위 외)
+
+- `Date.now()`가 타임스탬프·소요시간(duration)·rate-limit 계산 등 ID가 아닌 용도로 쓰이는
+  곳(`lib/auth/session.ts`·`lib/health/checks.ts`·`lib/requests/spam.ts`·
+  `lib/inquiries/spam.ts`·각종 `durationMs` 계산)은 그대로 유지 — 이 작업의 대상이 아님.
+- `lib/workspaces/registry.ts`·`lib/workflows/registry.ts`·`lib/prompts/registry.ts` 등
+  여전히 `fs` 직접 접근인 Registry는 STEP 2(Database 마이그레이션) 대상이며 이번 STEP에서는
+  건드리지 않음.
+
+---
+
+## STEP 2. Database 마이그레이션 — 완료 (2026-07-23)
+
+### 목표
+
+Design Sync·Website Build·Prompt·Workflow·Workspace·Health 6개 대상 모듈의 `fs` 직접 접근을
+제거하고 `CollectionStore`(Supabase 프로덕션 / fs 로컬 폴백, `lib/db/`)로 이전.
+
+### 1. 조사 — `fs` 직접 사용 현황 전수 조사
+
+`apps/cnbiz-web/lib/**`에서 `from "fs"`를 쓰는 파일 18개를 전수 조사한 결과:
+
+| 파일 | 용도 | Registry 여부 | 이전 가능 여부 |
+|---|---|---|---|
+| `lib/design/design-sync.ts` | Design Sync 레코드(SyncRecord) 저장 | ✅ Registry | ✅ 이전함 |
+| `lib/design/website-build.ts` | Website Build 연결 레코드 저장 | ✅ Registry | ✅ 이전함 |
+| `lib/prompts/registry.ts` | Prompt 레코드·버전 이력 저장 | ✅ Registry | ✅ 이전함 |
+| `lib/workflows/registry.ts` | Workflow 정의 저장 | ✅ Registry | ✅ 이전함 |
+| `lib/workspaces/registry.ts` | Workspace 레코드 저장 **+** 실제 폴더 생성/존재 확인 | 부분 Registry | 🟡 레코드 저장만 이전, 폴더 생성/확인은 유지(아래 4번) |
+| `lib/health/checks.ts` | Build/Test/Coverage 결과 캐시(싱글턴) **+** 디스크 사용량·커버리지 리포트 읽기 | 부분 Registry | 🟡 캐시만 이전, 디스크/커버리지 읽기는 유지(아래 4번) |
+| `lib/workflows/engine.ts` | Workflow Run이 실행 중 실제 프로젝트 폴더에 `README.md`/`package.json`/폴더를 생성(Workflow Step `generate-*`) | ❌ Registry 아님 | ❌ 대상 자체가 사용자 실제 프로젝트 디렉터리 — 이전 불가 |
+| `lib/aiJobs/executor.ts` | `packages/cli/dist/index.js` 실행 파일 존재 확인 | ❌ Registry 아님 | ❌ 빌드 산출물 존재 확인 — 이전 불가 |
+| `lib/terminal/server.ts` | Terminal이 열 실제 디렉터리 경로 검증 | ❌ Registry 아님 | ❌ 실제 파일시스템 검증 — 이전 불가 |
+| `lib/projects/detect.ts` | 임의 프로젝트 폴더의 `package.json`/lockfile 감지 | ❌ Registry 아님 | ❌ 대상이 사용자 프로젝트 폴더 — 이전 불가 |
+| `lib/paths/repoRoot.ts` | 저장소 루트 탐색(`package.json` 탐색) | ❌ Registry 아님 | ❌ 실제 저장소 경로 탐색 — 이전 불가 |
+| `lib/marketplace/registry.ts` | `marketplace/manifest.json` 읽기 + CLI 실행 파일 존재 확인 | ❌ Registry 아님(CLI 브리지) | ❌ 실제 저장소 파일·빌드 산출물 — 이전 불가(대상 목록에도 없음) |
+| `lib/devserver/manager.ts` | Dev Server 상태를 **워크스페이스 폴더 자체**(`<workspacePath>/lib/data/devservers.json`)에 CLI와 공유 | ❌ Registry 아님(cross-process 공유 파일) | ❌ `packages/cli`(별도 프로세스)와 파일로 상태를 공유하는 계약 — CollectionStore로 옮기면 CLI가 더 이상 상태를 볼 수 없어짐. 대상 목록에도 없음 |
+| `lib/backup/registry.ts` | `.runtime/config/providers.json`·`lib/data/{prompts,workflows}.json`을 그대로 export/import | ❌ Registry 아님(다른 모듈의 파일 계약을 재사용) | ⚠️ 아래 "이전 불가능한 이유" 4번 참고 — 대상 목록에 없어 이번 STEP에서 손대지 않았으나 Prompt/Workflow 마이그레이션과 상호작용이 있어 별도 기록 |
+| `lib/ai/bridge.ts` | `packages/cli/dist/index.js` 실행 파일 존재 확인 | ❌ Registry 아님 | ❌ 빌드 산출물 존재 확인 — 이전 불가 |
+| `lib/docs/readDocEntry.ts` | 저장소 내 실제 Markdown 문서 파일 읽기(Dashboard 문서 뷰어) | ❌ Registry 아님 | ❌ 실제 문서 파일 — 이전 불가 |
+| `lib/docs/readCiWorkflows.ts` | `.github/workflows/*.yml` 실제 파일 읽기 | ❌ Registry 아님 | ❌ 실제 CI 설정 파일 — 이전 불가 |
+| `lib/db/fsStore.ts` | `CollectionStore`의 fs 구현체 자체(로컬 개발 전용 폴백) | 해당 없음 | ❌ 이전 대상 아님 — 이 파일이 이전 "대상"이 아니라 이전 "수단"이다. `lib/db/index.ts`의 `getDefaultStore()`가 프로덕션(`NODE_ENV=production`)에서 Supabase 환경변수가 없으면 즉시 throw하므로, 프로덕션에서 이 파일이 선택되는 경우는 없음(기존 로직, 변경 없음) |
+
+### 2. CollectionStore로 이전 완료 (4개 모듈 전체 + 2개 모듈 부분)
+
+- **Design Sync**(`lib/design/design-sync.ts`) — `listSyncRecords`·`getSyncRecord`·
+  `listSyncRecordsForReview`·`getLatestSyncForReview`·`recordSync`·`rollbackSyncRecord` 6개
+  함수 전부 `fs` → `CollectionStore`(컬렉션명 `design-sync`). 시그니처 마지막 인자를
+  `baseDir: string`에서 `store: CollectionStore = getDefaultStore()`로 교체(이 저장소의 기존
+  Registry들과 동일한 관례, `lib/aiJobs/registry.ts` 등 참고), 전부 `async`로 전환
+- **Website Build**(`lib/design/website-build.ts`) — `listWebsiteBuilds`·
+  `getWebsiteBuildRecord`·`listWebsiteBuildsForReview`·`getLatestWebsiteBuildForReview`·
+  `recordWebsiteBuild` 5개 함수 전부 이전(컬렉션명 `design-website-builds`)
+- **Prompt**(`lib/prompts/registry.ts`) — `listPrompts`·`getPrompt`·`createPrompt`·
+  `addPromptVersion` 이전(컬렉션명 `prompts`). `getLatestVersion()`은 순수 함수라 무변경.
+  레거시(카테고리 없는) 레코드 자동 보정 로직은 그대로 유지
+- **Workflow**(`lib/workflows/registry.ts`) — `listWorkflows`·`getWorkflow`·`createWorkflow`
+  이전(컬렉션명 `workflows`)
+- **Workspace**(`lib/workspaces/registry.ts`, 부분) — 레코드 저장/조회(`listWorkspaces`·
+  `getWorkspace`·`createWorkspace`)만 `CollectionStore`(컬렉션명 `workspaces`)로 이전.
+  `fs.mkdirSync(targetPath)`(실제 폴더 생성)·`fs.existsSync(record.path)`(실제 폴더 존재
+  확인, 사라진 워크스페이스를 목록에서 자동 정리)는 그대로 유지 — Workspace는 개념 자체가
+  "디스크 위의 실제 폴더"이므로 그 폴더의 존재 여부는 CollectionStore가 답할 수 있는 질문이
+  아니다
+- **Health**(`lib/health/checks.ts`, 부분) — `readHealthCache`·`writeHealthCacheEntry`만
+  `CollectionStore`의 `getDoc`/`setDoc`(컬렉션명 `health`, 문서 id `checks`, `lib/metrics/
+  registry.ts`와 동일한 싱글턴 패턴)으로 이전. `getDiskUsage()`(`fs.statfsSync`, 실제 디스크
+  사용량)·`readCoverageSummaryPct()`(실제 `coverage/coverage-summary.json` 읽기)·
+  `getGitStatus()`(실제 git 명령 실행)는 전부 "진짜 파일시스템/프로세스 상태를 묻는 질문"이라
+  그대로 유지
+
+**호출부 갱신**(전부 async 전환에 따른 `await` 추가, 동작 변경 없음):
+`app/api/{workspaces,workflows,workflows/[id],workflows/[id]/run,prompts,prompts/[id],
+prompts/[id]/preview,prompts/[id]/execute,projects/import,projects/bootstrap,
+design/sync,design/sync/rollback,design/sync/compare,design/sync/[id],design/website,
+design/website/[id],health,health/run}/route.ts`, `lib/workflows/engine.ts`(`createRun()`
+자체도 async로 전환, `getWorkflow()` 2곳), `lib/prompts/executor.ts`(`resolveContent`/
+`executePrompt`/`executePromptInSession` 3개 함수 async 전환), `app/developer/planning/
+page.tsx`(Server Component를 `async function`으로 전환)
+
+### 3. 읽기/저장/수정/삭제 동작 검증
+
+각 모듈 신규/갱신 테스트로 기존 동작이 100% 동일함을 확인(아래 5번 결과 참고). 특히:
+- **버전 자동 증가·append-only 히스토리**(Design Sync·Website Build) — reviewId 재사용 시
+  기존 레코드를 찾아 `version+1`, 히스토리는 절대 덮어쓰지 않고 추가되는 동작을 회귀 테스트로 재확인
+- **레거시 레코드 보정**(Prompt) — `category` 필드가 없는 과거 JSON 레코드를 읽어도
+  `"General"`로 자동 보정되는 동작 재확인
+- **워크스페이스 자동 정리**(Workspace) — 실제 폴더가 삭제된 워크스페이스가 `listWorkspaces()`
+  호출 시 목록에서 빠지고 그 결과가 저장소에도 반영(persist)되는 동작 재확인(신규 테스트,
+  기존엔 테스트 없었음)
+
+### 4. Vercel 환경 검증
+
+- 6개 대상 모듈에서 `fs` import 자체가 사라짐(`lib/design/design-sync.ts`·
+  `lib/design/website-build.ts`·`lib/prompts/registry.ts`·`lib/workflows/registry.ts`는
+  `fs` import 완전 제거, `lib/workspaces/registry.ts`·`lib/health/checks.ts`는 위 4번에서
+  설명한 "진짜 파일시스템" 부분만 의도적으로 잔존) — grep으로 재확인 완료
+- `getDefaultStore()`(`lib/db/index.ts`, 이번 STEP에서 무변경)는 `NODE_ENV=production`이고
+  `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`가 없으면 즉시 throw하므로, 프로덕션에서 이
+  6개 모듈이 fs 폴백으로 조용히 새는 경로 자체가 없다(기존 안전장치, STEP 1 이전부터 존재)
+- 실제 Supabase 프로젝트 자격 증명이 이 개발 환경에 없어(이전 세션의 "Provider Validation"과
+  동일한 제약, `docs/PRODUCTION_VALIDATION.md` 참고) 실 Supabase 네트워크 호출까지 포함한
+  end-to-end 검증은 이번에도 수행하지 못함 — 대신 `tests/db/supabaseStore.test.ts`(STEP 1)가
+  `@supabase/supabase-js`를 mock해 `replaceAll`의 upsert/delete 호출 순서·인자를 검증했고,
+  이번 STEP의 6개 모듈은 전부 그 `CollectionStore` 인터페이스(`list`/`replaceAll`/`getDoc`/
+  `setDoc`)만 호출하므로 Supabase 구현체가 정상이라면 동일하게 동작함(인터페이스 경계에서
+  검증 완료, 구현체 자체는 STEP 1에서 별도 검증됨)
+
+### 이전 불가능한 이유 (요약)
+
+1. **`lib/workflows/engine.ts`·`lib/aiJobs/executor.ts`·`lib/terminal/server.ts`·
+   `lib/projects/detect.ts`·`lib/paths/repoRoot.ts`·`lib/docs/*.ts`** — 전부 앱 자신의 데이터가
+   아니라 **실제 파일시스템의 진짜 상태**(사용자 프로젝트 폴더, 빌드 산출물, 저장소 문서)를
+   묻는 질문이다. `CollectionStore`는 JSON 문서 저장소이지 파일시스템 자체를 대체하는 것이
+   아니므로, 애초에 이전 대상이 아니다
+2. **`lib/workspaces/registry.ts`의 `mkdirSync`/`existsSync`** — Workspace라는 개념 자체가
+   "디스크 위의 실제 폴더"다. 레코드(이름·경로·생성일시)는 이전했지만, 그 경로가 실제로
+   존재하는지 확인하거나 새 폴더를 만드는 것은 여전히 진짜 파일시스템 작업이다
+3. **`lib/health/checks.ts`의 `getDiskUsage`/`readCoverageSummaryPct`** — 실제 디스크 여유
+   공간과 실제 `npm run coverage` 산출물을 읽는 것이라 Registry 이전과 무관하다
+4. **`lib/backup/registry.ts`(대상 목록에 없음, 관찰 사항 기록)** — 이 모듈은 Prompt/Workflow의
+   `lib/data/{prompts,workflows}.json` 경로를 직접 읽고 쓴다. 로컬 개발에서는 `fsStore`가
+   정확히 같은 경로·형식으로 파일을 쓰므로 영향이 없을 것이라고 이 시점에 서술했으나,
+   **이 서술은 부정확했다** — STEP 3에서 실제로 dev 서버를 띄워 확인한 결과, `fsStore`의
+   로컬 폴백 기본 경로가 이미 2026-07-16 커밋 `0954f09`에서 `process.cwd()/lib/data`가 아닌
+   `os.tmpdir()/cnbiz-web/data`로 바뀌어 있어서, `lib/backup/registry.ts`가 읽고 쓰던
+   `cwd/lib/data/{prompts,workflows}.json`은 **로컬 개발에서도** 이미 실제 데이터와
+   무관한 파일이었다. 다만 **프로덕션에서 Supabase가 store로 선택되면** Prompt/Workflow
+   레코드는 애초에 로컬 파일에 쓰이지 않으므로, Backup Export가 반환하는 `prompts`/
+   `workflows` 배열은 어차피 항상 빈 배열이 되고 Import는 아무 효과가 없는 파일에 쓰게
+   된다는 결론 자체는 유효하다. STEP 3에서 로컬 개발 정합성(fs 경로 불일치)만 수정했고,
+   프로덕션 공백은 여전히 후속 작업으로 남아 있다 — 상세는 `STEP3_REPORT.md`의 H-2·M-2 참고
+
+### 5. 테스트 결과
+
+| 항목 | 결과 |
+|---|---|
+| TypeScript (`npx tsc --noEmit`) | ✅ 0 errors |
+| ESLint (`npm run lint`) | ✅ 0 errors |
+| Build (`npm run build`) | ✅ 성공(전체 라우트 정상 생성) |
+| 전체 테스트(`npx vitest run`) | ✅ 68 files / 509 tests 전부 통과 |
+
+신규/갱신 테스트: `tests/workspaces/registry.test.ts`(신규 4개, 기존 커버리지 없었음),
+`tests/workflows/registry.test.ts`(신규 3개, 기존 커버리지 없었음),
+`tests/design/design-sync-registry.test.ts`·`tests/design/design-sync-integration.test.ts`
+(store 패턴으로 갱신, 케이스 무변경), `tests/design/website-build-registry.test.ts`·
+`tests/design/website-build-integration.test.ts`(동일), `tests/prompts/registry.test.ts`
+(동일), `tests/health/checks.test.ts`(동일)
+
+### 6. 남은 Critical/High
+
+- Critical/High 신규 발견 없음(STEP 1의 Critical 2건은 이미 해결됨)
+- 위 "이전 불가능한 이유" 4번(Backup ↔ Prompt/Workflow 격차)은 Medium 수준의 후속 과제로
+  분류 — 데이터 유실이 아니라 "Backup이 최신 데이터를 반영하지 못하는" 기능 격차이며, 대상
+  목록 외 모듈이라 사용자 승인 없이 임의로 손대지 않음
+
+### 7. STEP 2 완료 여부
+
+**완료.** 대상 6개 모듈(Design Sync·Website Build·Prompt·Workflow·Workspace·Health) 전부
+`CollectionStore` 기준으로 이전되었고(Workspace·Health는 진짜 파일시스템 질문만 의도적으로
+잔존), 기존 API·인터페이스·동작은 100% 유지되었으며 전체 빌드·린트·테스트가 통과한다.
+STEP 3(전체 테스트)로 진행하기 전 사용자 확인 대기.
+
+---
+
+## STEP 3. 전체 시스템 검증 — 완료 (2026-07-23)
+
+상세 결과는 `STEP3_REPORT.md`(요청된 별도 형식)에 전부 기록했다. 요약:
+
+- **범위**: 새 기능 없음, 리팩터링 없음, 구조 변경 없음 — 필요한 버그 수정만 허용.
+- **방법**: 정적 검토(TS/ESLint/Build)에 더해, 실제 dev 서버를 기동하고 curl·Playwright로
+  Design Pipeline 전체(Plan→Storyboard→Wireframe→Prototype→Claude Design→Review→Approval→
+  Design Sync→Website Build)와 Prompt/Workflow/Workspace CRUD, Auth 정상/예외 경로를
+  **라이브로 실행**해 검증했다(정적 분석만으로는 드러나지 않는 런타임 결함을 찾기 위함).
+- **발견·수정(H-1)**: `scripts/{create-auth-user,set-user-role,reset-user-password}.cjs` 3개가
+  `lib/db/fsStore.ts`의 로컬 fs 폴백 기본 경로가 `os.tmpdir()/cnbiz-web/data`로 바뀐 것(2026-07-16
+  커밋 `0954f09`, STEP 1/2 이전부터 있던 기존 변경)을 따라가지 못해, 로컬 개발에서 로그인 계정을
+  만드는 유일한 방법이 조용히 깨져 있었다(로그인 401). 세 스크립트 모두 fs 경로를 일치시켜 수정,
+  라이브로 재현·재검증 완료.
+- **발견·수정(H-2)**: 같은 원인으로 `lib/backup/registry.ts`가 로컬 개발에서도 Prompt/Workflow
+  Backup을 항상 빈 배열로 내보내고 있었음을 라이브로 확인(STEP 2 REPORT.md 4번의 "로컬은
+  영향 없다"는 서술이 부정확했음을 이번에 발견해 위에서 정정함). 로컬 fs 경로를 일치시키고
+  테스트 격리를 위한 `fsStoreDataDir` 선택적 인자를 추가. 프로덕션 공백(Supabase 사용 시
+  Prompt/Workflow가 애초에 로컬 파일에 없음)은 구조 변경이 필요해 이번엔 남겨둠.
+- **발견, 미수정(구조 변경 필요)**: 모든 배열형 Registry(16개 전부)에 `list()→mutate→
+  replaceAll()` 패턴에서 오는 구조적 Race Condition 존재. Task Queue·Session·Event Bus가
+  CollectionStore 없이 프로세스 메모리(Map)에만 존재해 서버리스 다중 인스턴스 환경에서
+  비영속 위험. 둘 다 인터페이스/설계 변경이 필요해 STEP 3에서는 수정하지 않고 문서화만 함.
+- **테스트**: TypeScript 0 errors·ESLint 0 errors·Build 성공·`vitest run` 68 files/509 tests
+  전부 통과(회귀 없음). Design Pipeline 라이브 실행 전 구간 정상, Playwright로 8개 페이지
+  콘솔 에러 0건 확인.
+- **결론**: Critical 0건. STEP 4 진행 가능(사용자 확인 대기).
+
+---
+
 # REPORT — 프로젝트 구조 분석
 
 > 작성일: 2026-07-18 (Claude Code, 실제 파일/코드 확인 기준)

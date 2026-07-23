@@ -4,6 +4,8 @@ import path from "path";
 import { runCatalogCommand } from "@/lib/commandEngine/engine";
 import type { BackgroundExecuteResult, ExecuteResult } from "@/lib/commandEngine/types";
 import { countActiveSessions } from "@/lib/auth/session";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 
 export interface GitStatusResult {
   branch: string | null;
@@ -174,45 +176,23 @@ function readCoverageSummaryPct(cwd: string): number | undefined {
   }
 }
 
-const DEFAULT_BASE_DIR = path.join(process.cwd(), "lib", "data");
+const COLLECTION = "health";
+const DOC_ID = "checks";
 
-function cachePath(baseDir: string): string {
-  return path.join(baseDir, "health-checks.json");
+export async function readHealthCache(store: CollectionStore = getDefaultStore()): Promise<HealthCache> {
+  const doc = await store.getDoc<HealthCache>(COLLECTION, DOC_ID);
+  return doc ?? {};
 }
 
-function ensureCacheFile(baseDir: string): void {
-  if (!fs.existsSync(baseDir)) {
-    fs.mkdirSync(baseDir, { recursive: true });
-  }
-
-  const file = cachePath(baseDir);
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, "{}", "utf-8");
-  }
-}
-
-export function readHealthCache(baseDir: string = DEFAULT_BASE_DIR): HealthCache {
-  ensureCacheFile(baseDir);
-
-  try {
-    const raw = fs.readFileSync(cachePath(baseDir), "utf-8");
-    const parsed: unknown = JSON.parse(raw);
-    return typeof parsed === "object" && parsed !== null ? (parsed as HealthCache) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function writeHealthCacheEntry(
+export async function writeHealthCacheEntry(
   check: HealthCheckId,
   result: CheckResult,
-  baseDir: string = DEFAULT_BASE_DIR
-): HealthCache {
-  const cache = readHealthCache(baseDir);
+  store: CollectionStore = getDefaultStore()
+): Promise<HealthCache> {
+  const cache = await readHealthCache(store);
   const next: HealthCache = { ...cache, [check]: result };
 
-  ensureCacheFile(baseDir);
-  fs.writeFileSync(cachePath(baseDir), JSON.stringify(next, null, 2), "utf-8");
+  await store.setDoc(COLLECTION, DOC_ID, next);
 
   return next;
 }

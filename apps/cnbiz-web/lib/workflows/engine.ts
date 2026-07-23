@@ -4,6 +4,7 @@ import { getWorkflow } from "./registry";
 import { createWorkspace } from "@/lib/workspaces/registry";
 import { taskQueue, type AgentTask } from "@/lib/agents/taskQueue";
 import { eventBus } from "@/lib/events/eventBus";
+import { generateId } from "@/lib/id";
 import type {
   StepExecutionRecord,
   WorkflowContext,
@@ -22,7 +23,7 @@ interface StepOutcome {
 }
 
 function createRunId(): string {
-  return `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("run");
 }
 
 function escapeForShell(value: string): string {
@@ -92,8 +93,8 @@ class WorkflowEngine {
   private cancelled = new Set<string>();
   private activeStepTaskId = new Map<string, string>();
 
-  createRun(workflowId: string, context: WorkflowContext): WorkflowRun {
-    const workflow = getWorkflow(workflowId);
+  async createRun(workflowId: string, context: WorkflowContext): Promise<WorkflowRun> {
+    const workflow = await getWorkflow(workflowId);
     if (!workflow) {
       throw new Error("워크플로를 찾을 수 없습니다.");
     }
@@ -227,7 +228,7 @@ class WorkflowEngine {
     step: WorkflowStepDefinition
   ): Promise<StepOutcome> {
     if (step.kind === "create-workspace") {
-      const workspace = createWorkspace(step.params.name, step.params.path);
+      const workspace = await createWorkspace(step.params.name, step.params.path);
       return {
         success: true,
         output: `Workspace 생성됨: ${workspace.path}`,
@@ -330,7 +331,7 @@ class WorkflowEngine {
 
     eventBus.emit("workflow", "run.started", { runId: run.id });
 
-    const workflow = getWorkflow(run.workflowId);
+    const workflow = await getWorkflow(run.workflowId);
 
     while (run.currentStepIndex < run.steps.length) {
       if (this.cancelled.has(run.id)) {

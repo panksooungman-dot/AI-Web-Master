@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design Automation — Phase 5 (docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md 2번의 Phase 구분,
@@ -41,7 +42,7 @@ export interface ClaudeDesignRecord {
 const COLLECTION = "design-claude";
 
 function createRecordId(): string {
-  return `claude-design-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("claude-design");
 }
 
 export async function createClaudeDesign(

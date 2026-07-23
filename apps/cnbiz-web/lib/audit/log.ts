@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * 요구사항 — Audit Log. Login/Logout/Marketplace publish·install·remove/Website generation/
@@ -50,7 +51,7 @@ const COLLECTION = "audit-log";
 const MAX_ENTRIES = 500;
 
 function createEntryId(): string {
-  return `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("audit");
 }
 
 /** 오래된 순으로 저장되며(append), 조회 시 최신순으로 뒤집는다(listAuditEvents 참고). */

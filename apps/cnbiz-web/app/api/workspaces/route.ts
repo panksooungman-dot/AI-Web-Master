@@ -6,7 +6,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function GET() {
-  return NextResponse.json({ workspaces: listWorkspaces() });
+  return NextResponse.json({ workspaces: await listWorkspaces() });
 }
 
 export async function POST(request: Request) {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const workspace = createWorkspace(name, targetPath);
+    const workspace = await createWorkspace(name, targetPath);
 
     return NextResponse.json({ success: true, workspace });
   } catch (error) {

@@ -7,7 +7,7 @@ interface RouteParams {
 
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const workflow = getWorkflow(id);
+  const workflow = await getWorkflow(id);
 
   if (!workflow) {
     return NextResponse.json({ error: "워크플로를 찾을 수 없습니다." }, { status: 404 });

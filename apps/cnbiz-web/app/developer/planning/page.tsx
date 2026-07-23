@@ -29,14 +29,14 @@ const STATUS_TONES: Record<WorkflowRunStatus, BadgeTone> = {
   Cancelled: "neutral",
 };
 
-export default function PlanningPhasePage() {
+export default async function PlanningPhasePage() {
   const repoRoot = resolveRepoRoot();
   const docs = DOC_TARGETS.map(({ label, segments }) => {
     const { absolute, display } = joinRepoPath(repoRoot, ...segments);
     return readDocEntry(label, absolute, display);
   });
 
-  const workflows = listWorkflows();
+  const workflows = await listWorkflows();
   const runs = workflowEngine.listRuns();
 
   const statusCounts = new Map<WorkflowRunStatus, number>();

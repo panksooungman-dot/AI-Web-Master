@@ -18,7 +18,7 @@ function stringArrayField(body: Record<string, unknown>, key: string): string[] 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category");
-  const prompts = listPrompts();
+  const prompts = await listPrompts();
   const filtered = category ? prompts.filter((prompt) => prompt.category === category) : prompts;
   return NextResponse.json({ prompts: filtered });
 }
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const prompt = createPrompt(name, description, content, category, variables);
+    const prompt = await createPrompt(name, description, content, category, variables);
 
     return NextResponse.json({ success: true, prompt });
   } catch (error) {

@@ -1,13 +1,14 @@
 import type { DesignPlanRecord } from "./types";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import { planToDesignDocument } from "./design-document-adapter";
 import { saveDesignDocument } from "./design-document-registry";
 
 const COLLECTION = "design-plans";
 
 function createRecordId(): string {
-  return `design-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("design");
 }
 
 export async function createDesignPlan(

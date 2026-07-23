@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design Automation — Phase 3 (docs/03_DESIGN/DESIGN_WORKFLOW.md의 Phase 5 "Wireframe").
@@ -113,7 +114,7 @@ export interface WireframeRecord {
 const COLLECTION = "design-wireframes";
 
 function createRecordId(): string {
-  return `wireframe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("wireframe");
 }
 
 export async function createWireframe(

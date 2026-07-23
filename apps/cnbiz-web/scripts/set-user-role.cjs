@@ -7,9 +7,13 @@
  *
  * Usage: node scripts/set-user-role.cjs <email> <role>
  * role: user | admin | developer | super_admin
+ *
+ * fs fallback targets os.tmpdir()/cnbiz-web/data (matches lib/db/fsStore.ts's
+ * DEFAULT_BASE_DIR, not lib/data — see create-auth-user.cjs's header comment).
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- standalone CommonJS script, see screenshot.cjs for the same precedent */
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const VALID_ROLES = ["user", "admin", "developer", "super_admin"];
@@ -46,10 +50,10 @@ async function setRoleViaSupabase(normalizedEmail, role) {
 }
 
 function setRoleViaFs(normalizedEmail, role) {
-  const usersFile = path.join(process.cwd(), "lib", "data", "users.json");
+  const usersFile = path.join(os.tmpdir(), "cnbiz-web", "data", "users.json");
 
   if (!fs.existsSync(usersFile)) {
-    console.error("사용자 저장소(lib/data/users.json)가 없습니다. 먼저 계정을 생성하세요.");
+    console.error(`사용자 저장소(${usersFile})가 없습니다. 먼저 계정을 생성하세요.`);
     process.exit(1);
   }
 
@@ -57,7 +61,7 @@ function setRoleViaFs(normalizedEmail, role) {
   try {
     users = JSON.parse(fs.readFileSync(usersFile, "utf-8"));
   } catch {
-    console.error("lib/data/users.json을 읽을 수 없습니다.");
+    console.error(`${usersFile}을(를) 읽을 수 없습니다.`);
     process.exit(1);
   }
 

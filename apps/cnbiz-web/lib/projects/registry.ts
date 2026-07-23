@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 export type ProjectStatus = "Active" | "Paused" | "Completed" | "Archived";
 
@@ -50,7 +51,7 @@ export async function createProject(
   store: CollectionStore = getDefaultStore()
 ): Promise<ProjectRecord> {
   const record: ProjectRecord = {
-    id: `project-${Date.now()}`,
+    id: generateId("project"),
     name: input.name,
     company: input.company,
     type: input.type,

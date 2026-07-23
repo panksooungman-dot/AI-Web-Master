@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 import type { WebsiteOrderInput, WebsiteOrderRecord, WebsiteOrderStatus } from "./types";
 
 const COLLECTION = "website-orders";
@@ -33,7 +34,7 @@ export async function createWebsiteOrder(
 ): Promise<WebsiteOrderRecord> {
   const now = new Date().toISOString();
   const record: WebsiteOrderRecord = {
-    id: `website-order-${Date.now()}`,
+    id: generateId("website-order"),
     ...input,
     status: "Requested",
     aiJobIds: [],

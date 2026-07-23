@@ -12,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const prompt = getPrompt(id);
+  const prompt = await getPrompt(id);
 
   if (!prompt) {
     return NextResponse.json({ success: false, error: "프롬프트를 찾을 수 없습니다." }, { status: 404 });

@@ -11,7 +11,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const prompt = getPrompt(id);
+  const prompt = await getPrompt(id);
 
   if (!prompt) {
     return NextResponse.json({ error: "프롬프트를 찾을 수 없습니다." }, { status: 404 });
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
-    const prompt = addPromptVersion(id, content, variables);
+    const prompt = await addPromptVersion(id, content, variables);
 
     if (!prompt) {
       return NextResponse.json(

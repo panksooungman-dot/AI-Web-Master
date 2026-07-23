@@ -1,5 +1,6 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 export type WebsiteGenerationStatus = "Success" | "Failed";
 
@@ -36,7 +37,7 @@ export async function createWebsiteRecord(
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteRecord> {
   const record: WebsiteRecord = {
-    id: `website-${Date.now()}`,
+    id: generateId("website"),
     name: input.name,
     siteType: input.siteType,
     outDir: input.outDir,

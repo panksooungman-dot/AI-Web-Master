@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     // Registers the existing folder as-is — createWorkspace's mkdirSync is a
     // no-op for a path that already exists, so nothing is copied or created.
-    const workspace = createWorkspace(path.basename(folderPath), folderPath);
+    const workspace = await createWorkspace(path.basename(folderPath), folderPath);
 
     const project = await createProject({
       name,

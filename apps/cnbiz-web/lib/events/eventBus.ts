@@ -1,3 +1,5 @@
+import { generateId } from "@/lib/id";
+
 export type EventCategory = "agent" | "terminal" | "git" | "workflow";
 
 export interface EngineEvent {
@@ -22,7 +24,7 @@ class EventBus {
     payload: Record<string, unknown> = {}
   ): EngineEvent {
     const event: EngineEvent = {
-      id: `event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: generateId("event"),
       category,
       type,
       payload,

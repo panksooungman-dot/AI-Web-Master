@@ -73,8 +73,8 @@ export async function POST(request: Request) {
     }
 
     const steps = buildBootstrapSteps(name, description, workspaceName, workspacePath);
-    const workflow = createWorkflow(`New Project: ${name}`, `${name} 자동 생성 워크플로`, steps);
-    const run = workflowEngine.createRun(workflow.id, { cwd: workspacePath });
+    const workflow = await createWorkflow(`New Project: ${name}`, `${name} 자동 생성 워크플로`, steps);
+    const run = await workflowEngine.createRun(workflow.id, { cwd: workspacePath });
 
     return NextResponse.json({ success: true, workflow, run });
   } catch (error) {

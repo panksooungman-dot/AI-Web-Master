@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createFsStore } from "../../lib/db/fsStore";
 import { computeSync } from "../../lib/design/design-sync-engine";
 import { getLatestSyncForReview, getSyncRecord, recordSync, rollbackSyncRecord } from "../../lib/design/design-sync";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
@@ -75,23 +76,25 @@ describe("Design Automation Phase 8 — design sync engine + registry integratio
   void buildDefaultClaudeDesign(prototype);
 
   const reviewId = "review-sync-integration";
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "design-sync-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("runs an initial design-to-code sync and persists it end-to-end (no previous record, always in_sync)", () => {
-    const previous = getLatestSyncForReview(reviewId, baseDir);
+  it("runs an initial design-to-code sync and persists it end-to-end (no previous record, always in_sync)", async () => {
+    const previous = await getLatestSyncForReview(reviewId, store);
     expect(previous).toBeNull();
 
     const result = computeSync({ direction: "design-to-code", wireframe, figma: null, previous });
     expect(result.status).toBe("in_sync");
 
-    const record = recordSync(
+    const record = await recordSync(
       {
         reviewId,
         planId: plan.id,
@@ -103,41 +106,41 @@ describe("Design Automation Phase 8 — design sync engine + registry integratio
         conflicts: result.conflicts,
         status: result.status,
       },
-      baseDir
+      store
     );
 
     expect(record.version).toBe(1);
-    expect(getSyncRecord(record.id, baseDir)?.reviewId).toBe(reviewId);
+    expect((await getSyncRecord(record.id, store))?.reviewId).toBe(reviewId);
   });
 
-  it("re-syncing with no changes produces an empty patch and stays in_sync", () => {
+  it("re-syncing with no changes produces an empty patch and stays in_sync", async () => {
     const first = computeSync({ direction: "design-to-code", wireframe, figma: null, previous: null });
-    const firstRecord = recordSync(
+    const firstRecord = await recordSync(
       { reviewId, planId: plan.id, figmaId: null, direction: "design-to-code", designSnapshot: first.designSnapshot, codeSnapshot: first.codeSnapshot, patch: first.patch, conflicts: first.conflicts, status: first.status },
-      baseDir
+      store
     );
 
-    const previous = getLatestSyncForReview(reviewId, baseDir);
+    const previous = await getLatestSyncForReview(reviewId, store);
     const second = computeSync({ direction: "design-to-code", wireframe, figma: null, previous });
 
     expect(second.patch).toEqual([]);
     expect(second.status).toBe("in_sync");
 
-    const secondRecord = recordSync(
+    const secondRecord = await recordSync(
       { reviewId, planId: plan.id, figmaId: null, direction: "design-to-code", designSnapshot: second.designSnapshot, codeSnapshot: second.codeSnapshot, patch: second.patch, conflicts: second.conflicts, status: second.status },
-      baseDir
+      store
     );
 
     expect(secondRecord.id).toBe(firstRecord.id);
     expect(secondRecord.version).toBe(2);
   });
 
-  it("code-to-design with a diverging override on an already-changed design produces a conflict, persisted with status:conflict", () => {
+  it("code-to-design with a diverging override on an already-changed design produces a conflict, persisted with status:conflict", async () => {
     // First sync establishes a baseline.
     const first = computeSync({ direction: "design-to-code", wireframe, figma: null, previous: null });
-    recordSync(
+    await recordSync(
       { reviewId, planId: plan.id, figmaId: null, direction: "design-to-code", designSnapshot: first.designSnapshot, codeSnapshot: first.codeSnapshot, patch: first.patch, conflicts: first.conflicts, status: first.status },
-      baseDir
+      store
     );
 
     // Simulate the design changing (different wireframe payload) AND a hand-edited code override.
@@ -146,7 +149,7 @@ describe("Design Automation Phase 8 — design sync engine + registry integratio
       content: { ...wireframe.content, layouts: wireframe.content.layouts.slice(0, wireframe.content.layouts.length - 1) },
     };
 
-    const previous = getLatestSyncForReview(reviewId, baseDir);
+    const previous = await getLatestSyncForReview(reviewId, store);
     const result = computeSync({
       direction: "code-to-design",
       wireframe: changedWireframe,
@@ -158,20 +161,20 @@ describe("Design Automation Phase 8 — design sync engine + registry integratio
     expect(result.status).toBe("conflict");
     expect(result.conflicts.length).toBeGreaterThan(0);
 
-    const record = recordSync(
+    const record = await recordSync(
       { reviewId, planId: plan.id, figmaId: null, direction: "code-to-design", designSnapshot: result.designSnapshot, codeSnapshot: result.codeSnapshot, patch: result.patch, conflicts: result.conflicts, status: result.status },
-      baseDir
+      store
     );
 
     expect(record.status).toBe("conflict");
-    expect(getSyncRecord(record.id, baseDir)?.status).toBe("conflict");
+    expect((await getSyncRecord(record.id, store))?.status).toBe("conflict");
   });
 
-  it("rolling back after a conflict restores the last known-good (in_sync) version end-to-end", () => {
+  it("rolling back after a conflict restores the last known-good (in_sync) version end-to-end", async () => {
     const first = computeSync({ direction: "design-to-code", wireframe, figma: null, previous: null });
-    const goodRecord = recordSync(
+    const goodRecord = await recordSync(
       { reviewId, planId: plan.id, figmaId: null, direction: "design-to-code", designSnapshot: first.designSnapshot, codeSnapshot: first.codeSnapshot, patch: first.patch, conflicts: first.conflicts, status: first.status },
-      baseDir
+      store
     );
 
     const changedWireframe: WireframeRecord = {
@@ -182,15 +185,15 @@ describe("Design Automation Phase 8 — design sync engine + registry integratio
       direction: "code-to-design",
       wireframe: changedWireframe,
       figma: null,
-      previous: getLatestSyncForReview(reviewId, baseDir),
+      previous: await getLatestSyncForReview(reviewId, store),
       codeOverride: { theme: ":root { --primary: #ff0000; }" },
     });
-    recordSync(
+    await recordSync(
       { reviewId, planId: plan.id, figmaId: null, direction: "code-to-design", designSnapshot: conflicted.designSnapshot, codeSnapshot: conflicted.codeSnapshot, patch: conflicted.patch, conflicts: conflicted.conflicts, status: conflicted.status },
-      baseDir
+      store
     );
 
-    const rollback = rollbackSyncRecord(goodRecord.id, 1, { actor: "designer@cnbiz.kr" }, baseDir);
+    const rollback = await rollbackSyncRecord(goodRecord.id, 1, { actor: "designer@cnbiz.kr" }, store);
 
     expect(rollback.success).toBe(true);
     expect(rollback.record?.status).toBe("rolled_back");

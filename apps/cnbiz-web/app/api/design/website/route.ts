@@ -44,7 +44,7 @@ function toResponse(record: WebsiteBuildRecord) {
 }
 
 export async function GET() {
-  return NextResponse.json({ builds: listWebsiteBuilds() });
+  return NextResponse.json({ builds: await listWebsiteBuilds() });
 }
 
 /**
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
   });
   await incrementMetric("websiteGenerationCount");
 
-  const buildRecord = recordWebsiteBuild({
+  const buildRecord = await recordWebsiteBuild({
     reviewId,
     planId: plan.id,
     websiteId: websiteRecord.id,

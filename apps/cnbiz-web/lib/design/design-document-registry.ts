@@ -1,6 +1,7 @@
 import type { DesignDocument } from "@cnbiz/design-system/types/design";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { generateId } from "@/lib/id";
 
 /**
  * Design JSON Standardization — Phase 10 (docs/architecture/DESIGN_JSON_MIGRATION_STATUS.md).
@@ -50,7 +51,7 @@ export interface DesignDocumentRecord {
 const COLLECTION = "design-documents";
 
 function createRecordId(): string {
-  return `design-document-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateId("design-document");
 }
 
 export interface SaveDesignDocumentEntry {

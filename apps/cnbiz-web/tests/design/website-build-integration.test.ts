@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createFsStore } from "../../lib/db/fsStore";
 import { planToWebsiteBuildInputs } from "../../lib/design/website-build-adapter";
 import { getLatestWebsiteBuildForReview, getWebsiteBuildRecord, recordWebsiteBuild } from "../../lib/design/website-build";
 import { buildDefaultDesignPlan } from "../../lib/design/generator";
@@ -40,9 +41,11 @@ describe("Design Automation Phase 9 — website build adapter + registry integra
   };
 
   const reviewId = "review-website-build-integration";
+  let store: ReturnType<typeof createFsStore>;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "website-build-integration-test-"));
+    store = createFsStore(baseDir);
   });
 
   afterEach(() => {
@@ -58,15 +61,15 @@ describe("Design Automation Phase 9 — website build adapter + registry integra
     expect(inputs.siteType).toBe("dental");
   });
 
-  it("records a successful build end-to-end and links it back to the review/plan chain", () => {
+  it("records a successful build end-to-end and links it back to the review/plan chain", async () => {
     const inputs = planToWebsiteBuildInputs(plan);
-    const previous = getLatestWebsiteBuildForReview(reviewId, baseDir);
+    const previous = await getLatestWebsiteBuildForReview(reviewId, store);
     expect(previous).toBeNull();
 
     // Stand-in for what the route does after a successful `execute()` CLI invocation:
     // a WebsiteRecord already exists (lib/websites/registry.ts, out of scope here) and we only
     // record the Design-chain linkage.
-    const record = recordWebsiteBuild(
+    const record = await recordWebsiteBuild(
       {
         reviewId,
         planId: plan.id,
@@ -75,28 +78,28 @@ describe("Design Automation Phase 9 — website build adapter + registry integra
         status: "Success",
         simulatedContent: false,
       },
-      baseDir
+      store
     );
 
     expect(record.version).toBe(1);
     expect(record.reviewId).toBe(reviewId);
     expect(record.planId).toBe(plan.id);
-    expect(getWebsiteBuildRecord(record.id, baseDir)?.status).toBe("Success");
+    expect((await getWebsiteBuildRecord(record.id, store))?.status).toBe("Success");
   });
 
-  it("a retry after a failed build increments the version and preserves the failure in history", () => {
+  it("a retry after a failed build increments the version and preserves the failure in history", async () => {
     const inputs = planToWebsiteBuildInputs(plan);
 
-    const failed = recordWebsiteBuild(
+    const failed = await recordWebsiteBuild(
       { reviewId, planId: plan.id, websiteId: "website-failed-1", siteType: inputs.siteType, status: "Failed", simulatedContent: false, error: "packages/cli가 아직 빌드되지 않았습니다." },
-      baseDir
+      store
     );
     expect(failed.version).toBe(1);
     expect(failed.status).toBe("Failed");
 
-    const retried = recordWebsiteBuild(
+    const retried = await recordWebsiteBuild(
       { reviewId, planId: plan.id, websiteId: "website-success-2", siteType: inputs.siteType, status: "Success", simulatedContent: false },
-      baseDir
+      store
     );
 
     expect(retried.id).toBe(failed.id);
@@ -105,6 +108,6 @@ describe("Design Automation Phase 9 — website build adapter + registry integra
     expect(retried.history).toHaveLength(2);
     expect(retried.history[0].status).toBe("Failed");
     expect(retried.history[1].status).toBe("Success");
-    expect(getLatestWebsiteBuildForReview(reviewId, baseDir)?.id).toBe(retried.id);
+    expect((await getLatestWebsiteBuildForReview(reviewId, store))?.id).toBe(retried.id);
   });
 });

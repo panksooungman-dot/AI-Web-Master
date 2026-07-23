@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   const result = await runHealthCheck(check as HealthCheckId, process.cwd());
-  writeHealthCacheEntry(check as HealthCheckId, result);
+  await writeHealthCacheEntry(check as HealthCheckId, result);
 
   if (check === "build") {
     const actor = await getCurrentActorEmail();

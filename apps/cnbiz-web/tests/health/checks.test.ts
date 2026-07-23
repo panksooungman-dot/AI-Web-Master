@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createFsStore } from "../../lib/db/fsStore";
 import { getDiskUsage, getSystemInfo, readHealthCache, writeHealthCacheEntry } from "../../lib/health/checks";
 
 describe("Health — checks (lib/health/checks.ts)", () => {
@@ -36,45 +37,47 @@ describe("Health — checks (lib/health/checks.ts)", () => {
 
   describe("readHealthCache() / writeHealthCacheEntry()", () => {
     let baseDir: string;
+    let store: ReturnType<typeof createFsStore>;
 
     beforeEach(() => {
       baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "health-cache-test-"));
+      store = createFsStore(baseDir);
     });
 
     afterEach(() => {
       fs.rmSync(baseDir, { recursive: true, force: true });
     });
 
-    it("starts empty", () => {
-      expect(readHealthCache(baseDir)).toEqual({});
+    it("starts empty", async () => {
+      expect(await readHealthCache(store)).toEqual({});
     });
 
-    it("writeHealthCacheEntry() persists a check result, readable back", () => {
+    it("writeHealthCacheEntry() persists a check result, readable back", async () => {
       const result = { success: true, summary: "성공", ranAt: new Date().toISOString(), durationMs: 1234 };
 
-      writeHealthCacheEntry("build", result, baseDir);
+      await writeHealthCacheEntry("build", result, store);
 
-      expect(readHealthCache(baseDir)).toEqual({ build: result });
+      expect(await readHealthCache(store)).toEqual({ build: result });
     });
 
-    it("writing a second check preserves the first", () => {
+    it("writing a second check preserves the first", async () => {
       const build = { success: true, summary: "성공", ranAt: new Date().toISOString(), durationMs: 100 };
       const test = { success: false, summary: "실패", ranAt: new Date().toISOString(), durationMs: 200 };
 
-      writeHealthCacheEntry("build", build, baseDir);
-      writeHealthCacheEntry("test", test, baseDir);
+      await writeHealthCacheEntry("build", build, store);
+      await writeHealthCacheEntry("test", test, store);
 
-      expect(readHealthCache(baseDir)).toEqual({ build, test });
+      expect(await readHealthCache(store)).toEqual({ build, test });
     });
 
-    it("re-writing the same check overwrites its previous result", () => {
+    it("re-writing the same check overwrites its previous result", async () => {
       const first = { success: false, summary: "실패", ranAt: new Date().toISOString(), durationMs: 100 };
       const second = { success: true, summary: "성공", ranAt: new Date().toISOString(), durationMs: 150 };
 
-      writeHealthCacheEntry("test", first, baseDir);
-      writeHealthCacheEntry("test", second, baseDir);
+      await writeHealthCacheEntry("test", first, store);
+      await writeHealthCacheEntry("test", second, store);
 
-      expect(readHealthCache(baseDir)).toEqual({ test: second });
+      expect(await readHealthCache(store)).toEqual({ test: second });
     });
   });
 });

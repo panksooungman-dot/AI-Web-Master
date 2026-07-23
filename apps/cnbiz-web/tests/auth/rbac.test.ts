@@ -113,6 +113,14 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/ai-jobs")).toBe("developer");
       expect(resolveProtectedArea("/api/ai-jobs/abc123")).toBe("developer");
     });
+
+    it("(AI Business OS Rewiring) ungates exactly POST /api/inquiries — the new internal customer-intake entry point — while every other method/path on the same admin API stays developer-gated", () => {
+      expect(resolveProtectedArea("/api/inquiries", "POST")).toBeNull();
+      expect(resolveProtectedArea("/api/inquiries", "GET")).toBe("developer");
+      expect(resolveProtectedArea("/api/inquiries")).toBe("developer");
+      expect(resolveProtectedArea("/api/inquiries/abc123", "POST")).toBe("developer");
+      expect(resolveProtectedArea("/api/inquiries/abc123", "PATCH")).toBe("developer");
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

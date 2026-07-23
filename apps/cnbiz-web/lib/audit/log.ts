@@ -33,7 +33,15 @@ export type AuditAction =
   | "design.sync.complete"
   | "design.sync.rollback"
   | "design.sync.conflict"
-  | "design.website.build";
+  | "design.website.build"
+  | "deployment.github.create_repo"
+  | "deployment.git.commit_push"
+  | "deployment.vercel.create_project"
+  | "deployment.vercel.link_repo"
+  | "deployment.vercel.deploy"
+  | "deployment.pipeline.success"
+  | "deployment.pipeline.failed"
+  | "deployment.pipeline.rollback";
 
 export interface AuditEntry {
   id: string;

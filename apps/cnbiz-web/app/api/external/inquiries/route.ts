@@ -11,6 +11,16 @@ import { processJob } from "@/lib/aiJobs/worker";
 import { generateAnalysis } from "@/lib/ai-analysis/analysis";
 
 /**
+ * @deprecated AI Business OS Rewiring (see REWIRING_REPORT.md) — this route was built for
+ * cnbiz.ai.kr's chatbot to call server-to-server, but CHATBOT_API_KEY was never configured in
+ * Production (fail-closed → every request here would 401) and no confirmed real caller was ever
+ * found. Customer intake has been rewired through `POST /api/inquiries`
+ * (app/api/inquiries/route.ts, no API key, same createInquiry()-based orchestration minus the
+ * auto-run of the AiJob) — cnbiz.kr's own /contact form and the /developer/inquiries/new admin
+ * form both call that route now. This route is left in place, still fully functional, only for
+ * backward compatibility in case an external caller does exist after all; remove it in a separate
+ * commit once that's confirmed not to be the case.
+ *
  * cnbiz.ai.kr 프로젝트 AI 챗봇이 서버-투-서버로 호출하는 단일 진입점 — 새 제작의뢰 UI를
  * 만들지 않고, 이미 존재하는 챗봇 대화 결과를 여기로 넘겨받아
  * Inquiry → Client(find-or-create) → WebsiteOrder → AiJob → 관리자 알림까지 한 번에 처리한다.
@@ -21,9 +31,6 @@ import { generateAnalysis } from "@/lib/ai-analysis/analysis";
  * /api/website-orders·/api/ai-jobs에 별도로 있으며, 그쪽은 기본 "developer" 세션 게이팅을
  * 그대로 받는다(이 라우트와 절대 경로가 겹치지 않음).
  *
- * AI Business OS Phase 1(고객 상담/설문 연동): 요청 스펙의 "POST /api/inquiries"는 이 라우트를
- * 그대로 가리킨다 — 별도 엔드포인트를 새로 만들면 관리자 전용 /api/inquiries(GET, "developer"
- * 세션 게이팅)와 경로가 겹치거나, 인증 계층이 뒤섞이게 되어 이 라우트를 그대로 재사용한다.
  * customerName/consultation/industry/survey/uploadedFiles 필드는
  * lib/inquiries/validate.ts의 parseInquiryInput()이 기존 contactName/requirements와 함께
  * 그대로 파싱한다(스키마는 그대로 두고 옵셔널 필드만 추가 — 아래 참고).

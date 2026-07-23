@@ -18,7 +18,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const user = await resolveSessionUser(request);
   const isApi = pathname.startsWith("/api/");
-  const requiredArea = resolveProtectedArea(pathname);
+  const requiredArea = resolveProtectedArea(pathname, request.method);
 
   if (requiredArea) {
     if (!user) {

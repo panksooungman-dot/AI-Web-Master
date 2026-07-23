@@ -4,11 +4,11 @@ import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 
 /**
- * 아키텍처 SSOT(CNBIZ.KR → CNBIZ.AI.KR → AI Business OS)상 "관리자 알림"은 CNBIZ.AI.KR의
- * 책임이다. CNBIZ.AI.KR이 아직 이 알림을 자체적으로 보내지 않아(2026-07-21 확인), AI Business OS가
- * app/api/external/inquiries/route.ts에서 이 함수를 호출해 임시로 대행하고 있다 — CNBIZ.AI.KR이
- * 구축되면 이 함수(및 이 호출)는 이관 대상이다(PROJECT_STATUS.md 참고). 그 전까지는 기존 동작을
- * 그대로 유지한다.
+ * AI Business OS Rewiring(REWIRING_REPORT.md) — 이전에는 "CNBIZ.AI.KR이 아직 구축되지 않아
+ * app/api/external/inquiries/route.ts(현재 @deprecated)가 임시로 대행 중"이라는 전제였으나,
+ * 그 외부 연동 자체가 실사용된 적이 없음이 확인되어 이 함수는 이제 내부 진입점
+ * app/api/inquiries/route.ts(POST)의 정식 호출부다. cnbiz.kr 자체 문의 폼과
+ * /developer/inquiries/new 관리자 수동 등록이 전부 이 경로를 거친다. 동작 자체는 변경 없음.
  *
  * lib/contact/email의 provider 추상화(EmailProvider, CONTACT_EMAIL_PROVIDER/TO/FROM)를 그대로
  * 재사용한다 — 이름은 "contact"지만 인터페이스 자체는 범용이라, 새 provider 계층을 만들지

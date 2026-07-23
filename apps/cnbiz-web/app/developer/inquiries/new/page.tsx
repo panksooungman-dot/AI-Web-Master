@@ -26,6 +26,7 @@ interface InquiryFormState {
   title: string;
   contactName: string;
   companyName: string;
+  email: string;
 }
 
 let toastSeq = 0;
@@ -39,12 +40,12 @@ function formatFileSize(bytes: number): string {
 export default function NewInquiryPage() {
   const router = useRouter();
 
-  const [form, setForm] = useState<InquiryFormState>({ title: "", contactName: "", companyName: "" });
+  const [form, setForm] = useState<InquiryFormState>({ title: "", contactName: "", companyName: "", email: "" });
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState<"draft" | "analyze" | null>(null);
-  const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string; content?: string; contactName?: string; email?: string }>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   function pushToast(tone: ToastTone, text: string) {
@@ -110,17 +111,28 @@ export default function NewInquiryPage() {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }
 
-  /** 임시 저장은 초안이라 검증하지 않는다 — 검증은 실제 제출 개념인 AI 분석 시작에만 적용. */
+  /**
+   * 임시 저장은 초안이라 검증하지 않는다 — 검증은 실제 제출 개념인 AI 분석 시작에만 적용.
+   * contactName/email 체크는 AI Business OS Rewiring에서 추가됨 — POST /api/inquiries가
+   * 요구하는 lib/inquiries/validate.ts의 validateInquiryInput() 필수값(담당자명·이메일)과
+   * 동일한 기준을 제출 전에 미리 보여주기 위함(서버 검증 로직을 복제하지 않고 실패 사유만 미리
+   * 안내하는 용도 — 최종 검증은 여전히 서버가 수행한다).
+   */
   function validateForAnalysis(): boolean {
-    const nextErrors: { title?: string; content?: string } = {};
+    const nextErrors: { title?: string; content?: string; contactName?: string; email?: string } = {};
     if (!form.title.trim()) nextErrors.title = "문의 제목을 입력해주세요.";
+    if (!form.contactName.trim()) nextErrors.contactName = "고객명(담당자)을 입력해주세요.";
+    if (!form.email.trim()) nextErrors.email = "이메일을 입력해주세요.";
     if (!content.trim() && files.length === 0) {
       nextErrors.content = "문의 내용 또는 첨부파일 중 하나는 필수입니다.";
     }
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
-      pushToast("error", nextErrors.title ?? nextErrors.content ?? "입력값을 확인해주세요.");
+      pushToast(
+        "error",
+        nextErrors.title ?? nextErrors.contactName ?? nextErrors.email ?? nextErrors.content ?? "입력값을 확인해주세요.",
+      );
       return false;
     }
     return true;
@@ -143,34 +155,54 @@ export default function NewInquiryPage() {
     setLoading(null);
   }
 
-  function handleAnalyze() {
+  /**
+   * AI Business OS Rewiring Phase 1 — POST /api/inquiries(내부, app/api/inquiries/route.ts)를
+   * 호출해 createInquiry() 이하 기존 파이프라인(AI Analysis → Client → WebsiteOrder → AiJob)에
+   * 합류시킨다. 이 라우트와 완전히 동일한 흐름을 cnbiz.kr의 공개 문의 폼(components/sections/
+   * ContactForm.tsx)도 함께 사용한다 — "chatbot"이 아닌 "manual"을 source로 보내는 것만 다르다.
+   *
+   * 남은 TODO(파일 업로드 스토리지·OCR)는 이번 범위가 아니다 — Supabase Storage 업로드 백엔드가
+   * 아직 없어 첨부파일은 실제 URL 없이 파일명만 rawPayload에 감사 목적으로 남긴다.
+   */
+  async function handleAnalyze() {
     if (loading) return;
     if (!validateForAnalysis()) return;
 
     setLoading("analyze");
 
-    // TODO(AI 분석 파이프라인 — 현재는 OpenAI를 실제로 호출하지 않는다):
-    // 1. Supabase Storage 업로드 — files를 스토리지에 업로드하고 URL 확보
-    // 2. 파일 OCR — 업로드된 PDF/이미지에서 텍스트 추출
-    // 3. OpenAI 분석 — content + OCR 결과 기반 분석 실행. 이미 존재하는
-    //    lib/ai-analysis/analysis.ts의 generateAnalysis()가 POST /api/external/inquiries에서
-    //    쓰이는 동일 목적의 함수이므로, 수동 등록 경로도 결국 이 함수로 합류시키는 것이 맞다.
-    // 4. 요구사항 문서 생성
-    // 5. 기능 목록 생성
-    // 6. 스토리보드 생성
-    // 7. WBS 생성
-    // 8. 프로젝트 생성 — lib/inquiries/registry.ts의 createInquiry() +
-    //    lib/clients/registry.ts의 findOrCreateClientByEmail() +
-    //    lib/websiteOrders/registry.ts의 createWebsiteOrder() +
-    //    lib/aiJobs/registry.ts의 createAiJob() 재사용(POST /api/external/inquiries와 동일 흐름)
-    console.log("[inquiries/new] AI 분석 시작", {
-      form,
-      content,
-      files: files.map((f) => ({ name: f.file.name, size: f.file.size, type: f.file.type })),
-    });
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "manual",
+          companyName: form.companyName,
+          contactName: form.contactName,
+          email: form.email,
+          requirements: content,
+          rawPayload: {
+            title: form.title,
+            // TODO: 실제 업로드 URL이 아니라 파일명만 감사 목적으로 보관 — Supabase Storage
+            // 연동이 구현되면 lib/inquiries/types.ts의 uploadedFiles(URL 목록)로 옮긴다.
+            uploadedFileNames: files.map((f) => f.file.name),
+          },
+        }),
+      });
+      const data: { success: boolean; inquiryId?: string; error?: string; errors?: Record<string, string> } =
+        await res.json();
 
-    pushToast("success", "AI 분석 요청이 접수되었습니다. (현재는 콘솔 로그로만 확인 가능합니다)");
-    setLoading(null);
+      if (!data.success) {
+        pushToast("error", data.error ?? Object.values(data.errors ?? {})[0] ?? "문의 등록에 실패했습니다.");
+        return;
+      }
+
+      pushToast("success", "문의가 등록되고 AI 분석이 시작되었습니다.");
+      router.push(`/developer/inquiries/${data.inquiryId}`);
+    } catch {
+      pushToast("error", "문의 등록 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   function handleCancel() {
@@ -214,13 +246,18 @@ export default function NewInquiryPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">고객명</label>
+                <label className="block text-sm text-gray-400 mb-1">고객명(담당자) *</label>
                 <input
                   type="text"
                   value={form.contactName}
                   onChange={(e) => updateForm("contactName", e.target.value)}
                   className={inputClass}
                 />
+                {errors.contactName && (
+                  <StatusMessage tone="error" className="mt-1">
+                    {errors.contactName}
+                  </StatusMessage>
+                )}
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">회사명</label>
@@ -231,6 +268,22 @@ export default function NewInquiryPage() {
                   className={inputClass}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">이메일 *</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => updateForm("email", e.target.value)}
+                placeholder="customer@example.com"
+                className={inputClass}
+              />
+              {errors.email && (
+                <StatusMessage tone="error" className="mt-1">
+                  {errors.email}
+                </StatusMessage>
+              )}
             </div>
 
             <div>

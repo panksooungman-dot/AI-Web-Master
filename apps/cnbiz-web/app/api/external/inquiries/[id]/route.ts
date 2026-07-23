@@ -8,6 +8,12 @@ interface RouteParams {
 }
 
 /**
+ * @deprecated AI Business OS Rewiring (see REWIRING_REPORT.md) — same status as the sibling
+ * POST route (app/api/external/inquiries/route.ts): never confirmed to have a real external
+ * caller, kept only for backward compatibility. The internal replacement flow doesn't need a
+ * separate polling endpoint — admins already see live AiJob status on
+ * /developer/inquiries/[id] via the existing "developer"-gated GET /api/inquiries/[id].
+ *
  * cnbiz.ai.kr 챗봇이 POST /api/external/inquiries 응답으로 받은 inquiryId를 그대로 넘겨
  * 진행 상태를 폴링하는 엔드포인트. 인증·요청 제한은 POST 라우트와 동일하게
  * verifyExternalApiKey()/isRateLimited()를 그대로 재사용한다(새 인증 로직 없음).

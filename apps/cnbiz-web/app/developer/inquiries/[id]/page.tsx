@@ -126,7 +126,11 @@ export default function InquiryDetailPage() {
   }
 
   // 새 실행 로직을 만들지 않고 기존 POST /api/ai-jobs/[id]/run(lib/aiJobs/worker.ts의
-  // processJob() 재사용)을 그대로 호출한다 — Failed/Queued Job을 관리자가 직접 재실행.
+  // processJob() 재사용)을 그대로 호출한다 — Failed Job은 관리자가 재실행, Queued Job은
+  // AI Business OS Rewiring Phase 2부터 이 호출이 곧 "AI Generate Workflow 실행 승인"이다:
+  // POST /api/inquiries(app/api/inquiries/route.ts)가 더 이상 AiJob을 자동 실행하지 않고
+  // Queued 상태로만 만들어두므로, 관리자가 AI 분석 결과를 확인한 뒤 여기서 직접 실행을
+  // 트리거해야 Website Builder가 실제로 돈다.
   async function handleRunJob(jobId: string) {
     setRunningJobId(jobId);
     setRunError(null);
@@ -373,7 +377,11 @@ export default function InquiryDetailPage() {
                         disabled={runningJobId === job.id}
                         className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
                       >
-                        {runningJobId === job.id ? "실행 중..." : job.status === "Failed" ? "재실행" : "지금 실행"}
+                        {runningJobId === job.id
+                          ? "실행 중..."
+                          : job.status === "Failed"
+                            ? "재실행"
+                            : "승인 및 생성"}
                       </button>
                     )}
                   </div>

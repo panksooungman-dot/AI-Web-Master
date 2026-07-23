@@ -37,6 +37,14 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.sync.rollback": "Sync 롤백",
   "design.sync.conflict": "Sync 충돌",
   "design.website.build": "Website Builder 연동",
+  "deployment.github.create_repo": "GitHub 저장소 생성",
+  "deployment.git.commit_push": "Git Commit/Push",
+  "deployment.vercel.create_project": "Vercel Project 생성",
+  "deployment.vercel.link_repo": "Vercel-GitHub 연결",
+  "deployment.vercel.deploy": "Vercel 배포",
+  "deployment.pipeline.success": "배포 파이프라인 성공",
+  "deployment.pipeline.failed": "배포 파이프라인 실패",
+  "deployment.pipeline.rollback": "배포 파이프라인 롤백",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -65,6 +73,14 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.sync.rollback": "orange",
   "design.sync.conflict": "danger",
   "design.website.build": "accent",
+  "deployment.github.create_repo": "info",
+  "deployment.git.commit_push": "info",
+  "deployment.vercel.create_project": "info",
+  "deployment.vercel.link_repo": "info",
+  "deployment.vercel.deploy": "accent",
+  "deployment.pipeline.success": "success",
+  "deployment.pipeline.failed": "danger",
+  "deployment.pipeline.rollback": "orange",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -94,6 +110,14 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.sync.rollback",
   "design.sync.conflict",
   "design.website.build",
+  "deployment.github.create_repo",
+  "deployment.git.commit_push",
+  "deployment.vercel.create_project",
+  "deployment.vercel.link_repo",
+  "deployment.vercel.deploy",
+  "deployment.pipeline.success",
+  "deployment.pipeline.failed",
+  "deployment.pipeline.rollback",
 ];
 
 export default function AuditLogPage() {

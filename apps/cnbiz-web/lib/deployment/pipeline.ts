@@ -180,11 +180,16 @@ export async function runDeploymentPipeline(
       metadata: { websiteId: input.websiteId, projectId: vercelProject.id },
     });
 
-    // 7. Production Deploy 실행
+    // 7. Production Deploy 실행 — repoId는 Step 2에서 GitHub Repository를 생성할 때 이미 받아둔
+    // 숫자 ID를 그대로 사용한다(Vercel gitSource.repoId 필수 요구사항, FINAL_E2E_REPORT.md 참고).
+    // isInitialDeployment: true — 이 파이프라인은 Step 5(createProject)에서 방금 만든 새 Project에
+    // 항상 첫 배포만 수행하므로 항상 true(FINAL_E2E_REPORT_v2.md의 missing_project_settings 대응).
     const deployment = await deps.createDeployment({
       name: repoName,
       projectId: vercelProject.id,
+      repoId: repository.id,
       gitBranch: repository.defaultBranch,
+      isInitialDeployment: true,
     });
     pushLog(logs, "vercel.deploy", true, `배포 완료: ${deployment.url}`);
     await recordAuditEvent({

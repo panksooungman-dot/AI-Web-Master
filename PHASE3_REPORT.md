@@ -229,3 +229,76 @@ apps/cnbiz-web/tests/websites/registry.test.ts  — getWebsite()/updateWebsiteDe
    둘지 정책 결정이 필요하다(현재는 미설정 시 개인 계정 폴백).
 4. **Vercel Team 여부** — 이전 세션에서 확인된 `panksooungman-dots-projects` 팀을 그대로 쓸지,
    고객 프로젝트 전용 별도 팀을 새로 만들지 결정이 필요하다(`VERCEL_TEAM_ID`).
+
+---
+
+## 실제 계정 1회 왕복 검증 결과 (2026-07-24)
+
+> 위 "확인 필요" 2번 항목 수행. `GITHUB_TOKEN`·`GITHUB_OWNER`·`VERCEL_TOKEN`이 루트 `.env.local`에
+> 설정된 상태로 전달받아, `apps/cnbiz-web/.env.local`(앱이 실제로 읽는 파일 — 루트 `.env.local`은
+> Next.js가 이 워크스페이스 앱에 대해서는 로드하지 않는다)에 복사해 넣고 dev 서버(포트 3400)로
+> 파이프라인 전체를 2회 실행했다. **결과: 코드 결함 0건, 자격 증명/설정 문제 2건 발견.** 둘 다
+> GitHub 저장소 생성 단계(Step 2)에서 막혀 Push·Vercel 이후 단계는 실제 API 응답으로 검증하지
+> 못했다.
+
+### 테스트 절차
+
+1. `POST /api/inquiries`(공개, 인증 불필요)로 테스트 문의 생성 → Inquiry → Client → WebsiteOrder →
+   AiJob(Queued)까지 정상 생성 확인
+2. `scripts/create-auth-user.cjs`로 `developer` role 테스트 계정 생성 → `POST /api/auth/login`으로
+   세션 확보(RBAC gate 통과 확인)
+3. `POST /api/ai-jobs/{id}/run`으로 승인·실행 — `executeJob()`(Website Builder CLI, 기존/무변경)이
+   실제로 `packages/cli/dist/index.js website create`를 실행해 `.generated-websites/{jobId}`에
+   프로젝트를 생성하고 AiJob이 "Success"로 전이됨을 확인(양쪽 실행 모두 성공)
+4. 같은 요청 안에서 `triggerDeployment()` → `runDeploymentPipeline()`이 실제로 호출되어 GitHub REST
+   API에 진짜 네트워크 요청을 보냄을 확인(`WebsiteRecord.deploymentStatus`·Audit Log로 검증)
+
+### 1차 실행 — GitHub `GITHUB_OWNER` 오설정 (404)
+
+`.env.local`에 `GITHUB_OWNER=panksooungman-dot`가 설정되어 있어 `createRepository()`가
+`POST /orgs/panksooungman-dot/repos`를 호출 → `404 Not Found`. `GET /users/panksooungman-dot`로
+직접 확인한 결과 `"type": "User"`(조직이 아닌 개인 계정)였다 — `.env.example`에 이미 문서화된 대로
+"비워두면 개인 계정(`POST /user/repos`)에 생성" 분기를 의도한 것이라면, 이 값 자체가 잘못 설정된
+것이다. **수정: `apps/cnbiz-web/.env.local`에서 `GITHUB_OWNER`를 제거**(개인 계정 폴백 사용). 코드
+변경 없음 — `lib/github/client.ts`의 분기 로직은 문서화된 대로 정확히 동작했다.
+
+### 2차 실행 — GitHub 토큰 권한 부족 (403)
+
+`GITHUB_OWNER` 제거 후 재실행 → `POST /user/repos`가 `403 Resource not accessible by personal
+access token`. `curl`로 앱 밖에서 동일 요청을 직접 재현해도 동일한 403 — 앱 코드와 무관하게 토큰
+자체의 권한 문제로 확인했다. `github_pat_...` 접두사로 보아 fine-grained PAT인데, 리포지토리 생성에
+필요한 **"Administration" 권한(Read and write)**이 없거나, 토큰의 Repository access가 "Only select
+repositories"로 좁혀져 있어(아직 존재하지 않는 새 리포지토리는 애초에 선택 목록에 넣을 수 없음)
+생성 자체가 거부된 것으로 보인다. **필요한 조치(GitHub 토큰 설정 화면, 코드로 해결 불가)**:
+`https://github.com/settings/personal-access-tokens` → 해당 토큰 → Repository access를 **"All
+repositories"**로, Permissions → Repository permissions → **Administration을 "Read and write"**로
+변경(또는 이 권한을 가진 새 fine-grained PAT 재발급). Classic PAT(`ghp_...`, `repo` scope)로
+교체하는 것도 대안.
+
+### Vercel 토큰 — 별도 확인(앱 밖에서 직접 검증)
+
+GitHub 단계 실패로 파이프라인이 Vercel 단계까지 도달하지 못해, `createProject()`/
+`createDeployment()`는 이번 세션에서 실제 응답으로 검증하지 못했다(설계대로 애초에 호출되지도
+않음 — Vercel 쪽에 원치 않는 프로젝트가 생기지 않았음을 `GET /v10/projects`로 확인). 다만
+`VERCEL_TOKEN` 자체의 유효성은 `GET /v2/user`(200, `panksooungman-dot`/`panksooungman@gmail.com`
+계정 확인)와 기존 프로젝트 조회(`GET /v10/projects?search=cnbiz`, 기존 `cnbiz-web` 프로젝트 정상
+반환)로 별도 확인했다 — 토큰 자체는 유효하다. `defaultTeamId: team_lQpMYHF512Z4dnlkfMLTJdIy`,
+`"limited": true`가 응답에 포함되지만 `VERCEL_TEAM_ID` 없이도 조회는 정상 동작했다(Vercel의
+"Northstar" 계정 모델 — 개인 Hobby 계정도 팀형 네임스페이스를 갖는다). Project 생성(`POST`)에도
+teamId 없이 동작하는지는 GitHub 단계를 통과한 뒤 재검증이 필요하다.
+
+### 결론 및 다음 단계
+
+- **코드는 설계·문서(`.env.example`, 위 "설계 결정 1")대로 정확히 동작했다** — 토큰 미설정이
+  아니라 "설정은 됐지만 값이 틀림/권한 부족"인 경우도 `NotConfigured`로 뭉뚱그리지 않고 실제 HTTP
+  상태 코드·GitHub 응답 본문 그대로를 `deploymentError`와 Audit Log
+  (`deployment.pipeline.failed`)에 정확히 남겼다. 두 실패 모두 롤백 로직도 정상 동작(생성된
+  리소스가 없어 "롤백 완료"로 즉시 종료).
+- **막힌 지점**: GitHub PAT 권한 부족 하나. 위 조치(Administration: write, All repositories) 적용
+  후 재시도하면 GitHub 저장소 생성부터 Vercel Production Deploy까지 이어서 검증 가능 — 이번
+  세션에서 발견한 코드 문제가 없으므로 재시도만으로 충분할 것으로 예상된다.
+- Push(Step 3~5)·Vercel Project 생성/연결/배포(Step 6~8)·`WebsiteRecord.deployment` 필드 저장은
+  **여전히 미검증** — GitHub 저장소 생성이 성공해야 도달하는 단계라 이번 세션에서는 확인 불가.
+- 테스트에 사용한 Inquiry/Client/WebsiteOrder/AiJob/Website 레코드는 로컬 fs 저장소
+  (`%TEMP%/cnbiz-web/data/*.json`, machine-local, git 미추적)에만 남아 있다. GitHub/Vercel에는
+  실제로 생성된 리소스가 없다(양쪽 다 Step 2에서 막혔으므로 삭제할 대상도 없음).

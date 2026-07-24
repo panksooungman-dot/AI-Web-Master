@@ -159,6 +159,53 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
     expect(persisted?.deployment?.url).toBe(FAKE_DEPLOYMENT.url);
   });
 
+  it("[Deployment Body Validation] passes repository.id (from Step 2) as repoId to createDeployment() (Step 7)", async () => {
+    const website = await createWebsiteRecord(
+      { name: "Test", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },
+      store
+    );
+
+    const deps = buildSuccessfulDeps([]);
+    let repoIdSeenByVercel: number | undefined;
+    deps.createDeployment = async (input) => {
+      repoIdSeenByVercel = input.repoId;
+      return FAKE_DEPLOYMENT;
+    };
+
+    const result = await runDeploymentPipeline(
+      { websiteId: website.id, outDir: website.outDir, repoBaseName: "restaurant" },
+      deps,
+      store
+    );
+
+    expect(result.success).toBe(true);
+    // FAKE_REPO.id는 Step 2(createRepository)가 반환한 값 — Step 7까지 그대로 전달되어야 한다.
+    expect(repoIdSeenByVercel).toBe(FAKE_REPO.id);
+  });
+
+  it("[Initial Deployment] always passes isInitialDeployment: true to createDeployment() (Step 5 always immediately precedes Step 7, always a brand-new Project)", async () => {
+    const website = await createWebsiteRecord(
+      { name: "Test", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },
+      store
+    );
+
+    const deps = buildSuccessfulDeps([]);
+    let isInitialDeploymentSeen: boolean | undefined;
+    deps.createDeployment = async (input) => {
+      isInitialDeploymentSeen = input.isInitialDeployment;
+      return FAKE_DEPLOYMENT;
+    };
+
+    const result = await runDeploymentPipeline(
+      { websiteId: website.id, outDir: website.outDir, repoBaseName: "restaurant" },
+      deps,
+      store
+    );
+
+    expect(result.success).toBe(true);
+    expect(isInitialDeploymentSeen).toBe(true);
+  });
+
   it("generates a repo name slugified from repoBaseName with the websiteId suffix", async () => {
     const website = await createWebsiteRecord(
       { name: "Test", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },

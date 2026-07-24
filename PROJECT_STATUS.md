@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-07-24 (Claude Code, AI Business OS Rewiring + Phase 3 반영 — 커밋 `726c3eb` 기준)
+> 최종 분석: 2026-07-24 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `f41dcef` 기준)
 > 이 커밋도 동기화 훅이 로컬 `claude` CLI 헤드리스 호출 타임아웃(90초)으로 실패해 `--no-verify`로
 > 진행하고 이 섹션들을 수동으로 갱신함(사용자 승인 하에 진행, 2026-07-22 사례와 동일한 원인).
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
@@ -39,6 +39,7 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 ---
 
 ## 전체 진행률
+
 **약 90%**
 
 | 영역 | 진행률 | 근거 |
@@ -46,11 +47,11 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
 | Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작. AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`)이 TODO 스텁에서 **실제 `POST /api/inquiries` 호출로 연결됨**(이메일 필드 추가). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세에서 연결된 레코드는 확인 가능) |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
-| **Customer Inquiry Pipeline** | **95%** | 데이터 계층·**내부 진입점(`POST /api/inquiries`, API Key 불필요)**·Worker·Executor·관리자 승인 게이팅·관리자 UI·AI Analysis Engine까지 전부 연결되어 실사용 가능. **신규**: AI Generate 성공 후 고객별 GitHub Repo/Vercel Project 자동 배포(Phase 3) — `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정으로 실 계정 검증만 남음. 기술 견적서/기능 명세서/프로젝트 타임라인은 의도적으로 다음 Phase로 분리 |
+| **Customer Inquiry Pipeline** | **95%** | 데이터 계층·**내부 진입점(`POST /api/inquiries`, API Key 불필요)**·Worker·Executor·관리자 승인 게이팅·관리자 UI·AI Analysis Engine까지 전부 연결되어 실사용 가능. AI Generate 성공 후 고객별 GitHub Repo/Vercel Project 자동 배포(Phase 3) — 실 계정 E2E 검증(v1~v3) 중 발견된 API/Git Scope 버그 3건 수정 완료 |
 | 인증/권한 | 82% | 세션 인증 + RBAC 4-role + 정확한 (method,path) 단위 예외(`POST /api/inquiries`) 완비. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated`(아래 참고) |
 | 고객(의뢰자) 시스템 | 65% | CNBIZ.KR 자체 접수 폼(`/contact`) **복원 완료** — 더 이상 cnbiz.ai.kr에 전량 위임하지 않음. 고객 본인이 조회하는 포털은 여전히 없음 |
-| 배포 자동화(고객별 GitHub/Vercel) | 40% | 파이프라인·롤백·감사 로그 전부 구현·테스트 완료(신규). `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정으로 실 계정 검증 전(진행률의 대부분은 이 검증 이후 완성) |
-| 테스트 인프라 | 100% | `apps/cnbiz-web` 73 files / 564 tests 전부 통과(Rewiring + Phase 3 신규 테스트 다수 포함) |
+| 배포 자동화(고객별 GitHub/Vercel) | 55% | 파이프라인·롤백·감사 로그 구현·테스트 완료. **실 계정 E2E 검증(v1~v3, `FINAL_E2E_REPORT*.md`) 진행 중** — Vercel `gitSource.repoId` 누락, 신규 Project `missing_project_settings`, Git Scope 오판(모노레포 전체가 commit 대상이 될 뻔한 사고) 3건 발견·수정 완료. 최종 성공 케이스 확정만 남음 |
+| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과 |
 
 ---
 
@@ -102,7 +103,7 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 - Design Automation Phase 9(Website Build 연동) — 코드 존재, CHANGELOG 검증 기록 없음
 - 인증 — signup 백엔드·앱 내 역할관리 UI 없음(CLI 스크립트로만 가능)
 - Client/WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/clients/[id]`, `/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/clients`·`/developer/website-orders` 같은 자체 목록 화면은 아직 없음
-- **고객별 GitHub/Vercel 자동 배포(Phase 3)** — 파이프라인·롤백·감사 로그 전부 구현·테스트 완료, `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정으로 실 계정 검증만 남음(`PHASE3_REPORT.md` "확인 필요" 참고)
+- **고객별 GitHub/Vercel 자동 배포(Phase 3) — 실 계정 E2E 검증 진행 중** — 실제 GitHub/Vercel API 왕복 테스트(v1~v3)에서 (1) Vercel Deployment 생성 시 `gitSource.repoId` 누락(400), (2) 신규 Project 첫 배포 시 `missing_project_settings`(400), (3) `ensureRepoInitialized()`가 상위 모노레포 저장소를 자기 저장소로 오판해 `commitAll()`/`pushToRemote()`가 저장소 전체를 대상으로 실행될 뻔한 Git Scope 버그 — 총 3건을 발견·수정 완료(`GIT_SCOPE_FIX_REPORT.md`). 다음 라운드 검증으로 실제 배포 성공 케이스 확정 필요
 
 ---
 

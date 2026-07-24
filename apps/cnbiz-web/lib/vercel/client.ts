@@ -94,7 +94,45 @@ export async function linkGitRepository(
 export interface CreateDeploymentInput {
   name: string;
   projectId: string;
+  /**
+   * GitHub Repository의 숫자 ID(`GitHubRepository.id`, `lib/github/client.ts`의
+   * `createRepository()`가 이미 응답으로 받아 갖고 있는 값) — Vercel API가 `gitSource.type:
+   * "github"`로 배포를 생성할 때 필수로 요구한다. 저장소 이름(`repoFullName`)만으로는 부족하다
+   * (실제로 이 필드 없이 호출해 `400 gitSource missing required property repoId`를 받은 적이
+   * 있다 — FINAL_E2E_REPORT.md 참고).
+   */
+  repoId: number;
   gitBranch?: string;
+  /**
+   * true면 "이 Project의 첫 배포"임을 명시한다 — Vercel 공식 스펙(POST /v13/deployments)상
+   * `projectSettings`는 "Project의 첫 배포에만 필수이고 이후 배포에는 저장된 값이 재사용된다."
+   * 매번 `projectSettings`를 직접 구성해 보내는 대신(프레임워크를 하드코딩해야 하는 부담·값이
+   * 어긋나면 실제 설정을 덮어써버릴 위험), 공식 문서가 명시적으로 제시하는 대안인 쿼리 파라미터
+   * `skipAutoDetectionConfirmation=1`을 이 값이 true일 때만 추가한다 — "Vercel이 자동으로 감지한
+   * 프레임워크를 그대로 신뢰하겠다"는 명시적 동의로, 새 Project 특유의 `400
+   * missing_project_settings`(FINAL_E2E_REPORT_v2.md 참고)를 피한다.
+   *
+   * 기본값 false(미지정) — **기존 Project를 재배포하는 호출에는 아무 영향도 주지 않는다.** 이
+   * 파이프라인(`lib/deployment/pipeline.ts`)은 매번 `createProject()` 직후에만
+   * `createDeployment()`를 호출하므로 항상 `true`를 전달한다.
+   */
+  isInitialDeployment?: boolean;
+}
+
+/** `createDeployment()`가 실제로 fetch를 호출하기 전에 요청 Body를 이룰 값들을 검증한다. */
+function assertValidDeploymentInput(input: CreateDeploymentInput): void {
+  if (!input.name || typeof input.name !== "string") {
+    throw new VercelApiError("Deployment 요청 검증 실패: name이 비어 있거나 문자열이 아닙니다.");
+  }
+  if (!input.projectId || typeof input.projectId !== "string") {
+    throw new VercelApiError("Deployment 요청 검증 실패: projectId가 비어 있거나 문자열이 아닙니다.");
+  }
+  if (!Number.isInteger(input.repoId) || input.repoId <= 0) {
+    throw new VercelApiError(
+      `Deployment 요청 검증 실패: repoId가 유효하지 않습니다(받은 값: ${JSON.stringify(input.repoId)}). ` +
+        `Vercel gitSource.repoId는 GitHub Repository 생성 시 받은 양의 정수 ID여야 합니다.`
+    );
+  }
 }
 
 /** Production Deploy 실행 — 연결된 Git 저장소의 지정 브랜치를 기준으로 배포를 생성한다. */
@@ -106,14 +144,25 @@ export async function createDeployment(
     throw new VercelApiError("VERCEL_TOKEN이 설정되지 않았습니다.");
   }
 
-  const res = await fetchFn(`${VERCEL_API_BASE}/v13/deployments${teamQuery()}`, {
+  assertValidDeploymentInput(input);
+
+  const query = new URLSearchParams();
+  const teamId = process.env.VERCEL_TEAM_ID;
+  if (teamId) query.set("teamId", teamId);
+  // isInitialDeployment가 true일 때만 추가 — 재배포 호출(기존 Project)에는 절대 붙이지 않는다.
+  if (input.isInitialDeployment) query.set("skipAutoDetectionConfirmation", "1");
+  const queryString = query.toString();
+
+  const res = await fetchFn(`${VERCEL_API_BASE}/v13/deployments${queryString ? `?${queryString}` : ""}`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
       name: input.name,
       project: input.projectId,
       target: "production",
-      gitSource: { type: "github", ref: input.gitBranch ?? "main" },
+      // Vercel API 공식 스펙(gitSource discriminated union, type: "github") — repoId가 없으면
+      // "gitSource missing required property repoId"로 거부된다. ref는 선택 필드(브랜치 지정).
+      gitSource: { type: "github", repoId: input.repoId, ref: input.gitBranch ?? "main" },
     }),
   });
 

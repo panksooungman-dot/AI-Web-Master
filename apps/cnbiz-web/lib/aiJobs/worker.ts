@@ -9,6 +9,8 @@ import { getClient } from "@/lib/clients/registry";
 import { createWorkspace } from "@/lib/workspaces/registry";
 import { createProject } from "@/lib/projects/registry";
 import { recordAuditEvent } from "@/lib/audit/log";
+import { runPostProcessHooks } from "./lifecycle";
+import "./hooks";
 import { getAiJob, listAiJobs, updateAiJobStatus } from "./registry";
 import { executeJob } from "./executor";
 
@@ -145,6 +147,14 @@ export async function processJob(
     // 되돌리지 않는다. 원인은 Audit Log(action: "workspace.autoprovision")와 콘솔 로그에 남는다.
     await triggerWorkspaceProvisioning(jobId, store).catch((error) => {
       console.error(`Workspace auto-provisioning failed for AI Job ${jobId}`, error);
+    });
+
+    // AI Business OS 공식 Lifecycle Extension Point — 등록된 모든 후속 운영 Hook(고객 URL
+    // 전달 등)을 실행한다. 이 호출은 어떤 구체적 기능도 알지 못한다(lib/aiJobs/lifecycle.ts
+    // 참고). 앞으로 새 운영 기능이 추가되어도 이 줄은 다시 수정하지 않는다 — 새 기능은
+    // lib/aiJobs/hooks/index.ts에 등록만 하면 된다.
+    await runPostProcessHooks({ jobId, store }).catch((error) => {
+      console.error(`Post-process hooks failed for AI Job ${jobId}`, error);
     });
   } catch (error) {
     console.error(`AI Job ${jobId} failed`, error);

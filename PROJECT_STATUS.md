@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-03 (Claude Code, `FINAL_E2E_REPORT_v5.md` 실 운영 환경 E2E 검증 반영 —
+> 최종 분석: 2026-08-03 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `cf1f23f` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -76,6 +76,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 - **AI Analysis Engine**(`lib/ai-analysis/{types,score,prompts,analysis}.ts`) — Inquiry 생성 직후 자동 실행, `AIAnalysisResult` 산출 — 무변경
 - `/developer/inquiries/[id]`에 "AI 분석" 카드 — 무변경
 - **의뢰 승인 → Project Workspace 자동 생성**(2026-08-03) — AI Generate(Website Builder) 성공 직후 `lib/aiJobs/worker.ts`의 `triggerWorkspaceProvisioning()`이 산출물을 Development OS Project Manager/Workspace Manager에 자동 등록(WebsiteOrder당 최초 1회). "고객 프로젝트"는 `ProjectRecord.websiteOrderId` 존재 여부로 식별(별도 Domain 없음, 검토 후 확정). 실 계정 E2E로 PASS 확인됨(`FINAL_E2E_REPORT_v5.md`). 아래 "최근 완료 작업" 참고
+- **고객 URL 자동 전달 — Lifecycle Extension Point**(2026-08-03) — `lib/aiJobs/lifecycle.ts`(신규)에 어떤 구체적 기능도 알지 못하는 순수 Post-Process Hook 실행기(`registerPostProcessHook()`·`runPostProcessHooks()`, priority 오름차순 실행, Hook 실패가 다른 Hook·AiJob의 성공 상태에 영향 주지 않음)를 신설하고, `processJob()`(`lib/aiJobs/worker.ts`) 성공 경로 마지막에 단 한 번만 호출하도록 연결. `lib/aiJobs/hooks/index.ts`(신규, Hook Registry)에 첫 Hook으로 "customer-notification"(`lib/aiJobs/hooks/customerNotification.ts`)을 등록 — 실제 도메인 로직(고객 이메일 발송 + Audit Log 기록)은 `lib/websites/notify.ts::triggerCustomerNotification()`에 있으며 기존 `lib/contact/email`(Resend Provider)·`recordAuditEvent()`를 그대로 재사용(새 이메일 발송 로직·새 저장소 없음). `lib/audit/log.ts`에 `deployment.notify_customer` 액션 추가(`app/developer/{audit-log,errors}/page.tsx` 라벨/톤 맵 갱신). 향후 Slack/Discord/CRM 등 신규 운영 기능은 `lib/aiJobs/lifecycle.ts`·`processJob()`을 다시 수정하지 않고 `lib/aiJobs/hooks/index.ts`에 등록만 하면 되도록 설계. 신규 테스트 `tests/aiJobs/lifecycle.test.ts`·`tests/websites/notify.test.ts`
 
 **AI Business OS Rewiring + Phase 3(2026-07-24, 신규 — 상세는 `REWIRING_REPORT.md`/`PHASE3_REPORT.md`)**
 - 내부 진입점 **`POST /api/inquiries`**(`app/api/inquiries/route.ts`) — `/api/external/inquiries`와 동일한 `createInquiry()`→AI Analysis→Client→WebsiteOrder→AiJob(Queued로만 생성, 자동 실행 안 함)→관리자 알림 흐름을 그대로 재사용. `lib/auth/rbac.ts`에 (method,path) 단위 예외(`UNGATED_EXACT_ROUTES`) 신설해 `POST /api/inquiries`만 비게이팅, `GET`은 그대로 developer 게이팅
@@ -120,6 +121,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **고객 URL 자동 전달 — Lifecycle Extension Point 구현**(2026-08-03) — `lib/aiJobs/lifecycle.ts`(신규)에 어떤 구체적 기능도 알지 못하는 범용 Post-Process Hook 실행기(`registerPostProcessHook()`/`runPostProcessHooks()`)를 신설해 `processJob()` 성공 경로 마지막에 단 한 번만 연결하고, `lib/aiJobs/hooks/index.ts`(Hook Registry)에 첫 Hook "customer-notification"(`lib/aiJobs/hooks/customerNotification.ts` → `lib/websites/notify.ts::triggerCustomerNotification()`)을 등록했다. 실제 알림은 기존 `lib/contact/email`(Resend Provider) 재사용으로 발송하고 `recordAuditEvent()`로 신규 `deployment.notify_customer` 액션을 기록한다(`app/developer/{audit-log,errors}/page.tsx` 라벨/톤 맵 갱신). 다음 작업 우선순위 10번("고객 URL 전달" 기능 설계·구현)을 해소했다. 신규 테스트 `tests/aiJobs/lifecycle.test.ts`·`tests/websites/notify.test.ts` 추가
 - **Customer Inquiry Pipeline 실 운영 환경 E2E 검증 — Version 1 공식 완료**(2026-08-03,
   `FINAL_E2E_REPORT_v5.md`) — 코드 수정 없이 검증만 수행. `GITHUB_TOKEN`/`VERCEL_TOKEN`이 실제로
   설정된 이 환경에서 dev 서버를 기동하고 검증 전용 임시 계정으로 로그인해, 의뢰 접수 → 관리자
@@ -269,7 +271,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 ## 다음 작업 우선순위
 
 > `GITHUB_TOKEN`/`VERCEL_TOKEN` 설정 + 실 계정 E2E 검증은 2026-08-03 `FINAL_E2E_REPORT_v5.md`로
-> 완료되어 목록에서 제거했습니다.
+> 완료되어 목록에서 제거했습니다. "고객 URL 전달" 기능도 같은 날 Lifecycle Extension Point +
+> customer-notification Hook으로 구현되어 목록에서 제거했습니다.
 
 1. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
 2. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
@@ -280,7 +283,6 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 7. **회원가입 백엔드 + 역할관리 UI**
 8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
 9. **Design Automation Phase 9 실사용 검증**
-10. **"고객 URL 전달" 기능 설계·구현** — 배포는 완료되지만 그 URL을 고객에게 전달하는 채널이 없음. `WebsiteRecord.deployment.url`은 Vercel SSO로 리다이렉트되는 배포별 URL이므로, 실제 전달 시에는 프로덕션 별칭(`https://{repoName}.vercel.app`)을 사용해야 함(2026-08-03 E2E 검증에서 확인)
 
 ---
 

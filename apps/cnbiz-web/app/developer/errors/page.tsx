@@ -46,6 +46,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "deployment.pipeline.failed": "배포 파이프라인 실패",
   "deployment.pipeline.rollback": "배포 파이프라인 롤백",
   "workspace.autoprovision": "Project Workspace 자동 생성",
+  "deployment.notify_customer": "고객 URL 전달",
 };
 
 /**

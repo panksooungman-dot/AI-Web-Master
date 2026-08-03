@@ -42,7 +42,8 @@ export type AuditAction =
   | "deployment.pipeline.success"
   | "deployment.pipeline.failed"
   | "deployment.pipeline.rollback"
-  | "workspace.autoprovision";
+  | "workspace.autoprovision"
+  | "deployment.notify_customer";
 
 export interface AuditEntry {
   id: string;

@@ -95,6 +95,9 @@ export default function MetricsPage() {
           <Card title="Design Website Build Count">
             <p className="text-3xl font-bold text-gray-100">{summary.counters.designWebsiteBuildCount}</p>
           </Card>
+          <Card title="Estimate Generation Count">
+            <p className="text-3xl font-bold text-gray-100">{summary.counters.estimateGenerationCount}</p>
+          </Card>
 
           <Card title="Provider Usage" className="sm:col-span-2 lg:col-span-2">
             {summary.providerUsage ? (

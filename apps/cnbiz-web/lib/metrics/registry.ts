@@ -35,6 +35,8 @@ export interface MetricsCounters {
   /** Design Automation Phase 9(Website Builder Integration) 신규 — 기존 16개 필드는 무변경.
    *  websiteGenerationCount와 별개로, "Design Automation 파이프라인에서 트리거된 빌드"만 센다. */
   designWebsiteBuildCount: number;
+  /** 기술 견적서 자동 생성(lib/estimates) 신규 — 기존 17개 필드는 무변경. */
+  estimateGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -57,6 +59,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   conflictCount: 0,
   rollbackCount: 0,
   designWebsiteBuildCount: 0,
+  estimateGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

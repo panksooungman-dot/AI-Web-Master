@@ -47,6 +47,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "deployment.pipeline.rollback": "배포 파이프라인 롤백",
   "workspace.autoprovision": "Project Workspace 자동 생성",
   "deployment.notify_customer": "고객 URL 전달",
+  "estimate.generate": "기술 견적서 생성",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -85,6 +86,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "deployment.pipeline.rollback": "orange",
   "workspace.autoprovision": "accent",
   "deployment.notify_customer": "success",
+  "estimate.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [

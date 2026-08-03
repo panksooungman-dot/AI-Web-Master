@@ -13,6 +13,7 @@ import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 import type { AiJobRecord } from "@/lib/aiJobs/types";
 import type { ProjectRecord } from "@/lib/projects/registry";
+import type { EstimateRecord } from "@/lib/estimates/types";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -52,12 +53,15 @@ export default function InquiryDetailPage() {
   const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [aiJobs, setAiJobs] = useState<AiJobRecord[]>([]);
+  const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -72,7 +76,7 @@ export default function InquiryDetailPage() {
         }
         setInquiry(data.inquiry);
 
-        const [clientResult, orderResult, jobsResult] = await Promise.all([
+        const [clientResult, orderResult, jobsResult, estimatesResult] = await Promise.all([
           data.inquiry.clientId
             ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
             : Promise.resolve(null),
@@ -80,6 +84,7 @@ export default function InquiryDetailPage() {
             ? fetch(`/api/website-orders/${data.inquiry.websiteOrderId}`).then((res) => res.json())
             : Promise.resolve(null),
           fetch("/api/ai-jobs").then((res) => res.json()),
+          fetch("/api/estimates").then((res) => res.json()),
         ]);
 
         setClient(clientResult?.client ?? null);
@@ -102,6 +107,9 @@ export default function InquiryDetailPage() {
               .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
           : [];
         setAiJobs(linkedJobs);
+
+        const allEstimates: EstimateRecord[] = estimatesResult?.estimates ?? [];
+        setEstimates(allEstimates.filter((estimate) => estimate.inquiryId === data.inquiry!.id));
       })
       .catch(() => setLoadError("의뢰를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -160,6 +168,36 @@ export default function InquiryDetailPage() {
       setRunError("AI Job 실행 중 오류가 발생했습니다.");
     } finally {
       setRunningJobId(null);
+    }
+  }
+
+  // 기술 견적서 자동 생성 — AI Analysis Engine의 inquiry.analysis를 입력으로 사용하는 별도
+  // 서비스(lib/estimates)를 호출한다. Customer Inquiry Pipeline(processJob() 등)과는 완전히
+  // 무관한 독립 기능이라 AiJob 실행이나 승인 상태와 관계없이 언제든 생성할 수 있다.
+  async function handleGenerateEstimate() {
+    if (!inquiry) return;
+
+    setIsGeneratingEstimate(true);
+    setEstimateError(null);
+
+    try {
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: inquiry.id }),
+      });
+      const data: { success: boolean; estimate?: EstimateRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.estimate) {
+        setEstimateError(data.error ?? "견적서 생성에 실패했습니다.");
+        return;
+      }
+
+      setEstimates((prev) => [data.estimate!, ...prev]);
+    } catch {
+      setEstimateError("견적서 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingEstimate(false);
     }
   }
 
@@ -351,6 +389,46 @@ export default function InquiryDetailPage() {
             </div>
           </div>
         )}
+      </Card>
+
+      <Card
+        title="기술 견적서"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleGenerateEstimate}
+            disabled={!inquiry.analysis || isGeneratingEstimate}
+            className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isGeneratingEstimate ? "생성 중..." : "견적서 생성"}
+          </button>
+        }
+      >
+        {!inquiry.analysis ? (
+          <p className="text-gray-500 text-sm">AI 분석이 완료된 후 견적서를 생성할 수 있습니다.</p>
+        ) : estimates.length === 0 ? (
+          <p className="text-gray-500 text-sm">아직 생성된 견적서가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {estimates.map((estimate) => (
+              <Link
+                key={estimate.id}
+                href={`/developer/estimates/${estimate.id}`}
+                className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 hover:border-purple-600 transition-colors"
+              >
+                <Badge tone="purple">
+                  {estimate.result.priceRangeMin.toLocaleString()}~{estimate.result.priceRangeMax.toLocaleString()}원
+                </Badge>
+                <span className="text-xs text-gray-400">{estimate.result.timelineWeeks}주 예상</span>
+                {estimate.simulated && <Badge tone="warning">Simulated</Badge>}
+                <span className="text-xs text-gray-500 ml-auto">
+                  {new Date(estimate.createdAt).toLocaleString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {estimateError && <StatusMessage tone="error" className="mt-3">{estimateError}</StatusMessage>}
       </Card>
 
       <Card title="파이프라인 진행 상황" className="mb-6">

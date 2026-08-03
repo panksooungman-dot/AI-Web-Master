@@ -33,6 +33,7 @@ export function MetricsWidget() {
           conflictCount: 0,
           rollbackCount: 0,
           designWebsiteBuildCount: 0,
+          estimateGenerationCount: 0,
         })
       );
   }, []);
@@ -118,6 +119,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Design → Website Builds</span>
             <span className="text-gray-200">{counters.designWebsiteBuildCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Estimates Generated</span>
+            <span className="text-gray-200">{counters.estimateGenerationCount}</span>
           </li>
         </ul>
       )}

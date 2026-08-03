@@ -37,6 +37,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       conflictCount: 0,
       rollbackCount: 0,
       designWebsiteBuildCount: 0,
+      estimateGenerationCount: 0,
     });
   });
 
@@ -163,5 +164,15 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.designWebsiteBuildCount).toBe(2);
     expect(counters.websiteGenerationCount).toBe(1);
     expect(counters.designSyncCount).toBe(0);
+  });
+
+  it("incrementMetric() increments estimateGenerationCount independently of other counters", async () => {
+    await incrementMetric("estimateGenerationCount", undefined, store);
+    await incrementMetric("estimateGenerationCount", undefined, store);
+
+    const counters = await readMetrics(store);
+    expect(counters.estimateGenerationCount).toBe(2);
+    expect(counters.designWebsiteBuildCount).toBe(0);
+    expect(counters.aiTaskCount).toBe(0);
   });
 });

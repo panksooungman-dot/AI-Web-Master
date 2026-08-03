@@ -4,6 +4,62 @@
 
 ---
 
+## 2026-08-03
+
+### 추가 (Added)
+
+- **의뢰 승인 → Project Workspace 자동 생성**(`apps/cnbiz-web`) — AiJob(Website Builder) 생성이
+  성공하면 `lib/aiJobs/worker.ts`의 신규 `triggerWorkspaceProvisioning()`이 그 산출물(`outDir`)을
+  Development OS의 Project Manager(`lib/projects`)·Workspace Manager(`lib/workspaces`)에
+  자동 등록한다(WebsiteOrder당 최초 1회). 새 Domain/Registry를 만들지 않고
+  `app/api/projects/import/route.ts`가 이미 쓰던 `createWorkspace()` + `createProject()` 조합을
+  그대로 재사용했다. `WebsiteOrderRecord.projectId`, `ProjectRecord.autoProvisioned`/
+  `websiteOrderId` 옵셔널 필드 추가, `lib/audit/log.ts`에 `workspace.autoprovision` 액션 추가.
+  `/developer/inquiries/[id]`에 "5. Project Workspace" 파이프라인 배지 추가.
+- **`/projects`·`/projects/[id]`에 "고객 프로젝트" 표시 추가** — `ProjectRecord.websiteOrderId`
+  존재 여부로 배지를 표시하고, 상세 페이지에는 연결된 WebsiteOrder 정보 카드를 추가(기존
+  `GET /api/website-orders/[id]` 재사용, 새 API 없음).
+- 신규 테스트 5개(`tests/aiJobs/worker.test.ts`의 `triggerWorkspaceProvisioning()` describe 블록).
+
+### 변경 (Changed)
+
+- **"고객 프로젝트" 식별 구조를 `Project + websiteOrderId`로 확정** — 처음에는 별도
+  `lib/customerProjects` Domain(전용 Registry·API·관리 화면)으로 구현했으나, 아키텍처 검토
+  결과 `ProjectRecord.websiteOrderId`(이미 존재, `triggerWorkspaceProvisioning()`이 채움)만으로
+  "고객 프로젝트"를 완전히 식별할 수 있고 향후 목록/Dashboard/유지보수/AI 수정/자동 재배포
+  기능도 전부 이 FK로 충족됨을 확인해, 별도 Domain을 두지 않고 기존 Project 구조 하나로
+  단순화하기로 최종 확정했다. `source` 같은 추가 필드도 만들지 않았다 — `websiteOrderId`
+  자체가 이미 유일한 식별 기준이자 WebsiteOrder→Client→AiJob→Website.outDir까지 이어지는
+  체인 탐색용 FK이기 때문이다.
+
+### 삭제 (Removed)
+
+- **CustomerProject Domain 제거** — `lib/customerProjects/**`·`app/api/customer-projects/**`·
+  `app/developer/customer-projects/**`·`tests/customerProjects/**` 전부 삭제. `lib/audit/log.ts`의
+  `customerProject.create` 액션, `DeveloperNav`의 "Customer Project" 메뉴, `/developer/inquiries/[id]`의
+  관련 호출·링크도 함께 원복. `processJob()`·`executeJob()`·`triggerDeployment()`·
+  `triggerWorkspaceProvisioning()`·Deployment Pipeline·GitHub/Vercel Client·Website Builder는
+  이 정리 과정에서 단 한 줄도 수정하지 않았다.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`·`npx eslint`·`npm run build` 전부 통과, `npm test` 73 files/589 tests 전부
+  통과(CustomerProject 도입 이전 기준선과 정확히 일치 — 회귀 0건).
+- **Customer Inquiry Pipeline 실 운영 환경 E2E 검증 — Version 1 공식 완료**(`FINAL_E2E_REPORT_v5.md`) —
+  `GITHUB_TOKEN`/`VERCEL_TOKEN`이 실제로 설정된 이 환경에서 dev 서버를 기동하고 검증 전용 임시
+  계정으로 로그인해, 의뢰 접수 → 관리자 승인 → AiJob 생성 → AI 홈페이지 생성 → Project
+  Workspace 자동 생성 → `ProjectRecord.websiteOrderId` 연결 → GitHub Repository 생성 →
+  Commit/Push → Vercel Project 생성 → Production Deploy → Production URL 생성까지 11단계 전
+  구간을 curl로 직접 실행. GitHub API·Vercel API로 각각 직접 재조회해 저장소 실존과 배포 상태
+  (`readyState:"READY"`, `readySubstate:"PROMOTED"`, `target:"production"`)를 교차 확인했고,
+  프로덕션 별칭(`https://{repoName}.vercel.app`)이 실제 HTTP 200으로 생성된 사이트를 반환함을
+  확인. **11단계 전부 PASS.** 검증 중 `WebsiteOrderRecord.aiJobIds`가 항상 빈 배열로 남는 기존
+  결함 1건을 발견(동작에는 영향 없음, `app/api/inquiries/route.ts`가 `addAiJobToWebsiteOrder()`를
+  호출하지 않음 — 수정하지 않고 보고만 함). 검증에 사용한 dev 서버·임시 계정·데이터·CLI 부작용
+  폴더는 전부 정리, 실제 생성된 GitHub 저장소/Vercel Project는 PASS 증거로 보존 중.
+
+---
+
 ## 2026-07-15 (7)
 
 ### 추가 (Added)

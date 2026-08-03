@@ -1,12 +1,11 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-03 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `57da89f` 기준)
-> 이 커밋도 동기화 훅이 로컬 `claude` CLI 헤드리스 호출 타임아웃(90초)으로 실패해 `--no-verify`로
-> 진행하고 이 섹션들을 수동으로 갱신함(사용자 승인 하에 진행, 2026-07-22 사례와 동일한 원인).
+> 최종 분석: 2026-08-03 (Claude Code, `FINAL_E2E_REPORT_v5.md` 실 운영 환경 E2E 검증 반영 —
+> 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
 ## 프로젝트 개요
-AI 기반 홈페이지 제작 및 운영 플랫폼. `apps/cnbiz-web`(CNBIZ.KR 브랜드 홈페이지 + Development OS 대시보드)과 Customer Inquiry Pipeline(Inquiry→Client→WebsiteOrder→AiJob, AI Analysis Engine 포함)으로 구성됩니다. **2026-07-24 Rewiring**: 실제 의뢰 접수는 이제 cnbiz.kr 자체 문의 폼(`/contact`)과 `/developer/inquiries/new` 관리자 등록 폼 모두 내부 `POST /api/inquiries`(API Key 불필요, `createInquiry()` 등 기존 함수 재사용)로 들어옵니다 — cnbiz.ai.kr 챗봇 연동(`POST /api/external/inquiries`)은 실사용 증거가 확인되지 않아(`CHATBOT_API_KEY`가 Production에 한 번도 설정된 적 없음) `@deprecated`로 남기고 대체했습니다(`REWIRING_REPORT.md` 참고). 접수된 Inquiry의 AiJob은 관리자가 `/developer/inquiries/[id]`에서 승인해야 AI Generate가 실행되며, 생성 성공 후에는 **Phase 3**(`lib/deployment/pipeline.ts`)가 고객별 독립 GitHub Repository + Vercel Project를 자동 생성·배포합니다(`PHASE3_REPORT.md` 참고, `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정으로 아직 실 계정 검증 전). 루트 `app/`·`components/`(CNBIZ v1)는 레거시로 동결되어 있습니다.
+AI 기반 홈페이지 제작 및 운영 플랫폼. `apps/cnbiz-web`(CNBIZ.KR 브랜드 홈페이지 + Development OS 대시보드)과 Customer Inquiry Pipeline(Inquiry→Client→WebsiteOrder→AiJob→GitHub→Vercel, AI Analysis Engine 포함)으로 구성됩니다. **2026-07-24 Rewiring**: 실제 의뢰 접수는 이제 cnbiz.kr 자체 문의 폼(`/contact`)과 `/developer/inquiries/new` 관리자 등록 폼 모두 내부 `POST /api/inquiries`(API Key 불필요, `createInquiry()` 등 기존 함수 재사용)로 들어옵니다 — cnbiz.ai.kr 챗봇 연동(`POST /api/external/inquiries`)은 실사용 증거가 확인되지 않아(`CHATBOT_API_KEY`가 Production에 한 번도 설정된 적 없음) `@deprecated`로 남기고 대체했습니다(`REWIRING_REPORT.md` 참고). 접수된 Inquiry의 AiJob은 관리자가 `/developer/inquiries/[id]`에서 승인해야 AI Generate가 실행되며, 생성 성공 직후 **Project Workspace가 자동 등록**되고(`triggerWorkspaceProvisioning()`, "고객 프로젝트"는 `ProjectRecord.websiteOrderId` 존재 여부로 식별 — 별도 Domain 없음), 이어서 **Phase 3**(`lib/deployment/pipeline.ts`)가 고객별 독립 GitHub Repository + Vercel Project를 자동 생성·배포합니다. **2026-08-03: `GITHUB_TOKEN`/`VERCEL_TOKEN`을 실제로 설정하고 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 검증해 전부 PASS했습니다(`FINAL_E2E_REPORT_v5.md`) — Customer Inquiry Pipeline Version 1을 공식 완료 상태로 기록합니다.** 루트 `app/`·`components/`(CNBIZ v1)는 레거시로 동결되어 있습니다.
 
 ---
 
@@ -30,28 +29,28 @@ AI 기반 홈페이지 제작 및 운영 플랫폼. `apps/cnbiz-web`(CNBIZ.KR �
 
 ---
 
-## 🆕 Phase 3 — 고객별 독립 GitHub Repository + Vercel Project 자동 배포 (2026-07-24)
+## 🆕 Phase 3 — 고객별 독립 GitHub Repository + Vercel Project 자동 배포 (2026-07-24, 2026-08-03 실 계정 PASS 확정)
 
-AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`가 `lib/github/*`·`lib/git/*`·`lib/vercel/*`(전부 신규, REST API + `fetch`, 새 npm 의존성 없음)를 조합해 GitHub Repository 생성 → Commit → Push → Vercel Project 생성 → GitHub 연결 → Production Deploy → 결과를 `WebsiteRecord`에 저장까지 자동 수행한다. 실패 시 이미 생성된 외부 리소스를 역순 롤백하고, 전 단계를 `lib/audit/log.ts`(Audit Log)에 기록한다.
+AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib/github/*`·`lib/git/*`·`lib/vercel/*`(전부 REST API + `fetch`, 새 npm 의존성 없음)를 조합해 GitHub Repository 생성 → Commit → Push → Vercel Project 생성 → GitHub 연결 → Production Deploy → 결과를 `WebsiteRecord`에 저장까지 자동 수행한다. 실패 시 이미 생성된 외부 리소스를 역순 롤백하고, 전 단계를 `lib/audit/log.ts`(Audit Log)에 기록한다.
 
-**⚠️ `GITHUB_TOKEN`/`VERCEL_TOKEN`이 이 환경에 설정되어 있지 않아, 파이프라인은 매번 "NotConfigured"로 조용히 스킵된다(오류로 보이지 않음, `/developer/audit-log`에서 확인 가능).** 가짜 URL을 만들지 않는 설계이며, 실제 계정으로는 아직 왕복 검증하지 못했다(`PHASE3_REPORT.md` "확인 필요" 참고).
+**✅ 2026-08-03: `GITHUB_TOKEN`/`VERCEL_TOKEN`을 이 환경에 실제로 설정하고 End-to-End를 실행 — GitHub Repository 생성·Commit/Push·Vercel Project 생성·Production Deploy(`readyState:"READY"`, `readySubstate:"PROMOTED"`, `target:"production"`)·Production URL 응답(HTTP 200)까지 GitHub/Vercel 양쪽 API로 직접 재확인해 전부 PASS했다(`FINAL_E2E_REPORT_v5.md`).** `GITHUB_TOKEN`/`VERCEL_TOKEN`이 미설정인 환경에서는 여전히 가짜 URL을 만들지 않고 `NotConfigured`로 명시적으로 스킵하는 기존 동작을 그대로 유지한다.
 
 ---
 
 ## 전체 진행률
 
-**약 90%**
+**약 93%**
 
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
-| Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작. AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`)이 TODO 스텁에서 **실제 `POST /api/inquiries` 호출로 연결됨**(이메일 필드 추가). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세에서 연결된 레코드는 확인 가능) |
+| Development OS 대시보드 | 93% | `/developer/**` 38개 페이지 실동작. AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`)이 TODO 스텁에서 **실제 `POST /api/inquiries` 호출로 연결됨**(이메일 필드 추가). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세·`/projects`에서 연결된 레코드는 확인 가능) |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
-| **Customer Inquiry Pipeline** | **95%** | 데이터 계층·**내부 진입점(`POST /api/inquiries`, API Key 불필요)**·Worker·Executor·관리자 승인 게이팅·관리자 UI·AI Analysis Engine까지 전부 연결되어 실사용 가능. AI Generate 성공 후 고객별 GitHub Repo/Vercel Project 자동 배포(Phase 3) — 실 계정 E2E 검증(v1~v3) 중 발견된 API/Git Scope 버그 3건 수정 완료 |
+| **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). "고객 프로젝트"는 별도 Domain 없이 `ProjectRecord.websiteOrderId`로 식별하는 구조로 확정. 알려진 사소한 결함 1건은 아래 "🚧" 섹션 참고(파이프라인 동작에는 영향 없음) |
 | 인증/권한 | 82% | 세션 인증 + RBAC 4-role + 정확한 (method,path) 단위 예외(`POST /api/inquiries`) 완비. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated`(아래 참고) |
 | 고객(의뢰자) 시스템 | 65% | CNBIZ.KR 자체 접수 폼(`/contact`) **복원 완료** — 더 이상 cnbiz.ai.kr에 전량 위임하지 않음. 고객 본인이 조회하는 포털은 여전히 없음 |
-| 배포 자동화(고객별 GitHub/Vercel) | 55% | 파이프라인·롤백·감사 로그 구현·테스트 완료. **실 계정 E2E 검증(v1~v3, `FINAL_E2E_REPORT*.md`) 진행 중** — Vercel `gitSource.repoId` 누락, 신규 Project `missing_project_settings`, Git Scope 오판(모노레포 전체가 commit 대상이 될 뻔한 사고) 3건 발견·수정 완료. 최종 성공 케이스 확정만 남음 |
-| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과 |
+| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + **실 계정 E2E PASS 확정**(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) — GitHub Repo/Vercel Project/Production Deploy/Production URL을 GitHub·Vercel 양쪽 API로 직접 재확인. v1~v3에서 발견된 API/Git Scope 버그 3건은 이미 수정 완료 상태였고 이번 v5에서 회귀 없음을 재확인 |
+| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과(73 files/589 tests) |
 
 ---
 
@@ -76,7 +75,7 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 - Inquiry 스키마 확장(`industry`·`survey`·`uploadedFiles` 옵셔널 필드, `customerName`/`consultation` 별칭 파싱) — 무변경
 - **AI Analysis Engine**(`lib/ai-analysis/{types,score,prompts,analysis}.ts`) — Inquiry 생성 직후 자동 실행, `AIAnalysisResult` 산출 — 무변경
 - `/developer/inquiries/[id]`에 "AI 분석" 카드 — 무변경
-- **의뢰 승인 → Project Workspace 자동 생성**(2026-08-03, 신규) — AI Generate(Website Builder) 성공 직후 `lib/aiJobs/worker.ts`의 `triggerWorkspaceProvisioning()`이 산출물을 Development OS Project Manager/Workspace Manager에 자동 등록(WebsiteOrder당 최초 1회). 아래 "최근 완료 작업" 참고
+- **의뢰 승인 → Project Workspace 자동 생성**(2026-08-03) — AI Generate(Website Builder) 성공 직후 `lib/aiJobs/worker.ts`의 `triggerWorkspaceProvisioning()`이 산출물을 Development OS Project Manager/Workspace Manager에 자동 등록(WebsiteOrder당 최초 1회). "고객 프로젝트"는 `ProjectRecord.websiteOrderId` 존재 여부로 식별(별도 Domain 없음, 검토 후 확정). 실 계정 E2E로 PASS 확인됨(`FINAL_E2E_REPORT_v5.md`). 아래 "최근 완료 작업" 참고
 
 **AI Business OS Rewiring + Phase 3(2026-07-24, 신규 — 상세는 `REWIRING_REPORT.md`/`PHASE3_REPORT.md`)**
 - 내부 진입점 **`POST /api/inquiries`**(`app/api/inquiries/route.ts`) — `/api/external/inquiries`와 동일한 `createInquiry()`→AI Analysis→Client→WebsiteOrder→AiJob(Queued로만 생성, 자동 실행 안 함)→관리자 알림 흐름을 그대로 재사용. `lib/auth/rbac.ts`에 (method,path) 단위 예외(`UNGATED_EXACT_ROUTES`) 신설해 `POST /api/inquiries`만 비게이팅, `GET`은 그대로 developer 게이팅
@@ -99,12 +98,12 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 
 ---
 
-## 🚧 진행 중인 기능 (일부 구현)
+## 🚧 진행 중인 기능 (일부 구현) / 알려진 사소한 결함
 
 - Design Automation Phase 9(Website Build 연동) — 코드 존재, CHANGELOG 검증 기록 없음
 - 인증 — signup 백엔드·앱 내 역할관리 UI 없음(CLI 스크립트로만 가능)
-- Client/WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/clients/[id]`, `/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/clients`·`/developer/website-orders` 같은 자체 목록 화면은 아직 없음
-- **고객별 GitHub/Vercel 자동 배포(Phase 3) — 실 계정 E2E 검증 진행 중** — 실제 GitHub/Vercel API 왕복 테스트(v1~v3)에서 (1) Vercel Deployment 생성 시 `gitSource.repoId` 누락(400), (2) 신규 Project 첫 배포 시 `missing_project_settings`(400), (3) `ensureRepoInitialized()`가 상위 모노레포 저장소를 자기 저장소로 오판해 `commitAll()`/`pushToRemote()`가 저장소 전체를 대상으로 실행될 뻔한 Git Scope 버그 — 총 3건을 발견·수정 완료(`GIT_SCOPE_FIX_REPORT.md`). 다음 라운드 검증으로 실제 배포 성공 케이스 확정 필요
+- Client/WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/clients/[id]`, `/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`·`/projects/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/clients`·`/developer/website-orders` 같은 자체 목록 화면은 아직 없음
+- **`WebsiteOrderRecord.aiJobIds`가 항상 빈 배열로 남는 표시 결함**(2026-08-03 E2E 검증 중 발견, `FINAL_E2E_REPORT_v5.md` 참고) — `app/api/inquiries/route.ts`가 `createAiJob()`만 호출하고 `addAiJobToWebsiteOrder()`를 호출하지 않음. AiJob 자체는 정상 생성·실행되고, GitHub/Vercel/Workspace 파이프라인은 `websiteIds`/`projectId`만 사용해 동작에 영향은 없음(순수 표시용 필드 누락). 낮은 우선순위, 별도 지시 하에 수정 권장
 
 ---
 
@@ -121,6 +120,21 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 
 ## 최근 완료 작업
 
+- **Customer Inquiry Pipeline 실 운영 환경 E2E 검증 — Version 1 공식 완료**(2026-08-03,
+  `FINAL_E2E_REPORT_v5.md`) — 코드 수정 없이 검증만 수행. `GITHUB_TOKEN`/`VERCEL_TOKEN`이 실제로
+  설정된 이 환경에서 dev 서버를 기동하고 검증 전용 임시 계정으로 로그인해, 의뢰 접수 → 관리자
+  승인 → AiJob 생성 → AI 홈페이지 생성 → Project Workspace 자동 생성 →
+  `ProjectRecord.websiteOrderId` 연결 → GitHub Repository 생성 → Commit/Push → Vercel Project
+  생성 → Production Deploy → Production URL 생성까지 11단계 전 구간을 curl로 직접 실행했다.
+  GitHub API(`api.github.com`)·Vercel API(`api.vercel.com`)로 각각 직접 재조회해 저장소
+  실존(`private:true`, `default_branch:main`)과 배포 상태(`readyState:"READY"`,
+  `readySubstate:"PROMOTED"`, `target:"production"`)를 교차 확인했고, 프로덕션 별칭
+  (`https://{repoName}.vercel.app`)이 실제 HTTP 200으로 생성된 사이트 HTML을 반환함을 확인했다.
+  **11단계 전부 PASS.** 검증 중 `WebsiteOrderRecord.aiJobIds`가 항상 빈 배열로 남는 기존 결함
+  1건을 발견했다(동작에는 영향 없음, 위 "🚧" 섹션 참고). 검증에 사용한 dev 서버·임시 계정·
+  fs-store 데이터·`.generated-websites` 산출물·CLI 부작용(`agents/*`, `workflows/website-builder/`)은
+  전부 정리했고, 실제로 생성된 GitHub 저장소/Vercel Project/Production 배포는 성공 증거로 보존
+  중이다(삭제 여부 사용자 결정 대기).
 - **Project Workspace 연동 마무리 — Audit Log/의뢰 상세/프로젝트 상세 UI 반영**(2026-08-03) — `workspace.autoprovision` 감사 로그 액션을 `/developer/audit-log`·`/developer/errors` 라벨/톤 맵에 반영, `/developer/inquiries/[id]`에서 연결된 Project Workspace로 이동하는 "5. Project Workspace" 배지 추가(`GET /api/projects/[id]` 재사용). `/projects/[id]`에는 `websiteOrderId`가 있을 때만 "고객 주문 정보" 카드(기존 `GET /api/website-orders/[id]` 재사용)와 "고객 프로젝트" 배지를 표시하도록 정리, `lib/websiteOrders/registry.ts`·`lib/projects/registry.ts`에 `projectId`/`websiteOrderId` 연결 필드 반영
 - **`tests/aiJobs/worker.test.ts` 보강**(2026-08-03) — `triggerWorkspaceProvisioning()` 관련 케이스를 확장해 Workspace 자동 등록 흐름(최초 생성·중복 방지·실패 스킵 경로)의 테스트 커버리지를 강화
 - **CustomerProject Domain 제거 — 구조 단순화**(2026-08-03) — 바로 아래 항목("Customer Project
@@ -254,15 +268,19 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 
 ## 다음 작업 우선순위
 
-1. **`GITHUB_TOKEN`/`GITHUB_OWNER`/`VERCEL_TOKEN`/`VERCEL_TEAM_ID` 발급·설정 + 실 계정 1회 왕복 검증**(신규, 최우선) — Phase 3 배포 파이프라인이 지금은 매번 `NotConfigured`로 스킵된다. 토큰 설정 후 샘플 Inquiry 1건을 승인해 GitHub 저장소·Vercel 프로젝트·배포 URL이 실제로 만들어지는지 확인(`PHASE3_REPORT.md` "확인 필요" 참고)
+> `GITHUB_TOKEN`/`VERCEL_TOKEN` 설정 + 실 계정 E2E 검증은 2026-08-03 `FINAL_E2E_REPORT_v5.md`로
+> 완료되어 목록에서 제거했습니다.
+
+1. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
 2. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
 3. **기술 견적서 / 기능 명세서 / 프로젝트 타임라인 생성** — AI Analysis Engine의 `AIAnalysisResult`를 입력으로 사용하는 새 AiJobType(또는 별도 서비스) 설계·구현
-4. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
+4. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음. 이번 E2E 검증에서도 `simulatedContent:true`(폴백 콘텐츠)로 확인됨
 5. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
-6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세에서만 연결된 레코드 확인 가능
+6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
 7. **회원가입 백엔드 + 역할관리 UI**
 8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
 9. **Design Automation Phase 9 실사용 검증**
+10. **"고객 URL 전달" 기능 설계·구현** — 배포는 완료되지만 그 URL을 고객에게 전달하는 채널이 없음. `WebsiteRecord.deployment.url`은 Vercel SSO로 리다이렉트되는 배포별 URL이므로, 실제 전달 시에는 프로덕션 별칭(`https://{repoName}.vercel.app`)을 사용해야 함(2026-08-03 E2E 검증에서 확인)
 
 ---
 

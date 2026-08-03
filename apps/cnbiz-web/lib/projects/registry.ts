@@ -18,6 +18,10 @@ export interface ProjectRecord {
   lastOpenedAt: string | null;
   imported?: boolean;
   gitRemoteUrl?: string;
+  /** AI Business OS Customer Inquiry Pipeline이 자동 등록한 Project인지 여부(수동 생성/Import와 구분용). */
+  autoProvisioned?: boolean;
+  /** autoProvisioned인 경우 이 Project를 만든 WebsiteOrder(lib/websiteOrders) id. */
+  websiteOrderId?: string;
 }
 
 export interface CreateProjectInput {
@@ -30,6 +34,8 @@ export interface CreateProjectInput {
   workspacePath: string;
   imported?: boolean;
   gitRemoteUrl?: string;
+  autoProvisioned?: boolean;
+  websiteOrderId?: string;
 }
 
 const COLLECTION = "projects";
@@ -64,6 +70,8 @@ export async function createProject(
     lastOpenedAt: null,
     imported: input.imported,
     gitRemoteUrl: input.gitRemoteUrl,
+    autoProvisioned: input.autoProvisioned,
+    websiteOrderId: input.websiteOrderId,
   };
 
   const records = await store.list<ProjectRecord>(COLLECTION);

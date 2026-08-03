@@ -86,6 +86,22 @@ export async function addAiJobToWebsiteOrder(
   return records[index];
 }
 
+/** Development OS Project Manager 자동 연결 — lib/aiJobs/worker.ts::triggerWorkspaceProvisioning() 전용. */
+export async function setWebsiteOrderProject(
+  id: string,
+  projectId: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteOrderRecord | undefined> {
+  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
+  const index = records.findIndex((order) => order.id === id);
+  if (index === -1) return undefined;
+
+  records[index] = { ...records[index], projectId, updatedAt: new Date().toISOString() };
+  await store.replaceAll(COLLECTION, records);
+
+  return records[index];
+}
+
 export async function addWebsiteToOrder(
   orderId: string,
   websiteId: string,

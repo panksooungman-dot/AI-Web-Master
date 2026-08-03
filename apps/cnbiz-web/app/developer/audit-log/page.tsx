@@ -45,6 +45,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "deployment.pipeline.success": "배포 파이프라인 성공",
   "deployment.pipeline.failed": "배포 파이프라인 실패",
   "deployment.pipeline.rollback": "배포 파이프라인 롤백",
+  "workspace.autoprovision": "Project Workspace 자동 생성",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -81,6 +82,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "deployment.pipeline.success": "success",
   "deployment.pipeline.failed": "danger",
   "deployment.pipeline.rollback": "orange",
+  "workspace.autoprovision": "accent",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [

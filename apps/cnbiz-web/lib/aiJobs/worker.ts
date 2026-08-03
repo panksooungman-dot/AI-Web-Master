@@ -1,9 +1,14 @@
 // lib/aiJobs/worker.ts
 
 import type { CollectionStore } from "@/lib/db/collectionStore";
-import { getWebsiteOrder } from "@/lib/websiteOrders/registry";
+import { getWebsiteOrder, setWebsiteOrderProject } from "@/lib/websiteOrders/registry";
 import { getWebsite } from "@/lib/websites/registry";
+import { WEBSITE_TYPES } from "@/lib/websites/types";
 import { runDeploymentPipeline } from "@/lib/deployment/pipeline";
+import { getClient } from "@/lib/clients/registry";
+import { createWorkspace } from "@/lib/workspaces/registry";
+import { createProject } from "@/lib/projects/registry";
+import { recordAuditEvent } from "@/lib/audit/log";
 import { getAiJob, listAiJobs, updateAiJobStatus } from "./registry";
 import { executeJob } from "./executor";
 
@@ -52,6 +57,66 @@ export async function triggerDeployment(
 }
 
 /**
+ * 의뢰 승인(AI Generate 성공) 직후, 생성된 산출물(outDir)을 Development OS의 Project Manager
+ * (lib/projects)·Workspace Manager(lib/workspaces)에 자동 등록한다. 새 로직이 아니라
+ * app/api/projects/import/route.ts가 쓰는 것과 동일한 조합(createWorkspace + createProject)을
+ * 그대로 재사용한다 — createWorkspace의 mkdirSync는 이미 존재하는 outDir에는 no-op이므로 아무 것도
+ * 복사·생성하지 않고 그 폴더를 그대로 등록만 한다.
+ *
+ * WebsiteOrder당 최초 1회만 자동 등록한다(WebsiteOrder.projectId로 판별) — 재시도로 새 outDir이
+ * 생겨도 이미 등록된 Workspace를 강제로 갈아끼우지 않는다. 재연결이 필요하면 관리자가 기존
+ * "Import Existing Project" 기능으로 수동 처리한다.
+ */
+export async function triggerWorkspaceProvisioning(
+  jobId: string,
+  store?: CollectionStore
+): Promise<void> {
+  const job = await getAiJob(jobId, store);
+  if (!job) return;
+
+  const websiteOrder = await getWebsiteOrder(job.websiteOrderId, store);
+  if (!websiteOrder || websiteOrder.projectId) return;
+  if (websiteOrder.websiteIds.length === 0) return;
+
+  const websiteId = websiteOrder.websiteIds[websiteOrder.websiteIds.length - 1];
+  const website = await getWebsite(websiteId, store);
+  if (!website || website.status !== "Success") return;
+
+  const client = await getClient(websiteOrder.clientId, store);
+  const company = client?.companyName || client?.contactName || websiteOrder.name;
+  const type = WEBSITE_TYPES.find((t) => t.id === website.siteType)?.label ?? "AI 생성 웹사이트";
+
+  const workspace = await createWorkspace(websiteOrder.name, website.outDir, store);
+  const project = await createProject(
+    {
+      name: websiteOrder.name,
+      company,
+      type,
+      description: websiteOrder.requirements,
+      workspaceId: workspace.id,
+      workspaceName: workspace.name,
+      workspacePath: workspace.path,
+      autoProvisioned: true,
+      websiteOrderId: websiteOrder.id,
+    },
+    store
+  );
+
+  await setWebsiteOrderProject(websiteOrder.id, project.id, store);
+
+  await recordAuditEvent(
+    {
+      action: "workspace.autoprovision",
+      actor: null,
+      success: true,
+      detail: `${project.name} (${workspace.path})`,
+      metadata: { websiteOrderId: websiteOrder.id, projectId: project.id, workspaceId: workspace.id },
+    },
+    store
+  );
+}
+
+/**
  * 단일 Job 처리
  */
 export async function processJob(
@@ -74,6 +139,12 @@ export async function processJob(
     // WebsiteRecord.deploymentStatus/deploymentError와 Audit Log에 남는다.
     await triggerDeployment(jobId, deployFn, store).catch((error) => {
       console.error(`Deployment pipeline failed for AI Job ${jobId}`, error);
+    });
+
+    // Project Manager 자동 등록도 생성 성공과 독립적인 후속 단계다 — 실패해도 AiJob의 "Success"를
+    // 되돌리지 않는다. 원인은 Audit Log(action: "workspace.autoprovision")와 콘솔 로그에 남는다.
+    await triggerWorkspaceProvisioning(jobId, store).catch((error) => {
+      console.error(`Workspace auto-provisioning failed for AI Job ${jobId}`, error);
     });
   } catch (error) {
     console.error(`AI Job ${jobId} failed`, error);

@@ -848,6 +848,7 @@ export default function ProjectsPage() {
               actions={
                 <div className="flex items-center gap-2">
                   {project.imported && <Badge tone="purple">Imported</Badge>}
+                  {project.websiteOrderId && <Badge tone="accent">고객 프로젝트</Badge>}
                   <Badge tone={STATUS_TONES[project.status]}>{project.status}</Badge>
                 </div>
               }

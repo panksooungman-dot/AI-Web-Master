@@ -10,6 +10,7 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import { LivePreviewPanel } from "@/components/developer/LivePreviewPanel";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import type { ProjectRecord, ProjectStatus } from "@/lib/projects/registry";
+import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 import {
   fetchAiStatus,
   fetchGitStatus,
@@ -21,6 +22,11 @@ import {
 
 interface ProjectResponse {
   project?: ProjectRecord;
+  error?: string;
+}
+
+interface WebsiteOrderResponse {
+  websiteOrder?: WebsiteOrderRecord;
   error?: string;
 }
 
@@ -38,6 +44,11 @@ export default function ProjectDashboardPage() {
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // "고객 프로젝트" 여부는 별도 Domain 없이 websiteOrderId 존재 여부로만 판단한다
+  // (lib/aiJobs/worker.ts::triggerWorkspaceProvisioning()이 채우는 기존 필드). 여기서는
+  // 기존 GET /api/website-orders/[id]를 그대로 재사용해 표시용 정보만 조회한다.
+  const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
 
   const [gitStatus, setGitStatus] = useState<ProjectGitStatus | null>(null);
   const [aiStatus, setAiStatus] = useState<AiToolStatus[] | null>(null);
@@ -76,6 +87,28 @@ export default function ProjectDashboardPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  useEffect(() => {
+    if (!project?.websiteOrderId) {
+      queueMicrotask(() => setWebsiteOrder(null));
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch(`/api/website-orders/${project.websiteOrderId}`)
+      .then((res) => res.json())
+      .then((data: WebsiteOrderResponse) => {
+        if (!cancelled) setWebsiteOrder(data.websiteOrder ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setWebsiteOrder(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project]);
 
   useEffect(() => {
     if (!project) return;
@@ -140,6 +173,7 @@ export default function ProjectDashboardPage() {
         actions={
           <div className="flex items-center gap-2">
             {project.imported && <Badge tone="purple">Imported</Badge>}
+            {project.websiteOrderId && <Badge tone="accent">고객 프로젝트</Badge>}
             <Badge tone={STATUS_TONES[project.status]}>{project.status}</Badge>
           </div>
         }
@@ -147,6 +181,36 @@ export default function ProjectDashboardPage() {
 
       {project.description && (
         <p className="text-sm text-gray-400 mb-6">{project.description}</p>
+      )}
+
+      {project.websiteOrderId && (
+        <Card title="고객 주문 정보" className="mb-6">
+          {websiteOrder ? (
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <dt className="text-gray-500">주문 상태</dt>
+                <dd className="text-gray-200">{websiteOrder.status}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">사이트 유형</dt>
+                <dd className="text-gray-200">{websiteOrder.siteType}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">상세</dt>
+                <dd className="text-gray-200">
+                  <Link
+                    href={`/developer/website-orders/${websiteOrder.id}`}
+                    className="text-blue-400 hover:underline"
+                  >
+                    주문 상세로 이동 →
+                  </Link>
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-gray-500">주문 정보를 불러오는 중입니다.</p>
+          )}
+        </Card>
       )}
 
       <LivePreviewPanel workspacePath={project.workspacePath} />

@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-07-24 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `f41dcef` 기준)
+> 최종 분석: 2026-08-03 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `57da89f` 기준)
 > 이 커밋도 동기화 훅이 로컬 `claude` CLI 헤드리스 호출 타임아웃(90초)으로 실패해 `--no-verify`로
 > 진행하고 이 섹션들을 수동으로 갱신함(사용자 승인 하에 진행, 2026-07-22 사례와 동일한 원인).
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
@@ -76,6 +76,7 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 - Inquiry 스키마 확장(`industry`·`survey`·`uploadedFiles` 옵셔널 필드, `customerName`/`consultation` 별칭 파싱) — 무변경
 - **AI Analysis Engine**(`lib/ai-analysis/{types,score,prompts,analysis}.ts`) — Inquiry 생성 직후 자동 실행, `AIAnalysisResult` 산출 — 무변경
 - `/developer/inquiries/[id]`에 "AI 분석" 카드 — 무변경
+- **의뢰 승인 → Project Workspace 자동 생성**(2026-08-03, 신규) — AI Generate(Website Builder) 성공 직후 `lib/aiJobs/worker.ts`의 `triggerWorkspaceProvisioning()`이 산출물을 Development OS Project Manager/Workspace Manager에 자동 등록(WebsiteOrder당 최초 1회). 아래 "최근 완료 작업" 참고
 
 **AI Business OS Rewiring + Phase 3(2026-07-24, 신규 — 상세는 `REWIRING_REPORT.md`/`PHASE3_REPORT.md`)**
 - 내부 진입점 **`POST /api/inquiries`**(`app/api/inquiries/route.ts`) — `/api/external/inquiries`와 동일한 `createInquiry()`→AI Analysis→Client→WebsiteOrder→AiJob(Queued로만 생성, 자동 실행 안 함)→관리자 알림 흐름을 그대로 재사용. `lib/auth/rbac.ts`에 (method,path) 단위 예외(`UNGATED_EXACT_ROUTES`) 신설해 `POST /api/inquiries`만 비게이팅, `GET`은 그대로 developer 게이팅
@@ -120,6 +121,72 @@ AI Generate(Website Builder) 성공 직후, 신규 `lib/deployment/pipeline.ts`�
 
 ## 최근 완료 작업
 
+- **Project Workspace 연동 마무리 — Audit Log/의뢰 상세/프로젝트 상세 UI 반영**(2026-08-03) — `workspace.autoprovision` 감사 로그 액션을 `/developer/audit-log`·`/developer/errors` 라벨/톤 맵에 반영, `/developer/inquiries/[id]`에서 연결된 Project Workspace로 이동하는 "5. Project Workspace" 배지 추가(`GET /api/projects/[id]` 재사용). `/projects/[id]`에는 `websiteOrderId`가 있을 때만 "고객 주문 정보" 카드(기존 `GET /api/website-orders/[id]` 재사용)와 "고객 프로젝트" 배지를 표시하도록 정리, `lib/websiteOrders/registry.ts`·`lib/projects/registry.ts`에 `projectId`/`websiteOrderId` 연결 필드 반영
+- **`tests/aiJobs/worker.test.ts` 보강**(2026-08-03) — `triggerWorkspaceProvisioning()` 관련 케이스를 확장해 Workspace 자동 등록 흐름(최초 생성·중복 방지·실패 스킵 경로)의 테스트 커버리지를 강화
+- **CustomerProject Domain 제거 — 구조 단순화**(2026-08-03) — 바로 아래 항목("Customer Project
+  관리 메타데이터 계층")에서 만들었던 `lib/customerProjects/**`·`app/api/customer-projects/**`·
+  `app/developer/customer-projects/**`·`tests/customerProjects/**`를 **전부 삭제**했다. 설계
+  검토 결과 `ProjectRecord.websiteOrderId`(이미 존재, `triggerWorkspaceProvisioning()`이 채움)
+  만으로 "고객 프로젝트"를 완전히 식별할 수 있고, 향후 예정된 목록/Dashboard/유지보수/AI
+  수정/자동 재배포 기능도 전부 `websiteOrderId`(FK, 체인 탐색 가능)로 충족되어 별도
+  Domain·`source` 필드 모두 불필요하다고 결론냈다(근거는 아래 참고). **`processJob()`·
+  `executeJob()`·`triggerDeployment()`·`triggerWorkspaceProvisioning()`·Deployment
+  Pipeline·GitHub/Vercel Client·`WebsiteRecord.outDir`·`.generated-websites`·Workspace/Project
+  생성 로직은 이번에도 단 한 줄도 수정하지 않았다**
+  - `app/developer/inquiries/[id]/page.tsx` — `ensureCustomerProject()`(POST
+    `/api/customer-projects` 호출)와 "Customer Project 관리에서 보기" 링크 제거(원복).
+    "5. Project Workspace" 배지(기존 `GET /api/projects/[id]` 재사용)는 그대로 유지
+  - `components/developer/DeveloperNav.tsx` — "Customer Project" nav 항목 제거
+  - `lib/audit/log.ts`, `app/developer/{audit-log,errors}/page.tsx` — `customerProject.create`
+    액션·라벨/톤 제거
+  - **`app/projects/page.tsx`·`app/projects/[id]/page.tsx`(신규 API 없음, 전부 additive)** —
+    "고객 프로젝트" 배지를 `project.autoProvisioned` 대신 `project.websiteOrderId` 유무로
+    표시하도록 변경(요청사항 4 반영). 상세 페이지에는 `websiteOrderId`가 있을 때만 "고객 주문
+    정보" Card를 추가해 기존 `GET /api/website-orders/[id]`를 그대로 호출·표시(새 API 없음)
+  - `lib/websiteOrders/types.ts` — 상단 주석을 "Project라는 단어를 아예 쓰지 않는다"에서 새
+    구조(`ProjectRecord.websiteOrderId`로 고객 프로젝트 식별)에 맞게 갱신(문서 주석만, 로직
+    무변경)
+  - `npx tsc --noEmit`·`npx eslint`·`npm run build` 전부 통과, `npm test` **73 files/589 tests**
+    전부 통과 — CustomerProject 도입 이전(직전전 세션) 기준선으로 정확히 복귀(회귀 0건, 신규
+    테스트도 0건 — 순수 삭제+원복이므로)
+- ~~**Customer Project 관리 메타데이터 계층**(2026-08-03)~~ — **위 항목으로 대체·삭제됨.** 의뢰 승인 시점에 즉시 생성되는
+  읽기 전용 관리 화면. **기존 완료·검증 기능(`processJob()`·`executeJob()`·`.generated-websites`·
+  `WebsiteRecord.outDir`·Deployment Pipeline·GitHub/Vercel Client·`triggerDeployment()`·
+  `triggerWorkspaceProvisioning()`)은 단 한 줄도 수정하지 않았다** — 전부 Additive.
+  `lib/customerProjects/{types,registry}.ts`(신규, 다른 모든 Registry와 동일한
+  CollectionStore+`generateId` 패턴) — `CustomerProjectRecord`는 실제 프로젝트 폴더가 아니라
+  `websiteOrderId` 하나만 들고 있는 순수 메타데이터(승인당 최초 1회만 생성, `findOrCreateCustomerProject()`로
+  중복 방지). `lib/customerProjects/summary.ts`(신규, 순수 읽기 전용 join) — `WebsiteOrder`→
+  `Client`→`AiJob`→`WebsiteRecord.outDir`→`ProjectRecord`(Workspace) 체인을 조회만 해서 진행
+  단계(Approved/Generating/GenerationFailed/Generated/DeploymentFailed/Deployed)를 계산한다.
+  `POST /api/customer-projects`(신규)는 `/developer/inquiries/[id]`의 "승인 및 생성" 클릭 시
+  기존 `POST /api/ai-jobs/[id]/run`과 나란히(그 앞에) 호출되는 **완전히 별개의 API**이며, 실패해도
+  AI 생성 실행을 막지 않는다. `/developer/customer-projects`(목록)·`/developer/customer-projects/[id]`
+  (상세, 전 구간 읽기 전용 대시보드) 신규 페이지 + `DeveloperNav` 링크 1개 추가.
+  `lib/audit/log.ts`에 `customerProject.create` 액션 추가(`app/developer/{audit-log,errors}/page.tsx`
+  라벨/톤 맵 갱신). 신규 테스트 11개(`tests/customerProjects/{registry,summary}.test.ts`).
+  `npx tsc --noEmit`·`npx eslint`·`npm run build` 전부 통과, `npm test` 75 files/600 tests 전부
+  통과(신규 11개 포함, 기존 589개 전부 무변경으로 재통과 — 회귀 0건)
+- **의뢰 승인 → Project Workspace 자동 생성**(2026-08-03) — AiJob(Website Builder) 생성 성공 직후,
+  그 산출물(`outDir`)을 Development OS의 Project Manager(`lib/projects`)·Workspace
+  Manager(`lib/workspaces`)에 자동 등록한다. 새 Domain/Registry를 만들지 않고
+  `app/api/projects/import/route.ts`가 이미 쓰던 조합(`createWorkspace()` + `createProject()`,
+  `createWorkspace`의 `mkdirSync`는 이미 존재하는 폴더에는 no-op)을 `lib/aiJobs/worker.ts`의
+  신규 `triggerWorkspaceProvisioning()`에서 그대로 재사용 — `triggerDeployment()`와 나란히
+  `processJob()`의 Success 이후 독립 실행되며, 실패해도 AiJob의 Success를 되돌리지 않는다(배포
+  파이프라인과 동일한 원칙). `WebsiteOrderRecord`에 옵셔널 `projectId` 필드를 추가해 WebsiteOrder당
+  최초 1회만 자동 등록하고(재시도로 새 `outDir`이 생겨도 이미 등록된 Workspace를 갈아끼우지
+  않음), `ProjectRecord`에도 옵셔널 `autoProvisioned`·`websiteOrderId` 필드를 추가해 수동
+  생성/Import와 구분한다(`lib/websiteOrders/registry.ts`의 `setWebsiteOrderProject()` 신규,
+  `lib/projects/registry.ts`의 `createProject()` 입력 확장 — 둘 다 기존 patch 함수 패턴 그대로).
+  `lib/audit/log.ts`에 `workspace.autoprovision` 액션 추가(`app/developer/{audit-log,errors}/page.tsx`
+  라벨/톤 맵 갱신). `/developer/inquiries/[id]`의 "파이프라인 진행 상황" 카드에 5번째 단계
+  "Project Workspace" 배지(생성되면 `/projects/{id}`로 링크) 추가, `/projects` 카드에 "AI 자동
+  생성" 배지 추가(기존 `Imported` 배지와 같은 자리). 신규 테스트 5개
+  (`tests/aiJobs/worker.test.ts`의 `triggerWorkspaceProvisioning()` describe 블록 — 최초 등록,
+  재시도 시 중복 생성 방지, Website 실패 시 스킵, 연결된 Website 없을 때 스킵, Job 없을 때 스킵).
+  `npx tsc --noEmit`·`npx eslint`·`npm run build` 전부 통과, `npm test` 73 files/589 tests 전부
+  통과(신규 5개 포함, 회귀 없음)
 - **AI Business OS Rewiring Phase 3 — 고객별 GitHub Repository + Vercel Project 자동 배포**(2026-07-24) —
   `lib/github/{types,client}.ts`·`lib/git/{types,client}.ts`·`lib/vercel/{types,client}.ts`·
   `lib/deployment/{types,pipeline}.ts` 신규(새 npm 의존성 없음, `fetch`만 사용 —

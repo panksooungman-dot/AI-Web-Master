@@ -12,6 +12,7 @@ import { INQUIRY_STATUSES } from "@/lib/inquiries/types";
 import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 import type { AiJobRecord } from "@/lib/aiJobs/types";
+import type { ProjectRecord } from "@/lib/projects/registry";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -49,6 +50,7 @@ export default function InquiryDetailPage() {
   const [inquiry, setInquiry] = useState<InquiryRecord | null>(null);
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
+  const [project, setProject] = useState<ProjectRecord | null>(null);
   const [aiJobs, setAiJobs] = useState<AiJobRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -81,7 +83,17 @@ export default function InquiryDetailPage() {
         ]);
 
         setClient(clientResult?.client ?? null);
-        setWebsiteOrder(orderResult?.websiteOrder ?? null);
+        const order: WebsiteOrderRecord | null = orderResult?.websiteOrder ?? null;
+        setWebsiteOrder(order);
+
+        if (order?.projectId) {
+          fetch(`/api/projects/${order.projectId}`)
+            .then((res) => res.json())
+            .then((projectResult: { project?: ProjectRecord }) => setProject(projectResult.project ?? null))
+            .catch(() => setProject(null));
+        } else {
+          setProject(null);
+        }
 
         const allJobs: AiJobRecord[] = jobsResult?.aiJobs ?? [];
         const linkedJobs = data.inquiry.websiteOrderId
@@ -130,7 +142,9 @@ export default function InquiryDetailPage() {
   // AI Business OS Rewiring Phase 2부터 이 호출이 곧 "AI Generate Workflow 실행 승인"이다:
   // POST /api/inquiries(app/api/inquiries/route.ts)가 더 이상 AiJob을 자동 실행하지 않고
   // Queued 상태로만 만들어두므로, 관리자가 AI 분석 결과를 확인한 뒤 여기서 직접 실행을
-  // 트리거해야 Website Builder가 실제로 돈다.
+  // 트리거해야 Website Builder가 실제로 돈다. "고객 프로젝트" 등록은 별도 승인 액션이 아니라
+  // processJob() 성공 후 triggerWorkspaceProvisioning()이 자동으로 수행한다(아래 "5. Project
+  // Workspace" 배지 참고) — 이 핸들러는 기존 run 호출만 그대로 수행한다.
   async function handleRunJob(jobId: string) {
     setRunningJobId(jobId);
     setRunError(null);
@@ -353,6 +367,14 @@ export default function InquiryDetailPage() {
             <Badge tone={aiJobs.length > 0 ? "accent" : "neutral"}>
               4. AiJob(Website Builder) {aiJobs.length > 0 ? `${aiJobs.length}건` : "생성 전"}
             </Badge>
+            <span className="text-gray-600">→</span>
+            {project ? (
+              <Link href={`/projects/${project.id}`}>
+                <Badge tone="accent">5. Project Workspace {project.name}</Badge>
+              </Link>
+            ) : (
+              <Badge tone="neutral">5. Project Workspace 생성 전</Badge>
+            )}
           </div>
 
           {aiJobs.length === 0 ? (

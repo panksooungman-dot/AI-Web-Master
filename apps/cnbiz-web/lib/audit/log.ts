@@ -41,7 +41,8 @@ export type AuditAction =
   | "deployment.vercel.deploy"
   | "deployment.pipeline.success"
   | "deployment.pipeline.failed"
-  | "deployment.pipeline.rollback";
+  | "deployment.pipeline.rollback"
+  | "workspace.autoprovision";
 
 export interface AuditEntry {
   id: string;

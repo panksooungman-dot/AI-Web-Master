@@ -37,6 +37,8 @@ export interface MetricsCounters {
   designWebsiteBuildCount: number;
   /** 기술 견적서 자동 생성(lib/estimates) 신규 — 기존 17개 필드는 무변경. */
   estimateGenerationCount: number;
+  /** 기능 명세서 자동 생성(lib/specifications) 신규 — 기존 18개 필드는 무변경. */
+  specificationGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -60,6 +62,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   rollbackCount: 0,
   designWebsiteBuildCount: 0,
   estimateGenerationCount: 0,
+  specificationGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

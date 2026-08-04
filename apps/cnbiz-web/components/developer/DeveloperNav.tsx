@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: "/developer/requests", label: "의뢰 관리" },
   { href: "/developer/inquiries", label: "AI 의뢰 관리" },
   { href: "/developer/estimates", label: "기술 견적서" },
+  { href: "/developer/specifications", label: "기능 명세서" },
   { href: "/developer/clients", label: "고객사 관리" },
   { href: "/developer/website-orders", label: "주문 관리" },
   { href: "/developer/workspace", label: "Workspace" },

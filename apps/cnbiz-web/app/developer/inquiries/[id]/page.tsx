@@ -14,6 +14,7 @@ import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 import type { AiJobRecord } from "@/lib/aiJobs/types";
 import type { ProjectRecord } from "@/lib/projects/registry";
 import type { EstimateRecord } from "@/lib/estimates/types";
+import type { SpecificationRecord } from "@/lib/specifications/types";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -54,6 +55,7 @@ export default function InquiryDetailPage() {
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [aiJobs, setAiJobs] = useState<AiJobRecord[]>([]);
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
+  const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -62,6 +64,8 @@ export default function InquiryDetailPage() {
   const [runError, setRunError] = useState<string | null>(null);
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
+  const [isGeneratingSpecification, setIsGeneratingSpecification] = useState(false);
+  const [specificationError, setSpecificationError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -76,7 +80,7 @@ export default function InquiryDetailPage() {
         }
         setInquiry(data.inquiry);
 
-        const [clientResult, orderResult, jobsResult, estimatesResult] = await Promise.all([
+        const [clientResult, orderResult, jobsResult, estimatesResult, specificationsResult] = await Promise.all([
           data.inquiry.clientId
             ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
             : Promise.resolve(null),
@@ -85,6 +89,7 @@ export default function InquiryDetailPage() {
             : Promise.resolve(null),
           fetch("/api/ai-jobs").then((res) => res.json()),
           fetch("/api/estimates").then((res) => res.json()),
+          fetch("/api/specifications").then((res) => res.json()),
         ]);
 
         setClient(clientResult?.client ?? null);
@@ -110,6 +115,9 @@ export default function InquiryDetailPage() {
 
         const allEstimates: EstimateRecord[] = estimatesResult?.estimates ?? [];
         setEstimates(allEstimates.filter((estimate) => estimate.inquiryId === data.inquiry!.id));
+
+        const allSpecifications: SpecificationRecord[] = specificationsResult?.specifications ?? [];
+        setSpecifications(allSpecifications.filter((spec) => spec.inquiryId === data.inquiry!.id));
       })
       .catch(() => setLoadError("의뢰를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -198,6 +206,36 @@ export default function InquiryDetailPage() {
       setEstimateError("견적서 생성 중 오류가 발생했습니다.");
     } finally {
       setIsGeneratingEstimate(false);
+    }
+  }
+
+  // 기능 명세서 자동 생성 — AI Analysis Engine의 inquiry.analysis를 입력으로 사용하는 별도
+  // 서비스(lib/specifications)를 호출한다. handleGenerateEstimate()와 완전히 동일한 패턴 —
+  // Customer Inquiry Pipeline(processJob() 등)과는 무관한 독립 기능이다.
+  async function handleGenerateSpecification() {
+    if (!inquiry) return;
+
+    setIsGeneratingSpecification(true);
+    setSpecificationError(null);
+
+    try {
+      const res = await fetch("/api/specifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: inquiry.id }),
+      });
+      const data: { success: boolean; specification?: SpecificationRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.specification) {
+        setSpecificationError(data.error ?? "기능 명세서 생성에 실패했습니다.");
+        return;
+      }
+
+      setSpecifications((prev) => [data.specification!, ...prev]);
+    } catch {
+      setSpecificationError("기능 명세서 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingSpecification(false);
     }
   }
 
@@ -429,6 +467,44 @@ export default function InquiryDetailPage() {
           </div>
         )}
         {estimateError && <StatusMessage tone="error" className="mt-3">{estimateError}</StatusMessage>}
+      </Card>
+
+      <Card
+        title="기능 명세서"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleGenerateSpecification}
+            disabled={!inquiry.analysis || isGeneratingSpecification}
+            className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isGeneratingSpecification ? "생성 중..." : "기능 명세서 생성"}
+          </button>
+        }
+      >
+        {!inquiry.analysis ? (
+          <p className="text-gray-500 text-sm">AI 분석이 완료된 후 기능 명세서를 생성할 수 있습니다.</p>
+        ) : specifications.length === 0 ? (
+          <p className="text-gray-500 text-sm">아직 생성된 기능 명세서가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {specifications.map((specification) => (
+              <Link
+                key={specification.id}
+                href={`/developer/specifications/${specification.id}`}
+                className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 hover:border-purple-600 transition-colors"
+              >
+                <Badge tone="purple">페이지 {specification.result.pages.length}종</Badge>
+                <span className="text-xs text-gray-400">기능 {specification.result.features.length}종</span>
+                {specification.simulated && <Badge tone="warning">Simulated</Badge>}
+                <span className="text-xs text-gray-500 ml-auto">
+                  {new Date(specification.createdAt).toLocaleString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {specificationError && <StatusMessage tone="error" className="mt-3">{specificationError}</StatusMessage>}
       </Card>
 
       <Card title="파이프라인 진행 상황" className="mb-6">

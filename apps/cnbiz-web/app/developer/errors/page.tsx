@@ -48,6 +48,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "workspace.autoprovision": "Project Workspace 자동 생성",
   "deployment.notify_customer": "고객 URL 전달",
   "estimate.generate": "기술 견적서 생성",
+  "specification.generate": "기능 명세서 생성",
 };
 
 /**

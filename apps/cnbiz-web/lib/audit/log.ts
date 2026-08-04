@@ -44,7 +44,8 @@ export type AuditAction =
   | "deployment.pipeline.rollback"
   | "workspace.autoprovision"
   | "deployment.notify_customer"
-  | "estimate.generate";
+  | "estimate.generate"
+  | "specification.generate";
 
 export interface AuditEntry {
   id: string;

@@ -109,5 +109,20 @@ export async function POST(request: Request) {
 
   await logLoginAttempt(result.user.email, true, "로그인 성공");
 
+  // Customer Portal V1 — 추가 기록일 뿐, 위 auth.login 기록은 모든 role에 대해 그대로 유지된다.
+  // developer/admin 로그인 동작·응답은 이 분기로 인해 전혀 바뀌지 않는다.
+  if (result.user.role === "customer") {
+    await recordAuditEvent({
+      action: "customer.login",
+      actor: result.user.email,
+      success: true,
+      detail: "고객 포털 로그인",
+    }).catch((error) => {
+      console.error("[api/auth/login] customer.login audit failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
+
   return NextResponse.json({ success: true, user: result.user });
 }

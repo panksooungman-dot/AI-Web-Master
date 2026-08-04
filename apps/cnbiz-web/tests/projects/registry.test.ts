@@ -9,6 +9,7 @@ import {
   getProject,
   listProjects,
   touchProjectOpened,
+  updateProjectStatus,
 } from "../../lib/projects/registry";
 
 describe("Project Manager — registry (lib/projects/registry.ts)", () => {
@@ -56,6 +57,21 @@ describe("Project Manager — registry (lib/projects/registry.ts)", () => {
     const touched = await touchProjectOpened(created.id, store);
 
     expect(touched?.lastOpenedAt).not.toBeNull();
+  });
+
+  it("updateProjectStatus() updates status", async () => {
+    const created = await createProject(input, store);
+    expect(created.status).toBe("Active");
+
+    const updated = await updateProjectStatus(created.id, "Completed", store);
+    expect(updated?.status).toBe("Completed");
+
+    const fetched = await getProject(created.id, store);
+    expect(fetched?.status).toBe("Completed");
+  });
+
+  it("updateProjectStatus() returns undefined for an unknown id", async () => {
+    expect(await updateProjectStatus("does-not-exist", "Paused", store)).toBeUndefined();
   });
 
   it("deleteProject() removes the record and returns true; listProjects() no longer includes it", async () => {

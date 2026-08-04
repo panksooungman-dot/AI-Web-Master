@@ -81,6 +81,23 @@ export async function createProject(
   return record;
 }
 
+/** lib/websiteOrders/registry.ts::updateWebsiteOrderStatus(), lib/inquiries/registry.ts::updateInquiryStatus()와 동일한 패턴. */
+export async function updateProjectStatus(
+  id: string,
+  status: ProjectStatus,
+  store: CollectionStore = getDefaultStore()
+): Promise<ProjectRecord | undefined> {
+  const records = await store.list<ProjectRecord>(COLLECTION);
+  const index = records.findIndex((project) => project.id === id);
+
+  if (index === -1) return undefined;
+
+  records[index] = { ...records[index], status };
+  await store.replaceAll(COLLECTION, records);
+
+  return records[index];
+}
+
 export async function touchProjectOpened(
   id: string,
   store: CollectionStore = getDefaultStore()

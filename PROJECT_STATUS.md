@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-04 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `96b240a` 기준)
+> 최종 분석: 2026-08-04 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `7805415` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -39,17 +39,17 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 전체 진행률
 
-**약 95%**
+**약 96%**
 
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
-| Development OS 대시보드 | 97% | `/developer/**` 48개 페이지 실동작(기술 견적서 관리 `/developer/estimates`·`/developer/estimates/[id]`, 기능 명세서 관리 `/developer/specifications`·`/developer/specifications/[id]`, 프로젝트 타임라인 관리 `/developer/timeline`·`/developer/timeline/[id]`, 계약서 관리 `/developer/contracts`·`/developer/contracts/[id]`, **제안서 관리 `/developer/proposals`·`/developer/proposals/[id]` 신규 추가**). AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`)이 실제 `POST /api/inquiries` 호출로 연결됨(이메일 필드 포함), 의뢰 상세에서 **기술 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 생성·조회 가능**(신규). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세·`/projects`에서 연결된 레코드는 확인 가능) |
+| Development OS 대시보드 | 97% | `/developer/**` 48개 페이지 실동작(기술 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 관리 포함). AI 의뢰 관리 "새 문의 등록"이 실제 `POST /api/inquiries` 호출로 연결됨 |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
-| **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). "고객 프로젝트"는 별도 Domain 없이 `ProjectRecord.websiteOrderId`로 식별하는 구조로 확정. 알려진 사소한 결함 1건은 아래 "🚧" 섹션 참고(파이프라인 동작에는 영향 없음) |
-| 인증/권한 | 82% | 세션 인증 + RBAC 4-role + 정확한 (method,path) 단위 예외(`POST /api/inquiries`) 완비. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated`(아래 참고) |
-| 고객(의뢰자) 시스템 | 65% | CNBIZ.KR 자체 접수 폼(`/contact`) **복원 완료** — 더 이상 cnbiz.ai.kr에 전량 위임하지 않음. 고객 본인이 조회하는 포털은 여전히 없음 |
-| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + **실 계정 E2E PASS 확정**(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) — GitHub Repo/Vercel Project/Production Deploy/Production URL을 GitHub·Vercel 양쪽 API로 직접 재확인. v1~v3에서 발견된 API/Git Scope 버그 3건은 이미 수정 완료 상태였고 이번 v5에서 회귀 없음을 재확인 |
+| **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) |
+| 인증/권한 | 85% | 세션 인증 + RBAC **5-role**(신규 `customer` role 추가) + 정확한 (method,path) 단위 예외 완비. `proxy.ts`가 `/customer/**`도 세션 보호 대상에 포함. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated` |
+| **고객(의뢰자) 시스템 — Customer Portal V1** | **90%** | **신규 구현(이번 커밋)** — 고객 로그인(`customer.login` 감사 로그), 본인 주문 목록(`/customer/orders`)·대시보드(`/customer/dashboard`)·주문 상세(`/customer/orders/[id]`, 견적서·명세서·타임라인·계약서·제안서·배포 상태 열람). `lib/customerPortal/view.ts`가 로그인 이메일 기준으로만 필터링해 타인 데이터 접근을 원천 차단(존재하지 않음/타인 소유 모두 동일하게 404). 회원가입·비밀번호 변경·알림 설정 등은 아직 없음 |
+| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + 실 계정 E2E PASS 확정(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) |
 | 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과 |
 
 ---
@@ -110,9 +110,9 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## ⏳ 예정된 기능 (미구현)
 
-- Customer 포털(고객 본인 의뢰 상태 조회) — `Role` 타입에 `customer` 자체가 없음
 - Deploy 자동화(**AI Business OS 플랫폼 자신**, CLI `ai deploy`) — branch check + `git push`만 수행, 실제 빌드/배포 실행 코드 없음(Vercel Git 연동이 그 이후를 담당). ⚠️ **고객 생성 사이트**의 배포 자동화는 별개(Phase 3, `lib/deployment/pipeline.ts`)로 이미 구현됨 — 혼동 주의
 - Notification 다채널화 — 이메일(Resend)만 존재, Slack/SMS/webhook/in-app 없음
+- Customer Portal 확장 — 회원가입 백엔드, 비밀번호 변경/재설정, 알림 설정, 문서 다운로드(PDF Export) 등은 아직 없음(현재는 조회 전용 V1)
 - Portfolio 실콘텐츠, 회사 연락처 정보 확정(자료 수령 필요)
 - GSC(Google Search Console) 연동
 
@@ -120,6 +120,9 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Customer Portal V1 구현 — 고객 본인 주문 조회 신규 추가**(2026-08-04) — `Role` 타입에 `customer` 추가(`lib/auth/types.ts`), `lib/auth/rbac.ts`에 `/customer/**` 보호 규칙 추가, `proxy.ts`가 `/customer/**`도 세션 인증 대상에 포함하도록 확장. `lib/customerPortal/view.ts`(신규) — `findCustomerOrders()`/`getCustomerOrderDetail()`이 로그인 이메일과 일치하는 Client의 WebsiteOrder만 조회하며, Inquiry/Client/WebsiteOrder/Estimate/Specification/Timeline/Contract/Proposal 7개 Domain을 읽기 전용으로만 join한다(새 저장소 없음). `GET /api/customer/orders`·`GET /api/customer/orders/[id]`(신규) — 타인 소유 주문은 "존재하지 않음"과 동일한 404로 응답해 존재 여부조차 추측 불가능하도록 처리. `/customer/dashboard`·`/customer/orders`·`/customer/orders/[id]`·`/customer/layout.tsx`(신규 페이지 4개), `components/customer/{CustomerHeaderAuth,OrderCard,labels}.tsx`(신규). `POST /api/auth/login`에 `customer` role 로그인 시 `customer.login` 감사 로그 기록 추가(developer/admin 로그인 동작은 무변경), 주문 상세 조회 시 `customer.view_document` 감사 로그 기록. `lib/metrics/registry.ts`에 `customerPortalVisitCount` 카운터 추가(Metrics 위젯 반영).
+- **`WebsiteOrderRecord.aiJobIds` 누락 결함 수정**(2026-08-04) — `app/api/inquiries/route.ts`·`app/api/external/inquiries/route.ts` 둘 다 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남던 기존 결함(2026-08-03 E2E 검증에서 발견, 다음 작업 우선순위 1번)을 수정 — `addWebsiteOrderToClient()`/`addInquiryToClient()`와 동일한 "생성 직후 부모 레코드에 역참조 추가" 패턴을 그대로 적용.
+- **Release Readiness Audit Major #3 완료 — fs CollectionStore(JSON Store) lost-update 해결**(2026-08-05) — 모든 registry가 공유하는 `list()`→JS 수정→`replaceAll()`(`getDoc()`→`setDoc()`도 동일) read-modify-write 패턴에 collection 단위 순수 Promise 락을 `lib/db/fsStore.ts` 내부에만 추가해, 동시 요청 시 나중 쓰기가 앞선 변경을 통째로 덮어쓰던 lost-update를 제거했다. 새 Store·새 라이브러리·`CollectionStore` 인터페이스 변경 없이 기존 4개 메서드 내부만 수정(호출자인 모든 registry는 무변경). 신규 `tests/db/fsStore.test.ts`로 동일 collection에 대한 **100회 동시 create·100회 동시 update·100회 동시 append**(및 카운터 increment)를 각각 실행해 전부 데이터 유실 0건을 실증했다(수정 전 코드로는 100→1로 붕괴함을 먼저 재현해 버그를 확인한 뒤 수정). `npx tsc --noEmit`·`npx eslint`·`npm run build` 전부 통과, `npm test` **88 files/742 tests** 전부 통과(신규 7개 포함, 회귀 없음).
 - **AI JSON 파싱 유틸리티 공유화 — 6개 Generator 코드 중복 제거**(2026-08-04) — `lib/ai-analysis`·`lib/contracts`·`lib/estimates`·`lib/proposals`·`lib/specifications`·`lib/timeline` 각 Generator마다 복붙되어 있던 `stripCodeFence()`를 `lib/ai/json.ts`의 `extractJsonPayload()`(신규)로 통합했다. 기존 정규식은 응답 전체가 코드펜스 하나로만 이루어진 경우만 매칭했으나, 새 유틸리티는 코드펜스 앞뒤에 설명 문장이 붙은 경우와 코드펜스 없이 순수 JSON 앞뒤에 설명이 붙은 경우까지 균형 잡힌 중괄호 스캔으로 추출한다(JSON 자체를 관대하게 고쳐주지는 않음 — 여전히 `JSON.parse()` 엄격 검증 후 실패 시 결정론적 폴백, all-or-nothing 원칙 유지). 6개 Generator의 시스템 프롬프트도 "no prose, no markdown fences"에서 "Respond with ONLY that JSON object" + "valid JSON parseable by JSON.parse()"로 더 명시적으로 강화했다. 신규 테스트 `tests/ai/json.test.ts` 추가, 6개 Generator 테스트 파일에 관련 케이스 보강.
 - **제안서(Proposal) 자동 생성 구현 — 자동 문서화 체인 최종 완결**(2026-08-04) — `lib/proposals/{types,generator,registry}.ts` 신규로 Inquiry.analysis뿐 아니라 EstimateRecord·SpecificationRecord·TimelineRecord·ContractRecord까지 전부 입력으로 사용하는 별도 서비스를 `lib/contracts/*`와 동일한 패턴으로 추가했다(기존 `AiJobType`·`AiJobStatus`·Customer Inquiry Pipeline 코드는 무변경). 견적서의 비용·명세서의 페이지/기능/범위·타임라인의 기간·계약서의 계약 금액/유지보수 조건을 종합해 고객 제안서(요약·강점·비용·일정·다음 단계)를 산출하며, `chatViaCli()` Provider 브릿지를 재사용하고 Provider 미설정/파싱 실패 시 결정론적 폴백으로 전부-아니면-전무 처리한다. `POST/GET /api/proposals`·`GET /api/proposals/[id]`(신규), `/developer/proposals`(목록)·`/developer/proposals/[id]`(상세) 신규 페이지, `/developer/inquiries/[id]`에 제안서 생성·조회 연동 추가(견적서·명세서·타임라인·계약서 넷 다 있어야 생성 가능). `lib/audit/log.ts`에 `proposal.generate` 액션, `lib/metrics/registry.ts`에 `proposalGenerationCount` 카운터 추가(Audit Log·Errors·Metrics 화면 반영). 신규 테스트(`tests/proposals/{generator,registry}.test.ts`, `tests/metrics/registry.test.ts` 보강) 포함 — 견적서→명세서→타임라인→계약서→제안서로 이어지는 자동 문서화 체인을 최종 완결했다.
 - **계약서(Contract) 자동 생성 구현 — 자동 문서화 체인 완결**(2026-08-04) — `lib/contracts/{types,generator,registry}.ts` 신규로 Inquiry.analysis뿐 아니라 이미 생성된 EstimateRecord·SpecificationRecord·TimelineRecord까지 입력으로 사용하는 별도 서비스를 `lib/estimates/*`·`lib/specifications/*`·`lib/timeline/*`와 동일한 패턴으로 추가했다(기존 `AiJobType`·`AiJobStatus`·Customer Inquiry Pipeline 코드는 무변경). 견적서의 금액·명세서의 범위/산출물·타임라인의 기간/마일스톤을 종합해 계약 조건(계약 금액·범위·기간·마일스톤명)을 산출하며, `chatViaCli()` Provider 브릿지를 재사용하고 Provider 미설정/파싱 실패 시 결정론적 폴백으로 전부-아니면-전무 처리한다. `POST/GET /api/contracts`·`GET /api/contracts/[id]`(신규), `/developer/contracts`(목록)·`/developer/contracts/[id]`(상세, Export) 신규 페이지, `/developer/inquiries/[id]`에 계약서 생성·조회 연동 추가(견적서·명세서·타임라인 셋 다 있어야 생성 가능). `lib/audit/log.ts`에 `contract.generate` 액션, `lib/metrics/registry.ts`에 `contractGenerationCount` 카운터 추가(Audit Log·Errors·Metrics 화면 반영). 신규 테스트(`tests/contracts/{generator,registry}.test.ts`, `tests/metrics/registry.test.ts` 보강) 포함 — 견적서→명세서→타임라인→계약서로 이어지는 자동 문서화 체인을 완결했다.

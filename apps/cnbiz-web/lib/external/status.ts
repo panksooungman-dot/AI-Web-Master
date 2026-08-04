@@ -10,12 +10,14 @@ import { listWebsites } from "@/lib/websites/registry";
  * 새 저장 필드를 추가하지 않고, 이미 존재하는 4개 Registry(inquiries/websiteOrders/aiJobs/
  * websites)의 조회 함수만 조합해 하나의 고객 친화적 상태 스냅샷을 만든다.
  *
- * AiJob 조회는 WebsiteOrderRecord.aiJobIds가 아니라 listAiJobsByWebsiteOrder()를 쓴다 —
- * 실제 파이프라인(app/api/external/inquiries/route.ts)이 AiJob 생성 후 addAiJobToWebsiteOrder()를
- * 호출하지 않아 aiJobIds가 항상 빈 배열로 남기 때문(실제 저장 데이터로 확인). AiJobRecord
- * 자신의 websiteOrderId 역참조로 직접 찾는 listAiJobsByWebsiteOrder()는 이 문제와 무관하게
- * 항상 정확하다. 하나의 WebsiteOrder가 재시도 등으로 여러 AiJob/Website를 가질 수 있으므로,
- * 항상 "가장 최근" 항목을 현재 진행 상태로 취급한다.
+ * AiJob 조회는 WebsiteOrderRecord.aiJobIds가 아니라 listAiJobsByWebsiteOrder()를 쓴다.
+ * (Release Readiness Audit — Major #1, 수정 완료: app/api/inquiries/route.ts와
+ * app/api/external/inquiries/route.ts는 이제 AiJob 생성 직후 addAiJobToWebsiteOrder()를
+ * 호출해 aiJobIds도 함께 채운다. 다만 이 조회 계층은 계속 AiJobRecord 자신의 websiteOrderId
+ * 역참조로 직접 찾는 listAiJobsByWebsiteOrder()를 쓴다 — 하나의 WebsiteOrder가 재시도 등으로
+ * 여러 AiJob/Website를 가질 수 있어 "가장 최근" 항목을 골라야 하는데, aiJobIds는 삽입 순서
+ * 배열일 뿐 그 자체로 최신 판단 근거가 되지 않기 때문. 두 경로 모두 정확하지만 이 계층은
+ * 굳이 aiJobIds 수정에 맞춰 바꿀 이유가 없어 그대로 둔다.)
  */
 export type ExternalInquiryStatus =
   | "Received"
@@ -42,7 +44,10 @@ export interface ExternalStatusStages {
   running: StageInfo;
   /** Website 산출물 생성 완료. */
   websiteGenerated: StageInfo;
-  /** 실제 배포 파이프라인은 이 저장소에 아직 없다 — 항상 done:false, at:null. */
+  /** Deployment Pipeline(lib/deployment/pipeline.ts) 완료 여부 — WebsiteRecord.deploymentStatus
+   *  기준(Release Readiness Audit — Major #2, 수정 완료). 타임스탬프는 WebsiteRecord에 별도로
+   *  저장되지 않아(updateWebsiteDeployment()가 채우는 필드 없음) at은 항상 null로 유지한다 —
+   *  없는 값을 다른 필드(website.createdAt 등)로 추정해서 채우지 않는다. */
   deployed: StageInfo;
   completed: StageInfo;
   failed: StageInfo;
@@ -59,9 +64,15 @@ export interface ExternalWebsiteSummary {
   id: string;
   name: string;
   siteType: string;
-  /** 실 배포 파이프라인 미구현 — 항상 null. 필드는 계약 안정성을 위해 유지한다. */
+  /** Deployment Pipeline은 Vercel에 항상 production 배포 1회만 수행하고(isInitialDeployment:
+   *  true — lib/deployment/pipeline.ts) 별도 preview 배포 단계가 없어, 구분할 실제 preview URL
+   *  자체가 존재하지 않는다. deployUrl과 같은 값을 채워 넣지 않고(실제로 구분되지 않는 것을
+   *  구분되는 것처럼 보이게 하지 않기 위해) 항상 null로 유지한다. 필드는 계약 안정성을 위해
+   *  유지한다. */
   previewUrl: string | null;
-  /** 실 배포 파이프라인 미구현 — 항상 null. 필드는 계약 안정성을 위해 유지한다. */
+  /** WebsiteRecord.deployment.url(lib/websites/registry.ts) 기준 — Deployment Pipeline이 실제로
+   *  생성한 프로덕션 배포 URL(Release Readiness Audit — Major #2, 수정 완료). 배포 전이거나
+   *  실패했으면 null. */
   deployUrl: string | null;
 }
 
@@ -125,7 +136,7 @@ export async function getExternalInquiryStatus(
       jobCreated: { done: Boolean(aiJob), at: aiJob?.createdAt ?? null },
       running: { done: Boolean(aiJob?.startedAt), at: aiJob?.startedAt ?? null },
       websiteGenerated: { done: Boolean(website), at: website?.createdAt ?? null },
-      deployed: { done: false, at: null },
+      deployed: { done: website?.deploymentStatus === "Success", at: null },
       completed: { done: status === "Completed", at: completedAt },
       failed: { done: status === "Failed", at: isFailed ? aiJob?.finishedAt ?? null : null },
     },
@@ -134,7 +145,13 @@ export async function getExternalInquiryStatus(
       ? { id: websiteOrder.id, name: websiteOrder.name, siteType: websiteOrder.siteType, status: websiteOrder.status }
       : null,
     website: website
-      ? { id: website.id, name: website.name, siteType: website.siteType, previewUrl: null, deployUrl: null }
+      ? {
+          id: website.id,
+          name: website.name,
+          siteType: website.siteType,
+          previewUrl: null,
+          deployUrl: website.deployment?.url ?? null,
+        }
       : null,
     completedAt,
   };

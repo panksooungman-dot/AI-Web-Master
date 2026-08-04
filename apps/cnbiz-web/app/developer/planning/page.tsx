@@ -8,6 +8,8 @@ import { readDocEntry, joinRepoPath } from "@/lib/docs/readDocEntry";
 import { listWorkflows } from "@/lib/workflows/registry";
 import { workflowEngine } from "@/lib/workflows/engine";
 import type { WorkflowRunStatus } from "@/lib/workflows/types";
+import { listProjects } from "@/lib/projects/registry";
+import type { ProjectStatus } from "@/lib/projects/registry";
 
 // 요청 시점 데이터(Workflow Run 목록)를 읽으므로 정적 프리렌더 대상에서 제외한다.
 export const dynamic = "force-dynamic";
@@ -29,6 +31,13 @@ const STATUS_TONES: Record<WorkflowRunStatus, BadgeTone> = {
   Cancelled: "neutral",
 };
 
+const PROJECT_STATUS_TONES: Record<ProjectStatus, BadgeTone> = {
+  Active: "info",
+  Paused: "warning",
+  Completed: "success",
+  Archived: "neutral",
+};
+
 export default async function PlanningPhasePage() {
   const repoRoot = resolveRepoRoot();
   const docs = DOC_TARGETS.map(({ label, segments }) => {
@@ -38,6 +47,7 @@ export default async function PlanningPhasePage() {
 
   const workflows = await listWorkflows();
   const runs = workflowEngine.listRuns();
+  const projects = await listProjects();
 
   const statusCounts = new Map<WorkflowRunStatus, number>();
   for (const run of runs) {
@@ -45,6 +55,15 @@ export default async function PlanningPhasePage() {
   }
 
   const recentRuns = [...runs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+
+  const projectStatusCounts = new Map<ProjectStatus, number>();
+  for (const project of projects) {
+    projectStatusCounts.set(project.status, (projectStatusCounts.get(project.status) ?? 0) + 1);
+  }
+
+  const recentProjects = [...projects]
+    .sort((a, b) => (b.lastOpenedAt ?? b.createdAt).localeCompare(a.lastOpenedAt ?? a.createdAt))
+    .slice(0, 5);
 
   return (
     <div>
@@ -107,6 +126,49 @@ export default async function PlanningPhasePage() {
                 <span className="font-mono text-xs text-gray-500">{run.id}</span>
                 <span className="text-xs text-gray-400">{new Date(run.createdAt).toLocaleString()}</span>
               </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card title="Project 현황 (기존 lib/projects 결과 집계 — Customer Inquiry Pipeline이 자동 등록한 Project 포함)" className="mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+          <div>
+            <p className="text-xs text-gray-500">전체 Project</p>
+            <p className="text-2xl font-bold">{projects.length}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">고객 프로젝트(websiteOrderId 연결)</p>
+            <p className="text-2xl font-bold">{projects.filter((p) => p.websiteOrderId).length}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {(Object.keys(PROJECT_STATUS_TONES) as ProjectStatus[]).map((status) => (
+            <Badge key={status} tone={PROJECT_STATUS_TONES[status]}>
+              {status} ({projectStatusCounts.get(status) ?? 0})
+            </Badge>
+          ))}
+        </div>
+
+        <p className="text-sm text-gray-400 mb-2">최근 Project 5건</p>
+        {recentProjects.length === 0 ? (
+          <p className="text-sm text-gray-600">등록된 Project가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {recentProjects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/projects/${project.id}`}
+                className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 text-sm hover:border-gray-700"
+              >
+                <Badge tone={PROJECT_STATUS_TONES[project.status]} className="w-24 text-center">
+                  {project.status}
+                </Badge>
+                <span className="font-semibold text-gray-200">{project.name}</span>
+                <span className="text-xs text-gray-500">{project.company}</span>
+                {project.websiteOrderId && <Badge tone="info">고객 프로젝트</Badge>}
+              </Link>
             ))}
           </div>
         )}

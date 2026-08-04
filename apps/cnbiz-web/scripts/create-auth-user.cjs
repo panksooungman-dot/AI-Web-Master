@@ -6,8 +6,9 @@
  * keep the two in sync if either changes.
  *
  * Usage: node scripts/create-auth-user.cjs <email> <password> [role]
- * role defaults to "user" (least privilege) — pass one of user|admin|developer|super_admin
- * explicitly to grant dashboard access. See docs/ADMIN_GUIDE.md.
+ * role defaults to "user" (least privilege) — pass one of user|admin|developer|super_admin|customer
+ * explicitly to grant dashboard access. See docs/ADMIN_GUIDE.md. "customer" grants /customer/**
+ * Customer Portal access only (Customer Portal V1) — it does not grant /developer or /admin access.
  *
  * Writes to Supabase (table `app_collections`, same shape lib/db/supabaseStore.ts uses) when
  * SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set in the environment — that's required to
@@ -25,7 +26,7 @@ const crypto = require("crypto");
 
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
-const VALID_ROLES = ["user", "admin", "developer", "super_admin"];
+const VALID_ROLES = ["user", "admin", "developer", "super_admin", "customer"];
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(SALT_LENGTH).toString("hex");

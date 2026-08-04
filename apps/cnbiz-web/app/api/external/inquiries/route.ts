@@ -5,7 +5,7 @@ import { createInquiry, linkInquiryToClientAndOrder, saveInquiryAnalysis } from 
 import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
 import { notifyAdminOfNewInquiry } from "@/lib/inquiries/notify";
 import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClientByEmail } from "@/lib/clients/registry";
-import { createWebsiteOrder } from "@/lib/websiteOrders/registry";
+import { addAiJobToWebsiteOrder, createWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { createAiJob } from "@/lib/aiJobs/registry";
 import { processJob } from "@/lib/aiJobs/worker";
 import { generateAnalysis } from "@/lib/ai-analysis/analysis";
@@ -115,6 +115,11 @@ export async function POST(request: Request) {
     type: "generate_website",
     payload: { siteType: input.siteType, requirements: input.requirements },
   });
+  // Release Readiness Audit — Major #1: WebsiteOrderRecord.aiJobIds가 항상 빈 배열로 남던 결함
+  // 수정(app/api/inquiries/route.ts와 동일 수정, 이 라우트는 Deprecated이나 아직 완전히
+  // 제거되지 않아 함께 고친다). addAiJobToWebsiteOrder()는 이미 존재했으나 이 라우트에서도
+  // 호출되지 않고 있었다.
+  await addAiJobToWebsiteOrder(websiteOrder.id, aiJob.id);
 
   // AiJob은 Queued로 생성될 뿐 이를 실행할 스케줄러/cron이 없어 그대로 방치되던 문제의
   // 연결부 — 생성 직후 곧바로 실행한다. processJob()은 내부적으로 모든 예외를 잡아 Job을

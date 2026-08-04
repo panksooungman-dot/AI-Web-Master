@@ -52,6 +52,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "timeline.generate": "프로젝트 일정 생성",
   "contract.generate": "계약서 생성",
   "proposal.generate": "제안서 생성",
+  "customer.login": "고객 포털 로그인",
+  "customer.view_document": "고객 포털 문서 조회",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -95,6 +97,8 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "timeline.generate": "purple",
   "contract.generate": "purple",
   "proposal.generate": "purple",
+  "customer.login": "info",
+  "customer.view_document": "neutral",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [

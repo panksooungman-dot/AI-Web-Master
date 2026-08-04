@@ -11,11 +11,18 @@ import { createFsStore } from "../../lib/db/fsStore";
 describe("Auth — route protection (lib/auth/middleware.ts)", () => {
   describe("isProtectedPath()", () => {
     // /developer and /admin moved to role-gated protection in lib/auth/rbac.ts
-    // (release hardening, v1.0) — see tests/auth/rbac.test.ts. isProtectedPath() now only
-    // covers "requires login, no specific role" paths (/projects).
+    // (release hardening, v1.0) — see tests/auth/rbac.test.ts. isProtectedPath() now covers
+    // "requires login, no specific role" paths: /projects (pages) plus /api/terminal and
+    // /api/workspaces (Release Blocker fix, Release Readiness Audit — see lib/auth/rbac.ts's
+    // UNGATED_API_PREFIXES comment for why these two stay out of role-gating).
     it("protects /projects and nested paths", () => {
       expect(isProtectedPath("/projects")).toBe(true);
       expect(isProtectedPath("/projects/abc")).toBe(true);
+    });
+
+    it("protects /api/terminal and /api/workspaces (Release Blocker fix)", () => {
+      expect(isProtectedPath("/api/terminal")).toBe(true);
+      expect(isProtectedPath("/api/workspaces")).toBe(true);
     });
 
     it("does not protect public marketing pages, /login, or /api/auth/me", () => {

@@ -6,7 +6,7 @@ import { createFsStore } from "../../lib/db/fsStore";
 import { createInquiry } from "../../lib/inquiries/registry";
 import { createWebsiteOrder, addAiJobToWebsiteOrder, addWebsiteToOrder } from "../../lib/websiteOrders/registry";
 import { createAiJob, updateAiJobStatus } from "../../lib/aiJobs/registry";
-import { createWebsiteRecord } from "../../lib/websites/registry";
+import { createWebsiteRecord, updateWebsiteDeployment } from "../../lib/websites/registry";
 import { getExternalInquiryStatus } from "../../lib/external/status";
 import type { InquiryInput } from "../../lib/inquiries/types";
 
@@ -123,9 +123,94 @@ describe("External inquiry status — lib/external/status.ts", () => {
       previewUrl: null,
       deployUrl: null,
     });
-    // No live deploy pipeline exists yet — the field must stay present but unset.
+    // Deployment Pipeline hasn't been run against this WebsiteRecord in this scenario
+    // (deploymentStatus stays undefined) — the field must stay present but unset until it has.
     expect(result?.stages.deployed).toEqual({ done: false, at: null });
     expect(result?.error).toBeNull();
+  });
+
+  it("Completed + deployed: reflects WebsiteRecord.deploymentStatus/deployment.url, not a hardcoded value (Release Readiness Audit — Major #2)", async () => {
+    const inquiry = await createInquiry(INQUIRY_INPUT, store);
+    const order = await createWebsiteOrder(
+      { clientId: "client-1", inquiryId: inquiry.id, name: "테스트", siteType: "restaurant", requirements: "x" },
+      store
+    );
+    await store.replaceAll("inquiries", [{ ...inquiry, websiteOrderId: order.id }]);
+
+    const job = await createAiJob({ websiteOrderId: order.id, type: "generate_website", payload: {} }, store);
+    await addAiJobToWebsiteOrder(order.id, job.id, store);
+
+    const website = await createWebsiteRecord(
+      { name: "테스트", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },
+      store
+    );
+    await addWebsiteToOrder(order.id, website.id, store);
+    await updateAiJobStatus(job.id, "Success", {}, store);
+
+    // 실제 Deployment Pipeline(lib/deployment/pipeline.ts)이 성공했을 때 기록하는 것과 동일한
+    // 패치 — 이 테스트는 그 파이프라인을 직접 실행하지 않고 그 결과 상태만 재현한다.
+    await updateWebsiteDeployment(
+      website.id,
+      {
+        repository: {
+          owner: "cnbiz-customers",
+          name: "test-site",
+          fullName: "cnbiz-customers/test-site",
+          htmlUrl: "https://github.com/cnbiz-customers/test-site",
+          cloneUrl: "https://github.com/cnbiz-customers/test-site.git",
+        },
+        deployment: {
+          vercelProjectId: "prj_test123",
+          vercelProjectName: "test-site",
+          deploymentId: "dpl_test123",
+          url: "https://test-site.vercel.app",
+        },
+        deploymentStatus: "Success",
+        deploymentError: null,
+      },
+      store
+    );
+
+    const result = await getExternalInquiryStatus(inquiry.id, store);
+
+    expect(result?.stages.deployed).toEqual({ done: true, at: null });
+    expect(result?.website).toEqual({
+      id: website.id,
+      name: "테스트",
+      siteType: "restaurant",
+      previewUrl: null,
+      deployUrl: "https://test-site.vercel.app",
+    });
+  });
+
+  it("Completed but deployment Failed: deployed stays not-done and deployUrl stays null (deploymentError is on WebsiteRecord, not surfaced here — matches customerPortal/view.ts's resolveDeployment())", async () => {
+    const inquiry = await createInquiry(INQUIRY_INPUT, store);
+    const order = await createWebsiteOrder(
+      { clientId: "client-1", inquiryId: inquiry.id, name: "테스트", siteType: "restaurant", requirements: "x" },
+      store
+    );
+    await store.replaceAll("inquiries", [{ ...inquiry, websiteOrderId: order.id }]);
+
+    const job = await createAiJob({ websiteOrderId: order.id, type: "generate_website", payload: {} }, store);
+    await addAiJobToWebsiteOrder(order.id, job.id, store);
+
+    const website = await createWebsiteRecord(
+      { name: "테스트", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },
+      store
+    );
+    await addWebsiteToOrder(order.id, website.id, store);
+    await updateAiJobStatus(job.id, "Success", {}, store);
+
+    await updateWebsiteDeployment(
+      website.id,
+      { deploymentStatus: "Failed", deploymentError: "GITHUB_TOKEN 또는 VERCEL_TOKEN이 설정되지 않았습니다." },
+      store
+    );
+
+    const result = await getExternalInquiryStatus(inquiry.id, store);
+
+    expect(result?.stages.deployed).toEqual({ done: false, at: null });
+    expect(result?.website?.deployUrl).toBeNull();
   });
 
   it("Failed: job Failed carries the worker's error message", async () => {

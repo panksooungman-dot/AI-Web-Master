@@ -9,7 +9,7 @@ import {
 import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
 import { notifyAdminOfNewInquiry } from "@/lib/inquiries/notify";
 import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClientByEmail } from "@/lib/clients/registry";
-import { createWebsiteOrder } from "@/lib/websiteOrders/registry";
+import { addAiJobToWebsiteOrder, createWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { createAiJob } from "@/lib/aiJobs/registry";
 import { generateAnalysis } from "@/lib/ai-analysis/analysis";
 
@@ -108,6 +108,11 @@ export async function POST(request: Request) {
     type: "generate_website",
     payload: { siteType: input.siteType, requirements: input.requirements },
   });
+  // Release Readiness Audit — Major #1: WebsiteOrderRecord.aiJobIds가 항상 빈 배열로 남던 결함
+  // 수정. addAiJobToWebsiteOrder()는 이미 존재했으나 여기서 호출되지 않고 있었다(테스트에서만
+  // 호출됨). addWebsiteOrderToClient()/addInquiryToClient()와 동일한 "생성 직후 부모 레코드에
+  // 역참조 추가" 패턴을 그대로 따른다.
+  await addAiJobToWebsiteOrder(websiteOrder.id, aiJob.id);
 
   const linkedInquiry = await linkInquiryToClientAndOrder(inquiry.id, client.id, websiteOrder.id);
 

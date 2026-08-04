@@ -83,6 +83,65 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
     });
   });
 
+  describe("/customer/** page requests (Customer Portal V1)", () => {
+    it("redirects to /login with a redirect target when there is no session", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/customer/dashboard"));
+
+      expect(response.status).toBe(307);
+      const location = new URL(response.headers.get("location")!);
+      expect(location.pathname).toBe("/login");
+      expect(location.searchParams.get("redirect")).toBe("/customer/dashboard");
+    });
+
+    it("returns 403 for a logged-in 'developer' role (customer area is separate from developer)", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("developer"));
+      const response = await proxy(new NextRequest("http://localhost/customer/dashboard"));
+      expect(response.status).toBe(403);
+    });
+
+    it("returns 403 for a logged-in 'user' role", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("user"));
+      const response = await proxy(new NextRequest("http://localhost/customer/orders"));
+      expect(response.status).toBe(403);
+    });
+
+    it("allows a 'customer' role through", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("customer"));
+      const response = await proxy(new NextRequest("http://localhost/customer/dashboard"));
+      expect(response.status).toBe(200);
+    });
+
+    it("allows a 'super_admin' role through", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("super_admin"));
+      const response = await proxy(new NextRequest("http://localhost/customer/dashboard"));
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("gated /api/customer/** requests (Customer Portal V1)", () => {
+    it("returns 401 JSON (not a redirect) when there is no session", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/customer/orders"));
+
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body.success).toBe(false);
+    });
+
+    it("returns 403 JSON for a 'developer' role (does not fall through to the developer-gated default)", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("developer"));
+      const response = await proxy(new NextRequest("http://localhost/api/customer/orders"));
+      expect(response.status).toBe(403);
+    });
+
+    it("allows a 'customer' role through", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("customer"));
+      const response = await proxy(new NextRequest("http://localhost/api/customer/orders"));
+      expect(response.status).toBe(200);
+    });
+  });
+
   describe("/admin/** page requests (no pages exist yet, but the rule is ready)", () => {
     it("returns 403 for a logged-in 'developer' role", async () => {
       resolveSessionUserMock.mockReturnValue(userWithRole("developer"));
@@ -136,18 +195,6 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
       expect(response.status).toBe(200);
     });
 
-    it("lets /api/terminal through even for a 'user' role (documented CLI-compat exception)", async () => {
-      resolveSessionUserMock.mockReturnValue(userWithRole("user"));
-      const response = await proxy(new NextRequest("http://localhost/api/terminal"));
-      expect(response.status).toBe(200);
-    });
-
-    it("lets /api/devserver/status through with no session", async () => {
-      resolveSessionUserMock.mockReturnValue(null);
-      const response = await proxy(new NextRequest("http://localhost/api/devserver/status"));
-      expect(response.status).toBe(200);
-    });
-
     it("no longer lets /api/contact through with no session (the public Contact form/route were removed — CNBIZ.KR no longer takes requests directly; the path is developer-gated like any other unlisted /api/** route)", async () => {
       resolveSessionUserMock.mockReturnValue(null);
       const response = await proxy(new NextRequest("http://localhost/api/contact"));
@@ -158,6 +205,64 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
       resolveSessionUserMock.mockReturnValue(null);
       const response = await proxy(new NextRequest("http://localhost/api/requests/submit"));
       expect(response.status).toBe(401);
+    });
+  });
+
+  describe("/api/terminal and /api/workspaces — login required, any role (Release Blocker fix, Release Readiness Audit)", () => {
+    it("returns 401 JSON (not a redirect) for /api/terminal with no session", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/terminal"));
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body.success).toBe(false);
+    });
+
+    it("returns 401 JSON (not a redirect) for /api/workspaces with no session", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/workspaces"));
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body.success).toBe(false);
+    });
+
+    it("lets /api/terminal through for a plain 'user' role (login-only, not role-gated — matches /projects/[id]'s access level)", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("user"));
+      const response = await proxy(new NextRequest("http://localhost/api/terminal"));
+      expect(response.status).toBe(200);
+    });
+
+    it("lets /api/workspaces through for a plain 'user' role (login-only, not role-gated — matches /projects's access level)", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("user"));
+      const response = await proxy(new NextRequest("http://localhost/api/workspaces"));
+      expect(response.status).toBe(200);
+    });
+
+    it("lets /api/terminal through for a 'developer' role", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("developer"));
+      const response = await proxy(new NextRequest("http://localhost/api/terminal"));
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("/api/devserver/** — developer-gated (Release Blocker fix: its only caller is /developer's DevServerManagerCard)", () => {
+    it("returns 401 JSON with no session", async () => {
+      resolveSessionUserMock.mockReturnValue(null);
+      const response = await proxy(new NextRequest("http://localhost/api/devserver/status"));
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body.success).toBe(false);
+    });
+
+    it("returns 403 JSON for a plain 'user' role", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("user"));
+      const response = await proxy(new NextRequest("http://localhost/api/devserver/status"));
+      expect(response.status).toBe(403);
+    });
+
+    it("allows a 'developer' role through", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("developer"));
+      const response = await proxy(new NextRequest("http://localhost/api/devserver/status"));
+      expect(response.status).toBe(200);
     });
   });
 
@@ -213,6 +318,12 @@ describe("proxy() — route protection (proxy.ts, release hardening v1.0)", () =
       resolveSessionUserMock.mockReturnValue(userWithRole("user"));
       const response = await proxy(new NextRequest("http://localhost/login"));
       expect(new URL(response.headers.get("location")!).pathname).toBe("/");
+    });
+
+    it("sends a customer to /customer/dashboard (Customer Portal V1)", async () => {
+      resolveSessionUserMock.mockReturnValue(userWithRole("customer"));
+      const response = await proxy(new NextRequest("http://localhost/login"));
+      expect(new URL(response.headers.get("location")!).pathname).toBe("/customer/dashboard");
     });
 
     it("does not redirect an anonymous visitor away from /login", async () => {

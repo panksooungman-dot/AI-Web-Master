@@ -7,7 +7,7 @@ import {
 import type { Role } from "../../lib/auth/types";
 import { ROLES, isRole } from "../../lib/auth/types";
 
-const ALL_ROLES: Role[] = ["user", "admin", "developer", "super_admin"];
+const ALL_ROLES: Role[] = ["user", "admin", "developer", "super_admin", "customer"];
 
 describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
   describe("roleCanAccessArea() access matrix", () => {
@@ -30,6 +30,22 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(roleCanAccessArea("super_admin", "developer")).toBe(true);
       expect(roleCanAccessArea("super_admin", "admin")).toBe(true);
     });
+
+    it("customer can access the customer area only (Customer Portal V1)", () => {
+      expect(roleCanAccessArea("customer", "customer")).toBe(true);
+      expect(roleCanAccessArea("customer", "developer")).toBe(false);
+      expect(roleCanAccessArea("customer", "admin")).toBe(false);
+    });
+
+    it("developer/admin/user cannot access the customer area", () => {
+      expect(roleCanAccessArea("developer", "customer")).toBe(false);
+      expect(roleCanAccessArea("admin", "customer")).toBe(false);
+      expect(roleCanAccessArea("user", "customer")).toBe(false);
+    });
+
+    it("super_admin can also access the customer area", () => {
+      expect(roleCanAccessArea("super_admin", "customer")).toBe(true);
+    });
   });
 
   describe("resolveProtectedArea() — page routes", () => {
@@ -44,9 +60,17 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/admin/users")).toBe("admin");
     });
 
+    it("resolves /customer and nested paths to the customer area (Customer Portal V1)", () => {
+      expect(resolveProtectedArea("/customer")).toBe("customer");
+      expect(resolveProtectedArea("/customer/dashboard")).toBe("customer");
+      expect(resolveProtectedArea("/customer/orders")).toBe("customer");
+      expect(resolveProtectedArea("/customer/orders/abc123")).toBe("customer");
+    });
+
     it("does not match paths that merely start with the same characters", () => {
       expect(resolveProtectedArea("/developerish")).toBeNull();
       expect(resolveProtectedArea("/adminland")).toBeNull();
+      expect(resolveProtectedArea("/customerservice")).toBeNull();
     });
 
     it("does not gate /projects, public marketing pages, or /login", () => {
@@ -64,6 +88,11 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/admin/users")).toBe("admin");
     });
 
+    it("treats /api/customer/** as the customer area, not the developer catch-all (Customer Portal V1)", () => {
+      expect(resolveProtectedArea("/api/customer/orders")).toBe("customer");
+      expect(resolveProtectedArea("/api/customer/orders/abc123")).toBe("customer");
+    });
+
     it("treats other dashboard API routes as the developer area", () => {
       expect(resolveProtectedArea("/api/design/requirements")).toBe("developer");
       expect(resolveProtectedArea("/api/websites")).toBe("developer");
@@ -78,10 +107,14 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/auth/me")).toBeNull();
     });
 
-    it("leaves the documented CLI-compatibility exceptions ungated", () => {
+    it("leaves /api/workspaces and /api/terminal out of role-gating (Release Blocker fix: they are called by /projects and /projects/[id] for any authenticated role — see lib/auth/middleware.ts's PROTECTED_PREFIXES for the login-only gate that now covers them instead)", () => {
       expect(resolveProtectedArea("/api/workspaces")).toBeNull();
       expect(resolveProtectedArea("/api/terminal")).toBeNull();
-      expect(resolveProtectedArea("/api/devserver/status")).toBeNull();
+    });
+
+    it("no longer leaves /api/devserver ungated (Release Blocker fix: its only caller is /developer's DevServerManagerCard, developer role only — falls through to the developer-gated default)", () => {
+      expect(resolveProtectedArea("/api/devserver/status")).toBe("developer");
+      expect(resolveProtectedArea("/api/devserver/start")).toBe("developer");
     });
 
     it("leaves /api/projects ungated (backs /projects, which is outside RBAC scope)", () => {
@@ -136,20 +169,26 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
     it("sends user to the public home page", () => {
       expect(defaultLandingPathForRole("user")).toBe("/");
     });
+
+    it("sends customer to /customer/dashboard (Customer Portal V1)", () => {
+      expect(defaultLandingPathForRole("customer")).toBe("/customer/dashboard");
+    });
   });
 
-  describe("full role x area matrix (spec: user 403 both, admin admin-only, developer developer-only, super_admin both)", () => {
-    const expected: Record<Role, { developer: boolean; admin: boolean }> = {
-      user: { developer: false, admin: false },
-      admin: { developer: false, admin: true },
-      developer: { developer: true, admin: false },
-      super_admin: { developer: true, admin: true },
+  describe("full role x area matrix (spec: user 403 all, admin admin-only, developer developer-only, customer customer-only, super_admin all three)", () => {
+    const expected: Record<Role, { developer: boolean; admin: boolean; customer: boolean }> = {
+      user: { developer: false, admin: false, customer: false },
+      admin: { developer: false, admin: true, customer: false },
+      developer: { developer: true, admin: false, customer: false },
+      super_admin: { developer: true, admin: true, customer: true },
+      customer: { developer: false, admin: false, customer: true },
     };
 
     for (const role of ALL_ROLES) {
       it(`role "${role}" matches the spec exactly`, () => {
         expect(roleCanAccessArea(role, "developer")).toBe(expected[role].developer);
         expect(roleCanAccessArea(role, "admin")).toBe(expected[role].admin);
+        expect(roleCanAccessArea(role, "customer")).toBe(expected[role].customer);
       });
     }
   });

@@ -10,12 +10,17 @@ import type { Role } from "./types";
  * introduced, they are protected from day one without touching this file again.
  */
 
-export type ProtectedArea = "developer" | "admin";
+export type ProtectedArea = "developer" | "admin" | "customer";
 
-/** Which roles may access which protected area. super_admin has both; user has neither. */
+/**
+ * Which roles may access which protected area. super_admin has developer+admin+customer (superset
+ * role, same pattern as before); "customer" is its own area, not a superset/subset of
+ * developer/admin — a customer account never gains developer/admin access, and vice versa.
+ */
 const AREA_ROLES: Record<ProtectedArea, Role[]> = {
   developer: ["developer", "super_admin"],
   admin: ["admin", "super_admin"],
+  customer: ["customer", "super_admin"],
 };
 
 export function roleCanAccessArea(role: Role, area: ProtectedArea): boolean {
@@ -29,15 +34,26 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 const PAGE_AREA_PREFIXES: ReadonlyArray<readonly [string, ProtectedArea]> = [
   ["/admin", "admin"],
   ["/developer", "developer"],
+  ["/customer", "customer"],
 ];
 
 /**
  * API routes that must stay reachable without role gating:
  * - /api/auth — needed to log in at all (and to check/clear a session pre-auth)
- * - /api/workspaces, /api/terminal, /api/devserver — documented CLI-compatibility exception
- *   (CHANGELOG 2026-07-14): these were deliberately left unprotected because packages/cli
- *   ("ai devmode" etc.) and generated projects' dev tooling call them without a browser session.
- *   Preserved as-is here rather than re-litigated as part of this hardening pass.
+ * - /api/workspaces, /api/terminal — Release Blocker fix (Release Readiness Audit): the
+ *   CLI-compatibility justification previously documented here does not hold up against the
+ *   code — packages/cli spawns dev servers directly and never calls these Next.js API routes
+ *   (verified: no reference anywhere under packages/cli). The actual callers are this app's own
+ *   browser pages: /projects and /projects/[id] (lib/projects/status.ts's fetchGitStatus(), any
+ *   authenticated role — /projects is intentionally outside RBAC's role scope, see
+ *   lib/auth/middleware.ts) and /developer/workspace (developer role). Since /projects allows
+ *   any authenticated role, these two routes cannot be role-gated here without breaking that
+ *   page for non-developer users — instead they are login-gated (any role) via
+ *   lib/auth/middleware.ts's PROTECTED_PREFIXES, which proxy.ts checks. They stay in this
+ *   ungated-by-role list on purpose; they are not anonymous-reachable anymore.
+ * - /api/devserver — same audit found ONLY /developer's DevServerManagerCard calls this (developer
+ *   role only, no /projects usage) — removed from this list, now falls through to the default
+ *   "developer" area below like any other unlisted /api/** route.
  * - /api/projects — backs the /projects page, which is intentionally outside this RBAC's scope
  *   (any authenticated user, not gated by role).
  * - /api/external — [DEPRECATED, AI Business OS Rewiring] server-to-server ingestion originally
@@ -62,7 +78,6 @@ const UNGATED_API_PREFIXES = [
   "/api/auth",
   "/api/workspaces",
   "/api/terminal",
-  "/api/devserver",
   "/api/projects",
   "/api/external",
 ];
@@ -95,6 +110,10 @@ export function resolveProtectedArea(pathname: string, method?: string): Protect
 
   if (pathname.startsWith("/api/")) {
     if (matchesPrefix(pathname, "/api/admin")) return "admin";
+    // Customer Portal V1 — GET /api/customer/orders, GET /api/customer/orders/[id]. Without this
+    // check these would fall through to the catch-all "developer" area below (every unlisted
+    // /api/** route defaults to developer-gated) and no customer account could ever reach them.
+    if (matchesPrefix(pathname, "/api/customer")) return "customer";
     if (
       method &&
       UNGATED_EXACT_ROUTES.some((route) => route.method === method && route.path === pathname)
@@ -112,5 +131,6 @@ export function resolveProtectedArea(pathname: string, method?: string): Protect
 export function defaultLandingPathForRole(role: Role): string {
   if (role === "super_admin" || role === "developer") return "/developer";
   if (role === "admin") return "/admin";
+  if (role === "customer") return "/customer/dashboard";
   return "/";
 }

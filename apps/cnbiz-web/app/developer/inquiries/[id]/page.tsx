@@ -16,6 +16,7 @@ import type { ProjectRecord } from "@/lib/projects/registry";
 import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
+import type { ContractRecord } from "@/lib/contracts/types";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -58,6 +59,7 @@ export default function InquiryDetailPage() {
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
   const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
+  const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -70,6 +72,8 @@ export default function InquiryDetailPage() {
   const [specificationError, setSpecificationError] = useState<string | null>(null);
   const [isGeneratingTimeline, setIsGeneratingTimeline] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [isGeneratingContract, setIsGeneratingContract] = useState(false);
+  const [contractError, setContractError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -84,19 +88,27 @@ export default function InquiryDetailPage() {
         }
         setInquiry(data.inquiry);
 
-        const [clientResult, orderResult, jobsResult, estimatesResult, specificationsResult, timelinesResult] =
-          await Promise.all([
-            data.inquiry.clientId
-              ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
-              : Promise.resolve(null),
-            data.inquiry.websiteOrderId
-              ? fetch(`/api/website-orders/${data.inquiry.websiteOrderId}`).then((res) => res.json())
-              : Promise.resolve(null),
-            fetch("/api/ai-jobs").then((res) => res.json()),
-            fetch("/api/estimates").then((res) => res.json()),
-            fetch("/api/specifications").then((res) => res.json()),
-            fetch("/api/timeline").then((res) => res.json()),
-          ]);
+        const [
+          clientResult,
+          orderResult,
+          jobsResult,
+          estimatesResult,
+          specificationsResult,
+          timelinesResult,
+          contractsResult,
+        ] = await Promise.all([
+          data.inquiry.clientId
+            ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
+            : Promise.resolve(null),
+          data.inquiry.websiteOrderId
+            ? fetch(`/api/website-orders/${data.inquiry.websiteOrderId}`).then((res) => res.json())
+            : Promise.resolve(null),
+          fetch("/api/ai-jobs").then((res) => res.json()),
+          fetch("/api/estimates").then((res) => res.json()),
+          fetch("/api/specifications").then((res) => res.json()),
+          fetch("/api/timeline").then((res) => res.json()),
+          fetch("/api/contracts").then((res) => res.json()),
+        ]);
 
         setClient(clientResult?.client ?? null);
         const order: WebsiteOrderRecord | null = orderResult?.websiteOrder ?? null;
@@ -127,6 +139,9 @@ export default function InquiryDetailPage() {
 
         const allTimelines: TimelineRecord[] = timelinesResult?.timelines ?? [];
         setTimelines(allTimelines.filter((timeline) => timeline.inquiryId === data.inquiry!.id));
+
+        const allContracts: ContractRecord[] = contractsResult?.contracts ?? [];
+        setContracts(allContracts.filter((contract) => contract.inquiryId === data.inquiry!.id));
       })
       .catch(() => setLoadError("의뢰를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -275,6 +290,36 @@ export default function InquiryDetailPage() {
       setTimelineError("프로젝트 일정 생성 중 오류가 발생했습니다.");
     } finally {
       setIsGeneratingTimeline(false);
+    }
+  }
+
+  // 계약서 자동 생성 — 이미 생성된 기술 견적서·기능 명세서·프로젝트 일정을 입력으로 사용하는
+  // 별도 서비스(lib/contracts)를 호출한다. handleGenerateTimeline()과 완전히 동일한 패턴 —
+  // Customer Inquiry Pipeline(processJob() 등)과는 무관한 독립 기능이다.
+  async function handleGenerateContract() {
+    if (!inquiry) return;
+
+    setIsGeneratingContract(true);
+    setContractError(null);
+
+    try {
+      const res = await fetch("/api/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: inquiry.id }),
+      });
+      const data: { success: boolean; contract?: ContractRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.contract) {
+        setContractError(data.error ?? "계약서 생성에 실패했습니다.");
+        return;
+      }
+
+      setContracts((prev) => [data.contract!, ...prev]);
+    } catch {
+      setContractError("계약서 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingContract(false);
     }
   }
 
@@ -584,6 +629,56 @@ export default function InquiryDetailPage() {
           </div>
         )}
         {timelineError && <StatusMessage tone="error" className="mt-3">{timelineError}</StatusMessage>}
+      </Card>
+
+      <Card
+        title="계약서"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleGenerateContract}
+            disabled={
+              !inquiry.analysis ||
+              estimates.length === 0 ||
+              specifications.length === 0 ||
+              timelines.length === 0 ||
+              isGeneratingContract
+            }
+            className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isGeneratingContract ? "생성 중..." : "계약서 생성"}
+          </button>
+        }
+      >
+        {!inquiry.analysis ? (
+          <p className="text-gray-500 text-sm">AI 분석이 완료된 후 계약서를 생성할 수 있습니다.</p>
+        ) : estimates.length === 0 || specifications.length === 0 || timelines.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            기술 견적서·기능 명세서·프로젝트 일정을 먼저 생성해야 계약서를 만들 수 있습니다.
+          </p>
+        ) : contracts.length === 0 ? (
+          <p className="text-gray-500 text-sm">아직 생성된 계약서가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {contracts.map((contract) => (
+              <Link
+                key={contract.id}
+                href={`/developer/contracts/${contract.id}`}
+                className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 hover:border-purple-600 transition-colors"
+              >
+                <Badge tone="purple">
+                  {contract.result.contractAmount.amount.toLocaleString()}
+                  {contract.result.contractAmount.currency}
+                </Badge>
+                {contract.simulated && <Badge tone="warning">Simulated</Badge>}
+                <span className="text-xs text-gray-500 ml-auto">
+                  {new Date(contract.createdAt).toLocaleString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {contractError && <StatusMessage tone="error" className="mt-3">{contractError}</StatusMessage>}
       </Card>
 
       <Card title="파이프라인 진행 상황" className="mb-6">

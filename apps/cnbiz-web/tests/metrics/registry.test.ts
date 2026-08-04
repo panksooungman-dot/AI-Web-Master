@@ -40,6 +40,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       estimateGenerationCount: 0,
       specificationGenerationCount: 0,
       timelineGenerationCount: 0,
+      contractGenerationCount: 0,
     });
   });
 
@@ -196,5 +197,15 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.timelineGenerationCount).toBe(2);
     expect(counters.specificationGenerationCount).toBe(0);
     expect(counters.estimateGenerationCount).toBe(0);
+  });
+
+  it("incrementMetric() increments contractGenerationCount independently of other counters", async () => {
+    await incrementMetric("contractGenerationCount", undefined, store);
+    await incrementMetric("contractGenerationCount", undefined, store);
+
+    const counters = await readMetrics(store);
+    expect(counters.contractGenerationCount).toBe(2);
+    expect(counters.timelineGenerationCount).toBe(0);
+    expect(counters.specificationGenerationCount).toBe(0);
   });
 });

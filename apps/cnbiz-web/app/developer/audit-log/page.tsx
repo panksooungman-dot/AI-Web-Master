@@ -50,6 +50,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "estimate.generate": "기술 견적서 생성",
   "specification.generate": "기능 명세서 생성",
   "timeline.generate": "프로젝트 일정 생성",
+  "contract.generate": "계약서 생성",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -91,6 +92,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "estimate.generate": "purple",
   "specification.generate": "purple",
   "timeline.generate": "purple",
+  "contract.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [

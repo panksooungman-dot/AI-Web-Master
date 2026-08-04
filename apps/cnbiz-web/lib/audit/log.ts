@@ -46,7 +46,8 @@ export type AuditAction =
   | "deployment.notify_customer"
   | "estimate.generate"
   | "specification.generate"
-  | "timeline.generate";
+  | "timeline.generate"
+  | "contract.generate";
 
 export interface AuditEntry {
   id: string;

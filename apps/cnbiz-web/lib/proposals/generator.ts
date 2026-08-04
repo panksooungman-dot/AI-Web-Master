@@ -1,4 +1,5 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { extractJsonPayload } from "@/lib/ai/json";
 import type {
   ProposalCost,
   ProposalFeature,
@@ -11,11 +12,14 @@ import type {
 const SYSTEM_PROMPT =
   "You are a senior proposal writer for AI Business OS. Given a project's detected business type, " +
   "requirements, pages, features, tech stack, development scope, deliverables, price range, total " +
-  "duration, milestones, and contract amount, produce a single JSON object (no prose, no markdown " +
-  "fences) with exactly these keys: title, executiveSummary, overview, requirementsAnalysis, " +
-  "objectives, solutionOverview, pages, features, techStack, schedule, cost, developmentScope, " +
-  "deliverables, maintenancePlan, expectedBenefits, companyIntroduction, contactInfo. Prices are in " +
-  "Korean Won(KRW). Do not invent facts the input does not support.";
+  "duration, milestones, and contract amount, produce a single JSON object with exactly these keys: " +
+  "title, executiveSummary, overview, requirementsAnalysis, objectives, solutionOverview, pages, " +
+  "features, techStack, schedule, cost, developmentScope, deliverables, maintenancePlan, " +
+  "expectedBenefits, companyIntroduction, contactInfo. Respond with ONLY that JSON object — no prose " +
+  "before or after it, no markdown code fences, no explanations. Your entire response must be valid " +
+  "JSON parseable by JSON.parse(), with no trailing commas and no comments. Keep free-text fields " +
+  "concise (2-4 sentences each) so the full object fits comfortably within the response limit. " +
+  "Prices are in Korean Won(KRW). Do not invent facts the input does not support.";
 
 function buildProposalPrompt(input: ProposalInput): string {
   return `회사명: ${input.companyName}
@@ -53,13 +57,6 @@ Return ONLY a JSON object shaped like:
   "companyIntroduction": string (회사 소개),
   "contactInfo": string (문의 정보)
 }`;
-}
-
-/** ```json ... ``` 코드펜스로 감싸서 응답하는 모델 습관을 방어적으로 벗겨낸다(lib/estimates/generator.ts와 동일). */
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced ? fenced[1] : trimmed;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -126,7 +123,7 @@ function parseAiProposal(raw: string): ProposalJudgment | null {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(stripCodeFence(raw));
+    parsed = JSON.parse(extractJsonPayload(raw));
   } catch {
     return null;
   }

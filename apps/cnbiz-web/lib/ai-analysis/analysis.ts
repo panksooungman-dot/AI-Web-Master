@@ -1,15 +1,9 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { extractJsonPayload } from "@/lib/ai/json";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 import { computeCompleteness } from "./score";
 import { AI_ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt } from "./prompts";
 import type { AIAnalysisInput, AIAnalysisResult } from "./types";
-
-/** ```json ... ``` 코드펜스로 감싸서 응답하는 모델 습관을 방어적으로 벗겨낸다(lib/design/generator.ts와 동일). */
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced ? fenced[1] : trimmed;
-}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -37,7 +31,7 @@ function parseAiJudgment(raw: string): AiJudgment | null {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(stripCodeFence(raw));
+    parsed = JSON.parse(extractJsonPayload(raw));
   } catch {
     return null;
   }

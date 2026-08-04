@@ -12,7 +12,13 @@ export interface AIProvider {
   chatStream?(request: ChatRequest): AsyncGenerator<ChatStreamChunk>;
 }
 
-const DEFAULT_TIMEOUT_MS = 15000;
+// 15s was tuned for short conversational replies. Structured-JSON callers (apps/cnbiz-web's
+// document generators) can legitimately take longer to finish generating a large JSON payload —
+// especially now that anthropic.ts's max_tokens default was raised from 1024 to 4096 — and were
+// hitting TIMEOUT (itself retried, then falling back) even on slow-but-otherwise-successful calls.
+// 45s keeps the retry policy's own semantics (TIMEOUT/429/5xx are retryable) meaningful instead of
+// firing on ordinary generation latency.
+const DEFAULT_TIMEOUT_MS = 45000;
 const DEFAULT_RETRIES = 2;
 const DEFAULT_BASE_DELAY_MS = 300;
 

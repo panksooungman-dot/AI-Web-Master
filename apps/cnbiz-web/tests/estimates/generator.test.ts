@@ -107,6 +107,17 @@ describe("Estimate Generator — generateEstimate()", () => {
     expect(outcome.result.summary).toBe(VALID_JUDGMENT.summary);
   });
 
+  it("still succeeds (simulated:false) when the model wraps the fence in leading/trailing prose (real-model habit, lib/ai/json.ts)", async () => {
+    const withProse =
+      "Here is the estimate:\n```json\n" + JSON.stringify(VALID_JUDGMENT) + "\n```\nLet me know if you need adjustments.";
+    const fakeChat = async (): Promise<ChatResult> => ({ success: true, content: withProse });
+
+    const outcome = await generateEstimate(BASE_INPUT, fakeChat);
+
+    expect(outcome.simulated).toBe(false);
+    expect(outcome.result.summary).toBe(VALID_JUDGMENT.summary);
+  });
+
   it("scales the deterministic fallback estimate with more recommended pages/functions", async () => {
     const fakeChat = async (): Promise<ChatResult> => ({ success: false, error: "no provider" });
 

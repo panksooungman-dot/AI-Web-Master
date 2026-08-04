@@ -107,6 +107,17 @@ describe("AI Analysis — generateAnalysis()", () => {
     expect(outcome.result.detectedBusinessType).toBe("Restaurant");
   });
 
+  it("still succeeds (simulated:false) when the model wraps the fence in leading/trailing prose (real-model habit, lib/ai/json.ts)", async () => {
+    const withProse =
+      "Here is my analysis:\n```json\n" + JSON.stringify(VALID_JUDGMENT) + "\n```\nLet me know if you need more detail.";
+    const fakeChat = async (): Promise<ChatResult> => ({ success: true, content: withProse });
+
+    const outcome = await generateAnalysis(BASE_INPUT, fakeChat);
+
+    expect(outcome.simulated).toBe(false);
+    expect(outcome.result.detectedBusinessType).toBe("Restaurant");
+  });
+
   it("falls back to the industry field when siteType has no WEBSITE_TYPES match", async () => {
     const fakeChat = async (): Promise<ChatResult> => ({ success: false, error: "no provider" });
     const outcome = await generateAnalysis({ ...BASE_INPUT, siteType: "unknown-type" }, fakeChat);

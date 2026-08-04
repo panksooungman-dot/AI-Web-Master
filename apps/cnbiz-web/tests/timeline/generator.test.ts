@@ -118,6 +118,17 @@ describe("Timeline Generator — generateTimeline()", () => {
     expect(outcome.result.overview).toBe(VALID_JUDGMENT.overview);
   });
 
+  it("still succeeds (simulated:false) when the model wraps the fence in leading/trailing prose (real-model habit, lib/ai/json.ts)", async () => {
+    const withProse =
+      "Here is the timeline:\n```json\n" + JSON.stringify(VALID_JUDGMENT) + "\n```\nLet me know if you need adjustments.";
+    const fakeChat = async (): Promise<ChatResult> => ({ success: true, content: withProse });
+
+    const outcome = await generateTimeline(BASE_INPUT, fakeChat);
+
+    expect(outcome.simulated).toBe(false);
+    expect(outcome.result.overview).toBe(VALID_JUDGMENT.overview);
+  });
+
   it("scales the deterministic fallback timeline with more pages/features", async () => {
     const fakeChat = async (): Promise<ChatResult> => ({ success: false, error: "no provider" });
 

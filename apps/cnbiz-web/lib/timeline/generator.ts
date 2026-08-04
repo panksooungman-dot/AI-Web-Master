@@ -1,4 +1,5 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { extractJsonPayload } from "@/lib/ai/json";
 import type {
   TimelineInput,
   TimelineJudgment,
@@ -11,9 +12,11 @@ import type {
 const SYSTEM_PROMPT =
   "You are a senior project manager for AI Business OS. Given a project's detected business type, " +
   "requirements, page count, feature count, development scope, and a rough technical-estimate " +
-  "timeline (in weeks), produce a single JSON object (no prose, no markdown fences) with exactly " +
-  "these keys: overview, totalDurationWeeks, totalDurationDays, phases, milestones, weeklyPlan, " +
-  "assumptions. Do not invent requirements the input does not support.";
+  "timeline (in weeks), produce a single JSON object with exactly these keys: overview, " +
+  "totalDurationWeeks, totalDurationDays, phases, milestones, weeklyPlan, assumptions. Respond with " +
+  "ONLY that JSON object — no prose before or after it, no markdown code fences, no explanations. " +
+  "Your entire response must be valid JSON parseable by JSON.parse(), with no trailing commas and no " +
+  "comments. Do not invent requirements the input does not support.";
 
 function buildTimelinePrompt(input: TimelineInput): string {
   return `회사명: ${input.companyName}
@@ -35,13 +38,6 @@ Return ONLY a JSON object shaped like:
   "weeklyPlan": [{ "weekNumber": number, "focus": string, "tasks": string[] }] (Week 1부터 순서대로),
   "assumptions": string[]
 }`;
-}
-
-/** ```json ... ``` 코드펜스로 감싸서 응답하는 모델 습관을 방어적으로 벗겨낸다(lib/estimates/generator.ts와 동일). */
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced ? fenced[1] : trimmed;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -108,7 +104,7 @@ function parseAiTimeline(raw: string): TimelineJudgment | null {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(stripCodeFence(raw));
+    parsed = JSON.parse(extractJsonPayload(raw));
   } catch {
     return null;
   }

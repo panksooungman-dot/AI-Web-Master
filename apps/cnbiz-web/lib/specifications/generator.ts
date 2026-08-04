@@ -1,4 +1,5 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { extractJsonPayload } from "@/lib/ai/json";
 import type {
   SpecApiEndpoint,
   SpecFeature,
@@ -12,9 +13,11 @@ import type {
 const SYSTEM_PROMPT =
   "You are a senior functional spec writer for AI Business OS. Given a project's detected business " +
   "type, recommended pages, recommended functions, and customer requirements, produce a single " +
-  "JSON object (no prose, no markdown fences) with exactly these keys: overview, pages, features, " +
-  "adminFeatures, apis, dbOverview, scopeIncluded, scopeExcluded, techStack, deliverables. Do not " +
-  "invent requirements the input does not support.";
+  "JSON object with exactly these keys: overview, pages, features, adminFeatures, apis, dbOverview, " +
+  "scopeIncluded, scopeExcluded, techStack, deliverables. Respond with ONLY that JSON object — no " +
+  "prose before or after it, no markdown code fences, no explanations. Your entire response must be " +
+  "valid JSON parseable by JSON.parse(), with no trailing commas and no comments. Do not invent " +
+  "requirements the input does not support.";
 
 function buildSpecificationPrompt(input: SpecificationInput): string {
   return `회사명: ${input.companyName}
@@ -37,13 +40,6 @@ Return ONLY a JSON object shaped like:
   "techStack": string[],
   "deliverables": string[] (산출물)
 }`;
-}
-
-/** ```json ... ``` 코드펜스로 감싸서 응답하는 모델 습관을 방어적으로 벗겨낸다(lib/estimates/generator.ts와 동일). */
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced ? fenced[1] : trimmed;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -108,7 +104,7 @@ function parseAiSpecification(raw: string): SpecificationJudgment | null {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(stripCodeFence(raw));
+    parsed = JSON.parse(extractJsonPayload(raw));
   } catch {
     return null;
   }

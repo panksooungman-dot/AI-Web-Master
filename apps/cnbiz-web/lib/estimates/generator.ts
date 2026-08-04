@@ -1,12 +1,15 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { extractJsonPayload } from "@/lib/ai/json";
 import type { EstimateInput, EstimateJudgment, EstimateLineItem, EstimateResult } from "./types";
 
 const SYSTEM_PROMPT =
   "You are a senior technical estimator for AI Business OS. Given a project's detected business " +
   "type, recommended pages, recommended functions, and customer requirements, produce a single " +
-  "JSON object (no prose, no markdown fences) with exactly these keys: lineItems, priceRangeMin, " +
-  "priceRangeMax, timelineWeeks, assumptions, summary. Prices are in Korean Won(KRW). Do not invent " +
-  "requirements the input does not support.";
+  "JSON object with exactly these keys: lineItems, priceRangeMin, priceRangeMax, timelineWeeks, " +
+  "assumptions, summary. Respond with ONLY that JSON object — no prose before or after it, no " +
+  "markdown code fences, no explanations. Your entire response must be valid JSON parseable by " +
+  "JSON.parse(), with no trailing commas and no comments. Prices are in Korean Won(KRW). Do not " +
+  "invent requirements the input does not support.";
 
 function buildEstimatePrompt(input: EstimateInput): string {
   return `회사명: ${input.companyName}
@@ -26,13 +29,6 @@ Return ONLY a JSON object shaped like:
   "assumptions": string[],
   "summary": string (한국어 2~4문장 요약)
 }`;
-}
-
-/** ```json ... ``` 코드펜스로 감싸서 응답하는 모델 습관을 방어적으로 벗겨낸다(lib/design/generator.ts와 동일). */
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced ? fenced[1] : trimmed;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -66,7 +62,7 @@ function parseAiEstimate(raw: string): EstimateJudgment | null {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(stripCodeFence(raw));
+    parsed = JSON.parse(extractJsonPayload(raw));
   } catch {
     return null;
   }

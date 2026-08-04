@@ -43,7 +43,12 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
       model,
       system: system || undefined,
       messages: conversation.length > 0 ? conversation : [{ role: "user", content: "Proceed." }],
-      max_tokens: request.maxTokens ?? 1024,
+      // Anthropic requires max_tokens (unlike OpenAI/Gemini/OpenRouter, which omit the cap entirely
+      // when request.maxTokens is undefined). 1024 was too low a default for structured-JSON callers
+      // (apps/cnbiz-web's Estimate/Specification/Timeline/Contract/Proposal generators can need
+      // 2000-3000+ output tokens for their larger schemas) and would silently truncate mid-JSON,
+      // guaranteeing a JSON.parse failure. 4096 gives realistic headroom for those payloads.
+      max_tokens: request.maxTokens ?? 4096,
       temperature: request.temperature,
       stream
     });

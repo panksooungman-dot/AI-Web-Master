@@ -132,6 +132,17 @@ describe("Proposal Generator — generateProposal()", () => {
     expect(outcome.result.title).toBe(VALID_JUDGMENT.title);
   });
 
+  it("still succeeds (simulated:false) when the model wraps the fence in leading/trailing prose (real-model habit, lib/ai/json.ts)", async () => {
+    const withProse =
+      "Here is the proposal:\n```json\n" + JSON.stringify(VALID_JUDGMENT) + "\n```\nLet me know if you need adjustments.";
+    const fakeChat = async (): Promise<ChatResult> => ({ success: true, content: withProse });
+
+    const outcome = await generateProposal(BASE_INPUT, fakeChat);
+
+    expect(outcome.simulated).toBe(false);
+    expect(outcome.result.title).toBe(VALID_JUDGMENT.title);
+  });
+
   it("scales the deterministic fallback pages/features with the specification input", async () => {
     const fakeChat = async (): Promise<ChatResult> => ({ success: false, error: "no provider" });
 

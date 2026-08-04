@@ -17,6 +17,7 @@ import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
 import type { ContractRecord } from "@/lib/contracts/types";
+import type { ProposalRecord } from "@/lib/proposals/types";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -60,6 +61,7 @@ export default function InquiryDetailPage() {
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
   const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -74,6 +76,8 @@ export default function InquiryDetailPage() {
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [isGeneratingContract, setIsGeneratingContract] = useState(false);
   const [contractError, setContractError] = useState<string | null>(null);
+  const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
+  const [proposalError, setProposalError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -96,6 +100,7 @@ export default function InquiryDetailPage() {
           specificationsResult,
           timelinesResult,
           contractsResult,
+          proposalsResult,
         ] = await Promise.all([
           data.inquiry.clientId
             ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
@@ -108,6 +113,7 @@ export default function InquiryDetailPage() {
           fetch("/api/specifications").then((res) => res.json()),
           fetch("/api/timeline").then((res) => res.json()),
           fetch("/api/contracts").then((res) => res.json()),
+          fetch("/api/proposals").then((res) => res.json()),
         ]);
 
         setClient(clientResult?.client ?? null);
@@ -142,6 +148,9 @@ export default function InquiryDetailPage() {
 
         const allContracts: ContractRecord[] = contractsResult?.contracts ?? [];
         setContracts(allContracts.filter((contract) => contract.inquiryId === data.inquiry!.id));
+
+        const allProposals: ProposalRecord[] = proposalsResult?.proposals ?? [];
+        setProposals(allProposals.filter((proposal) => proposal.inquiryId === data.inquiry!.id));
       })
       .catch(() => setLoadError("의뢰를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -320,6 +329,36 @@ export default function InquiryDetailPage() {
       setContractError("계약서 생성 중 오류가 발생했습니다.");
     } finally {
       setIsGeneratingContract(false);
+    }
+  }
+
+  // 제안서 자동 생성 — 이미 생성된 기술 견적서·기능 명세서·프로젝트 일정·계약서를 입력으로
+  // 사용하는 별도 서비스(lib/proposals)를 호출한다. handleGenerateContract()와 완전히 동일한
+  // 패턴 — Customer Inquiry Pipeline(processJob() 등)과는 무관한 독립 기능이다.
+  async function handleGenerateProposal() {
+    if (!inquiry) return;
+
+    setIsGeneratingProposal(true);
+    setProposalError(null);
+
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: inquiry.id }),
+      });
+      const data: { success: boolean; proposal?: ProposalRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.proposal) {
+        setProposalError(data.error ?? "제안서 생성에 실패했습니다.");
+        return;
+      }
+
+      setProposals((prev) => [data.proposal!, ...prev]);
+    } catch {
+      setProposalError("제안서 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingProposal(false);
     }
   }
 
@@ -679,6 +718,57 @@ export default function InquiryDetailPage() {
           </div>
         )}
         {contractError && <StatusMessage tone="error" className="mt-3">{contractError}</StatusMessage>}
+      </Card>
+
+      <Card
+        title="제안서"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleGenerateProposal}
+            disabled={
+              !inquiry.analysis ||
+              estimates.length === 0 ||
+              specifications.length === 0 ||
+              timelines.length === 0 ||
+              contracts.length === 0 ||
+              isGeneratingProposal
+            }
+            className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isGeneratingProposal ? "생성 중..." : "제안서 생성"}
+          </button>
+        }
+      >
+        {!inquiry.analysis ? (
+          <p className="text-gray-500 text-sm">AI 분석이 완료된 후 제안서를 생성할 수 있습니다.</p>
+        ) : estimates.length === 0 || specifications.length === 0 || timelines.length === 0 || contracts.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            기술 견적서·기능 명세서·프로젝트 일정·계약서를 먼저 생성해야 제안서를 만들 수 있습니다.
+          </p>
+        ) : proposals.length === 0 ? (
+          <p className="text-gray-500 text-sm">아직 생성된 제안서가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {proposals.map((proposal) => (
+              <Link
+                key={proposal.id}
+                href={`/developer/proposals/${proposal.id}`}
+                className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 hover:border-purple-600 transition-colors"
+              >
+                <Badge tone="purple">
+                  {proposal.result.cost.amount.toLocaleString()}
+                  {proposal.result.cost.currency}
+                </Badge>
+                {proposal.simulated && <Badge tone="warning">Simulated</Badge>}
+                <span className="text-xs text-gray-500 ml-auto">
+                  {new Date(proposal.createdAt).toLocaleString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {proposalError && <StatusMessage tone="error" className="mt-3">{proposalError}</StatusMessage>}
       </Card>
 
       <Card title="파이프라인 진행 상황" className="mb-6">

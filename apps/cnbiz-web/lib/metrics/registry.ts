@@ -43,6 +43,8 @@ export interface MetricsCounters {
   timelineGenerationCount: number;
   /** 계약서 자동 생성(lib/contracts) 신규 — 기존 20개 필드는 무변경. */
   contractGenerationCount: number;
+  /** 제안서 자동 생성(lib/proposals) 신규 — 기존 21개 필드는 무변경. */
+  proposalGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -69,6 +71,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   specificationGenerationCount: 0,
   timelineGenerationCount: 0,
   contractGenerationCount: 0,
+  proposalGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

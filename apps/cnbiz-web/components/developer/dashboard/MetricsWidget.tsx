@@ -37,6 +37,7 @@ export function MetricsWidget() {
           specificationGenerationCount: 0,
           timelineGenerationCount: 0,
           contractGenerationCount: 0,
+          proposalGenerationCount: 0,
         })
       );
   }, []);
@@ -138,6 +139,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Contracts Generated</span>
             <span className="text-gray-200">{counters.contractGenerationCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Proposals Generated</span>
+            <span className="text-gray-200">{counters.proposalGenerationCount}</span>
           </li>
         </ul>
       )}

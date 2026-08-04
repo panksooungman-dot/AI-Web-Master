@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-04 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `ce4d613` 기준)
+> 최종 분석: 2026-08-04 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `7434980` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -44,7 +44,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
-| Development OS 대시보드 | 96% | `/developer/**` 46개 페이지 실동작(기술 견적서 관리 `/developer/estimates`·`/developer/estimates/[id]`, 기능 명세서 관리 `/developer/specifications`·`/developer/specifications/[id]`, 프로젝트 타임라인 관리 `/developer/timeline`·`/developer/timeline/[id]`, **계약서 관리 `/developer/contracts`·`/developer/contracts/[id]` 신규 추가**). AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`)이 실제 `POST /api/inquiries` 호출로 연결됨(이메일 필드 포함), 의뢰 상세에서 **기술 견적서·기능 명세서·프로젝트 타임라인·계약서 생성·조회 가능**(신규). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세·`/projects`에서 연결된 레코드는 확인 가능) |
+| Development OS 대시보드 | 97% | `/developer/**` 48개 페이지 실동작(기술 견적서 관리 `/developer/estimates`·`/developer/estimates/[id]`, 기능 명세서 관리 `/developer/specifications`·`/developer/specifications/[id]`, 프로젝트 타임라인 관리 `/developer/timeline`·`/developer/timeline/[id]`, 계약서 관리 `/developer/contracts`·`/developer/contracts/[id]`, **제안서 관리 `/developer/proposals`·`/developer/proposals/[id]` 신규 추가**). AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`)이 실제 `POST /api/inquiries` 호출로 연결됨(이메일 필드 포함), 의뢰 상세에서 **기술 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 생성·조회 가능**(신규). Client/WebsiteOrder/AiJob 전용 목록 화면만 아직 없음(Inquiry 상세·`/projects`에서 연결된 레코드는 확인 가능) |
 | AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
 | **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). "고객 프로젝트"는 별도 Domain 없이 `ProjectRecord.websiteOrderId`로 식별하는 구조로 확정. 알려진 사소한 결함 1건은 아래 "🚧" 섹션 참고(파이프라인 동작에는 영향 없음) |
 | 인증/권한 | 82% | 세션 인증 + RBAC 4-role + 정확한 (method,path) 단위 예외(`POST /api/inquiries`) 완비. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated`(아래 참고) |
@@ -120,6 +120,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **제안서(Proposal) 자동 생성 구현 — 자동 문서화 체인 최종 완결**(2026-08-04) — `lib/proposals/{types,generator,registry}.ts` 신규로 Inquiry.analysis뿐 아니라 EstimateRecord·SpecificationRecord·TimelineRecord·ContractRecord까지 전부 입력으로 사용하는 별도 서비스를 `lib/contracts/*`와 동일한 패턴으로 추가했다(기존 `AiJobType`·`AiJobStatus`·Customer Inquiry Pipeline 코드는 무변경). 견적서의 비용·명세서의 페이지/기능/범위·타임라인의 기간·계약서의 계약 금액/유지보수 조건을 종합해 고객 제안서(요약·강점·비용·일정·다음 단계)를 산출하며, `chatViaCli()` Provider 브릿지를 재사용하고 Provider 미설정/파싱 실패 시 결정론적 폴백으로 전부-아니면-전무 처리한다. `POST/GET /api/proposals`·`GET /api/proposals/[id]`(신규), `/developer/proposals`(목록)·`/developer/proposals/[id]`(상세) 신규 페이지, `/developer/inquiries/[id]`에 제안서 생성·조회 연동 추가(견적서·명세서·타임라인·계약서 넷 다 있어야 생성 가능). `lib/audit/log.ts`에 `proposal.generate` 액션, `lib/metrics/registry.ts`에 `proposalGenerationCount` 카운터 추가(Audit Log·Errors·Metrics 화면 반영). 신규 테스트(`tests/proposals/{generator,registry}.test.ts`, `tests/metrics/registry.test.ts` 보강) 포함 — 견적서→명세서→타임라인→계약서→제안서로 이어지는 자동 문서화 체인을 최종 완결했다.
 - **계약서(Contract) 자동 생성 구현 — 자동 문서화 체인 완결**(2026-08-04) — `lib/contracts/{types,generator,registry}.ts` 신규로 Inquiry.analysis뿐 아니라 이미 생성된 EstimateRecord·SpecificationRecord·TimelineRecord까지 입력으로 사용하는 별도 서비스를 `lib/estimates/*`·`lib/specifications/*`·`lib/timeline/*`와 동일한 패턴으로 추가했다(기존 `AiJobType`·`AiJobStatus`·Customer Inquiry Pipeline 코드는 무변경). 견적서의 금액·명세서의 범위/산출물·타임라인의 기간/마일스톤을 종합해 계약 조건(계약 금액·범위·기간·마일스톤명)을 산출하며, `chatViaCli()` Provider 브릿지를 재사용하고 Provider 미설정/파싱 실패 시 결정론적 폴백으로 전부-아니면-전무 처리한다. `POST/GET /api/contracts`·`GET /api/contracts/[id]`(신규), `/developer/contracts`(목록)·`/developer/contracts/[id]`(상세, Export) 신규 페이지, `/developer/inquiries/[id]`에 계약서 생성·조회 연동 추가(견적서·명세서·타임라인 셋 다 있어야 생성 가능). `lib/audit/log.ts`에 `contract.generate` 액션, `lib/metrics/registry.ts`에 `contractGenerationCount` 카운터 추가(Audit Log·Errors·Metrics 화면 반영). 신규 테스트(`tests/contracts/{generator,registry}.test.ts`, `tests/metrics/registry.test.ts` 보강) 포함 — 견적서→명세서→타임라인→계약서로 이어지는 자동 문서화 체인을 완결했다.
 - **프로젝트 타임라인(Timeline) 자동 생성 구현**(2026-08-04) — `lib/timeline/{types,generator,registry}.ts` 신규로 Inquiry.analysis(AI Analysis Engine 산출물)뿐 아니라 이미 생성된 EstimateRecord·SpecificationRecord도 입력으로 사용하는 별도 서비스를 `lib/estimates/*`·`lib/specifications/*`와 동일한 패턴으로 추가했다(기존 `AiJobType`·`AiJobStatus`·Customer Inquiry Pipeline 코드는 무변경). 견적서의 `timelineWeeks`와 명세서의 페이지/기능 수·범위를 함께 반영해 Phase별 일정을 산출하며, `chatViaCli()` Provider 브릿지를 재사용하고 Provider 미설정/파싱 실패 시 결정론적 폴백으로 전부-아니면-전무 처리한다. `POST/GET /api/timeline`·`GET /api/timeline/[id]`(신규), `/developer/timeline`(목록)·`/developer/timeline/[id]`(상세) 신규 페이지, `/developer/inquiries/[id]`에 타임라인 생성·조회 연동 추가(견적서·명세서 둘 다 있어야 생성 가능). `lib/audit/log.ts`에 `timeline.generate` 액션, `lib/metrics/registry.ts`에 `timelineGenerationCount` 카운터 추가(Audit Log·Errors·Metrics 화면 반영). 신규 테스트(`tests/timeline/{generator,registry}.test.ts`, `tests/metrics/registry.test.ts` 보강) 포함, 다음 작업 우선순위 3번(프로젝트 타임라인 생성)을 해소했다.
 - **기능 명세서(Specification) 자동 생성 구현**(2026-08-04) — `lib/specifications/{types,generator,registry}.ts` 신규로 Inquiry.analysis(AI Analysis Engine 산출물)를 입력받아 페이지 구조·기능 목록·범위 밖 항목·가정 사항을 생성하는 별도 서비스를 `lib/estimates/*`와 동일한 패턴으로 추가했다(기존 `AiJobType`·`AiJobStatus`·Customer Inquiry Pipeline 코드는 무변경). `chatViaCli()` Provider 브릿지를 재사용하며 Provider 미설정/파싱 실패 시 결정론적 폴백으로 전부-아니면-전무 처리한다. `POST/GET /api/specifications`·`GET /api/specifications/[id]`(신규), `/developer/specifications`(목록)·`/developer/specifications/[id]`(상세) 신규 페이지, `/developer/inquiries/[id]`에 명세서 생성·조회 연동 추가. `lib/audit/log.ts`에 `specification.generate` 액션, `lib/metrics/registry.ts`에 `specificationGenerationCount` 카운터 추가(Audit Log·Errors·Metrics 화면 반영). 신규 테스트(`tests/specifications/{generator,registry}.test.ts`, `tests/metrics/registry.test.ts` 보강) 포함, 다음 작업 우선순위 3번(기능 명세서 생성)을 해소했다.
@@ -276,13 +277,13 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 > `GITHUB_TOKEN`/`VERCEL_TOKEN` 설정 + 실 계정 E2E 검증은 2026-08-03 `FINAL_E2E_REPORT_v5.md`로
 > 완료되어 목록에서 제거했습니다. "고객 URL 전달" 기능도 같은 날 Lifecycle Extension Point +
 > customer-notification Hook으로 구현되어 목록에서 제거했습니다. 자동 문서화 체인(기술
-> 견적서·기능 명세서·프로젝트 타임라인·계약서 4종)도 2026-08-03~04에 걸쳐 `lib/estimates/*`·
-> `lib/specifications/*`·`lib/timeline/*`·`lib/contracts/*`로 전부 구현되어 목록에서
-> 제거했습니다.
+> 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 5종)도 2026-08-03~04에 걸쳐 `lib/estimates/*`·
+> `lib/specifications/*`·`lib/timeline/*`·`lib/contracts/*`·`lib/proposals/*`로 전부 구현되어
+> 목록에서 제거했습니다.
 
 1. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
 2. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
-3. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
+3. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
 4. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
 5. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
 6. **회원가입 백엔드 + 역할관리 UI**

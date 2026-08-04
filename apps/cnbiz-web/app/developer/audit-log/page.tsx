@@ -49,6 +49,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "deployment.notify_customer": "고객 URL 전달",
   "estimate.generate": "기술 견적서 생성",
   "specification.generate": "기능 명세서 생성",
+  "timeline.generate": "프로젝트 일정 생성",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -89,6 +90,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "deployment.notify_customer": "success",
   "estimate.generate": "purple",
   "specification.generate": "purple",
+  "timeline.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [

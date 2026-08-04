@@ -39,6 +39,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       designWebsiteBuildCount: 0,
       estimateGenerationCount: 0,
       specificationGenerationCount: 0,
+      timelineGenerationCount: 0,
     });
   });
 
@@ -185,5 +186,15 @@ describe("Metrics — lib/metrics/registry.ts", () => {
     expect(counters.specificationGenerationCount).toBe(2);
     expect(counters.estimateGenerationCount).toBe(0);
     expect(counters.aiTaskCount).toBe(0);
+  });
+
+  it("incrementMetric() increments timelineGenerationCount independently of other counters", async () => {
+    await incrementMetric("timelineGenerationCount", undefined, store);
+    await incrementMetric("timelineGenerationCount", undefined, store);
+
+    const counters = await readMetrics(store);
+    expect(counters.timelineGenerationCount).toBe(2);
+    expect(counters.specificationGenerationCount).toBe(0);
+    expect(counters.estimateGenerationCount).toBe(0);
   });
 });

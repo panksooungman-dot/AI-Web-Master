@@ -39,6 +39,8 @@ export interface MetricsCounters {
   estimateGenerationCount: number;
   /** 기능 명세서 자동 생성(lib/specifications) 신규 — 기존 18개 필드는 무변경. */
   specificationGenerationCount: number;
+  /** 프로젝트 일정 자동 생성(lib/timeline) 신규 — 기존 19개 필드는 무변경. */
+  timelineGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -63,6 +65,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   designWebsiteBuildCount: 0,
   estimateGenerationCount: 0,
   specificationGenerationCount: 0,
+  timelineGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

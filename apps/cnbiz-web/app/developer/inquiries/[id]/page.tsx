@@ -15,6 +15,7 @@ import type { AiJobRecord } from "@/lib/aiJobs/types";
 import type { ProjectRecord } from "@/lib/projects/registry";
 import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
+import type { TimelineRecord } from "@/lib/timeline/types";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -56,6 +57,7 @@ export default function InquiryDetailPage() {
   const [aiJobs, setAiJobs] = useState<AiJobRecord[]>([]);
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
+  const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -66,6 +68,8 @@ export default function InquiryDetailPage() {
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [isGeneratingSpecification, setIsGeneratingSpecification] = useState(false);
   const [specificationError, setSpecificationError] = useState<string | null>(null);
+  const [isGeneratingTimeline, setIsGeneratingTimeline] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -80,17 +84,19 @@ export default function InquiryDetailPage() {
         }
         setInquiry(data.inquiry);
 
-        const [clientResult, orderResult, jobsResult, estimatesResult, specificationsResult] = await Promise.all([
-          data.inquiry.clientId
-            ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
-            : Promise.resolve(null),
-          data.inquiry.websiteOrderId
-            ? fetch(`/api/website-orders/${data.inquiry.websiteOrderId}`).then((res) => res.json())
-            : Promise.resolve(null),
-          fetch("/api/ai-jobs").then((res) => res.json()),
-          fetch("/api/estimates").then((res) => res.json()),
-          fetch("/api/specifications").then((res) => res.json()),
-        ]);
+        const [clientResult, orderResult, jobsResult, estimatesResult, specificationsResult, timelinesResult] =
+          await Promise.all([
+            data.inquiry.clientId
+              ? fetch(`/api/clients/${data.inquiry.clientId}`).then((res) => res.json())
+              : Promise.resolve(null),
+            data.inquiry.websiteOrderId
+              ? fetch(`/api/website-orders/${data.inquiry.websiteOrderId}`).then((res) => res.json())
+              : Promise.resolve(null),
+            fetch("/api/ai-jobs").then((res) => res.json()),
+            fetch("/api/estimates").then((res) => res.json()),
+            fetch("/api/specifications").then((res) => res.json()),
+            fetch("/api/timeline").then((res) => res.json()),
+          ]);
 
         setClient(clientResult?.client ?? null);
         const order: WebsiteOrderRecord | null = orderResult?.websiteOrder ?? null;
@@ -118,6 +124,9 @@ export default function InquiryDetailPage() {
 
         const allSpecifications: SpecificationRecord[] = specificationsResult?.specifications ?? [];
         setSpecifications(allSpecifications.filter((spec) => spec.inquiryId === data.inquiry!.id));
+
+        const allTimelines: TimelineRecord[] = timelinesResult?.timelines ?? [];
+        setTimelines(allTimelines.filter((timeline) => timeline.inquiryId === data.inquiry!.id));
       })
       .catch(() => setLoadError("의뢰를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -236,6 +245,36 @@ export default function InquiryDetailPage() {
       setSpecificationError("기능 명세서 생성 중 오류가 발생했습니다.");
     } finally {
       setIsGeneratingSpecification(false);
+    }
+  }
+
+  // 프로젝트 일정 자동 생성 — 이미 생성된 기술 견적서·기능 명세서를 입력으로 사용하는 별도
+  // 서비스(lib/timeline)를 호출한다. handleGenerateEstimate()/handleGenerateSpecification()와
+  // 완전히 동일한 패턴 — Customer Inquiry Pipeline(processJob() 등)과는 무관한 독립 기능이다.
+  async function handleGenerateTimeline() {
+    if (!inquiry) return;
+
+    setIsGeneratingTimeline(true);
+    setTimelineError(null);
+
+    try {
+      const res = await fetch("/api/timeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: inquiry.id }),
+      });
+      const data: { success: boolean; timeline?: TimelineRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.timeline) {
+        setTimelineError(data.error ?? "프로젝트 일정 생성에 실패했습니다.");
+        return;
+      }
+
+      setTimelines((prev) => [data.timeline!, ...prev]);
+    } catch {
+      setTimelineError("프로젝트 일정 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingTimeline(false);
     }
   }
 
@@ -505,6 +544,46 @@ export default function InquiryDetailPage() {
           </div>
         )}
         {specificationError && <StatusMessage tone="error" className="mt-3">{specificationError}</StatusMessage>}
+      </Card>
+
+      <Card
+        title="프로젝트 일정"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleGenerateTimeline}
+            disabled={!inquiry.analysis || estimates.length === 0 || specifications.length === 0 || isGeneratingTimeline}
+            className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isGeneratingTimeline ? "생성 중..." : "프로젝트 일정 생성"}
+          </button>
+        }
+      >
+        {!inquiry.analysis ? (
+          <p className="text-gray-500 text-sm">AI 분석이 완료된 후 프로젝트 일정을 생성할 수 있습니다.</p>
+        ) : estimates.length === 0 || specifications.length === 0 ? (
+          <p className="text-gray-500 text-sm">기술 견적서와 기능 명세서를 먼저 생성해야 프로젝트 일정을 만들 수 있습니다.</p>
+        ) : timelines.length === 0 ? (
+          <p className="text-gray-500 text-sm">아직 생성된 프로젝트 일정이 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {timelines.map((timeline) => (
+              <Link
+                key={timeline.id}
+                href={`/developer/timeline/${timeline.id}`}
+                className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 hover:border-purple-600 transition-colors"
+              >
+                <Badge tone="purple">총 {timeline.result.totalDurationWeeks}주</Badge>
+                <span className="text-xs text-gray-400">Phase {timeline.result.phases.length}개</span>
+                {timeline.simulated && <Badge tone="warning">Simulated</Badge>}
+                <span className="text-xs text-gray-500 ml-auto">
+                  {new Date(timeline.createdAt).toLocaleString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {timelineError && <StatusMessage tone="error" className="mt-3">{timelineError}</StatusMessage>}
       </Card>
 
       <Card title="파이프라인 진행 상황" className="mb-6">

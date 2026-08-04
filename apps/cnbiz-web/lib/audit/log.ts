@@ -45,7 +45,8 @@ export type AuditAction =
   | "workspace.autoprovision"
   | "deployment.notify_customer"
   | "estimate.generate"
-  | "specification.generate";
+  | "specification.generate"
+  | "timeline.generate";
 
 export interface AuditEntry {
   id: string;

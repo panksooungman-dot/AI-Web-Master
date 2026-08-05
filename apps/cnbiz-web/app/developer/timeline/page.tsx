@@ -44,6 +44,10 @@ export default function TimelinesPage() {
         icon="🗓️"
         title="프로젝트 일정"
         description="기술 견적서·기능 명세서를 기반으로 자동 생성된 프로젝트 일정 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        help={[
+          "기술 견적서·기능 명세서가 둘 다 있어야 생성할 수 있습니다 — 하나라도 없으면 생성 요청이 거부됩니다.",
+          "생성은 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
+        ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh

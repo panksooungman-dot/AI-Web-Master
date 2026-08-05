@@ -36,6 +36,9 @@ export default async function DeploymentPhasePage() {
         icon="🚀"
         title="Phase 09 · Deployment"
         description="기존 배포 문서와 실제 CI 파이프라인 정의(.github/workflows), 기존 Health 시스템(lib/health/checks — /api/health와 동일 함수)을 연결해 보여줍니다. 새 배포 실행 로직은 없습니다."
+        help={[
+          "실제 고객 사이트 배포(GitHub 저장소 생성 → Vercel 배포)는 AI 의뢰 승인 후 자동 실행되며, 그 결과는 이 화면이 아니라 AI 의뢰 상세 화면에서 확인합니다.",
+        ]}
         actions={
           <div className="flex flex-wrap items-center gap-4">
             <Link href="/developer/planning" className="text-xs text-blue-400 hover:underline">

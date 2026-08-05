@@ -147,6 +147,10 @@ export default function AiManagerPage() {
         icon="🤖"
         title="AI Workspace"
         description="Claude Code · Cursor · Local AI(Ollama) · OpenAI · Gemini의 실제 연결 상태를 표시합니다."
+        help={[
+          "각 AI 도구의 실제 설치/연결 여부만 확인하는 화면입니다.",
+          "견적서·명세서 등 문서 자동 생성이 실제로 사용하는 Provider 설정과는 별도입니다(그쪽은 packages/cli의 Provider 설정을 따릅니다).",
+        ]}
       />
 
       {isLoading ? (

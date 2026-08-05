@@ -116,6 +116,10 @@ export default function WebsiteBuilderPage() {
         icon="🌐"
         title="Website Builder"
         description="AI Business OS CLI의 Website Builder(ai website create)를 대시보드에서 실행합니다."
+        help={[
+          "AI 의뢰 파이프라인을 통한 자동 생성과는 별개로, 관리자가 수동으로 사이트를 만드는 경로입니다.",
+          "이 경로로 만든 사이트는 Workspace/Project·GitHub/Vercel 배포에 자동 연결되지 않습니다.",
+        ]}
         actions={
           <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline self-center">
             Deployment →

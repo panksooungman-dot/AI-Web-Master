@@ -82,6 +82,11 @@ export default function DesignRequirementsPage() {
         icon="📐"
         title="Design — Requirements"
         description="Design Automation Phase 1: Requirement Analysis·Feature List·Site Map·User Flow·Screen List를 자동 생성합니다."
+        help={[
+          "Design Automation 8단계 파이프라인의 시작점입니다 — Storyboard → Wireframe → Prototype → Claude Design → Review → Figma → Sync 순서로 이어집니다.",
+          "각 단계 화면 상단의 이전/다음 단계 링크로 이동할 수 있습니다.",
+          "Phase 9(Website Builder 연동)에서 완료된 Design을 실제 사이트 생성에 연결합니다.",
+        ]}
         actions={
           <div className="flex items-center gap-4">
             <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline">

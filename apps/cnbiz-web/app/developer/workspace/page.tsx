@@ -113,6 +113,10 @@ export default function WorkspacesPage() {
       <PageHeader
         title="Workspaces"
         description="실제 폴더 기반의 작업 공간입니다."
+        help={[
+          "수동으로 새 Workspace를 만들 수도 있고, AI 의뢰 승인 시 자동으로도 등록됩니다.",
+          "삭제 기능은 아직 없습니다 — 폴더가 사라지면 다음 목록 조회 시 자동으로 정리됩니다.",
+        ]}
         actions={
           <button
             onClick={() => (isCreating ? resetForm() : setIsCreating(true))}

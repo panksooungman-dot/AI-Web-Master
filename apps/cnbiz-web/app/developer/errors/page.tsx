@@ -86,6 +86,9 @@ export default function ErrorsPage() {
         icon="🚨"
         title="Error Report"
         description="로그인·Marketplace·Website 생성·AI Task·Build 중 실패한 이력만 모아 보여줍니다(Audit Log 기반)."
+        help={[
+          "별도 저장소 없이 Audit Log에서 실패(success:false) 항목만 걸러서 보여주는 화면입니다.",
+        ]}
         actions={
           <button
             onClick={load}

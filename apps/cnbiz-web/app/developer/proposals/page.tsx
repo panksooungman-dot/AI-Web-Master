@@ -44,6 +44,10 @@ export default function ProposalsPage() {
         icon="📊"
         title="제안서"
         description="기술 견적서·기능 명세서·프로젝트 일정·계약서를 기반으로 자동 생성된 제안서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        help={[
+          "견적서·명세서·일정·계약서 4종이 모두 있어야 생성할 수 있는, 자동 문서화 체인의 마지막 단계입니다.",
+          "생성은 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
+        ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh

@@ -129,6 +129,10 @@ export default function TerminalPage() {
         icon="💻"
         title="AI-WEB-MASTER Terminal"
         description="Development OS Terminal"
+        help={[
+          "현재 선택된 Workspace 경로를 기준으로 실제 셸 명령을 실행합니다.",
+          "기본 셸(PowerShell/CMD/Git Bash)은 Settings에서 바꿀 수 있습니다.",
+        ]}
         workspaceName={currentWorkspace?.name}
         path={cwdError ?? effectiveCwd ?? "Loading..."}
       />

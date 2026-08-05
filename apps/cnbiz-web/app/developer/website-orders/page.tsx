@@ -59,6 +59,9 @@ export default function WebsiteOrdersPage() {
         icon="🧾"
         title="웹사이트 제작 주문 관리"
         description="AI 의뢰(Inquiry)가 전환되어 생성된 웹사이트 제작 주문(WebsiteOrder) 목록입니다."
+        help={[
+          "이 화면에서 직접 만드는 것이 아니라 'AI 의뢰 관리'에서 의뢰 접수 시 자동 생성됩니다.",
+        ]}
         actions={
           <button
             onClick={load}

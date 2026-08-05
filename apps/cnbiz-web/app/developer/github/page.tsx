@@ -226,6 +226,10 @@ export default function GitHubManagerPage() {
         icon="🐙"
         title="GitHub Manager"
         description="Local Git Management"
+        help={[
+          "이 화면은 이 저장소 자신의 로컬 git 상태를 다루는 도구입니다 — 고객 사이트용 GitHub 저장소 생성과는 무관합니다.",
+          "고객별 GitHub 저장소 생성 현황은 각 AI 의뢰 상세 화면에서 확인합니다.",
+        ]}
         workspaceName={currentWorkspace?.name}
         path={cwdError ?? cwd ?? "Loading..."}
       />

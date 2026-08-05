@@ -38,6 +38,9 @@ export default function ClientsPage() {
         icon="🏢"
         title="고객사 관리"
         description="AI 의뢰 관리(Inquiry)에서 최초 문의 시 자동으로 생성·누적되는 고객사(Client) 목록입니다."
+        help={[
+          "이메일 기준으로 자동 생성되며, 수동으로 고객사를 새로 만들거나 정보를 수정하는 기능은 없습니다.",
+        ]}
         actions={
           <button
             onClick={load}

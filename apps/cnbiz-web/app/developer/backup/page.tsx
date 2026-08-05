@@ -57,6 +57,9 @@ export default function BackupPage() {
         icon="💾"
         title="Backup"
         description="Provider 설정(configuration)·Prompt·Workflow를 하나의 JSON으로 내보내고, 복원합니다."
+        help={[
+          "고객 데이터(AI 의뢰·고객사·주문 등)는 이 백업 대상에 포함되지 않습니다.",
+        ]}
       />
 
       {error && <StatusMessage tone="error" className="mb-4">{error}</StatusMessage>}

@@ -52,6 +52,11 @@ export default async function AnalysisPhasePage() {
         icon="🔎"
         title="Phase 01 · Analysis"
         description="기존 분석 문서(SSOT·요구사항)와 AI Analysis Engine(lib/ai-analysis) 결과를 한 화면에서 연결해 보여줍니다. 새 분석 로직은 없습니다 — 전부 기존 문서·기존 API(listInquiries)를 읽어 온 값입니다."
+        help={[
+          "AI 의뢰 접수 시 자동 실행되는 AI Analysis Engine(업종 판단·추천 페이지/기능·완성도 점수)의 결과를 모아 보여주는 읽기 전용 집계 화면입니다.",
+          "실제 분석은 이 화면이 아니라 'AI 의뢰 관리' 상세 화면(Inquiry 생성 시점)에서 자동 실행됩니다.",
+          "AI Provider가 연결되어 있지 않으면 결정론적 기본값으로 채워집니다.",
+        ]}
         actions={
           <div className="flex items-center gap-4">
             <Link href="/developer/inquiries" className="text-xs text-blue-400 hover:underline">

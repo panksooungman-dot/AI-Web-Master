@@ -479,6 +479,11 @@ export default function ProjectsPage() {
       <PageHeader
         title="Projects"
         description="Development OS 위에서 실행되는 프로젝트를 관리합니다."
+        help={[
+          "로컬 폴더 + Git 저장소 기준의 프로젝트 목록입니다.",
+          "'고객 프로젝트' 배지가 붙은 항목은 AI 의뢰 승인 시 자동 등록된 것으로, WebsiteOrder와 연결되어 있습니다.",
+          "'새 Workspace 자동 생성'을 선택하면 Workspace 생성 → Git 초기화 → 최초 커밋까지 자동 실행됩니다.",
+        ]}
         actions={
           !activeRun && (
             <div className="flex gap-2">

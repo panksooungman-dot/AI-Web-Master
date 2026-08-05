@@ -81,7 +81,11 @@ export default function UiMapPage() {
 
   return (
     <div>
-      <PageHeader title="UI Explorer" description="docs/UI_MAP.md 기준 — 카테고리별 화면 목록" />
+      <PageHeader
+        title="UI Explorer"
+        description="docs/UI_MAP.md 기준 — 카테고리별 화면 목록"
+        help={["항목별 '미리보기' 버튼으로 페이지 이동 없이 화면을 바로 확인할 수 있습니다."]}
+      />
 
       {loadError && <StatusMessage tone="error">{loadError}</StatusMessage>}
 

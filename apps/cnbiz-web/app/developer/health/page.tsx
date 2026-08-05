@@ -132,6 +132,9 @@ export default function HealthPage() {
         icon="🩺"
         title="Health"
         description="Build·Test·Coverage는 수동 실행, Git Status·Disk Usage는 실시간으로 표시합니다."
+        help={[
+          "Build/Test/Coverage는 'Run Now' 버튼을 눌러야 최신 값으로 갱신됩니다(자동 실행 없음).",
+        ]}
         actions={
           <Link href="/developer/deployment" className="text-xs text-blue-400 hover:underline self-center">
             배포 현황 →

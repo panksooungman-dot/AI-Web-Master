@@ -18,6 +18,10 @@ export default function DeveloperPage() {
         icon="🏠"
         title="Dashboard"
         description="AI Business OS의 운영 현황을 한눈에 확인합니다."
+        help={[
+          "각 위젯은 새 데이터를 만들지 않고 해당 기능의 실제 화면(Projects·AI Workspace·Workflow 등)에서 값을 그대로 가져와 보여줍니다.",
+          "위젯을 클릭하면 관련 상세 화면으로 이동합니다.",
+        ]}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

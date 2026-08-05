@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `0bc4b60` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `096f292` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -58,44 +58,12 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 **기존 시스템**
 - CNBIZ.KR 브랜드 홈페이지(Home/About/Services/Portfolio) — 문의·제작 의뢰 폼은 의도적으로 제거(아래 참고)
-- Development OS 대시보드 38개 페이지(Terminal/Workspace/GitHub/AI Workspace/Website Builder/Workflow Center/Marketplace/Settings/Logs/Health/Audit Log/Metrics/Backup/Design Automation 9종/AI 의뢰 관리 등)
+- Development OS 대시보드 38개 페이지(Terminal/Workspace/GitHub/AI Workspace/Website Builder/Workflow Center/Marketplace/Settings/Logs/Health/Audit Log/Metrics/Backup/Design Automation 9종/AI 의뢰 관리 등) — 각 페이지 헤더에 `HelpTip`(신규, `components/developer/HelpTip.tsx`) 기반 맥락 도움말을 추가해 화면 목적·다른 화면과의 관계를 즉시 안내
 - **Phase 01·02·09 대시보드**(`/developer/analysis`, `/developer/planning`, `/developer/deployment`, 신규) — 새 분석·기획·배포 엔진을 만들지 않고 기존 문서·기존 API/lib 함수만 연결한 읽기 전용 집계 화면. Analysis는 `lib/inquiries/registry.ts`의 `listInquiries()`로 AI 분석 완성도·업종 분포를 집계하고 `PROJECT_STATUS.md`(본 문서)·`REQUEST.md`류를 fs로 직접 읽어 표시. Planning은 `lib/workflows/registry.ts`·`lib/workflows/engine.ts`의 기존 Workflow 정의·Run 이력을 집계. Deployment는 `lib/health/checks.ts`(`/api/health`와 동일 함수)로 Git 상태·Health 캐시를 보여주고 `.github/workflows/*.yml`을 정적 파싱해 CI 파이프라인 목록을 표시. 3개 페이지와 그 데이터 원본 화면(AI 의뢰 관리·Workflow Center·Health·Design·Website Builder) 사이에 상호 탐색 링크를 추가해 Design Automation이 이미 쓰던 "이전/다음 단계" 내비게이션 관례를 따름
 - AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`) — 문의 제목/고객명/회사명/**이메일**(2026-07-24 추가)/문의 내용/첨부파일(드래그앤드롭) 입력 UI. "AI 분석 시작" 버튼이 이제 실제로 `POST /api/inquiries`를 호출한다(2026-07-24 Rewiring, 아래 참고) — Supabase Storage 업로드·OCR만 아직 TODO(첨부파일은 파일명만 감사 목적으로 전달, 실제 URL 없음)
 - 인증(이메일/비밀번호 세션) + RBAC 4-role — `lib/auth/{types,password,users,session,auth,middleware,rbac}.ts`, `proxy.ts`
 - Website Builder v2(CLI `ai website create` + 대시보드) — `packages/cli/src/website/*`, `lib/websites/registry.ts`, `/developer/websites`
 - Database — `lib/db/{collectionStore,fsStore,memoryStore,supabaseStore,index}.ts`(단일 Supabase 테이블 `app_collections`)
-
-**Customer Inquiry Pipeline**
-- Inquiry/Client/WebsiteOrder/AiJob 도메인 데이터 계층 — `lib/{inquiries,clients,websiteOrders,aiJobs}/{types,registry}.ts`(FK 체인 전부 연결) — 무변경
-- ~~챗봇 서버-투-서버 인증 — `lib/auth/apiKey.ts`(x-api-key)~~ → **`@deprecated`**(2026-07-24, 아래 Rewiring 항목 참고)
-- ~~오케스트레이션 엔드포인트 — `POST /api/external/inquiries`~~ → **`@deprecated`**, 내부 `POST /api/inquiries`로 대체(아래 참고)
-- 관리자 CRUD API 8개 — `/api/{inquiries,clients,website-orders,ai-jobs}/route.ts`, `[id]/route.ts` — 무변경
-- **AI Job Worker + Executor** — `lib/aiJobs/worker.ts`(Queued→Running→Success/Failed 상태 전이) + `lib/aiJobs/executor.ts`(AiJob 조회→Website Builder CLI 실행→`createWebsiteRecord()`→`addWebsiteToOrder()`) — 무변경. **자동 실행 트리거는 제거됨**(2026-07-24) — AiJob은 이제 관리자가 `/developer/inquiries/[id]`에서 승인해야 실행됨(아래 Rewiring 항목)
-- **AI 의뢰 관리자 화면**(`/developer/inquiries`, `/developer/inquiries/[id]`) — 목록·상세, Inquiry/Client/WebsiteOrder/AiJob 연결 상태를 한 화면에서 확인, Queued/Failed Job 실행("승인 및 생성"/"재실행", 기존 `POST /api/ai-jobs/[id]/run` 재사용), Inquiry 상태 수동 변경
-- Inquiry 스키마 확장(`industry`·`survey`·`uploadedFiles` 옵셔널 필드, `customerName`/`consultation` 별칭 파싱) — 무변경
-- **AI Analysis Engine**(`lib/ai-analysis/{types,score,prompts,analysis}.ts`) — Inquiry 생성 직후 자동 실행, `AIAnalysisResult` 산출 — 무변경
-- `/developer/inquiries/[id]`에 "AI 분석" 카드 — 무변경
-- **의뢰 승인 → Project Workspace 자동 생성**(2026-08-03) — AI Generate(Website Builder) 성공 직후 `lib/aiJobs/worker.ts`의 `triggerWorkspaceProvisioning()`이 산출물을 Development OS Project Manager/Workspace Manager에 자동 등록(WebsiteOrder당 최초 1회). "고객 프로젝트"는 `ProjectRecord.websiteOrderId` 존재 여부로 식별(별도 Domain 없음, 검토 후 확정). 실 계정 E2E로 PASS 확인됨(`FINAL_E2E_REPORT_v5.md`). 아래 "최근 완료 작업" 참고
-- **고객 URL 자동 전달 — Lifecycle Extension Point**(2026-08-03) — `lib/aiJobs/lifecycle.ts`(신규)에 어떤 구체적 기능도 알지 못하는 순수 Post-Process Hook 실행기(`registerPostProcessHook()`·`runPostProcessHooks()`, priority 오름차순 실행, Hook 실패가 다른 Hook·AiJob의 성공 상태에 영향 주지 않음)를 신설하고, `processJob()`(`lib/aiJobs/worker.ts`) 성공 경로 마지막에 단 한 번만 호출하도록 연결. `lib/aiJobs/hooks/index.ts`(신규, Hook Registry)에 첫 Hook으로 "customer-notification"(`lib/aiJobs/hooks/customerNotification.ts`)을 등록 — 실제 도메인 로직(고객 이메일 발송 + Audit Log 기록)은 `lib/websites/notify.ts::triggerCustomerNotification()`에 있으며 기존 `lib/contact/email`(Resend Provider)·`recordAuditEvent()`를 그대로 재사용(새 이메일 발송 로직·새 저장소 없음). `lib/audit/log.ts`에 `deployment.notify_customer` 액션 추가(`app/developer/{audit-log,errors}/page.tsx` 라벨/톤 맵 갱신). 향후 Slack/Discord/CRM 등 신규 운영 기능은 `lib/aiJobs/lifecycle.ts`·`processJob()`을 다시 수정하지 않고 `lib/aiJobs/hooks/index.ts`에 등록만 하면 되도록 설계. 신규 테스트 `tests/aiJobs/lifecycle.test.ts`·`tests/websites/notify.test.ts`
-
-**AI Business OS Rewiring + Phase 3(2026-07-24, 신규 — 상세는 `REWIRING_REPORT.md`/`PHASE3_REPORT.md`)**
-- 내부 진입점 **`POST /api/inquiries`**(`app/api/inquiries/route.ts`) — `/api/external/inquiries`와 동일한 `createInquiry()`→AI Analysis→Client→WebsiteOrder→AiJob(Queued로만 생성, 자동 실행 안 함)→관리자 알림 흐름을 그대로 재사용. `lib/auth/rbac.ts`에 (method,path) 단위 예외(`UNGATED_EXACT_ROUTES`) 신설해 `POST /api/inquiries`만 비게이팅, `GET`은 그대로 developer 게이팅
-- **cnbiz.kr `/contact` 폼 복원**(`app/contact/page.tsx`, `components/sections/ContactForm.tsx`) — 위 라우트로 직접 제출. `/request`는 여전히 cnbiz.ai.kr로 308 redirect(범위 밖으로 남김)
-- `/developer/inquiries/new`의 "AI 분석 시작" TODO 스텁을 위 라우트 호출로 교체(이메일 필드 추가)
-- **관리자 승인 게이팅** — AiJob은 `Queued`로만 생성되고, `/developer/inquiries/[id]`의 "승인 및 생성" 버튼(기존 `POST /api/ai-jobs/[id]/run` 그대로 재사용, 새 실행 로직 없음)을 눌러야 Website Builder가 실행됨
-- **고객별 GitHub Repository + Vercel Project 자동 배포** — 신규 `lib/github/*`·`lib/git/*`·`lib/vercel/*`·`lib/deployment/pipeline.ts`. AI Generate 성공 직후 GitHub Repo 생성→Commit→Push→Vercel Project 생성→GitHub 연결→Production Deploy→`WebsiteRecord`에 결과 저장까지 자동 수행, 실패 시 역순 롤백, 전 단계 Audit Log 기록(`AuditAction`에 `deployment.*` 8개 추가). `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정 시 가짜 URL 없이 `NotConfigured`로 명시적 스킵(실 계정 검증 전)
-- `app/api/external/inquiries/**`·`lib/auth/apiKey.ts`·`CHATBOT_API_KEY`는 삭제하지 않고 `@deprecated` 표시만(하위 호환, 실사용 미확인 확정 시 별도 커밋으로 제거 예정)
-- 신규 테스트 다수(github/git/vercel 클라이언트, deployment pipeline, aiJobs worker) — `npm test` 73 files/564 tests 전부 통과
-
-**CNBIZ.KR 브랜드 피벗 (2026-07-20, 일부는 위 Rewiring으로 수정됨)**
-- Header/Footer/CTA 전면 개편 — "문의"·"제작 의뢰" 메뉴 제거, 모든 CTA를 `NEXT_PUBLIC_CNBIZ_AI_URL`(`lib/links.ts`)로 통일 — 무변경(범위 밖으로 유지, 위 Rewiring 항목 참고)
-- ~~`/contact`, `/request` 페이지·해당 API 제거, 두 경로 모두 cnbiz.ai.kr로 308 redirect~~ → **`/contact`는 2026-07-24 Rewiring으로 복원됨**(위 참고), `/request`만 여전히 redirect
-- `lib/contact/{validate,store,notify,spam,types}.ts` 제거(단, `lib/contact/email/*`는 Inquiry Pipeline이 재사용 중이라 보존). `lib/requests/*`·`/developer/requests`·`app/api/requests/{route,[id]}`는 과거 데이터 조회용 관리자 백엔드로 보존(신규 접수는 받지 않음)
-
-**기타**
-- Agent→Skill Phase 2 완료(`prompts/{planner,reviewer,documenter,tester}.md` 병합, `system.md` 전체 각주 반영)
-- Repository 운영 규칙 v1~v4(`CLAUDE.md`/`README.md`) — 신규 프로젝트 배치 규칙, packages 승격 체크리스트, Review 체크리스트
-- PROJECT_STATUS.md AI 자동 동기화 — `git commit`이 apps/**·packages/** 변경을 감지하면 Claude Code를 headless 호출해 변경된 섹션만 JSON patch(`.githooks/lib/{ai-provider,sync-project-status}.mjs`, 상태는 `.git/.ssot-cache/`에만 저장·문서에는 메타데이터 없음)
 
 ---
 
@@ -120,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Development OS 대시보드 전 페이지에 맥락 도움말(HelpTip) 추가**(2026-08-05) — `components/developer/HelpTip.tsx`(신규, 클릭 시 펼쳐지는 인라인 도움말 팝오버)와 `components/developer/PageHeader.tsx`에 `help?: string[]` prop을 추가해, `/developer` 하위 30개 페이지(AI Workspace·Analysis·Audit Log·Backup·Clients·Contracts·Deployment·Design·Errors·Estimates·GitHub·Health·Inquiries·Logs·Marketplace·Metrics·Planning·Prompts·Proposals·Requests·Settings·Specifications·Terminal·Timeline·UI Map·Website Orders·Websites·Workflows·Workspace, `/projects` 포함) 헤더에 화면의 목적·다른 화면과의 관계·주의사항을 짧은 안내 문구로 노출했다. 새 API·새 데이터 저장소 없이 순수 UI/UX 보강이며 기존 로직은 변경하지 않았다.
 - **로그인 페이지 비밀번호 표시/숨기기 토글 추가**(2026-08-05) — `apps/cnbiz-web/app/login/page.tsx`에 비밀번호 입력란 우측 눈 아이콘 버튼(`showPassword` state, `aria-pressed`)을 추가해 입력 중 비밀번호를 평문으로 확인할 수 있도록 UX 개선. 인증 로직·API 호출은 무변경.
 - **Customer Portal V1 구현 — 고객 본인 주문 조회 신규 추가**(2026-08-04) — `Role` 타입에 `customer` 추가(`lib/auth/types.ts`), `lib/auth/rbac.ts`에 `/customer/**` 보호 규칙 추가, `proxy.ts`가 `/customer/**`도 세션 인증 대상에 포함하도록 확장. `lib/customerPortal/view.ts`(신규) — `findCustomerOrders()`/`getCustomerOrderDetail()`이 로그인 이메일과 일치하는 Client의 WebsiteOrder만 조회하며, Inquiry/Client/WebsiteOrder/Estimate/Specification/Timeline/Contract/Proposal 7개 Domain을 읽기 전용으로만 join한다(새 저장소 없음). `GET /api/customer/orders`·`GET /api/customer/orders/[id]`(신규) — 타인 소유 주문은 "존재하지 않음"과 동일한 404로 응답해 존재 여부조차 추측 불가능하도록 처리. `/customer/dashboard`·`/customer/orders`·`/customer/orders/[id]`·`/customer/layout.tsx`(신규 페이지 4개), `components/customer/{CustomerHeaderAuth,OrderCard,labels}.tsx`(신규). `POST /api/auth/login`에 `customer` role 로그인 시 `customer.login` 감사 로그 기록 추가(developer/admin 로그인 동작은 무변경), 주문 상세 조회 시 `customer.view_document` 감사 로그 기록. `lib/metrics/registry.ts`에 `customerPortalVisitCount` 카운터 추가(Metrics 위젯 반영).
 - **`WebsiteOrderRecord.aiJobIds` 누락 결함 수정**(2026-08-04) — `app/api/inquiries/route.ts`·`app/api/external/inquiries/route.ts` 둘 다 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남던 기존 결함(2026-08-03 E2E 검증에서 발견, 다음 작업 우선순위 1번)을 수정 — `addWebsiteOrderToClient()`/`addInquiryToClient()`와 동일한 "생성 직후 부모 레코드에 역참조 추가" 패턴을 그대로 적용.

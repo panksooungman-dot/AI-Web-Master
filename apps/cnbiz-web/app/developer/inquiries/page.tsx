@@ -89,6 +89,11 @@ export default function InquiriesPage() {
         icon="🤖"
         title="AI 의뢰 관리"
         description="CNBIZ.AI.KR 챗봇 상담·설문에서 접수되어 AiJob(Website Builder) 파이프라인으로 자동 연결된 의뢰 목록입니다."
+        help={[
+          "cnbiz.kr 문의 폼(/contact)과 관리자 수동 등록(새 문의 등록)으로 실제 의뢰가 접수되는 창구입니다.",
+          "접수 즉시 AI 분석이 자동 실행되고 고객사·주문(WebsiteOrder)이 함께 생성되지만, AI 사이트 생성은 자동 실행되지 않습니다.",
+          "상세 화면에서 관리자가 '승인 및 생성'을 눌러야 Website Builder가 실행되고, 성공 시 GitHub/Vercel 배포와 Workspace 등록이 이어서 자동 진행됩니다.",
+        ]}
         actions={
           <>
             <Link

@@ -59,6 +59,10 @@ export default function RequestsPage() {
         icon="📝"
         title="의뢰 관리"
         description="고객이 /request 페이지에서 접수한 홈페이지 제작 의뢰 목록입니다."
+        help={[
+          "레거시 화면입니다 — 신규 의뢰 접수는 더 이상 이 경로로 들어오지 않고 'AI 의뢰 관리'로 통합되었습니다.",
+          "과거 데이터를 조회하는 용도로만 남아 있으며, 새 항목은 생성되지 않습니다.",
+        ]}
         actions={
           <button
             onClick={load}

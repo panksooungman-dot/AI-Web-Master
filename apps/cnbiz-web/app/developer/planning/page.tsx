@@ -71,6 +71,10 @@ export default async function PlanningPhasePage() {
         icon="🗺️"
         title="Phase 02 · Planning"
         description="기존 기획 문서(WBS·로드맵·Plan)와 Workflow Engine(lib/workflows) 실행 현황을 연결해 보여줍니다. 새 Planning 엔진은 없습니다 — Workflow Center(/developer/workflows)가 이미 쓰는 것과 동일한 데이터입니다."
+        help={[
+          "이 화면은 별도의 기획 로직을 갖지 않는 읽기 전용 집계 화면입니다 — 기획 문서와 Workflow Center의 데이터를 그대로 다시 보여줍니다.",
+          "실제 Workflow 실행/이력은 Workflow Center(/developer/workflows)에서 동일하게 확인할 수 있습니다.",
+        ]}
         actions={
           <div className="flex items-center gap-4">
             <Link href="/developer/analysis" className="text-xs text-blue-400 hover:underline">

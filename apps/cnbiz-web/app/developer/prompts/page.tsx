@@ -201,6 +201,9 @@ export default function PromptLibraryPage() {
         icon="📚"
         title="Prompt Library"
         description="카테고리·변수·버전을 갖춘 프롬프트를 관리하고, 미리보기 후 Agent로 바로 실행합니다."
+        help={[
+          "프롬프트를 수정하면 새 버전으로 추가되고, 이전 버전은 그대로 보존됩니다.",
+        ]}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

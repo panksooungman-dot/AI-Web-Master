@@ -167,6 +167,9 @@ export default function AuditLogPage() {
         icon="🧾"
         title="Audit Log"
         description="로그인·로그아웃·Marketplace publish/install/remove·Website 생성·AI Task 실행 이력을 기록합니다."
+        help={[
+          "서버 재시작에도 남는 영구 기록이라는 점이 Logs(임시 로그)와의 차이입니다.",
+        ]}
         actions={
           <button
             onClick={load}

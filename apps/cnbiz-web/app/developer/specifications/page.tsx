@@ -44,6 +44,10 @@ export default function SpecificationsPage() {
         icon="📋"
         title="기능 명세서"
         description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기능 명세서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        help={[
+          "생성은 이 화면이 아니라 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
+          "수정·삭제 기능은 없습니다.",
+        ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh

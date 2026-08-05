@@ -236,6 +236,9 @@ export default function SettingsManagerPage() {
         icon="⚙️"
         title="Settings Manager"
         description="Development OS의 모든 환경설정을 관리합니다."
+        help={[
+          "브라우저 localStorage에 저장됩니다. Git 사용자 정보는 저장 시 실제 git config에도 반영됩니다.",
+        ]}
         actions={
           <>
             <button

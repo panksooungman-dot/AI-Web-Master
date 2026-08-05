@@ -90,6 +90,9 @@ export default function MarketplaceBrowsePage() {
         icon="🧩"
         title="Marketplace"
         description="Agent·Workflow·Skill 패키지를 검색하고 설치합니다."
+        help={[
+          "설치된 패키지 목록·업데이트 가능 여부는 상단 탭에서 확인합니다.",
+        ]}
       />
 
       <MarketplaceTabs />

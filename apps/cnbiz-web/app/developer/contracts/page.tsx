@@ -44,6 +44,10 @@ export default function ContractsPage() {
         icon="📄"
         title="계약서"
         description="기술 견적서·기능 명세서·프로젝트 일정을 기반으로 자동 생성된 계약서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        help={[
+          "견적서·명세서·일정 3종이 모두 있어야 생성할 수 있습니다.",
+          "생성은 'AI 의뢰 관리' 상세 화면에서 수행하며, PDF 출력·전자서명 기능은 아직 없습니다.",
+        ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh

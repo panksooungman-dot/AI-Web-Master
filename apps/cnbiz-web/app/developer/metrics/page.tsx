@@ -28,6 +28,9 @@ export default function MetricsPage() {
         icon="📈"
         title="Metrics"
         description="Build·Website 생성·AI Task·Marketplace 설치 누적 횟수와 Provider 사용량을 표시합니다."
+        help={[
+          "Provider 사용량(토큰)은 실제 AI Provider 호출 기록을 집계한 값입니다.",
+        ]}
         actions={
           <button
             onClick={load}

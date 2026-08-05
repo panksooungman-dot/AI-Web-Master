@@ -95,6 +95,10 @@ export default function LogsManagerPage() {
         icon="📋"
         title="Logs Manager"
         description="Development OS의 모든 작업 로그를 확인합니다."
+        help={[
+          "Terminal·Git·AI·System 실행 이력을 검색·필터링합니다.",
+          "재시작하면 사라지는 임시 로그입니다 — 영구 기록은 Audit Log를 확인하세요.",
+        ]}
         actions={
           <>
             <button

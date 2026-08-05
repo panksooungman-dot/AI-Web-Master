@@ -121,6 +121,10 @@ export default function WorkflowCenterPage() {
         icon="⚙"
         title="Workflow Center"
         description="등록된 Workflow를 실행하고 진행 상황·이력을 확인합니다."
+        help={[
+          "수동으로 정의한 Workflow(예: New Project 부트스트랩)를 실행·모니터링하는 화면입니다.",
+          "AI 의뢰 → Website Builder → 배포로 이어지는 자동 파이프라인은 이 엔진을 거치지 않습니다(별도 경로).",
+        ]}
         actions={
           <Link href="/developer/planning" className="text-xs text-blue-400 hover:underline self-center">
             기획 현황 →

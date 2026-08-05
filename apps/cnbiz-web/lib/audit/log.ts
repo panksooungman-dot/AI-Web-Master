@@ -50,7 +50,9 @@ export type AuditAction =
   | "contract.generate"
   | "proposal.generate"
   | "customer.login"
-  | "customer.view_document";
+  | "customer.view_document"
+  | "inquiry.update"
+  | "inquiry.delete";
 
 export interface AuditEntry {
   id: string;

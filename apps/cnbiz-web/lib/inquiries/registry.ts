@@ -43,6 +43,33 @@ export async function createInquiry(
   return record;
 }
 
+/** 고객 정보·상담 내용 등 편집 가능한 필드만 부분 갱신한다(status/clientId 등 파이프라인 상태 필드는 다루지 않음). */
+export async function updateInquiry(
+  id: string,
+  patch: Partial<
+    Pick<InquiryInput, "companyName" | "contactName" | "email" | "phone" | "siteType" | "requirements" | "budget" | "industry">
+  >,
+  store: CollectionStore = getDefaultStore()
+): Promise<InquiryRecord | undefined> {
+  const records = await store.list<InquiryRecord>(COLLECTION);
+  const index = records.findIndex((inquiry) => inquiry.id === id);
+  if (index === -1) return undefined;
+
+  records[index] = { ...records[index], ...patch, updatedAt: new Date().toISOString() };
+  await store.replaceAll(COLLECTION, records);
+
+  return records[index];
+}
+
+export async function deleteInquiry(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<InquiryRecord>(COLLECTION);
+  const next = records.filter((inquiry) => inquiry.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}
+
 export async function updateInquiryStatus(
   id: string,
   status: InquiryStatus,

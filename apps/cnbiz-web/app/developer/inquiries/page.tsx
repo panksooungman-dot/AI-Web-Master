@@ -57,6 +57,8 @@ export default function InquiriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -77,6 +79,34 @@ export default function InquiriesPage() {
   useEffect(() => {
     queueMicrotask(load);
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, inquiry: InquiryRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${inquiry.companyName || inquiry.contactName}" 의뢰를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(inquiry.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/inquiries/${inquiry.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setInquiries((prev) => prev.filter((item) => item.id !== inquiry.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const filtered = inquiries.filter((inquiry) => {
     if (filter === "All") return true;
@@ -134,6 +164,8 @@ export default function InquiriesPage() {
         ))}
       </div>
 
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
+
       {isLoading ? (
         <LoadingText />
       ) : loadError ? (
@@ -164,6 +196,14 @@ export default function InquiriesPage() {
                   <span className="text-xs text-gray-400 w-28 shrink-0 truncate">{inquiry.siteType || "-"}</span>
 
                   <p className="flex-1 text-sm text-gray-300 truncate">{inquiry.requirements}</p>
+
+                  <button
+                    onClick={(e) => handleDelete(e, inquiry)}
+                    disabled={deletingId === inquiry.id}
+                    className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === inquiry.id ? "삭제 중..." : "삭제"}
+                  </button>
                 </Card>
               </Link>
             );

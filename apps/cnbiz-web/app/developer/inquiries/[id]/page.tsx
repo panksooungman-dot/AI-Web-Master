@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -49,10 +49,28 @@ const AI_JOB_STATUS_TONES: Record<AiJobRecord["status"], BadgeTone> = {
   Cancelled: "neutral",
 };
 
+interface EditForm {
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  industry: string;
+  budget: string;
+  siteType: string;
+  requirements: string;
+}
+
 export default function InquiryDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
 
   const [inquiry, setInquiry] = useState<InquiryRecord | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
   const [project, setProject] = useState<ProjectRecord | null>(null);
@@ -183,6 +201,88 @@ export default function InquiryDetailPage() {
       setUpdateError("상태 변경 중 오류가 발생했습니다.");
     } finally {
       setIsUpdating(false);
+    }
+  }
+
+  function startEdit() {
+    if (!inquiry) return;
+    setEditForm({
+      companyName: inquiry.companyName,
+      contactName: inquiry.contactName,
+      email: inquiry.email,
+      phone: inquiry.phone,
+      industry: inquiry.industry ?? "",
+      budget: inquiry.budget ?? "",
+      siteType: inquiry.siteType,
+      requirements: inquiry.requirements,
+    });
+    setSaveError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEdit() {
+    setIsEditing(false);
+    setEditForm(null);
+    setSaveError(null);
+  }
+
+  async function handleSaveEdit() {
+    if (!editForm) return;
+
+    if (!editForm.companyName.trim() || !editForm.contactName.trim()) {
+      setSaveError("회사명과 담당자명은 비울 수 없습니다.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await fetch(`/api/inquiries/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      const data: { success: boolean; inquiry?: InquiryRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.inquiry) {
+        setSaveError(data.error ?? "수정에 실패했습니다.");
+        return;
+      }
+
+      setInquiry(data.inquiry);
+      setIsEditing(false);
+      setEditForm(null);
+    } catch {
+      setSaveError("수정 중 오류가 발생했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!inquiry) return;
+    if (!window.confirm(`"${inquiry.companyName || inquiry.contactName}" 의뢰를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/inquiries/${params.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      router.push("/developer/inquiries");
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -386,9 +486,121 @@ export default function InquiryDetailPage() {
       <PageHeader
         title={inquiry.companyName || inquiry.contactName}
         description={`${inquiry.contactName} · ${inquiry.industry || inquiry.siteType || "업종/유형 미상"} · ${inquiry.source === "chatbot" ? "CNBIZ.AI.KR 챗봇" : "수동 등록"}`}
-        actions={<Badge tone={INQUIRY_STATUS_TONES[inquiry.status]}>{INQUIRY_STATUS_LABELS[inquiry.status]}</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge tone={INQUIRY_STATUS_TONES[inquiry.status]}>{INQUIRY_STATUS_LABELS[inquiry.status]}</Badge>
+            {!isEditing && (
+              <button
+                onClick={startEdit}
+                className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1.5 text-xs font-semibold transition-colors"
+              >
+                수정
+              </button>
+            )}
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? "삭제 중..." : "삭제"}
+            </button>
+          </div>
+        }
       />
 
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
+
+      {isEditing && editForm ? (
+        <Card title="의뢰 정보 수정" className="mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">회사명</span>
+              <input
+                value={editForm.companyName}
+                onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">담당자명</span>
+              <input
+                value={editForm.contactName}
+                onChange={(e) => setEditForm({ ...editForm, contactName: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">이메일</span>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">연락처</span>
+              <input
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">업종</span>
+              <input
+                value={editForm.industry}
+                onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">예산</span>
+              <input
+                value={editForm.budget}
+                onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">유형/사이트 타입</span>
+              <input
+                value={editForm.siteType}
+                onChange={(e) => setEditForm({ ...editForm, siteType: e.target.value })}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-gray-500">상담 요약 / 요구사항</span>
+              <textarea
+                value={editForm.requirements}
+                onChange={(e) => setEditForm({ ...editForm, requirements: e.target.value })}
+                rows={5}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+          </div>
+
+          {saveError && <StatusMessage tone="error" className="mt-4">{saveError}</StatusMessage>}
+
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleSaveEdit}
+              disabled={isSaving}
+              className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {isSaving ? "저장 중..." : "저장"}
+            </button>
+            <button
+              onClick={cancelEdit}
+              disabled={isSaving}
+              className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </Card>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <Card title="고객 정보" className="lg:col-span-1">
           <dl className="flex flex-col gap-3 text-sm">
@@ -458,6 +670,7 @@ export default function InquiryDetailPage() {
           </div>
         </Card>
       </div>
+      )}
 
       <Card title="AI 분석" className="mb-6">
         {!inquiry.analysis ? (

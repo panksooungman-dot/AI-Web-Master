@@ -37,15 +37,22 @@ export async function executeJob(jobId: string): Promise<void> {
 
   // app/api/websites/route.ts의 필드 매핑과 동일한 원칙: WebsiteOrder/Client에 이미 있는
   // 값만 사용하고, 그 라우트 자신의 기본값(language "Korean", 미인식 siteType은 "website")도
-  // 그대로 따른다.
-  const name = websiteOrder.name;
-  const businessType = websiteOrder.siteType;
-  const audience = websiteOrder.requirements;
-  const brand = client?.companyName || client?.contactName || name;
-  const language = "Korean";
+  // 그대로 따른다. websiteOrder.name/siteType/requirements는 TS 타입상 string(필수)이지만,
+  // 공개 /contact 폼처럼 구조화된 siteType·상세 requirements를 받지 않는 접수 경로도 있어
+  // 실제로는 빈 문자열일 수 있다 — packages/cli의 website create는 이 값들이 비어 있으면
+  // 즉시 거부한다("Project Name, Business Type, Target Audience, Brand, and Language are all
+  // required.", 프로덕션 로그로 확인, 2026-08-05). 빈 값을 그대로 흘려보내지 않고 항상 유효한
+  // 기본값으로 채운다.
   const siteType = WEBSITE_TYPES.some((t) => t.id === websiteOrder.siteType)
     ? websiteOrder.siteType
     : "website";
+  const siteTypeLabel = WEBSITE_TYPES.find((t) => t.id === siteType)?.label ?? "범용 웹사이트";
+
+  const name = websiteOrder.name.trim() || client?.companyName || client?.contactName || "웹사이트 프로젝트";
+  const businessType = websiteOrder.siteType.trim() || siteTypeLabel;
+  const audience = websiteOrder.requirements.trim() || "일반 고객";
+  const brand = client?.companyName || client?.contactName || name;
+  const language = "Korean";
   // websiteOrder.id 대신 job.id를 쓰는 이유: 하나의 WebsiteOrder가 여러 AiJob(재시도 등)을
   // 가질 수 있어(WebsiteOrderRecord.aiJobIds가 배열) 실행마다 고유 출력 폴더가 필요하다.
   const outDir = resolveGeneratedWebsitesDir(job.id);

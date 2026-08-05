@@ -56,6 +56,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "customer.view_document": "고객 포털 문서 조회",
   "inquiry.update": "의뢰 정보 수정",
   "inquiry.delete": "의뢰 삭제",
+  "inquiry.analyze": "AI 재분석",
 };
 
 /**

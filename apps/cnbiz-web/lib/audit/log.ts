@@ -52,7 +52,8 @@ export type AuditAction =
   | "customer.login"
   | "customer.view_document"
   | "inquiry.update"
-  | "inquiry.delete";
+  | "inquiry.delete"
+  | "inquiry.analyze";
 
 export interface AuditEntry {
   id: string;

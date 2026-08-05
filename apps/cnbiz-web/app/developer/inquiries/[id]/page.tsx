@@ -71,6 +71,8 @@ export default function InquiryDetailPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
   const [project, setProject] = useState<ProjectRecord | null>(null);
@@ -257,6 +259,29 @@ export default function InquiryDetailPage() {
       setSaveError("수정 중 오류가 발생했습니다.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleReanalyze() {
+    if (!inquiry) return;
+
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+
+    try {
+      const res = await fetch(`/api/inquiries/${params.id}/analyze`, { method: "POST" });
+      const data: { success: boolean; inquiry?: InquiryRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.inquiry) {
+        setAnalyzeError(data.error ?? "재분석에 실패했습니다.");
+        return;
+      }
+
+      setInquiry(data.inquiry);
+    } catch {
+      setAnalyzeError("재분석 중 오류가 발생했습니다.");
+    } finally {
+      setIsAnalyzing(false);
     }
   }
 
@@ -672,7 +697,20 @@ export default function InquiryDetailPage() {
       </div>
       )}
 
-      <Card title="AI 분석" className="mb-6">
+      <Card
+        title="AI 분석"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleReanalyze}
+            disabled={isAnalyzing}
+            className="rounded bg-purple-700 hover:bg-purple-600 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isAnalyzing ? "재분석 중..." : "재분석"}
+          </button>
+        }
+      >
+        {analyzeError && <StatusMessage tone="error" className="mb-4">{analyzeError}</StatusMessage>}
         {!inquiry.analysis ? (
           <p className="text-gray-500 text-sm">
             아직 분석되지 않았습니다{inquiry.source === "chatbot" ? " (챗봇 접수 직후 자동 실행되며, 실패한 경우 여기에 표시되지 않습니다)" : ""}.

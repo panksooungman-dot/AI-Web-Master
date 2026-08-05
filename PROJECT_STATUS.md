@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `f5bbd3c` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `635c46b` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **`resolveCliWorkingDir()` 추가 — Website Builder CLI 서브프로세스 작업 디렉터리를 Vercel에서 tmpdir로 분리**(2026-08-05) — `apps/cnbiz-web/lib/paths/repoRoot.ts`에 신규 함수 추가. `packages/cli`의 `website create` 생성 워크플로가 `--out`과 무관하게 자신의 cwd 기준 상대 경로에 `agents/` 등 부산물을 스캐폴딩하는 알려진 부작용이 있어, 로컬 dev(cwd=repoRoot, 이미 gitignore 대상)에서는 무해하지만 Vercel의 읽기 전용 배포 파일시스템에서는 `ENOENT: mkdir '/var/task/apps/cnbiz-web/agents'`로 즉시 실패함을 프로덕션 로그로 확인. `process.env.VERCEL` 여부로 분기해 프로덕션에서는 `os.tmpdir()`을 cwd로 사용하도록 수정.
+- **`app/api/websites/route.ts`·`lib/aiJobs/executor.ts` — CLI 서브프로세스 cwd를 `resolveRepoRoot()`에서 `resolveCliWorkingDir()`로 교체**(2026-08-05) — Website Builder 생성(`POST /api/websites`)과 AI Job 실행(`executeJob()`) 양쪽의 `execute("node ...", { cwd })` 호출을 전부 새 함수로 교체해, 앞서 수정한 CLI 엔트리 경로·출력 디렉터리·Shell 실행자 문제에 이어 남아있던 마지막 프로덕션 실패 지점을 해소.
 - **`executor.ts` — 빈 name/siteType/requirements로 인한 CLI 웹사이트 생성 거부 수정**(2026-08-05) — `apps/cnbiz-web/lib/aiJobs/executor.ts`가 `WebsiteOrder.name`/`siteType`/`requirements`를 TS 타입상 항상 채워진 문자열로 가정했으나, `/contact`처럼 구조화된 siteType·상세 requirements를 받지 않는 접수 경로에서는 실제로 빈 문자열일 수 있어 `packages/cli`의 `website create`가 "Project Name, Business Type, Target Audience, Brand, and Language are all required."로 즉시 거부하던 문제(프로덕션 로그로 확인)를 수정. `name`/`businessType`/`audience`가 비어있으면 각각 client 정보·`WEBSITE_TYPES` 라벨·기본값("웹사이트 프로젝트"/"일반 고객" 등)으로 폴백하도록 변경.
 - **`execute()` 오류 메시지에 stdout 폴백 추가**(2026-08-05) — `apps/cnbiz-web/lib/commandEngine/engine.ts`의 `execute()`가 실패 시 `stderr`가 비어있으면 곧바로 `종료 코드 N`으로만 보고하던 것을, stdout 마지막 1000자를 함께 폴백으로 사용하도록 수정. `packages/cli` 등 일부 CLI가 실패 사유를 stderr가 아닌 stdout에 출력해 프로덕션 AI Job 실패 원인을 진단할 수 없던 문제를 해결.
 - **`resolveCliEntry()` 재수정 — require.resolve 방식 폐기, 경로 기반 고정 해석으로 전환**(2026-08-05) — 직전 수정(require.resolve("@ai-business-os/cli"))이 Vercel 프로덕션에서도 여전히 실패함을 함수 로그로 확인: Turbopack이 빌드 시점에 그 리터럴 문자열을 실제 파일 경로가 아닌 내부 번들러 모듈 id로 재작성해버려, 런타임에 숫자 id를 파일처럼 require하려다 "Cannot find module" 오류가 발생했다. `apps/cnbiz-web/lib/paths/repoRoot.ts`의 `resolveCliEntry()`를 `path.join(process.cwd(), "..", "..", "packages", "cli", "dist", "index.js")` 방식으로 재작성 — `apps/cnbiz-web`은 로컬·배포 번들 양쪽에서 항상 모노레포 루트로부터 정확히 2단계 아래에 위치하고(`next.config.ts`의 `outputFileTracingRoot`가 이 구조를 그대로 보존), `process.cwd()`는 런타임에 항상 `apps/cnbiz-web` 자신의 디렉터리와 일치함(직전 `resolveRepoRoot()` fallback 값으로 이미 실측 확인된 사실)을 근거로 동적 탐색 없이 고정 상대 경로로 해석하도록 단순화했다. `createRequire` import 제거.

@@ -1,5 +1,5 @@
 import { execute } from "@/lib/commandEngine/engine";
-import { resolveCliEntry, resolveGeneratedWebsitesDir, resolveRepoRoot } from "@/lib/paths/repoRoot";
+import { resolveCliEntry, resolveCliWorkingDir, resolveGeneratedWebsitesDir } from "@/lib/paths/repoRoot";
 import { getAiJob } from "./registry";
 import { getWebsiteOrder, addWebsiteToOrder } from "@/lib/websiteOrders/registry";
 import { getClient } from "@/lib/clients/registry";
@@ -28,7 +28,6 @@ export async function executeJob(jobId: string): Promise<void> {
 
   const client = await getClient(websiteOrder.clientId);
 
-  const repoRoot = resolveRepoRoot();
   const cliEntry = resolveCliEntry();
 
   if (!cliEntry) {
@@ -70,7 +69,7 @@ export async function executeJob(jobId: string): Promise<void> {
     `--out "${outDir}"`,
   ];
 
-  const result = await execute(`node ${args.join(" ")}`, { cwd: repoRoot, category: "development" });
+  const result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
 
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
 

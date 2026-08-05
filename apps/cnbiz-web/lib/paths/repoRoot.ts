@@ -70,3 +70,15 @@ export function resolveGeneratedWebsitesDir(subPath: string): string {
 
   return path.join(base, subPath);
 }
+
+/**
+ * Working directory for the `node <cliEntry> website create ...` subprocess. packages/cli's
+ * generation workflow has a known side effect of scaffolding some files (e.g. an `agents/`
+ * directory) relative to its own cwd regardless of `--out` — harmless on a local dev machine
+ * (writes into the repo, already gitignored), but fatal in Vercel's read-only deployment
+ * filesystem ("ENOENT: no such file or directory, mkdir '/var/task/apps/cnbiz-web/agents'",
+ * confirmed via production logs, 2026-08-05). Run it from os.tmpdir() in production instead.
+ */
+export function resolveCliWorkingDir(): string {
+  return process.env.VERCEL ? os.tmpdir() : resolveRepoRoot();
+}

@@ -138,7 +138,10 @@ export function execute(command: string, options: ExecuteOptions): Promise<Execu
         stdout,
         stderr,
         durationMs: Date.now() - startedAt,
-        error: code === 0 ? undefined : stderr.trim() || `종료 코드 ${code}`,
+        // Some CLIs (e.g. packages/cli) print their actual failure reason to stdout rather than
+        // stderr — falling back straight to "종료 코드 N" with no further detail made production
+        // AI Job failures undiagnosable without a code round-trip (2026-08-05).
+        error: code === 0 ? undefined : stderr.trim() || stdout.trim().slice(-1000) || `종료 코드 ${code}`,
       });
     });
   });

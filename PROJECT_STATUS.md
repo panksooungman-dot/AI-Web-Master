@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `aff0d45` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `310e9f1` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **`execute()` 오류 메시지에 stdout 폴백 추가**(2026-08-05) — `apps/cnbiz-web/lib/commandEngine/engine.ts`의 `execute()`가 실패 시 `stderr`가 비어있으면 곧바로 `종료 코드 N`으로만 보고하던 것을, stdout 마지막 1000자를 함께 폴백으로 사용하도록 수정. `packages/cli` 등 일부 CLI가 실패 사유를 stderr가 아닌 stdout에 출력해 프로덕션 AI Job 실패 원인을 진단할 수 없던 문제를 해결.
 - **`resolveCliEntry()` 재수정 — require.resolve 방식 폐기, 경로 기반 고정 해석으로 전환**(2026-08-05) — 직전 수정(require.resolve("@ai-business-os/cli"))이 Vercel 프로덕션에서도 여전히 실패함을 함수 로그로 확인: Turbopack이 빌드 시점에 그 리터럴 문자열을 실제 파일 경로가 아닌 내부 번들러 모듈 id로 재작성해버려, 런타임에 숫자 id를 파일처럼 require하려다 "Cannot find module" 오류가 발생했다. `apps/cnbiz-web/lib/paths/repoRoot.ts`의 `resolveCliEntry()`를 `path.join(process.cwd(), "..", "..", "packages", "cli", "dist", "index.js")` 방식으로 재작성 — `apps/cnbiz-web`은 로컬·배포 번들 양쪽에서 항상 모노레포 루트로부터 정확히 2단계 아래에 위치하고(`next.config.ts`의 `outputFileTracingRoot`가 이 구조를 그대로 보존), `process.cwd()`는 런타임에 항상 `apps/cnbiz-web` 자신의 디렉터리와 일치함(직전 `resolveRepoRoot()` fallback 값으로 이미 실측 확인된 사실)을 근거로 동적 탐색 없이 고정 상대 경로로 해석하도록 단순화했다. `createRequire` import 제거.
 - **Vercel 프로덕션 실행 3종 결함 추가 수정 — CLI 경로 해석·출력 디렉터리·Shell 실행자**(2026-08-05) — 직전 outputFileTracing 보강만으로는 부족했던 나머지 프로덕션 실패 원인 3가지를 `lib/paths/repoRoot.ts`·`lib/terminal/server.ts`에서 해결했다. ① `resolveCliEntry()`(신규) — `path.join(resolveRepoRoot(), "packages/cli/dist/index.js")` 방식이 Vercel 서버리스 런타임에서는 `process.cwd()`가 로컬 dev처럼 `workspaces` package.json까지 거슬러 올라가지 못해 파일을 찾지 못하던 문제(Vercel 함수 로그로 실측, 번들에 파일이 실제로 포함돼 있었음에도 "packages/cli가 아직 빌드되지 않았습니다" 오류 발생)를, `apps/cnbiz-web`이 `@ai-business-os/cli`에 대한 실제 package.json 의존성을 갖도록 한 뒤 `require.resolve()`(Node 표준 모듈 해석, Next.js File Tracing과 호환)로 대체해 해결. `app/api/websites/route.ts`·`lib/ai/bridge.ts`·`lib/aiJobs/executor.ts` 3곳 전부 이 함수로 교체. ② `resolveGeneratedWebsitesDir()`(신규) — Vercel 배포 함수의 파일시스템은 `/tmp` 밖에서 읽기 전용이라, 기존처럼 저장소 경로 하위(`.generated-websites/`)에 생성 산출물을 쓰면 실패하던 문제를 `process.env.VERCEL` 여부로 분기해 프로덕션에서는 `os.tmpdir()` 하위에 쓰도록 수정(로컬 dev는 기존 경로 유지). ③ `buildShellInvocation()` — Vercel 프로덕션 런타임은 Linux인데 PowerShell/CMD/Git Bash를 그대로 실행하려 해서 AI Job 실행·Website Builder 생성이 `spawn ENOENT`로 실패하던 문제를, `process.platform !== "win32"`일 때 `/bin/sh -c`로 실행하도록 분기 추가.
 - **`apps/cnbiz-web`에 `@ai-business-os/cli` workspace 의존성 명시 추가**(2026-08-05) — 직전 커밋(outputFileTracingIncludes 보강)의 후속 조치로, `apps/cnbiz-web/package.json`의 `dependencies`에 `@ai-business-os/cli: "*"`를 추가해 npm workspaces가 `packages/cli`를 `apps/cnbiz-web`의 명시적 의존성으로 링크하도록 했다. 기존에는 `lib/ai/bridge.ts` 등이 상대 경로(`node packages/cli/dist/index.js`)로만 shell-out했을 뿐 package.json상 의존 관계가 없어, Vercel의 workspace 의존성 그래프 판단(빌드 순서·설치 대상)에서 `packages/cli`가 명시적으로 드러나지 않았다 — 이번 변경으로 Output File Tracing 보강과 함께 배포본에 `packages/cli`가 안정적으로 포함되도록 보강했다.

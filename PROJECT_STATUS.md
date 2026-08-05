@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `1f0147f` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `f79f7f8` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **프로젝트 상세 화면 — AI 의뢰 상담 내용 실시간 반영**(2026-08-05) — `websiteOrder.requirements`/`project.description`이 AI 의뢰 승인 시점에 한 번 복사된 스냅샷이라, 이후 관리자가 AI 의뢰 상세에서 상담 내용을 수정하거나 재분석해도 프로젝트 대시보드(`/projects/[id]`)에는 반영되지 않던 문제를 수정했다. `GET /api/inquiries/[id]`로 Inquiry를 직접 다시 조회해 항상 최신 `requirements`를 표시하고, "AI 의뢰 상세에서 수정 →" 링크를 추가했다.
+- **실시간 미리보기 — 고객 프로젝트 배포 URL 연동**(2026-08-05) — `LivePreviewPanel`이 항상 `http://localhost:3000`을 시도해, 원격(배포된 사이트)에서 관리자가 고객 프로젝트를 열면 항상 연결 실패하던 문제를 수정. `deployedUrl` prop(신규)을 추가해 고객 프로젝트는 `WebsiteRecord.deployment.url`(실제 배포 URL)을 우선 사용하고, 배포가 아직 없으면 iframe 자체를 생략하도록 변경. Visual Editor(dev-inspector 오버레이 필요)는 배포된 사이트에는 적용되지 않으므로 이 경우 편집 모드를 숨긴다.
 - **AI 의뢰 관리 — 의뢰 재분석(Re-analyze) 기능 추가**(2026-08-05) — `POST /api/inquiries/[id]/analyze`(신규) 추가. 신규 접수 시 자동 실행되는 것과 동일한 `generateAnalysis()`(`lib/ai-analysis/analysis`)를 현재 저장된 필드 값 기준으로 재실행해 `saveInquiryAnalysis()`로 결과를 갱신하고, 성공/실패 여부와 무관하게 `inquiry.analyze` 감사 로그(신규 `AuditAction`)를 기록한다. `/developer/inquiries/[id]`의 "AI 분석" 카드에 "재분석" 버튼과 로딩/에러 상태 UI를 추가(정보 수정 후 최신 값으로 다시 분석하거나, 최초 분석 실패 시 재시도하는 용도). `/developer/audit-log`·`/developer/errors`의 라벨/톤/필터 맵에 `inquiry.analyze` 반영.
 - **AI 의뢰 관리 — 의뢰 정보 수정/삭제 기능 추가**(2026-08-05) — `PATCH /api/inquiries/[id]`가 기존 `status` 변경 외에 회사명·담당자명·이메일·연락처·사이트유형·요구사항·예산·업종 등 편집 가능 필드 patch(`updateInquiry()`, `lib/inquiries/registry.ts` 신규)를 지원하도록 확장(이메일 형식·필수값 서버 재검증 포함), `DELETE /api/inquiries/[id]`(신규, `deleteInquiry()`) 추가. `/developer/inquiries/[id]`에 인라인 편집 폼과 삭제 확인 UI 추가, `/developer/inquiries` 목록에도 삭제 액션 연동. `lib/audit/log.ts`에 `inquiry.update`·`inquiry.delete` 액션 추가하고 `/developer/audit-log`·`/developer/errors` 라벨/톤/필터 맵 갱신.
 - **`resolveGeneratedWebsitesDir()`/`resolveCliWorkingDir()` — VERCEL 환경변수 분기 제거, 항상 os.tmpdir() 사용하도록 재수정**(2026-08-05) — 직전 수정(`process.env.VERCEL` 여부로 분기해 프로덕션만 tmpdir 사용)이 실제 프로덕션에서도 여전히 실패함을 로그로 재확인(`ENOENT ... mkdir '/var/task/apps/cnbiz-web/agents'`) — 분기 로직 자체가 런타임에 신뢰할 수 없다고 판단해, 플랫폼·환경과 무관하게 항상 `os.tmpdir()` 하위 고정 경로(`ai-business-os-cli/generated-websites`, `ai-business-os-cli/cli-cwd`)를 사용하도록 단순화했다. `resolveCliWorkingDir()`는 `child_process.spawn()`이 cwd 존재를 요구하므로 반환 전 `fs.mkdirSync(recursive:true)`로 미리 생성하도록 변경. `app/api/design/website/route.ts`도 `fs`/`path` 직접 조작 대신 새 헬퍼 3종(`resolveCliEntry`/`resolveCliWorkingDir`/`resolveGeneratedWebsitesDir`)만 사용하도록 리팩터링해 다른 CLI 호출 지점(`app/api/websites/route.ts`, `lib/aiJobs/executor.ts`)과 로직을 통일했다.

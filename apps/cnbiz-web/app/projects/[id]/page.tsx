@@ -11,6 +11,8 @@ import { LivePreviewPanel } from "@/components/developer/LivePreviewPanel";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import type { ProjectRecord, ProjectStatus } from "@/lib/projects/registry";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
+import type { InquiryRecord } from "@/lib/inquiries/types";
+import type { WebsiteRecord } from "@/lib/websites/registry";
 import {
   fetchAiStatus,
   fetchGitStatus,
@@ -28,6 +30,15 @@ interface ProjectResponse {
 interface WebsiteOrderResponse {
   websiteOrder?: WebsiteOrderRecord;
   error?: string;
+}
+
+interface InquiryResponse {
+  inquiry?: InquiryRecord;
+  error?: string;
+}
+
+interface WebsitesResponse {
+  websites?: WebsiteRecord[];
 }
 
 const STATUS_TONES: Record<ProjectStatus, BadgeTone> = {
@@ -49,6 +60,14 @@ export default function ProjectDashboardPage() {
   // (lib/aiJobs/worker.ts::triggerWorkspaceProvisioning()이 채우는 기존 필드). 여기서는
   // 기존 GET /api/website-orders/[id]를 그대로 재사용해 표시용 정보만 조회한다.
   const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
+  // websiteOrder.requirements/project.description은 AI 의뢰 승인 시점에 딱 한 번 복사된
+  // 스냅샷이라, 이후 관리자가 AI 의뢰 상세에서 상담 내용을 수정하거나 재분석해도 이 프로젝트
+  // 화면에는 반영되지 않았다(2026-08-06 확인된 문제) — Inquiry를 직접 다시 조회해 항상 최신
+  // 값을 보여준다.
+  const [inquiry, setInquiry] = useState<InquiryRecord | null>(null);
+  // undefined = 일반(비고객) 프로젝트, 기존 localhost 미리보기 그대로. null = 고객 프로젝트인데
+  // 아직 배포 URL 없음. string = 실제 배포된 사이트 URL.
+  const [deployedUrl, setDeployedUrl] = useState<string | null | undefined>(undefined);
 
   const [gitStatus, setGitStatus] = useState<ProjectGitStatus | null>(null);
   const [aiStatus, setAiStatus] = useState<AiToolStatus[] | null>(null);
@@ -109,6 +128,62 @@ export default function ProjectDashboardPage() {
       cancelled = true;
     };
   }, [project]);
+
+  useEffect(() => {
+    if (!websiteOrder?.inquiryId) {
+      queueMicrotask(() => setInquiry(null));
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch(`/api/inquiries/${websiteOrder.inquiryId}`)
+      .then((res) => res.json())
+      .then((data: InquiryResponse) => {
+        if (!cancelled) setInquiry(data.inquiry ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setInquiry(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [websiteOrder]);
+
+  // "실시간 미리보기"가 항상 localhost:3000을 시도해 원격에서는 항상 실패하던 문제
+  // (2026-08-06) — 고객 프로젝트는 실제 배포 URL(WebsiteRecord.deployment.url)이 있으면
+  // 그 URL을, 배포가 아직 없으면 명시적으로 null을 전달해 Live Preview가 iframe 자체를
+  // 생략하도록 한다.
+  useEffect(() => {
+    if (!project?.websiteOrderId) {
+      queueMicrotask(() => setDeployedUrl(undefined));
+      return;
+    }
+
+    if (!websiteOrder || websiteOrder.websiteIds.length === 0) {
+      queueMicrotask(() => setDeployedUrl(null));
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch("/api/websites")
+      .then((res) => res.json())
+      .then((data: WebsitesResponse) => {
+        if (cancelled) return;
+        const websiteId = websiteOrder.websiteIds[websiteOrder.websiteIds.length - 1];
+        const website = (data.websites ?? []).find((item) => item.id === websiteId);
+        setDeployedUrl(website?.deployment?.url ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDeployedUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project, websiteOrder]);
 
   useEffect(() => {
     if (!project) return;
@@ -179,41 +254,58 @@ export default function ProjectDashboardPage() {
         }
       />
 
-      {project.description && (
-        <p className="text-sm text-gray-400 mb-6">{project.description}</p>
+      {(inquiry?.requirements || project.description) && (
+        <p className="text-sm text-gray-400 mb-6">{inquiry?.requirements || project.description}</p>
       )}
 
       {project.websiteOrderId && (
         <Card title="고객 주문 정보" className="mb-6">
           {websiteOrder ? (
-            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-              <div>
-                <dt className="text-gray-500">주문 상태</dt>
-                <dd className="text-gray-200">{websiteOrder.status}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">사이트 유형</dt>
-                <dd className="text-gray-200">{websiteOrder.siteType}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">상세</dt>
-                <dd className="text-gray-200">
+            <div className="flex flex-col gap-4 text-sm">
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <dt className="text-gray-500">주문 상태</dt>
+                  <dd className="text-gray-200">{websiteOrder.status}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">사이트 유형</dt>
+                  <dd className="text-gray-200">{websiteOrder.siteType}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">상세</dt>
+                  <dd className="text-gray-200">
+                    <Link
+                      href={`/developer/website-orders/${websiteOrder.id}`}
+                      className="text-blue-400 hover:underline"
+                    >
+                      주문 상세로 이동 →
+                    </Link>
+                  </dd>
+                </div>
+              </dl>
+
+              {websiteOrder.inquiryId && (
+                <div>
+                  <dt className="text-gray-500 mb-1">AI 상담 내용</dt>
+                  <dd className="text-gray-200 whitespace-pre-wrap break-words">
+                    {inquiry?.requirements || "불러오는 중..."}
+                  </dd>
                   <Link
-                    href={`/developer/website-orders/${websiteOrder.id}`}
-                    className="text-blue-400 hover:underline"
+                    href={`/developer/inquiries/${websiteOrder.inquiryId}`}
+                    className="text-blue-400 hover:underline text-xs mt-1 inline-block"
                   >
-                    주문 상세로 이동 →
+                    AI 의뢰 상세에서 수정 →
                   </Link>
-                </dd>
-              </div>
-            </dl>
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-gray-500">주문 정보를 불러오는 중입니다.</p>
           )}
         </Card>
       )}
 
-      <LivePreviewPanel workspacePath={project.workspacePath} />
+      <LivePreviewPanel workspacePath={project.workspacePath} deployedUrl={deployedUrl} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <Card title="Terminal">

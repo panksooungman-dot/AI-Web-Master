@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `096f292` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `2607608` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Vercel 배포 시 `packages/cli/dist` 누락 수정(Output File Tracing 보강)**(2026-08-05) — `lib/ai/bridge.ts`·`lib/aiJobs/executor.ts`·`app/api/websites/route.ts` 등이 `node packages/cli/dist/index.js`를 동적 경로로 shell-out 실행하는데, Next.js의 빌드타임 File Tracing이 이를 정적으로 발견하지 못해 Vercel 배포본에 `packages/cli/dist`가 통째로 누락되고 관련 API가 런타임에 "packages/cli가 아직 빌드되지 않았습니다." 오류로 실패하던 문제(Vercel 함수 로그로 확인)를 수정했다. `apps/cnbiz-web/next.config.ts`에 `outputFileTracingRoot`(모노레포 루트로 확장)와 `outputFileTracingIncludes`(`/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`에 `packages/cli/dist`·`package.json` + npm workspace로 하이스팅된 CLI 런타임 의존성 27종(chalk/commander/fs-extra/ora 및 전이 의존성, package-lock.json 기준)을 명시적으로 포함)를 추가하고, `apps/cnbiz-web/package.json`에 `prebuild` 스크립트(`npm run build --workspace=@ai-business-os/cli`)를 추가해 배포마다 `packages/cli`가 항상 최신으로 빌드된 뒤 트레이싱되도록 했다.
 - **Development OS 대시보드 전 페이지에 맥락 도움말(HelpTip) 추가**(2026-08-05) — `components/developer/HelpTip.tsx`(신규, 클릭 시 펼쳐지는 인라인 도움말 팝오버)와 `components/developer/PageHeader.tsx`에 `help?: string[]` prop을 추가해, `/developer` 하위 30개 페이지(AI Workspace·Analysis·Audit Log·Backup·Clients·Contracts·Deployment·Design·Errors·Estimates·GitHub·Health·Inquiries·Logs·Marketplace·Metrics·Planning·Prompts·Proposals·Requests·Settings·Specifications·Terminal·Timeline·UI Map·Website Orders·Websites·Workflows·Workspace, `/projects` 포함) 헤더에 화면의 목적·다른 화면과의 관계·주의사항을 짧은 안내 문구로 노출했다. 새 API·새 데이터 저장소 없이 순수 UI/UX 보강이며 기존 로직은 변경하지 않았다.
 - **로그인 페이지 비밀번호 표시/숨기기 토글 추가**(2026-08-05) — `apps/cnbiz-web/app/login/page.tsx`에 비밀번호 입력란 우측 눈 아이콘 버튼(`showPassword` state, `aria-pressed`)을 추가해 입력 중 비밀번호를 평문으로 확인할 수 있도록 UX 개선. 인증 로직·API 호출은 무변경.
 - **Customer Portal V1 구현 — 고객 본인 주문 조회 신규 추가**(2026-08-04) — `Role` 타입에 `customer` 추가(`lib/auth/types.ts`), `lib/auth/rbac.ts`에 `/customer/**` 보호 규칙 추가, `proxy.ts`가 `/customer/**`도 세션 인증 대상에 포함하도록 확장. `lib/customerPortal/view.ts`(신규) — `findCustomerOrders()`/`getCustomerOrderDetail()`이 로그인 이메일과 일치하는 Client의 WebsiteOrder만 조회하며, Inquiry/Client/WebsiteOrder/Estimate/Specification/Timeline/Contract/Proposal 7개 Domain을 읽기 전용으로만 join한다(새 저장소 없음). `GET /api/customer/orders`·`GET /api/customer/orders/[id]`(신규) — 타인 소유 주문은 "존재하지 않음"과 동일한 404로 응답해 존재 여부조차 추측 불가능하도록 처리. `/customer/dashboard`·`/customer/orders`·`/customer/orders/[id]`·`/customer/layout.tsx`(신규 페이지 4개), `components/customer/{CustomerHeaderAuth,OrderCard,labels}.tsx`(신규). `POST /api/auth/login`에 `customer` role 로그인 시 `customer.login` 감사 로그 기록 추가(developer/admin 로그인 동작은 무변경), 주문 상세 조회 시 `customer.view_document` 감사 로그 기록. `lib/metrics/registry.ts`에 `customerPortalVisitCount` 카운터 추가(Metrics 위젯 반영).
@@ -248,21 +249,15 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 다음 작업 우선순위
 
-> `GITHUB_TOKEN`/`VERCEL_TOKEN` 설정 + 실 계정 E2E 검증은 2026-08-03 `FINAL_E2E_REPORT_v5.md`로
-> 완료되어 목록에서 제거했습니다. "고객 URL 전달" 기능도 같은 날 Lifecycle Extension Point +
-> customer-notification Hook으로 구현되어 목록에서 제거했습니다. 자동 문서화 체인(기술
-> 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 5종)도 2026-08-03~04에 걸쳐 `lib/estimates/*`·
-> `lib/specifications/*`·`lib/timeline/*`·`lib/contracts/*`·`lib/proposals/*`로 전부 구현되어
-> 목록에서 제거했습니다.
-
 1. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
 2. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
 3. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
-4. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
-5. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
-6. **회원가입 백엔드 + 역할관리 UI**
-7. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
-8. **Design Automation Phase 9 실사용 검증**
+4. **`packages/cli` outputFileTracing 수정 사항의 Vercel 재배포·실 검증** — 이번 수정은 로컬 근거(Vercel 함수 로그·package-lock.json 의존성 그래프)로 작성됨. 재배포 후 `/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries` 라우트가 실제로 `packages/cli/dist`를 정상 실행하는지 프로덕션에서 재확인 필요
+5. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
+6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
+7. **회원가입 백엔드 + 역할관리 UI**
+8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
+9. **Design Automation Phase 9 실사용 검증**
 
 ---
 

@@ -1,7 +1,6 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { createRequire } from "module";
 
 /**
  * Resolves the monorepo root (the directory containing the workspace root `package.json`
@@ -36,24 +35,26 @@ export function resolveRepoRoot(startDir: string = process.cwd()): string {
 }
 
 /**
- * Resolves packages/cli's compiled entry point via Node's own module resolution instead of
- * path.join(resolveRepoRoot(), "packages", "cli", "dist", "index.js"). In a Vercel serverless
- * runtime, process.cwd() doesn't walk up to a package.json with a `workspaces` field the way it
- * does in local dev (the bundle's directory layout doesn't mirror the source repo), so the old
- * path-join approach never found the file in production even after it was correctly included in
- * the deployment (confirmed via Vercel function logs, 2026-08-05 — "packages/cli가 아직
- * 빌드되지 않았습니다." even though the trace output demonstrably contained it). require.resolve()
- * on the package name works regardless of directory layout because apps/cnbiz-web now declares a
- * real dependency on @ai-business-os/cli (package.json), so Node's standard module resolution
- * (which Next.js's file tracing already understands and bundles correctly) finds it.
+ * Resolves packages/cli's compiled entry point. Two other approaches were tried and both failed
+ * in production (Vercel), confirmed via function logs on 2026-08-05:
+ *
+ * 1. path.join(resolveRepoRoot(), "packages", "cli", "dist", "index.js") — resolveRepoRoot()'s
+ *    package.json walk-up never finds a workspace root inside the Lambda bundle and silently
+ *    falls back to process.cwd(), which is apps/cnbiz-web's own directory — one level short
+ *    (missing the "up two more directories" step), so this always pointed at a nonexistent path.
+ * 2. require.resolve("@ai-business-os/cli") — Turbopack's build-time analysis of that literal
+ *    string rewrote it into an internal bundler module id instead of leaving it as a real
+ *    filesystem path; at runtime the code tried to `node` that numeric id as if it were a file
+ *    ("Cannot find module '/var/task/apps/cnbiz-web/37795'").
+ *
+ * apps/cnbiz-web is always exactly two directories below the monorepo root — both locally and
+ * inside the deployed bundle, since outputFileTracingRoot (next.config.ts) mirrors that same
+ * structure — and process.cwd() reliably equals apps/cnbiz-web's own directory at runtime (this
+ * is what approach 1's fallback value demonstrated). No dynamic discovery needed.
  */
 export function resolveCliEntry(): string | null {
-  try {
-    const require = createRequire(import.meta.url);
-    return require.resolve("@ai-business-os/cli");
-  } catch {
-    return null;
-  }
+  const candidate = path.join(process.cwd(), "..", "..", "packages", "cli", "dist", "index.js");
+  return fs.existsSync(candidate) ? candidate : null;
 }
 
 /**

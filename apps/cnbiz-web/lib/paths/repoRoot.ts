@@ -57,28 +57,29 @@ export function resolveCliEntry(): string | null {
   return fs.existsSync(candidate) ? candidate : null;
 }
 
+const CLI_SCRATCH_ROOT = path.join(os.tmpdir(), "ai-business-os-cli");
+
 /**
- * Vercel's deployed function filesystem is read-only outside /tmp — writing generated website
- * files under resolveRepoRoot()/.generated-websites (as this always did in local dev, where it's
- * convenient to inspect output in the repo) fails there. Route to a genuinely writable directory
- * in production while keeping the existing repo-relative location for local dev.
+ * Vercel's deployed function filesystem is read-only outside /tmp. An earlier version branched
+ * on process.env.VERCEL to keep writing into <repoRoot>/.generated-websites for local dev
+ * convenience, but that branch turned out to be unreliable at runtime — the mkdir still landed
+ * inside the read-only deployment bundle instead of /tmp even with the check in place (confirmed
+ * via production logs, 2026-08-05: "ENOENT ... mkdir '/var/task/apps/cnbiz-web/agents'").
+ * Always using os.tmpdir() (unconditionally, on every platform) removes that ambiguity entirely.
  */
 export function resolveGeneratedWebsitesDir(subPath: string): string {
-  const base = process.env.VERCEL
-    ? path.join(os.tmpdir(), "ai-business-os-generated-websites")
-    : path.join(resolveRepoRoot(), ".generated-websites");
-
-  return path.join(base, subPath);
+  return path.join(CLI_SCRATCH_ROOT, "generated-websites", subPath);
 }
 
 /**
  * Working directory for the `node <cliEntry> website create ...` subprocess. packages/cli's
  * generation workflow has a known side effect of scaffolding some files (e.g. an `agents/`
- * directory) relative to its own cwd regardless of `--out` — harmless on a local dev machine
- * (writes into the repo, already gitignored), but fatal in Vercel's read-only deployment
- * filesystem ("ENOENT: no such file or directory, mkdir '/var/task/apps/cnbiz-web/agents'",
- * confirmed via production logs, 2026-08-05). Run it from os.tmpdir() in production instead.
+ * directory) relative to its own cwd regardless of `--out`, so this needs to be writable too —
+ * same unconditional os.tmpdir() reasoning as resolveGeneratedWebsitesDir() above. The directory
+ * is created eagerly because child_process.spawn() requires `cwd` to already exist.
  */
 export function resolveCliWorkingDir(): string {
-  return process.env.VERCEL ? os.tmpdir() : resolveRepoRoot();
+  const dir = path.join(CLI_SCRATCH_ROOT, "cli-cwd");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }

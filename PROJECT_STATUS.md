@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `635c46b` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `722c438` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **`resolveGeneratedWebsitesDir()`/`resolveCliWorkingDir()` — VERCEL 환경변수 분기 제거, 항상 os.tmpdir() 사용하도록 재수정**(2026-08-05) — 직전 수정(`process.env.VERCEL` 여부로 분기해 프로덕션만 tmpdir 사용)이 실제 프로덕션에서도 여전히 실패함을 로그로 재확인(`ENOENT ... mkdir '/var/task/apps/cnbiz-web/agents'`) — 분기 로직 자체가 런타임에 신뢰할 수 없다고 판단해, 플랫폼·환경과 무관하게 항상 `os.tmpdir()` 하위 고정 경로(`ai-business-os-cli/generated-websites`, `ai-business-os-cli/cli-cwd`)를 사용하도록 단순화했다. `resolveCliWorkingDir()`는 `child_process.spawn()`이 cwd 존재를 요구하므로 반환 전 `fs.mkdirSync(recursive:true)`로 미리 생성하도록 변경. `app/api/design/website/route.ts`도 `fs`/`path` 직접 조작 대신 새 헬퍼 3종(`resolveCliEntry`/`resolveCliWorkingDir`/`resolveGeneratedWebsitesDir`)만 사용하도록 리팩터링해 다른 CLI 호출 지점(`app/api/websites/route.ts`, `lib/aiJobs/executor.ts`)과 로직을 통일했다.
 - **`resolveCliWorkingDir()` 추가 — Website Builder CLI 서브프로세스 작업 디렉터리를 Vercel에서 tmpdir로 분리**(2026-08-05) — `apps/cnbiz-web/lib/paths/repoRoot.ts`에 신규 함수 추가. `packages/cli`의 `website create` 생성 워크플로가 `--out`과 무관하게 자신의 cwd 기준 상대 경로에 `agents/` 등 부산물을 스캐폴딩하는 알려진 부작용이 있어, 로컬 dev(cwd=repoRoot, 이미 gitignore 대상)에서는 무해하지만 Vercel의 읽기 전용 배포 파일시스템에서는 `ENOENT: mkdir '/var/task/apps/cnbiz-web/agents'`로 즉시 실패함을 프로덕션 로그로 확인. `process.env.VERCEL` 여부로 분기해 프로덕션에서는 `os.tmpdir()`을 cwd로 사용하도록 수정.
 - **`app/api/websites/route.ts`·`lib/aiJobs/executor.ts` — CLI 서브프로세스 cwd를 `resolveRepoRoot()`에서 `resolveCliWorkingDir()`로 교체**(2026-08-05) — Website Builder 생성(`POST /api/websites`)과 AI Job 실행(`executeJob()`) 양쪽의 `execute("node ...", { cwd })` 호출을 전부 새 함수로 교체해, 앞서 수정한 CLI 엔트리 경로·출력 디렉터리·Shell 실행자 문제에 이어 남아있던 마지막 프로덕션 실패 지점을 해소.
 - **`executor.ts` — 빈 name/siteType/requirements로 인한 CLI 웹사이트 생성 거부 수정**(2026-08-05) — `apps/cnbiz-web/lib/aiJobs/executor.ts`가 `WebsiteOrder.name`/`siteType`/`requirements`를 TS 타입상 항상 채워진 문자열로 가정했으나, `/contact`처럼 구조화된 siteType·상세 requirements를 받지 않는 접수 경로에서는 실제로 빈 문자열일 수 있어 `packages/cli`의 `website create`가 "Project Name, Business Type, Target Audience, Brand, and Language are all required."로 즉시 거부하던 문제(프로덕션 로그로 확인)를 수정. `name`/`businessType`/`audience`가 비어있으면 각각 client 정보·`WEBSITE_TYPES` 라벨·기본값("웹사이트 프로젝트"/"일반 고객" 등)으로 폴백하도록 변경.

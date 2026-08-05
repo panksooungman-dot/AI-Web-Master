@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { NextResponse } from "next/server";
 import { execute } from "@/lib/commandEngine/engine";
 import { getDesignPlan } from "@/lib/design/registry";
@@ -12,7 +10,7 @@ import { createWebsiteRecord } from "@/lib/websites/registry";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
-import { resolveRepoRoot } from "@/lib/paths/repoRoot";
+import { resolveCliEntry, resolveCliWorkingDir, resolveGeneratedWebsitesDir } from "@/lib/paths/repoRoot";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -118,10 +116,9 @@ export async function POST(request: Request) {
   const claudeDesign = await getClaudeDesign(review.claudeDesignId);
   const prototype = claudeDesign ? await getPrototype(claudeDesign.prototypeId) : null;
 
-  const repoRoot = resolveRepoRoot();
-  const cliEntry = path.join(repoRoot, "packages", "cli", "dist", "index.js");
+  const cliEntry = resolveCliEntry();
 
-  if (!fs.existsSync(cliEntry)) {
+  if (!cliEntry) {
     return NextResponse.json(
       {
         success: false,
@@ -135,7 +132,7 @@ export async function POST(request: Request) {
   const hybridSource = buildWebsiteBuildHybridSource(plan, prototype);
   const inputs = hybridSource.inputs;
   const slug = slugify(inputs.name);
-  const outDir = outDirInput || path.join(repoRoot, ".generated-websites", `design-${slug}`);
+  const outDir = outDirInput || resolveGeneratedWebsitesDir(`design-${slug}`);
 
   const args = [
     `"${cliEntry}"`,
@@ -150,7 +147,7 @@ export async function POST(request: Request) {
     `--out "${outDir}"`,
   ];
 
-  const result = await execute(`node ${args.join(" ")}`, { cwd: repoRoot, category: "development" });
+  const result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
   const actor = await getCurrentActorEmail();
 

@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `2607608` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `8738bcc` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **`apps/cnbiz-web`에 `@ai-business-os/cli` workspace 의존성 명시 추가**(2026-08-05) — 직전 커밋(outputFileTracingIncludes 보강)의 후속 조치로, `apps/cnbiz-web/package.json`의 `dependencies`에 `@ai-business-os/cli: "*"`를 추가해 npm workspaces가 `packages/cli`를 `apps/cnbiz-web`의 명시적 의존성으로 링크하도록 했다. 기존에는 `lib/ai/bridge.ts` 등이 상대 경로(`node packages/cli/dist/index.js`)로만 shell-out했을 뿐 package.json상 의존 관계가 없어, Vercel의 workspace 의존성 그래프 판단(빌드 순서·설치 대상)에서 `packages/cli`가 명시적으로 드러나지 않았다 — 이번 변경으로 Output File Tracing 보강과 함께 배포본에 `packages/cli`가 안정적으로 포함되도록 보강했다.
 - **Vercel 배포 시 `packages/cli/dist` 누락 수정(Output File Tracing 보강)**(2026-08-05) — `lib/ai/bridge.ts`·`lib/aiJobs/executor.ts`·`app/api/websites/route.ts` 등이 `node packages/cli/dist/index.js`를 동적 경로로 shell-out 실행하는데, Next.js의 빌드타임 File Tracing이 이를 정적으로 발견하지 못해 Vercel 배포본에 `packages/cli/dist`가 통째로 누락되고 관련 API가 런타임에 "packages/cli가 아직 빌드되지 않았습니다." 오류로 실패하던 문제(Vercel 함수 로그로 확인)를 수정했다. `apps/cnbiz-web/next.config.ts`에 `outputFileTracingRoot`(모노레포 루트로 확장)와 `outputFileTracingIncludes`(`/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`에 `packages/cli/dist`·`package.json` + npm workspace로 하이스팅된 CLI 런타임 의존성 27종(chalk/commander/fs-extra/ora 및 전이 의존성, package-lock.json 기준)을 명시적으로 포함)를 추가하고, `apps/cnbiz-web/package.json`에 `prebuild` 스크립트(`npm run build --workspace=@ai-business-os/cli`)를 추가해 배포마다 `packages/cli`가 항상 최신으로 빌드된 뒤 트레이싱되도록 했다.
 - **Development OS 대시보드 전 페이지에 맥락 도움말(HelpTip) 추가**(2026-08-05) — `components/developer/HelpTip.tsx`(신규, 클릭 시 펼쳐지는 인라인 도움말 팝오버)와 `components/developer/PageHeader.tsx`에 `help?: string[]` prop을 추가해, `/developer` 하위 30개 페이지(AI Workspace·Analysis·Audit Log·Backup·Clients·Contracts·Deployment·Design·Errors·Estimates·GitHub·Health·Inquiries·Logs·Marketplace·Metrics·Planning·Prompts·Proposals·Requests·Settings·Specifications·Terminal·Timeline·UI Map·Website Orders·Websites·Workflows·Workspace, `/projects` 포함) 헤더에 화면의 목적·다른 화면과의 관계·주의사항을 짧은 안내 문구로 노출했다. 새 API·새 데이터 저장소 없이 순수 UI/UX 보강이며 기존 로직은 변경하지 않았다.
 - **로그인 페이지 비밀번호 표시/숨기기 토글 추가**(2026-08-05) — `apps/cnbiz-web/app/login/page.tsx`에 비밀번호 입력란 우측 눈 아이콘 버튼(`showPassword` state, `aria-pressed`)을 추가해 입력 중 비밀번호를 평문으로 확인할 수 있도록 UX 개선. 인증 로직·API 호출은 무변경.

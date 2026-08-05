@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
 import { execute } from "@/lib/commandEngine/engine";
-import { resolveRepoRoot } from "@/lib/paths/repoRoot";
+import { resolveCliEntry, resolveGeneratedWebsitesDir, resolveRepoRoot } from "@/lib/paths/repoRoot";
 import { getAiJob } from "./registry";
 import { getWebsiteOrder, addWebsiteToOrder } from "@/lib/websiteOrders/registry";
 import { getClient } from "@/lib/clients/registry";
@@ -31,9 +29,9 @@ export async function executeJob(jobId: string): Promise<void> {
   const client = await getClient(websiteOrder.clientId);
 
   const repoRoot = resolveRepoRoot();
-  const cliEntry = path.join(repoRoot, "packages", "cli", "dist", "index.js");
+  const cliEntry = resolveCliEntry();
 
-  if (!fs.existsSync(cliEntry)) {
+  if (!cliEntry) {
     throw new Error("packages/cli가 아직 빌드되지 않았습니다.");
   }
 
@@ -50,7 +48,7 @@ export async function executeJob(jobId: string): Promise<void> {
     : "website";
   // websiteOrder.id 대신 job.id를 쓰는 이유: 하나의 WebsiteOrder가 여러 AiJob(재시도 등)을
   // 가질 수 있어(WebsiteOrderRecord.aiJobIds가 배열) 실행마다 고유 출력 폴더가 필요하다.
-  const outDir = path.join(repoRoot, ".generated-websites", job.id);
+  const outDir = resolveGeneratedWebsitesDir(job.id);
 
   const args = [
     `"${cliEntry}"`,

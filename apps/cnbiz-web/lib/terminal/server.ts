@@ -34,6 +34,14 @@ function resolveCdTarget(cwd: string, rawTarget: string): string {
 }
 
 export function buildShellInvocation(shell: Shell, command: string): { bin: string; args: string[] } {
+  // Vercel's production runtime is Linux — PowerShell/CMD/Git Bash don't exist there at all
+  // (this is why AI Job execution and Website Builder generation failed in production with
+  // spawn ENOENT, 2026-08-05). The `shell` param only carries meaning on Windows (it's a
+  // Settings/Terminal UI choice); on any other platform there is exactly one real option.
+  if (process.platform !== "win32") {
+    return { bin: "/bin/sh", args: ["-c", command] };
+  }
+
   if (shell === "CMD") {
     return { bin: "cmd.exe", args: ["/d", "/s", "/c", `chcp 65001>nul && ${command}`] };
   }

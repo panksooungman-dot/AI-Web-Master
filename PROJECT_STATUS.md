@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `8738bcc` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `274391c` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Vercel 프로덕션 실행 3종 결함 추가 수정 — CLI 경로 해석·출력 디렉터리·Shell 실행자**(2026-08-05) — 직전 outputFileTracing 보강만으로는 부족했던 나머지 프로덕션 실패 원인 3가지를 `lib/paths/repoRoot.ts`·`lib/terminal/server.ts`에서 해결했다. ① `resolveCliEntry()`(신규) — `path.join(resolveRepoRoot(), "packages/cli/dist/index.js")` 방식이 Vercel 서버리스 런타임에서는 `process.cwd()`가 로컬 dev처럼 `workspaces` package.json까지 거슬러 올라가지 못해 파일을 찾지 못하던 문제(Vercel 함수 로그로 실측, 번들에 파일이 실제로 포함돼 있었음에도 "packages/cli가 아직 빌드되지 않았습니다" 오류 발생)를, `apps/cnbiz-web`이 `@ai-business-os/cli`에 대한 실제 package.json 의존성을 갖도록 한 뒤 `require.resolve()`(Node 표준 모듈 해석, Next.js File Tracing과 호환)로 대체해 해결. `app/api/websites/route.ts`·`lib/ai/bridge.ts`·`lib/aiJobs/executor.ts` 3곳 전부 이 함수로 교체. ② `resolveGeneratedWebsitesDir()`(신규) — Vercel 배포 함수의 파일시스템은 `/tmp` 밖에서 읽기 전용이라, 기존처럼 저장소 경로 하위(`.generated-websites/`)에 생성 산출물을 쓰면 실패하던 문제를 `process.env.VERCEL` 여부로 분기해 프로덕션에서는 `os.tmpdir()` 하위에 쓰도록 수정(로컬 dev는 기존 경로 유지). ③ `buildShellInvocation()` — Vercel 프로덕션 런타임은 Linux인데 PowerShell/CMD/Git Bash를 그대로 실행하려 해서 AI Job 실행·Website Builder 생성이 `spawn ENOENT`로 실패하던 문제를, `process.platform !== "win32"`일 때 `/bin/sh -c`로 실행하도록 분기 추가.
 - **`apps/cnbiz-web`에 `@ai-business-os/cli` workspace 의존성 명시 추가**(2026-08-05) — 직전 커밋(outputFileTracingIncludes 보강)의 후속 조치로, `apps/cnbiz-web/package.json`의 `dependencies`에 `@ai-business-os/cli: "*"`를 추가해 npm workspaces가 `packages/cli`를 `apps/cnbiz-web`의 명시적 의존성으로 링크하도록 했다. 기존에는 `lib/ai/bridge.ts` 등이 상대 경로(`node packages/cli/dist/index.js`)로만 shell-out했을 뿐 package.json상 의존 관계가 없어, Vercel의 workspace 의존성 그래프 판단(빌드 순서·설치 대상)에서 `packages/cli`가 명시적으로 드러나지 않았다 — 이번 변경으로 Output File Tracing 보강과 함께 배포본에 `packages/cli`가 안정적으로 포함되도록 보강했다.
 - **Vercel 배포 시 `packages/cli/dist` 누락 수정(Output File Tracing 보강)**(2026-08-05) — `lib/ai/bridge.ts`·`lib/aiJobs/executor.ts`·`app/api/websites/route.ts` 등이 `node packages/cli/dist/index.js`를 동적 경로로 shell-out 실행하는데, Next.js의 빌드타임 File Tracing이 이를 정적으로 발견하지 못해 Vercel 배포본에 `packages/cli/dist`가 통째로 누락되고 관련 API가 런타임에 "packages/cli가 아직 빌드되지 않았습니다." 오류로 실패하던 문제(Vercel 함수 로그로 확인)를 수정했다. `apps/cnbiz-web/next.config.ts`에 `outputFileTracingRoot`(모노레포 루트로 확장)와 `outputFileTracingIncludes`(`/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`에 `packages/cli/dist`·`package.json` + npm workspace로 하이스팅된 CLI 런타임 의존성 27종(chalk/commander/fs-extra/ora 및 전이 의존성, package-lock.json 기준)을 명시적으로 포함)를 추가하고, `apps/cnbiz-web/package.json`에 `prebuild` 스크립트(`npm run build --workspace=@ai-business-os/cli`)를 추가해 배포마다 `packages/cli`가 항상 최신으로 빌드된 뒤 트레이싱되도록 했다.
 - **Development OS 대시보드 전 페이지에 맥락 도움말(HelpTip) 추가**(2026-08-05) — `components/developer/HelpTip.tsx`(신규, 클릭 시 펼쳐지는 인라인 도움말 팝오버)와 `components/developer/PageHeader.tsx`에 `help?: string[]` prop을 추가해, `/developer` 하위 30개 페이지(AI Workspace·Analysis·Audit Log·Backup·Clients·Contracts·Deployment·Design·Errors·Estimates·GitHub·Health·Inquiries·Logs·Marketplace·Metrics·Planning·Prompts·Proposals·Requests·Settings·Specifications·Terminal·Timeline·UI Map·Website Orders·Websites·Workflows·Workspace, `/projects` 포함) 헤더에 화면의 목적·다른 화면과의 관계·주의사항을 짧은 안내 문구로 노출했다. 새 API·새 데이터 저장소 없이 순수 UI/UX 보강이며 기존 로직은 변경하지 않았다.
@@ -250,10 +251,10 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 다음 작업 우선순위
 
-1. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
-2. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
-3. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
-4. **`packages/cli` outputFileTracing 수정 사항의 Vercel 재배포·실 검증** — 이번 수정은 로컬 근거(Vercel 함수 로그·package-lock.json 의존성 그래프)로 작성됨. 재배포 후 `/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries` 라우트가 실제로 `packages/cli/dist`를 정상 실행하는지 프로덕션에서 재확인 필요
+1. **수정된 Vercel 프로덕션 3종 결함(CLI 경로 해석·tmp 출력 디렉터리·Linux Shell 실행)의 실제 재배포·검증** — 이번 수정은 Vercel 함수 로그 근거로 작성됨. 재배포 후 `/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`·`/api/inquiries` 라우트가 실제 프로덕션(Linux) 환경에서 CLI 실행·홈페이지 생성까지 정상 완료되는지 재확인 필요
+2. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
+3. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
+4. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
 5. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
 6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
 7. **회원가입 백엔드 + 역할관리 UI**

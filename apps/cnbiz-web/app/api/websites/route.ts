@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { NextResponse } from "next/server";
 import { execute } from "@/lib/commandEngine/engine";
 import { createWebsiteRecord, listWebsites } from "@/lib/websites/registry";
@@ -7,7 +5,7 @@ import { WEBSITE_TYPES } from "@/lib/websites/types";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
-import { resolveRepoRoot } from "@/lib/paths/repoRoot";
+import { resolveCliEntry, resolveGeneratedWebsitesDir, resolveRepoRoot } from "@/lib/paths/repoRoot";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -60,9 +58,9 @@ export async function POST(request: Request) {
   }
 
   const repoRoot = resolveRepoRoot();
-  const cliEntry = path.join(repoRoot, "packages", "cli", "dist", "index.js");
+  const cliEntry = resolveCliEntry();
 
-  if (!fs.existsSync(cliEntry)) {
+  if (!cliEntry) {
     return NextResponse.json(
       {
         success: false,
@@ -75,7 +73,7 @@ export async function POST(request: Request) {
 
   const slug = slugify(name);
   const outDirInput = str(body, "outDir");
-  const outDir = outDirInput || path.join(repoRoot, ".generated-websites", slug);
+  const outDir = outDirInput || resolveGeneratedWebsitesDir(slug);
 
   const args = [
     `"${cliEntry}"`,

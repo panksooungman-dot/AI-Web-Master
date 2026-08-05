@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
 import { execute } from "@/lib/commandEngine/engine";
-import { resolveRepoRoot } from "@/lib/paths/repoRoot";
+import { resolveCliEntry } from "@/lib/paths/repoRoot";
 
 export interface ChatResult {
   success: boolean;
@@ -48,9 +46,9 @@ interface CliRunResult {
  * import하지 않고, 항상 빌드된 CLI를 별도 프로세스로 실행해 --json 출력을 파싱한다.
  */
 async function runAiCli(args: (string | undefined)[], cwd: string = process.cwd()): Promise<CliRunResult> {
-  const cliEntry = path.join(resolveRepoRoot(), "packages", "cli", "dist", "index.js");
+  const cliEntry = resolveCliEntry();
 
-  if (!fs.existsSync(cliEntry)) {
+  if (!cliEntry) {
     return {
       success: false,
       error: "packages/cli가 아직 빌드되지 않았습니다. `npm run build --workspace=@ai-business-os/cli`를 먼저 실행하세요.",

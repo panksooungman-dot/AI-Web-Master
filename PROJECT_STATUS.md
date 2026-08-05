@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-04 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `7805415` 기준)
+> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `0bc4b60` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -120,6 +120,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **로그인 페이지 비밀번호 표시/숨기기 토글 추가**(2026-08-05) — `apps/cnbiz-web/app/login/page.tsx`에 비밀번호 입력란 우측 눈 아이콘 버튼(`showPassword` state, `aria-pressed`)을 추가해 입력 중 비밀번호를 평문으로 확인할 수 있도록 UX 개선. 인증 로직·API 호출은 무변경.
 - **Customer Portal V1 구현 — 고객 본인 주문 조회 신규 추가**(2026-08-04) — `Role` 타입에 `customer` 추가(`lib/auth/types.ts`), `lib/auth/rbac.ts`에 `/customer/**` 보호 규칙 추가, `proxy.ts`가 `/customer/**`도 세션 인증 대상에 포함하도록 확장. `lib/customerPortal/view.ts`(신규) — `findCustomerOrders()`/`getCustomerOrderDetail()`이 로그인 이메일과 일치하는 Client의 WebsiteOrder만 조회하며, Inquiry/Client/WebsiteOrder/Estimate/Specification/Timeline/Contract/Proposal 7개 Domain을 읽기 전용으로만 join한다(새 저장소 없음). `GET /api/customer/orders`·`GET /api/customer/orders/[id]`(신규) — 타인 소유 주문은 "존재하지 않음"과 동일한 404로 응답해 존재 여부조차 추측 불가능하도록 처리. `/customer/dashboard`·`/customer/orders`·`/customer/orders/[id]`·`/customer/layout.tsx`(신규 페이지 4개), `components/customer/{CustomerHeaderAuth,OrderCard,labels}.tsx`(신규). `POST /api/auth/login`에 `customer` role 로그인 시 `customer.login` 감사 로그 기록 추가(developer/admin 로그인 동작은 무변경), 주문 상세 조회 시 `customer.view_document` 감사 로그 기록. `lib/metrics/registry.ts`에 `customerPortalVisitCount` 카운터 추가(Metrics 위젯 반영).
 - **`WebsiteOrderRecord.aiJobIds` 누락 결함 수정**(2026-08-04) — `app/api/inquiries/route.ts`·`app/api/external/inquiries/route.ts` 둘 다 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남던 기존 결함(2026-08-03 E2E 검증에서 발견, 다음 작업 우선순위 1번)을 수정 — `addWebsiteOrderToClient()`/`addInquiryToClient()`와 동일한 "생성 직후 부모 레코드에 역참조 추가" 패턴을 그대로 적용.
 - **Release Readiness Audit Major #3 완료 — fs CollectionStore(JSON Store) lost-update 해결**(2026-08-05) — 모든 registry가 공유하는 `list()`→JS 수정→`replaceAll()`(`getDoc()`→`setDoc()`도 동일) read-modify-write 패턴에 collection 단위 순수 Promise 락을 `lib/db/fsStore.ts` 내부에만 추가해, 동시 요청 시 나중 쓰기가 앞선 변경을 통째로 덮어쓰던 lost-update를 제거했다. 새 Store·새 라이브러리·`CollectionStore` 인터페이스 변경 없이 기존 4개 메서드 내부만 수정(호출자인 모든 registry는 무변경). 신규 `tests/db/fsStore.test.ts`로 동일 collection에 대한 **100회 동시 create·100회 동시 update·100회 동시 append**(및 카운터 increment)를 각각 실행해 전부 데이터 유실 0건을 실증했다(수정 전 코드로는 100→1로 붕괴함을 먼저 재현해 버그를 확인한 뒤 수정). `npx tsc --noEmit`·`npx eslint`·`npm run build` 전부 통과, `npm test` **88 files/742 tests** 전부 통과(신규 7개 포함, 회귀 없음).

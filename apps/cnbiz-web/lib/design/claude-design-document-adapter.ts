@@ -33,8 +33,13 @@ import type { PrototypeContent, PrototypeRecord } from "./prototype";
  *    DesignDocument의 ComponentType(heading/text/button/image/icon/card/form/input/textarea/
  *    checkbox/radio/select/video/map/divider/container/grid, 18종 — UI 원자 단위)은 서로 다른
  *    분류 체계다. 완벽한 1:1 대응은 존재하지 않으므로 아래 WIREFRAME_TO_DESIGN_COMPONENT는
- *    "가장 가까운 대응"을 고정 매핑한 결정론적 근사치다. 원래 타입은 Component.props.sourceType에
- *    그대로 보존해 정보 손실을 줄인다.
+ *    "가장 가까운 대응"을 고정 매핑한 결정론적 근사치다. 매핑 이전의 Wireframe 타입은 보존하지
+ *    않는다 — 한때 `Component.props.sourceType`에 남겼으나, React Generator
+ *    (packages/cli/src/generators/react/tsx.ts:43)가 특별 처리하지 않는 props를 전부 JSX 속성으로
+ *    출력하기 때문에 `<div sourceType="Header" />`가 되어 생성물이 타입체크에 실패했다. props는
+ *    렌더링되는 값만 담는다. (React Generator는 `Component.type`에서 자체 `ReactComponentNode
+ *    .sourceType`을 따로 만들어 두므로 렌더 트리 쪽 추적성은 그대로 유지된다 —
+ *    generators/react/componentTree.ts:34.)
  * 2) Prototype은 Wireframe이 만들었던 화면 내부의 섹션 경계(예: "Header" 섹션 / "Main Content"
  *    섹션 / "Footer" 섹션 구분)를 보존하지 않는다 — Prototype의 interactionMap은 화면당 컴포넌트
  *    "목록"만 가지고 있다. 그 결과 이 Adapter는 화면(Page)당 Section을 정확히 1개만 생성하고 그
@@ -91,8 +96,9 @@ function buildPageSections(page: Page, elements: WireframeComponentType[], isFir
   const components: Component[] = elements.map((wireframeType, index) => ({
     id: `${page.id}-${wireframeType.toLowerCase()}-${index}`,
     type: WIREFRAME_TO_DESIGN_COMPONENT[wireframeType],
-    // 원래 Wireframe/Prototype 컴포넌트 타입을 보존해 매핑으로 인한 정보 손실을 줄인다(알려진 한계 1번).
-    props: { sourceType: wireframeType },
+    // props는 렌더링되는 값만 담는다(알려진 한계 1번) — 아직 채울 렌더링 값이 없으므로 비워 둔다.
+    // schema상 props는 필수 필드라 객체 자체는 유지한다(design.schema.json $defs.component.required).
+    props: {},
   }));
 
   return [
@@ -141,8 +147,8 @@ function buildSectionsFromWireframeLayout(
     const components: Component[] = section.components.map((wireframeType, index) => ({
       id: `${page.id}-${slug}-${wireframeType.toLowerCase()}-${index}`,
       type: WIREFRAME_TO_DESIGN_COMPONENT[wireframeType],
-      // 원래 Wireframe 컴포넌트 타입을 보존해 매핑으로 인한 정보 손실을 줄인다(알려진 한계 1번).
-      props: { sourceType: wireframeType },
+      // props는 렌더링되는 값만 담는다(알려진 한계 1번, buildPageSections()와 동일).
+      props: {},
     }));
 
     const tablet = byName(screenLayout.tablet, section.name);

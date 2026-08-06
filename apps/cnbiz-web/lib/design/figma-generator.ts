@@ -1,4 +1,5 @@
 import { generateId } from "@/lib/id";
+import { typography } from "@cnbiz/design-system";
 import type {
   FigmaAsset,
   FigmaComponentSpec,
@@ -173,6 +174,15 @@ export const DESIGN_TOKEN_SEED: { name: string; category: FigmaToken["category"]
   { name: "Neutral", category: "color", value: "#6B7280" },
   { name: "Spacing Unit", category: "spacing", value: "8px" },
   { name: "Radius Medium", category: "radius", value: "8px" },
+  // Typography는 packages/design-system/tokens.ts의 기존 `typography` 토큰을 그대로 연결한다
+  // (h1/h2/h3/body/small/label). 여기서 타이포그래피를 새로 정의하지 않는다 — 토큰 키·값 모두
+  // tokens.ts가 SSOT이며, `FigmaTokenCategory`가 이미 지원하던 "typography" 분류만 채우는 것이다.
+  // `typography`가 `as const` 객체라 Object.entries의 순서는 결정론적이다(Export 재현성 유지).
+  ...Object.entries(typography).map(([name, value]) => ({
+    name,
+    category: "typography" as const,
+    value,
+  })),
 ];
 
 export interface FigmaExportChain {

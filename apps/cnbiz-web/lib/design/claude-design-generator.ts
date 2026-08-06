@@ -1,6 +1,10 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 import type { PrototypeRecord } from "./prototype";
+import { getWireframe } from "./wireframe";
 import type { ClaudeDesignContent } from "./claude-design";
+import { updateDesignDocument } from "./design-document-registry";
 import { prototypeToClaudeDesignSource, type ClaudeDesignSource } from "./claude-design-document-adapter";
 
 const SYSTEM_PROMPT =
@@ -160,9 +164,21 @@ export interface GenerateClaudeDesignResult {
  */
 export async function generateClaudeDesign(
   prototype: PrototypeRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli,
+  store: CollectionStore = getDefaultStore()
 ): Promise<GenerateClaudeDesignResult> {
-  const source = prototypeToClaudeDesignSource(prototype);
+  // Design Recovery — Prototype은 Wireframe의 섹션 경계·breakpoint별 columns를 보존하지 않는다
+  // (claude-design-document-adapter.ts의 "알려진 한계 2번"). 이미 저장돼 있는 원본 WireframeRecord를
+  // 기존 getWireframe()으로 그대로 읽어 Adapter에 넘겨 그 정보를 복구한다 — 새로 계산하지 않고
+  // 이미 생성된 데이터를 앞으로 전달하기만 한다. 조회에 실패하면 기존 동작으로 폴백한다.
+  const wireframe = await getWireframe(prototype.wireframeId, store);
+  const source = prototypeToClaudeDesignSource(prototype, wireframe);
+
+  // DesignDocument Persistence Wiring — 체인에서 가장 풍부한 문서(prototypeToDesignDocument()가
+  // sections + buildEnrichedTheme()까지 채운 것)를 그대로 저장한다. Website Builder가 나중에
+  // 참조하는 것과 동일한 Adapter 출력이다(website-build-document-adapter.ts).
+  await updateDesignDocument(prototype.planId, source.document, store);
+
   const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {

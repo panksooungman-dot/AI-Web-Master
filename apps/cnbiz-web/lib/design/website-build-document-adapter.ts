@@ -1,6 +1,7 @@
 import type { DesignDocument } from "@cnbiz/design-system/types/design";
 import type { DesignPlanRecord } from "./types";
 import type { PrototypeRecord } from "./prototype";
+import type { WireframeRecord } from "./wireframe";
 import { planToDesignDocument } from "./design-document-adapter";
 import { prototypeToDesignDocument } from "./claude-design-document-adapter";
 import { planToWebsiteBuildInputs, type WebsiteBuildInputs } from "./website-build-adapter";
@@ -52,9 +53,10 @@ export interface WebsiteBuildHybridSource {
  */
 export function buildWebsiteBuildHybridSource(
   plan: DesignPlanRecord,
-  prototype?: PrototypeRecord | null
+  prototype?: PrototypeRecord | null,
+  wireframe?: WireframeRecord | null
 ): WebsiteBuildHybridSource {
-  const document = prototype ? prototypeToDesignDocument(prototype) : planToDesignDocument(plan);
+  const document = prototype ? prototypeToDesignDocument(prototype, wireframe) : planToDesignDocument(plan);
   const inputs = planToWebsiteBuildInputs(plan);
 
   return { document, pages: document.pages, theme: document.theme, inputs };

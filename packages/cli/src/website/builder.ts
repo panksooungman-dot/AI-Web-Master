@@ -1,4 +1,7 @@
 import path from "path";
+import type { DesignDocument } from "@cnbiz/design-system/types/design";
+import { generateReactComponentTree } from "../generators/react/index.js";
+import { FileSystem } from "../utils/filesystem.js";
 import { ensureWebsiteAgents } from "./agents.js";
 import { ensureWebsiteWorkflow, WEBSITE_WORKFLOW_NAME } from "./workflow.js";
 import { scaffoldWebsiteProject, resolveSiteType, slugify } from "./scaffold.js";
@@ -21,6 +24,11 @@ export interface BuildWebsiteOptions {
   /** `--site-type` 원본 값. 목록에 없거나 생략되면 "website"(범용)로 폴백한다. */
   siteType?: string;
   inputs: WebsiteRawInputs;
+  /**
+   * 선택 — 주어지면 스캐폴딩 이후 기존 React Generator(generators/react)를 그대로 호출해
+   * 페이지 TSX를 기록한다. 생략하면 기존 동작과 100% 동일하다.
+   */
+  designDocument?: DesignDocument;
 }
 
 export interface BuildWebsiteResult {
@@ -71,10 +79,25 @@ export async function buildWebsite(options: BuildWebsiteOptions): Promise<BuildW
 
   const scaffolded = await scaffoldWebsiteProject(cwd, outDir, websiteInputs, providerId);
 
+  // React Generator 실행 경로(Glue) — 새 렌더링 로직 없음. 무엇을 그릴지(page.tsx)와 어디에 둘지
+  // (page.route, 예: "app/about/page.tsx")는 전부 기존 generateReactComponentTree()가 이미
+  // 계산해서 넘겨준다. 여기서는 그 둘을 기존 FileSystem.writeText()로 옮기기만 한다.
+  // designDocument가 없으면 루프 자체가 실행되지 않아 기존 동작이 그대로 유지된다.
+  const designFiles: string[] = [];
+
+  if (options.designDocument) {
+    for (const page of generateReactComponentTree(options.designDocument).pages) {
+      const target = FileSystem.join(scaffolded.targetDir, page.route);
+      await FileSystem.ensureDirectory(path.dirname(target));
+      await FileSystem.writeText(target, page.tsx);
+      designFiles.push(target);
+    }
+  }
+
   return {
     workflowResult,
     targetDir: scaffolded.targetDir,
-    files: scaffolded.files,
+    files: [...scaffolded.files, ...designFiles.filter((file) => !scaffolded.files.includes(file))],
     siteType,
     contentSimulated: scaffolded.contentSimulated
   };

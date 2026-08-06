@@ -53,7 +53,13 @@ jobs:
         run: |
           echo "Scanning repository for common secret patterns..."
 
-          if grep -R -E "(AKIA|AIza|ghp_|xoxb-|-----BEGIN PRIVATE KEY-----)" . \
+          # Match the full shape of each credential, not just its prefix. Bare prefixes made this
+          # step fail on ordinary prose — docs that explain which token type is required (e.g.
+          # PHASE3_REPORT.md mentioning "Classic PAT(`ghp_...`)") tripped it, so the job was red on
+          # main for every run and stopped reporting anything useful. Requiring the trailing
+          # token body keeps Markdown in scope (a genuine secret pasted into a .md is still
+          # caught) while ignoring references to the prefix alone.
+          if grep -R -E "(AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36}|xoxb-[0-9]{10,}-[0-9]{10,}-[0-9A-Za-z]{20,}|-----BEGIN PRIVATE KEY-----)" . \
             --exclude-dir=.git \
             --exclude-dir=node_modules \
             --exclude=security.yml; then

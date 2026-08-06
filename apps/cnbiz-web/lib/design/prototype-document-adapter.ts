@@ -1,5 +1,5 @@
 import type { DesignDocument, Page } from "@cnbiz/design-system/types/design";
-import { DESIGN_DOCUMENT_VERSION, slugifyPath } from "./design-document-adapter";
+import { DESIGN_DOCUMENT_VERSION, buildEnrichedTheme, slugifyPath } from "./design-document-adapter";
 import type { ComponentType, WireframeRecord } from "./wireframe";
 
 /**
@@ -59,13 +59,7 @@ export function wireframeToDesignDocument(wireframe: WireframeRecord): DesignDoc
       createdAt: wireframe.createdAt,
       updatedAt: wireframe.createdAt,
     },
-    theme: {
-      colors: {},
-      typography: {},
-      spacing: {},
-      radius: {},
-      shadow: {},
-    },
+    theme: buildEnrichedTheme(),
     pages,
   };
 }

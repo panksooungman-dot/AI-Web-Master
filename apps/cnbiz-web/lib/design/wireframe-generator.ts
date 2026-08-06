@@ -1,5 +1,8 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 import type { StoryboardRecord } from "./storyboard";
+import { updateDesignDocument } from "./design-document-registry";
 import { storyboardToWireframeSource, type WireframeSource } from "./wireframe-document-adapter";
 import {
   COMPONENT_TYPES,
@@ -294,9 +297,18 @@ export interface GenerateWireframeResult {
  */
 export async function generateWireframe(
   storyboard: StoryboardRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli,
+  store: CollectionStore = getDefaultStore()
 ): Promise<GenerateWireframeResult> {
   const source = storyboardToWireframeSource(storyboard);
+
+  // DesignDocument Persistence Wiring — Adapter가 이미 만든 `source.document`를 그대로 영속화한다
+  // (재계산 없음, 새 Service·API 없음). `updateDesignDocument()`는 design-document-registry.ts가
+  // "이미 문서를 가진 프로젝트가 문서를 갱신할 때" 쓰라고 명시해 둔 기존 함수다 — Planning이
+  // createDesignPlan()에서 이미 Version 1을 저장해 두므로 이 체인의 모든 하위 Phase는 항상 이쪽에
+  // 해당한다. append-only라 이전 Version은 보존된다.
+  await updateDesignDocument(storyboard.planId, source.document, store);
+
   const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {

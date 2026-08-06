@@ -1,6 +1,9 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 import type { PrototypeRecord } from "./prototype";
 import type { ClaudeDesignContent } from "./claude-design";
+import { updateDesignDocument } from "./design-document-registry";
 import { prototypeToClaudeDesignSource, type ClaudeDesignSource } from "./claude-design-document-adapter";
 
 const SYSTEM_PROMPT =
@@ -160,9 +163,16 @@ export interface GenerateClaudeDesignResult {
  */
 export async function generateClaudeDesign(
   prototype: PrototypeRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli,
+  store: CollectionStore = getDefaultStore()
 ): Promise<GenerateClaudeDesignResult> {
   const source = prototypeToClaudeDesignSource(prototype);
+
+  // DesignDocument Persistence Wiring — 체인에서 가장 풍부한 문서(prototypeToDesignDocument()가
+  // sections + buildEnrichedTheme()까지 채운 것)를 그대로 저장한다. Website Builder가 나중에
+  // 참조하는 것과 동일한 Adapter 출력이다(website-build-document-adapter.ts).
+  await updateDesignDocument(prototype.planId, source.document, store);
+
   const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {

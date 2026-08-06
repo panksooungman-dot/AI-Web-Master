@@ -5,10 +5,8 @@ import type {
   Page,
   Section,
   SectionType,
-  Theme,
 } from "@cnbiz/design-system/types/design";
-import { colors, radius, typography } from "@cnbiz/design-system";
-import { DESIGN_DOCUMENT_VERSION, slugifyPath } from "./design-document-adapter";
+import { DESIGN_DOCUMENT_VERSION, buildEnrichedTheme, slugifyPath } from "./design-document-adapter";
 import type { ComponentType as WireframeComponentType } from "./wireframe";
 import type { PrototypeContent, PrototypeRecord } from "./prototype";
 
@@ -98,23 +96,6 @@ function buildPageSections(page: Page, elements: WireframeComponentType[], isFir
       components,
     },
   ];
-}
-
-/** packages/design-system의 기존 토큰(tokens.ts)을 재사용하고, 없는 항목만 결정론적 기본값으로 보강한다. */
-function buildEnrichedTheme(): Theme {
-  return {
-    colors: { ...colors },
-    typography: { ...typography },
-    // tokens.ts에는 spacing 팔레트가 없어 docs/03_DESIGN/DESIGN_SYSTEM.md의 8px Grid 기준값을 사용한다.
-    spacing: { xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "32px", "2xl": "48px", "3xl": "64px" },
-    radius: { ...radius, full: "9999px" },
-    // tokens.ts에는 shadow 팔레트가 없어 DESIGN_SYSTEM.md의 Small/Medium/Large 기준값을 사용한다.
-    shadow: {
-      small: "0 1px 2px rgba(0, 0, 0, 0.05)",
-      medium: "0 4px 6px rgba(0, 0, 0, 0.1)",
-      large: "0 10px 15px rgba(0, 0, 0, 0.15)",
-    },
-  };
 }
 
 /**

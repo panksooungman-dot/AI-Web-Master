@@ -1,5 +1,8 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import type { CollectionStore } from "@/lib/db/collectionStore";
+import { getDefaultStore } from "@/lib/db";
 import { COMPONENT_TYPES, type ComponentType, type WireframeRecord } from "./wireframe";
+import { updateDesignDocument } from "./design-document-registry";
 import { wireframeToPrototypeSource, type PrototypeSource } from "./prototype-document-adapter";
 import type {
   AnimationPreview,
@@ -485,9 +488,15 @@ export interface GeneratePrototypeResult {
  */
 export async function generatePrototype(
   wireframe: WireframeRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli,
+  store: CollectionStore = getDefaultStore()
 ): Promise<GeneratePrototypeResult> {
   const source = wireframeToPrototypeSource(wireframe);
+
+  // DesignDocument Persistence Wiring — generateWireframe()과 동일한 연결(기존 updateDesignDocument()
+  // 재사용, Adapter가 이미 만든 source.document를 그대로 저장).
+  await updateDesignDocument(wireframe.planId, source.document, store);
+
   const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
 
   if (result.success && result.content) {

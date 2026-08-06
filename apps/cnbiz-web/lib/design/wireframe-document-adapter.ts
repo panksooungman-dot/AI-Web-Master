@@ -1,5 +1,5 @@
 import type { DesignDocument, Page } from "@cnbiz/design-system/types/design";
-import { DESIGN_DOCUMENT_VERSION, slugifyPath } from "./design-document-adapter";
+import { DESIGN_DOCUMENT_VERSION, buildEnrichedTheme, slugifyPath } from "./design-document-adapter";
 import type { StoryboardRecord } from "./storyboard";
 
 /**
@@ -54,13 +54,7 @@ export function storyboardToDesignDocument(storyboard: StoryboardRecord): Design
       createdAt: storyboard.createdAt,
       updatedAt: storyboard.createdAt,
     },
-    theme: {
-      colors: {},
-      typography: {},
-      spacing: {},
-      radius: {},
-      shadow: {},
-    },
+    theme: buildEnrichedTheme(),
     pages,
   };
 }

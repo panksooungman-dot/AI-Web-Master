@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
+import type { DesignDocument } from "@cnbiz/design-system/types/design";
+import { FileSystem } from "../utils/filesystem.js";
 import { ask } from "../lib/prompt.js";
 import { buildWebsite } from "../website/builder.js";
 import { WEBSITE_TYPES, siteTypeLabel } from "../website/types.js";
@@ -18,6 +20,7 @@ export interface WebsiteCreateOptions {
   language?: string;
   out?: string;
   provider?: string;
+  designDocument?: string;
 }
 
 const SITE_TYPE_LIST = WEBSITE_TYPES.join(", ");
@@ -62,7 +65,12 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
       inputs,
       siteType: siteTypeInput,
       providerId: options.provider,
-      outDir: options.out
+      outDir: options.out,
+      // 기존 FileSystem.readJson()으로 표준 DesignDocument 하나만 읽어 넘긴다. 이 CLI는 Design
+      // 파이프라인(Plan/Storyboard/Wireframe/Prototype/Review)을 알지 못한다.
+      designDocument: options.designDocument
+        ? await FileSystem.readJson<DesignDocument>(options.designDocument)
+        : undefined
     });
 
     if (!result.workflowResult.success) {
@@ -125,6 +133,10 @@ export function buildWebsiteCommand(): Command {
     .option("--language <language>", "Language")
     .option("--out <dir>", "출력 디렉터리 (기본값: ./<project-slug>)")
     .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama). 생략 시 기본 provider 또는 시뮬레이션")
+    .option(
+      "--design-document <path>",
+      "DesignDocument JSON 경로. 주어지면 기존 React Generator가 그 문서로 페이지 TSX를 생성해 기록한다"
+    )
     .action(async (options: WebsiteCreateOptions) => {
       await websiteCreateCommand(options);
     });

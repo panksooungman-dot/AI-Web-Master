@@ -135,8 +135,15 @@ ${indent}  </label>`;
     .join("\n");
 
   // submitAction/validation reference business logic (an action identifier + rules), which this
-  // generator never implements — see the TODO submit-handler stub declared at the page level.
-  return `${indent}<form${classAttr(node.className)} onSubmit={${node.events.onClick ?? `handleSubmit_${node.id}`}}>
+  // generator never implements. `node.events.onClick` is a stub name that buildEvents() has both
+  // slugified (events.ts) and declared at the page level, so it is safe to reference. When the
+  // component carries no EventsContract there is no such stub, so `onSubmit` is omitted entirely
+  // — emitting `handleSubmit_${node.id}` here used to produce a reference to a function that was
+  // never declared, and an invalid JS identifier whenever the component id contained a hyphen
+  // (component ids are hyphenated by construction), which made the generated page fail to compile.
+  const submitAttr = node.events.onClick ? ` onSubmit={${node.events.onClick}}` : "";
+
+  return `${indent}<form${classAttr(node.className)}${submitAttr}>
 ${fieldMarkup}
 ${indent}  <button type="submit">Submit</button>
 ${indent}</form>`;

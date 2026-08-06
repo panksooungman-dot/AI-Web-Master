@@ -4,6 +4,7 @@ import { getDesignPlan } from "@/lib/design/registry";
 import { getReview } from "@/lib/design/review-registry";
 import { getClaudeDesign } from "@/lib/design/claude-design";
 import { getPrototype } from "@/lib/design/prototype";
+import { getWireframe } from "@/lib/design/wireframe";
 import { buildWebsiteBuildHybridSource } from "@/lib/design/website-build-document-adapter";
 import { listWebsiteBuilds, recordWebsiteBuild, type WebsiteBuildRecord } from "@/lib/design/website-build";
 import { createWebsiteRecord } from "@/lib/websites/registry";
@@ -129,7 +130,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const hybridSource = buildWebsiteBuildHybridSource(plan, prototype);
+  // Design Recovery — Prototype이 보존하지 못하는 Wireframe의 섹션 경계·breakpoint별 columns를
+  // 기존 getWireframe()으로 읽어 Adapter에 그대로 넘긴다(새 조회 로직 아님 — Figma Export 라우트가
+  // 이미 쓰는 것과 같은 함수·같은 체인). Prototype이 없으면 조회하지 않는다.
+  const wireframe = prototype ? await getWireframe(prototype.wireframeId) : null;
+  const hybridSource = buildWebsiteBuildHybridSource(plan, prototype, wireframe);
   const inputs = hybridSource.inputs;
   const slug = slugify(inputs.name);
   const outDir = outDirInput || resolveGeneratedWebsitesDir(`design-${slug}`);

@@ -7,7 +7,13 @@ import type {
   SectionType,
 } from "@cnbiz/design-system/types/design";
 import { DESIGN_DOCUMENT_VERSION, buildEnrichedTheme, slugifyPath } from "./design-document-adapter";
-import type { ComponentType as WireframeComponentType } from "./wireframe";
+import type {
+  BreakpointLayout,
+  ComponentType as WireframeComponentType,
+  ScreenLayout,
+  WireframeRecord,
+  WireframeSection,
+} from "./wireframe";
 import type { PrototypeContent, PrototypeRecord } from "./prototype";
 
 /**
@@ -98,24 +104,105 @@ function buildPageSections(page: Page, elements: WireframeComponentType[], isFir
   ];
 }
 
+/** WireframeSection.name → SectionType. 이름이 레이아웃 랜드마크를 그대로 가리키는 경우에만
+ *  대응시키고, 나머지는 기존 inferSectionType()(페이지 텍스트 기반 추정)을 그대로 재사용한다. */
+function sectionTypeForWireframeSection(
+  section: WireframeSection,
+  page: { title: string; path: string },
+  isFirstPage: boolean
+): SectionType {
+  const name = section.name.toLowerCase();
+  if (name.includes("footer")) return "footer";
+  if (name.includes("hero")) return "hero";
+  return inferSectionType(page, isFirstPage);
+}
+
+/**
+ * Wireframe이 이미 만들어 둔 화면 내부의 섹션 경계(BreakpointLayout.sections)를 그대로
+ * DesignDocument의 Section[]으로 옮긴다 — 위 module 주석 "알려진 한계 2번"이 "Wireframe의 섹션
+ * 경계를 Prototype까지 함께 전달해야 가능하다"고 적어 둔 바로 그 복구다. 새 분류 체계를 만들지
+ * 않고 기존 WIREFRAME_TO_DESIGN_COMPONENT 매핑과 inferSectionType()을 그대로 재사용한다.
+ *
+ * Section.layout/Page.layout/Page.responsive는 전부 packages/design-system/types/design.ts에
+ * 이미 정의되어 있으나 지금까지 어떤 Adapter도 채우지 않던(optional) 필드다 — 새 타입을 만들지
+ * 않고 그 자리에 Wireframe이 이미 가진 columns 값을 넣기만 한다.
+ */
+function buildSectionsFromWireframeLayout(
+  page: { id: string; title: string; path: string },
+  screenLayout: ScreenLayout,
+  isFirstPage: boolean
+): Section[] {
+  const byName = (layout: BreakpointLayout, name: string) =>
+    layout.sections.find((section) => section.name === name);
+
+  return screenLayout.desktop.sections.map((section, sectionIndex) => {
+    const slug = section.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || `section-${sectionIndex}`;
+
+    const components: Component[] = section.components.map((wireframeType, index) => ({
+      id: `${page.id}-${slug}-${wireframeType.toLowerCase()}-${index}`,
+      type: WIREFRAME_TO_DESIGN_COMPONENT[wireframeType],
+      // 원래 Wireframe 컴포넌트 타입을 보존해 매핑으로 인한 정보 손실을 줄인다(알려진 한계 1번).
+      props: { sourceType: wireframeType },
+    }));
+
+    const tablet = byName(screenLayout.tablet, section.name);
+    const mobile = byName(screenLayout.mobile, section.name);
+
+    return {
+      id: `${page.id}-${slug}`,
+      type: sectionTypeForWireframeSection(section, page, isFirstPage),
+      components,
+      layout: { columns: screenLayout.desktop.columns },
+      responsive: {
+        desktop: { layout: { columns: screenLayout.desktop.columns } },
+        ...(tablet ? { tablet: { layout: { columns: screenLayout.tablet.columns } } } : {}),
+        ...(mobile ? { mobile: { layout: { columns: screenLayout.mobile.columns } } } : {}),
+      },
+    };
+  });
+}
+
 /**
  * PrototypeRecord → DesignDocument. Phase 1 DesignPlanRecord에 접근할 수 없으므로(registry 조회
- * 금지) metadata는 구조적 placeholder다(Phase 4·5와 동일한 이유). pages[].sections는 이번 Phase부터
- * 실제로 채워진다(위 module 주석의 알려진 한계 참고), theme도 실제 디자인 토큰으로 보강된다.
+ * 금지) metadata는 구조적 placeholder다(Phase 4·5와 동일한 이유). theme은 실제 디자인 토큰으로 보강된다.
+ *
+ * `wireframe`(선택)이 주어지면 Prototype이 보존하지 못하는 정보 — 화면 내부의 섹션 경계와
+ * breakpoint별 columns — 를 Wireframe 원본에서 그대로 복구한다. 주어지지 않으면 기존과 100%
+ * 동일하게 interactionMap 기반으로 화면당 Section 1개를 만든다(하위 호환).
  */
-export function prototypeToDesignDocument(prototype: PrototypeRecord): DesignDocument {
+export function prototypeToDesignDocument(
+  prototype: PrototypeRecord,
+  wireframe?: WireframeRecord | null
+): DesignDocument {
   const { screens, interactionMap } = prototype.content;
   const elementsByScreen = new Map(interactionMap.map((map) => [map.screen, map.interactions.map((i) => i.element)]));
+  const layoutByPath = new Map((wireframe?.content.layouts ?? []).map((layout) => [layout.path, layout]));
 
   const pages: Page[] = screens.map((screen, index) => {
     const id = slugifyPath(screen.path);
     const elements = elementsByScreen.get(screen.screen) ?? [];
+    const screenLayout = layoutByPath.get(screen.path);
+
+    if (!screenLayout) {
+      return {
+        id,
+        title: screen.screen,
+        path: screen.path,
+        sections: buildPageSections({ id, title: screen.screen, path: screen.path, sections: [] }, elements, index === 0),
+      };
+    }
 
     return {
       id,
       title: screen.screen,
       path: screen.path,
-      sections: buildPageSections({ id, title: screen.screen, path: screen.path, sections: [] }, elements, index === 0),
+      sections: buildSectionsFromWireframeLayout({ id, title: screen.screen, path: screen.path }, screenLayout, index === 0),
+      layout: { columns: screenLayout.desktop.columns },
+      responsive: {
+        desktop: { layout: { columns: screenLayout.desktop.columns } },
+        tablet: { layout: { columns: screenLayout.tablet.columns } },
+        mobile: { layout: { columns: screenLayout.mobile.columns } },
+      },
     };
   });
 
@@ -147,8 +234,11 @@ export interface ClaudeDesignSource {
  * sections/theme)이고, 나머지 필드는 Phase 4 원본에서 그대로 옮긴 것이다(Adapter 내부 전용 —
  * 생성 로직은 `prototype.content`를 직접 읽지 않고 이 값만 사용한다).
  */
-export function prototypeToClaudeDesignSource(prototype: PrototypeRecord): ClaudeDesignSource {
-  const document = prototypeToDesignDocument(prototype);
+export function prototypeToClaudeDesignSource(
+  prototype: PrototypeRecord,
+  wireframe?: WireframeRecord | null
+): ClaudeDesignSource {
+  const document = prototypeToDesignDocument(prototype, wireframe);
   const { screens, componentActions, interactionMap, animationPreviews, userJourneys, preview } = prototype.content;
 
   return { document, screens, componentActions, interactionMap, animationPreviews, userJourneys, preview };

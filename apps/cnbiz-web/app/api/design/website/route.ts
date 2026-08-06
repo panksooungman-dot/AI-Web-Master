@@ -1,6 +1,3 @@
-import fs from "fs";
-import os from "os";
-import path from "path";
 import { NextResponse } from "next/server";
 import { execute } from "@/lib/commandEngine/engine";
 import { getDesignPlan } from "@/lib/design/registry";
@@ -142,18 +139,10 @@ export async function POST(request: Request) {
   const slug = slugify(inputs.name);
   const outDir = outDirInput || resolveGeneratedWebsitesDir(`design-${slug}`);
 
-  // React Generator 실행 경로 — 이 라우트가 이미 조립해 둔 hybridSource.document(Wireframe의
-  // 섹션·layout·responsive까지 복구된 표준 DesignDocument)를 CLI가 읽을 수 있도록 임시 JSON으로
-  // 내보내고 기존 `--design-document` 입구로 넘긴다. CLI 실행 방식(child process)·나머지 인자는
-  // 전혀 바뀌지 않는다.
-  const designDocumentPath = path.join(os.tmpdir(), `design-document-${plan.id}-${Date.now()}.json`);
-  fs.writeFileSync(designDocumentPath, JSON.stringify(hybridSource.document), "utf8");
-
   const args = [
     `"${cliEntry}"`,
     "website",
     "create",
-    `--design-document "${designDocumentPath}"`,
     `--name "${inputs.name}"`,
     `--type "${inputs.businessType}"`,
     `--audience "${inputs.audience}"`,
@@ -164,8 +153,6 @@ export async function POST(request: Request) {
   ];
 
   const result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
-  // CLI가 이미 읽은 임시 파일은 성공/실패와 무관하게 정리한다.
-  fs.rmSync(designDocumentPath, { force: true });
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
   const actor = await getCurrentActorEmail();
 

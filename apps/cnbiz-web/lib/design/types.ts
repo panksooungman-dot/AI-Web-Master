@@ -16,6 +16,13 @@ export interface DesignPlanInput {
   targetUsers: string;
   /** 기존 Project Manager(lib/projects/registry.ts)의 Project와 선택적으로 연결(강제 아님). */
   projectId?: string;
+  /**
+   * Inquiry → Design Bridge. 이 Design Plan이 어떤 InquiryRecord(lib/inquiries/registry.ts)에서
+   * 파생됐는지 — Customer Inquiry Pipeline의 다른 산출물(Estimate/Specification/Timeline/
+   * Contract/Proposal)이 전부 `inquiryId`를 키로 삼는 것과 동일한 연결 방식이다. 옵셔널이라
+   * Inquiry 없이 직접 생성한 기존 Design Plan은 그대로 유효하다(`document?`와 동일한 additive 패턴).
+   */
+  inquiryId?: string;
 }
 
 export interface RequirementAnalysis {

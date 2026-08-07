@@ -20,15 +20,22 @@
   `/api/inquiries/[id]/analyze`), Design 체인 5종(`requirements`·`storyboard`·`wireframe`·
   `prototype`·`claude`), Design→Website Build(`/api/design/website`), 기획 산출물 4종
   (`estimates`·`specifications`·`timeline`·`proposals`·`contracts`).
-  CLI를 쓰지 않는 라우트(`design/review`·`design/approval`·`design/figma`·`design/sync`)는
-  번들 크기를 위해 의도적으로 제외했다(glob 대신 개별 지정한 이유).
+  CLI를 쓰지 않는 라우트(`design/review`·`design/approval`·`design/figma`·`design/sync`·
+  `agents/run`·`customer/orders`·`health/run` — 이들은 `incrementMetric`만 import할 뿐
+  `packages/cli`를 spawn하지 않는다)는 번들 크기를 위해 의도적으로 제외했다.
+  `chatViaCli` 외에 `lib/ai/bridge.ts`의 `listProvidersViaCli`·`listUsageViaCli`,
+  `lib/marketplace/registry.ts`의 shell-out도 같은 CLI를 실행하므로 `/api/ai/**`·
+  `/api/metrics`·`/api/marketplace/**`도 함께 포함했다. 특히 `/api/metrics`가 빠져 있으면
+  Provider Usage 패널이 아무것도 집계하지 못해 "AI 호출이 한 번도 없었다"처럼 보이는데,
+  이는 원인 진단을 정반대로 오도할 수 있는 표시였다.
 
 ### 검증 (Verified)
 
-- 실제 프로덕션 빌드(`npm run build`) 후 `.next/server/app/api/**/route.js.nft.json`을 직접 파싱해
-  대조: 수정 전 12개 라우트가 `packages/cli` 파일 **1개**(엔트리만) → 수정 후 **471개 + 런타임
-  deps 69개**로, 이미 정상이던 `/api/ai-jobs/[id]/run`·`/api/websites`와 정확히 동일해졌다.
-  CLI가 필요 없는 `design/review`·`design/figma/export`·`design/sync`는 1개로 유지됨을 확인.
+- 실제 프로덕션 빌드(`npm run build`) 후 `.next/server/app/api/**/route.js.nft.json`을 **전수 파싱**해
+  대조: `packages/cli`를 참조하는 라우트 48개 중 수정 전 정상 번들은 3개뿐이었고, 수정 후
+  **39개**가 정상(471개 파일 + 런타임 deps 69개)이 되었다. 나머지 9개
+  (`agents/run`·`customer/orders`·`health/run`·`design/{approval,review,figma/export,figma/import,
+  sync,sync/rollback}`)는 CLI를 spawn하지 않음을 import 단위로 확인하고 1개로 유지했다.
 - **함수 크기 실측** — 트레이스 파일 목록의 실제 바이트를 합산한 결과 CLI 포함 라우트는 라우트당
   **5.5MB**(Vercel 제한 250MB의 2.2%). 저장소 최대 함수는 이번 변경과 무관한
   `/api/dev-inspector/*`의 22.4MB(8.9%). 파일 수는 565→1,360개로 늘지만 용량 증가는 약 3.5MB에

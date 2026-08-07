@@ -99,6 +99,14 @@ const nextConfig: NextConfig = {
     "/api/timeline": CLI_TRACE_INCLUDES,
     "/api/proposals": CLI_TRACE_INCLUDES,
     "/api/contracts": CLI_TRACE_INCLUDES,
+    // lib/ai/bridge.ts's chatViaCli/listProvidersViaCli/listUsageViaCli
+    "/api/ai/**": CLI_TRACE_INCLUDES,
+    // lib/metrics/registry.ts's getMetricsSummary() reads Provider usage through
+    // listUsageViaCli(), so the metrics dashboard needs the CLI too — without it the
+    // Provider Usage panel reports nothing and looks like "no AI calls ever happened".
+    "/api/metrics": CLI_TRACE_INCLUDES,
+    // lib/marketplace/registry.ts shells out to `... dist/index.js marketplace --json`
+    "/api/marketplace/**": CLI_TRACE_INCLUDES,
   },
   async redirects() {
     return [{ source: "/request", destination: CNBIZ_AI_URL, permanent: true }];

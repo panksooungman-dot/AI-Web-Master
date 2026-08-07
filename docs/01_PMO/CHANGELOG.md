@@ -6,6 +6,30 @@
 
 ## 2026-08-07
 
+### 추가 (Added)
+
+- **`AI_DEFAULT_PROVIDER` 환경변수 — 배포 환경에서 기본 AI Provider를 고정할 수 있게 함**
+  (`packages/cli/src/providers/manager.ts`). 기존에는 기본 provider가
+  `.runtime/config/providers.json`의 `default` 필드로만 정해졌는데, 서버리스(Vercel)에서 이
+  파일은 요청마다 새로 만들어지는 임시 디렉터리(`resolveCliWorkingDir()` → `os.tmpdir()`)에
+  생성되므로 `ai provider set-default`로 바꿔도 다음 요청에서 사라지고 하드코딩된
+  `"anthropic"`으로 되돌아갔다. 즉 **배포 환경에서 기본 provider를 바꿀 방법이 아예 없었다**
+  (생성기들은 `chatViaCli`에 `provider`를 넘기지 않고 전부 기본값에 맡긴다). 우선순위는
+  `AI_DEFAULT_PROVIDER` > 설정 파일의 `default` > `"anthropic"`이며, env는 읽기 시점의
+  우선순위일 뿐 디스크의 설정을 덮어쓰지 않는다.
+  - 알 수 없는 provider 이름은 파이프라인 전체를 죽이지 않도록 무시하되 **stderr에 경고**를
+    남긴다 — 조용한 폴백이야말로 이번에 문제를 어렵게 만든 실패 방식이기 때문이다. stdout이
+    아닌 stderr인 이유는 호출자(`lib/ai/bridge.ts`)가 stdout을 JSON으로 파싱하기 때문이다.
+  - `setDefaultProvider()`는 env가 설정된 상태에서 호출되면 파일 쓰기는 수행하되 "그 값이
+    실제로는 적용되지 않는다"고 경고한다.
+  - 테스트 8개 신규(`tests/ai-platform-cli/default-provider-env.test.ts`).
+- **`apps/cnbiz-web/.env.example`에 AI Provider 설정 항목 문서화** — 그동안 AI 관련 키가
+  `.env.example`에 **한 줄도 없었다**. 프로덕션에 키가 누락된 원인 중 하나로 보여
+  `AI_DEFAULT_PROVIDER`·`ANTHROPIC_API_KEY`·`OPENAI_API_KEY`·`GEMINI_API_KEY`·
+  `OPENROUTER_API_KEY`·`OLLAMA_HOST`를 설명과 함께 추가했다. 특히 "설정하지 않아도 시스템은
+  동작하지만 모든 산출물이 결정론적 기본값이 된다"는 점을 명시했다 — 값이 비어 있는 것과
+  잘못 설정된 것이 겉으로 구분되지 않기 때문이다.
+
 ### 수정 (Fixed)
 
 - **프로덕션에서 AI 기능이 항상 기본값만 내놓던 문제 — `outputFileTracingIncludes` 누락**

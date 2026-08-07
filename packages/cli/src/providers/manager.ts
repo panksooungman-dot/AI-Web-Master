@@ -72,6 +72,42 @@ export interface ProviderSummary {
   configured: boolean;
 }
 
+/** Env var that overrides the configured default provider. See resolveDefaultProviderId(). */
+export const DEFAULT_PROVIDER_ENV = "AI_DEFAULT_PROVIDER";
+
+/**
+ * Precedence for "which provider runs when the caller didn't name one":
+ * `AI_DEFAULT_PROVIDER` env var > the `default` field in .runtime/config/providers.json >
+ * DEFAULT_CONFIG's "anthropic".
+ *
+ * The env var exists because on a serverless deployment the config file is the wrong knob:
+ * it lives under the process cwd, which is a per-invocation temp directory there, so
+ * `ai provider set-default` writes a file that is gone by the next request and the default
+ * silently reverts to anthropic. An env var is the only setting that survives.
+ *
+ * An unrecognised value is ignored rather than fatal — a typo in a deployment variable should
+ * not take the whole pipeline down — but it warns on stderr instead of failing over in
+ * silence, because a wrong-but-quiet default is exactly the failure mode that makes these
+ * bugs so hard to spot. stderr, not stdout: callers parse stdout as JSON (lib/ai/bridge.ts).
+ */
+export function resolveDefaultProviderId(configDefault?: string | null): string | null {
+  const requested = process.env[DEFAULT_PROVIDER_ENV]?.trim();
+
+  if (requested) {
+    if (listProviderIds().includes(requested)) {
+      return requested;
+    }
+
+    console.warn(
+      `[providers] ${DEFAULT_PROVIDER_ENV}="${requested}" is not a known provider ` +
+        `(available: ${listProviderIds().join(", ")}). Falling back to ` +
+        `"${configDefault ?? DEFAULT_CONFIG.default}".`
+    );
+  }
+
+  return configDefault ?? null;
+}
+
 /**
  * Provider 등록/로드/기본값/API 키 검증을 담당하는 재사용 계층.
  * Agent Runtime·Workflow Engine·Orchestrator는 이 매니저 하나만 알면 되고,
@@ -82,17 +118,18 @@ export class ProviderManager {
 
   async listProviders(): Promise<ProviderSummary[]> {
     const config = await readProvidersConfig(this.cwd);
+    const effectiveDefault = resolveDefaultProviderId(config.default);
 
     return listProviderIds().map((id) => {
       const resolved = resolveConfig(config.providers[id]);
       const configured = Object.values(resolved).some((value) => value.trim().length > 0);
-      return { id, name: id, isDefault: config.default === id, configured };
+      return { id, name: id, isDefault: effectiveDefault === id, configured };
     });
   }
 
   async getDefaultProviderId(): Promise<string | null> {
     const config = await readProvidersConfig(this.cwd);
-    return config.default ?? null;
+    return resolveDefaultProviderId(config.default);
   }
 
   async setDefaultProvider(id: string): Promise<void> {
@@ -107,6 +144,16 @@ export class ProviderManager {
     const config = await readProvidersConfig(this.cwd);
     config.default = id;
     await writeProvidersConfig(this.cwd, config);
+
+    // The write succeeded but has no effect while the env var is set — say so rather than
+    // let the caller believe the default changed.
+    const override = process.env[DEFAULT_PROVIDER_ENV]?.trim();
+    if (override && override !== id && listProviderIds().includes(override)) {
+      console.warn(
+        `[providers] default written as "${id}", but ${DEFAULT_PROVIDER_ENV}="${override}" ` +
+          `takes precedence and stays in effect. Unset it to use the configured default.`
+      );
+    }
   }
 
   /**

@@ -8,6 +8,27 @@
 
 ### 추가 (Added)
 
+- **DesignDocument → React Generator → Website Builder 연결** — Design 체인(Storyboard→Wireframe→
+  Prototype→Claude Design→Review)의 산출물이 실제 생성 코드에 반영되도록 배선했다. 이전에는
+  동일 `siteType`에 대해 Design 체인을 거친 빌드와 거치지 않은 빌드의 `.tsx` 26개가 **바이트
+  단위로 동일**했다(2026-08-07 검증 기록 참고) — 디자인이 코드에 전혀 도달하지 못했다.
+  - **React Generator 자체는 이미 구현되어 있었다**(`packages/cli/src/generators/react/`, 7개
+    파일, 커밋 `7d78a2d`, 테스트 21개 통과). 문제는 **호출하는 코드가 한 곳도 없었다**는 것이다.
+    따라서 이번 작업은 신규 생성기 구현이 아니라 배선이다.
+  - `packages/cli/src/website/design-pages.ts`(신규) — 순수 생성기가 의도적으로 배제한 "파일 쓰기"
+    절반. `generateReactComponentTree()` 결과를 스캐폴딩된 프로젝트에 기록한다. **페이지 파일만**
+    쓰고 layout·components·styles·config·SEO·API 라우트는 건드리지 않는다 — DesignDocument가
+    3개 페이지만 기술해도 나머지 사이트가 계속 빌드되어야 하기 때문이다. `parseDesignDocument()`는
+    `@cnbiz/design-system`의 validator를 쓰지 않고 직접 구조 검사한다(그 패키지는 TS 소스를
+    배포하므로 런타임 import는 `rootDir` 밖 파일을 빌드·서버리스 번들로 끌어들인다).
+  - `ai website create --design-document <path>`(신규 플래그) — 읽기/파싱/스키마 중 어디서
+    실패하든 즉시 종료한다. 조용히 무시하고 템플릿으로 진행하면 "디자인을 반영했다"고 믿게 만드는
+    잘못된 성공이 되기 때문이다.
+  - `POST /api/design/website` — `buildWebsiteBuildHybridSource()`가 **이미 만들어 두고 버리던**
+    `document`를 임시 파일로 CLI에 전달한다(라우트가 `inputs`만 쓰고 있었다). 응답에
+    `designPageCount`를 추가해 0이면 템플릿 그대로임을 호출자가 알 수 있게 했다.
+  - 테스트 15개 신규(`tests/website/design-pages.test.ts`).
+
 - **`AI_DEFAULT_PROVIDER` 환경변수 — 배포 환경에서 기본 AI Provider를 고정할 수 있게 함**
   (`packages/cli/src/providers/manager.ts`). 기존에는 기본 provider가
   `.runtime/config/providers.json`의 `default` 필드로만 정해졌는데, 서버리스(Vercel)에서 이
@@ -31,6 +52,20 @@
   잘못 설정된 것이 겉으로 구분되지 않기 때문이다.
 
 ### 수정 (Fixed)
+
+- **React Generator가 만든 페이지가 Next.js에서 빌드조차 되지 않던 결함 2건** — 생성기가 배선된
+  적이 없어 산출물을 실제로 빌드해 본 적도 없었기 때문에 드러나지 않았다. 배선 과정에서 발견해
+  함께 고쳤다.
+  1. **`form`이 정의되지 않은 함수를 참조**(`componentTree.ts`·`tsx.ts`·`types.ts`) —
+     `renderForm()`이 항상 `onSubmit={handleSubmit_<id>}`를 렌더링하는데, `buildEvents()`는
+     `onClick`/`hover`/`focus`에 대해서만 stub을 만들어 `handleSubmit_*`은 **어디에도 선언되지
+     않았다.** 폼이 있는 페이지는 타입 체크에서 즉시 실패한다. `ReactEventHandlers.onSubmit`을
+     추가하고, `form` 컴포넌트에 EventsContract가 없어도 submit stub을 보장하도록 수정.
+  2. **이벤트 핸들러를 붙이면서 `"use client"`를 생성하지 않음**(`tsx.ts`) — App Router에서
+     서버 컴포넌트에 DOM 이벤트 핸들러를 바인딩하면 빌드가 실패한다. 핸들러가 있는 페이지에만
+     지시어를 붙이도록 했고, Next.js는 `"use client"` 모듈의 `metadata` export를 거부하므로
+     그 경우 `metadata`를 생략한다(둘은 상호 배타적이다). 인터랙션이 없는 페이지는 그대로
+     Server Component + `metadata`를 유지한다.
 
 - **프로덕션에서 AI 기능이 항상 기본값만 내놓던 문제 — `outputFileTracingIncludes` 누락**
   (`apps/cnbiz-web/next.config.ts`). CLI를 spawn하는 라우트는 15개인데 트레이싱 include에는

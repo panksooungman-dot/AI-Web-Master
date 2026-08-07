@@ -19,6 +19,12 @@ export interface ReactEventHandlers {
   onClick?: string;
   onMouseEnter?: string;
   onFocus?: string;
+  /**
+   * Form submit handler name. A `form` component always renders an `onSubmit` binding, so it
+   * always needs a matching stub — otherwise the generated TSX references a function that was
+   * never declared and the page fails to compile.
+   */
+  onSubmit?: string;
 }
 
 /** A single TODO-stub handler function to declare once at the top of a generated page component. */

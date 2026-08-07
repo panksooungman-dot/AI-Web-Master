@@ -1,3 +1,5 @@
+import fs from "fs/promises";
+import path from "path";
 import { NextResponse } from "next/server";
 import { execute } from "@/lib/commandEngine/engine";
 import { getDesignPlan } from "@/lib/design/registry";
@@ -134,6 +136,13 @@ export async function POST(request: Request) {
   const slug = slugify(inputs.name);
   const outDir = outDirInput || resolveGeneratedWebsitesDir(`design-${slug}`);
 
+  // Design 체인의 DesignDocument를 Website Builder로 실제로 넘기는 지점. hybridSource는 이전
+  // Phase부터 document를 만들어 두고 있었지만 inputs만 쓰이고 버려져서, Wireframe·Prototype·
+  // Claude Design의 결과가 생성 코드에 전혀 반영되지 않았다(같은 siteType이면 Design 체인을
+  // 거치든 말든 .tsx가 바이트 단위로 동일했다). CLI는 파일 경로로만 받으므로 임시 파일에 쓴다.
+  const documentPath = path.join(resolveCliWorkingDir(), `design-document-${review.id}.json`);
+  await fs.writeFile(documentPath, JSON.stringify(hybridSource.document), "utf-8");
+
   const args = [
     `"${cliEntry}"`,
     "website",
@@ -145,10 +154,19 @@ export async function POST(request: Request) {
     `--language "${inputs.language}"`,
     `--site-type "${inputs.siteType}"`,
     `--out "${outDir}"`,
+    `--design-document "${documentPath}"`,
   ];
 
-  const result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
+  let result;
+  try {
+    result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
+  } finally {
+    // 생성 성공 여부와 무관하게 임시 문서는 남기지 않는다.
+    await fs.rm(documentPath, { force: true }).catch(() => {});
+  }
+
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
+  const designPageCount = Number(/Design Document applied — (\d+) page/.exec(result.stdout)?.[1] ?? 0);
   const actor = await getCurrentActorEmail();
 
   const websiteRecord = await createWebsiteRecord({
@@ -190,7 +208,8 @@ export async function POST(request: Request) {
     actor,
     success: result.success,
     detail: result.success
-      ? `Website Builder 연동: Review "${reviewId}" → Website "${websiteRecord.id}" v${buildRecord.version} (Hybrid Source: DesignDocument ${hybridSource.document.pages.length}개 페이지 참고, 실제 생성은 inputs 기준)`
+      ? `Website Builder 연동: Review "${reviewId}" → Website "${websiteRecord.id}" v${buildRecord.version} ` +
+        `(DesignDocument ${hybridSource.document.pages.length}개 페이지 중 ${designPageCount}개를 React Generator로 생성)`
       : `Website Builder 연동 실패: Review "${reviewId}" (${buildRecord.error ?? "알 수 없는 오류"})`,
   });
   await incrementMetric("designWebsiteBuildCount");
@@ -202,5 +221,7 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ...toResponse(buildRecord), output: result.stdout });
+  // designPageCount는 "이 빌드에서 디자인이 실제로 코드에 반영된 페이지 수"다. 0이면 스캐폴딩
+  // 템플릿 그대로라는 뜻이므로, 호출자가 성공 응답만 보고 반영됐다고 오해하지 않도록 노출한다.
+  return NextResponse.json({ ...toResponse(buildRecord), designPageCount, output: result.stdout });
 }

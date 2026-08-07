@@ -136,7 +136,9 @@ ${indent}  </label>`;
 
   // submitAction/validation reference business logic (an action identifier + rules), which this
   // generator never implements — see the TODO submit-handler stub declared at the page level.
-  return `${indent}<form${classAttr(node.className)} onSubmit={${node.events.onClick ?? `handleSubmit_${node.id}`}}>
+  // componentTree.ts guarantees a form always carries an onSubmit handler name (and a matching
+  // page-level stub), so this never falls back to an undeclared identifier.
+  return `${indent}<form${classAttr(node.className)} onSubmit={${node.events.onSubmit ?? node.events.onClick}}>
 ${fieldMarkup}
 ${indent}  <button type="submit">Submit</button>
 ${indent}</form>`;
@@ -215,24 +217,31 @@ export function renderPageTsx(structure: ReactPageStructure, stubs: ReactEventSt
   const context: RenderContext = { imports: new Set() };
   const sectionsMarkup = structure.sections.map((section) => renderSection(section, context, "      ")).join("\n");
 
+  // Deduplicate stub names — a component's own id is already unique, but keep this defensive.
+  const uniqueStubs = [...new Map(stubs.map((stub) => [stub.name, stub])).values()];
+
+  // Any stub means the page binds a DOM event handler. In the App Router that only works in a
+  // Client Component, and Next.js rejects a `metadata` export from a module marked "use client"
+  // — so the two are mutually exclusive and the directive decides which one this page gets.
+  // Pages with no interaction stay Server Components and keep their metadata.
+  const isClientComponent = uniqueStubs.length > 0;
+
   const importLines = [
-    'import type { Metadata } from "next";',
+    ...(isClientComponent ? [] : ['import type { Metadata } from "next";']),
     ...(context.imports.has("Image") ? ['import Image from "next/image";'] : []),
     ...(context.imports.has("Link") ? ['import Link from "next/link";'] : []),
   ].join("\n");
 
-  // Deduplicate stub names — a component's own id is already unique, but keep this defensive.
-  const uniqueStubs = [...new Map(stubs.map((stub) => [stub.name, stub])).values()];
+  const directive = isClientComponent ? '"use client";\n\n' : "";
+  const metadataBlock = isClientComponent
+    ? ""
+    : `\nexport const metadata: Metadata = {\n  title: ${JSON.stringify(structure.title)},\n};\n`;
   const stubsBlock = uniqueStubs.length > 0 ? `\n${uniqueStubs.map(renderStub).join("\n\n")}\n` : "";
 
   const componentName = toPascalCase(structure.title || structure.id);
+  const header = importLines ? `${importLines}\n` : "";
 
-  return `${importLines}
-
-export const metadata: Metadata = {
-  title: ${JSON.stringify(structure.title)},
-};
-${stubsBlock}
+  return `${directive}${header}${metadataBlock}${stubsBlock}
 export default function ${componentName}Page() {
   return (
     <main${classAttr(structure.className)}>

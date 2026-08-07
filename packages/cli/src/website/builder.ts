@@ -5,6 +5,8 @@ import { scaffoldWebsiteProject, resolveSiteType, slugify } from "./scaffold.js"
 import { siteTypeLabel, type WebsiteInputs } from "./types.js";
 import { runWorkflow } from "../workflow/runtime.js";
 import type { WorkflowRunResult } from "../workflow/types.js";
+import type { DesignDocument } from "@cnbiz/design-system/types/design";
+import { applyDesignDocumentPages } from "./design-pages.js";
 
 export interface WebsiteRawInputs {
   projectName: string;
@@ -21,6 +23,11 @@ export interface BuildWebsiteOptions {
   /** `--site-type` 원본 값. 목록에 없거나 생략되면 "website"(범용)로 폴백한다. */
   siteType?: string;
   inputs: WebsiteRawInputs;
+  /**
+   * Design 체인이 만든 DesignDocument. 주어지면 스캐폴딩 직후 React Generator로 변환해
+   * 해당 페이지들을 덮어쓴다. 생략하면 기존 동작(고정 템플릿) 그대로다.
+   */
+  designDocument?: DesignDocument;
 }
 
 export interface BuildWebsiteResult {
@@ -29,6 +36,8 @@ export interface BuildWebsiteResult {
   files: string[];
   siteType: WebsiteInputs["siteType"];
   contentSimulated: boolean;
+  /** DesignDocument로부터 생성해 덮어쓴 페이지 경로. 미사용 시 빈 배열. */
+  designPages: string[];
 }
 
 /**
@@ -66,16 +75,24 @@ export async function buildWebsite(options: BuildWebsiteOptions): Promise<BuildW
   });
 
   if (!workflowResult.success) {
-    return { workflowResult, targetDir: outDir, files: [], siteType, contentSimulated: true };
+    return { workflowResult, targetDir: outDir, files: [], siteType, contentSimulated: true, designPages: [] };
   }
 
   const scaffolded = await scaffoldWebsiteProject(cwd, outDir, websiteInputs, providerId);
+
+  // 4) Design 체인 산출물이 있으면 그 페이지들을 React Generator로 변환해 덮어쓴다.
+  //    스캐폴딩을 대체하는 게 아니라 그 위에 얹는다 — DesignDocument가 다루지 않는 페이지·
+  //    레이아웃·컴포넌트·설정은 그대로 남아야 사이트가 계속 빌드되기 때문이다.
+  const designPages = options.designDocument
+    ? (await applyDesignDocumentPages(scaffolded.targetDir, options.designDocument)).written
+    : [];
 
   return {
     workflowResult,
     targetDir: scaffolded.targetDir,
     files: scaffolded.files,
     siteType,
-    contentSimulated: scaffolded.contentSimulated
+    contentSimulated: scaffolded.contentSimulated,
+    designPages
   };
 }

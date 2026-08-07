@@ -53,7 +53,16 @@ jobs:
         run: |
           echo "Scanning repository for common secret patterns..."
 
-          if grep -R -E "(AKIA|AIza|ghp_|xoxb-|-----BEGIN PRIVATE KEY-----)" . \
+          # Each prefix requires the token body that a real credential of that kind actually
+          # carries. Matching the bare prefix flagged documentation that merely *names* a token
+          # format — "Classic PAT(`ghp_...`, `repo` scope)" in PHASE3_REPORT.md failed every run
+          # on main, which trains everyone to ignore a red security check. Requiring the body
+          # loses no detection: a real credential always has one, a placeholder never does.
+          #   AKIA  + 16 uppercase/digits          AWS access key id
+          #   AIza  + 35 key chars                 Google API key
+          #   ghp_  + 36 alnum                     GitHub classic PAT
+          #   xoxb- + Slack's digit/alnum sections Slack bot token
+          if grep -R -E "(AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36}|xoxb-[0-9]{10,}-[0-9A-Za-z]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)" . \
             --exclude-dir=.git \
             --exclude-dir=node_modules \
             --exclude=security.yml; then

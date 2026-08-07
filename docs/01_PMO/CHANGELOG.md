@@ -8,6 +8,40 @@
 
 ### 수정 (Fixed)
 
+- **프로덕션에서 AI 기능이 항상 기본값만 내놓던 문제 — `outputFileTracingIncludes` 누락**
+  (`apps/cnbiz-web/next.config.ts`). CLI를 spawn하는 라우트는 15개인데 트레이싱 include에는
+  3개(`/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`)만 등록되어 있었다.
+  나머지 12개는 `lib/paths/repoRoot.ts`가 만드는 경로 덕분에 `packages/cli/dist/index.js`
+  **엔트리 파일 1개만** 번들되고, 그것이 런타임에 require하는 형제 모듈 470개와 CLI 자체
+  node_modules 69개가 빠져 있었다 — 즉 엔트리는 찾지만 실행하면 첫 `require()`에서 죽는 상태였다.
+  `chatViaCli()`는 throw하지 않고 `{success:false}`를 반환하므로 500이 아니라 **조용히 결정론적
+  기본값으로 폴백**했고, `packages/cli/dist`가 디스크에 그대로 있는 로컬에서는 재현되지 않아
+  드러나지 않았다. 영향 범위: 의뢰 접수의 AI 분석(`/api/inquiries`,
+  `/api/inquiries/[id]/analyze`), Design 체인 5종(`requirements`·`storyboard`·`wireframe`·
+  `prototype`·`claude`), Design→Website Build(`/api/design/website`), 기획 산출물 4종
+  (`estimates`·`specifications`·`timeline`·`proposals`·`contracts`).
+  CLI를 쓰지 않는 라우트(`design/review`·`design/approval`·`design/figma`·`design/sync`)는
+  번들 크기를 위해 의도적으로 제외했다(glob 대신 개별 지정한 이유).
+
+### 검증 (Verified)
+
+- 실제 프로덕션 빌드(`npm run build`) 후 `.next/server/app/api/**/route.js.nft.json`을 직접 파싱해
+  대조: 수정 전 12개 라우트가 `packages/cli` 파일 **1개**(엔트리만) → 수정 후 **471개 + 런타임
+  deps 69개**로, 이미 정상이던 `/api/ai-jobs/[id]/run`·`/api/websites`와 정확히 동일해졌다.
+  CLI가 필요 없는 `design/review`·`design/figma/export`·`design/sync`는 1개로 유지됨을 확인.
+- **함수 크기 실측** — 트레이스 파일 목록의 실제 바이트를 합산한 결과 CLI 포함 라우트는 라우트당
+  **5.5MB**(Vercel 제한 250MB의 2.2%). 저장소 최대 함수는 이번 변경과 무관한
+  `/api/dev-inspector/*`의 22.4MB(8.9%). 파일 수는 565→1,360개로 늘지만 용량 증가는 약 3.5MB에
+  그쳐 제한에 여유가 크다.
+- `npx tsc --noEmit` 0 errors, `npm run lint` 통과.
+- `npm test` **4 failed / 738 passed**. 동일 커맨드를 `git stash`로 이 변경을 제거한 상태에서도
+  실행해 **4 failed / 738 passed로 완전히 동일**함을 확인 — `tests/requests/registry.test.ts`·
+  `tests/inquiries/registry.test.ts`의 `updatedAt` 비교가 같은 밀리초에 실행되면 깨지는 기존
+  타이밍 플레이크로, 이번 변경과 무관하다(머신 속도에 따라 CI에서는 통과함).
+- 프로덕션 사이트(`www.cnbiz.kr`)에서의 실증상 확인은 하지 못했다 — 이 실행 환경의 네트워크
+  정책이 기본 차단(allowlist)이라 `cnbiz.kr`·`*.vercel.app`은 물론 google.com·naver.com도
+  CONNECT 단계에서 403으로 막힌다(허용: npm registry·GitHub API·Anthropic API).
+
 - **`.gitignore`의 `/.runtime/`이 워크스페이스 하위 경로를 거르지 못하던 문제** — 루트 앵커(`/`)
   패턴이라 `apps/cnbiz-web/.runtime/`은 매칭되지 않았다. 그런데 `lib/ai/bridge.ts`·
   `lib/aiJobs/executor.ts`가 CLI를 `cwd = apps/cnbiz-web`으로 shell-out하므로, AI 호출이

@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-08-07
+
+### 수정 (Fixed)
+
+- **`.gitignore`의 `/.runtime/`이 워크스페이스 하위 경로를 거르지 못하던 문제** — 루트 앵커(`/`)
+  패턴이라 `apps/cnbiz-web/.runtime/`은 매칭되지 않았다. 그런데 `lib/ai/bridge.ts`·
+  `lib/aiJobs/executor.ts`가 CLI를 `cwd = apps/cnbiz-web`으로 shell-out하므로, AI 호출이
+  한 번이라도 일어나면 `apps/cnbiz-web/.runtime/tasks.json`이 생성되어 매번 untracked
+  노이즈로 남았다(이번 모니터링 세션에서 실제로 재현). `**/.runtime/`로 교체하되, 이미
+  추적 중인 `**/.runtime/config/`(env-var 참조만 담은 provider 설정, 비밀값 아님)는
+  부정 패턴으로 예외 처리. `git check-ignore`로 캐시는 무시되고 config는 유지됨을 확인.
+  2026-07-14 (2)의 `tsconfig.json`·`eslint.config.mjs` 비재귀 ignore 패턴 버그와 동일 계열.
+
+### 검증 (Verified)
+
+- **로컬 실행 모니터링 — 고객 의뢰 파이프라인 전 구간 재확인**. 프로덕션(`www.cnbiz.kr`)은 이
+  실행 환경의 네트워크 정책이 차단해(프록시 게이트웨이 CONNECT 403) 접근할 수 없어, 동일 코드를
+  로컬에서 기동해 검증했다.
+  - `/developer` 30개 화면 전부 200, 서버 에러 0건. 공개 화면(`/`·`/about`·`/services`·
+    `/portfolio`·`/contact`·`/projects`) 200, `/customer` → `/customer/dashboard` 정상 리다이렉트.
+    `/request`의 `cnbiz.ai.kr` 308은 `next.config.ts`에 명시된 의도된 동작(결함 아님).
+  - 의뢰 접수 → AI Analysis → Client → WebsiteOrder → AiJob → Website Builder →
+    Project Workspace 자동 등록까지 실제 실행. 산출물을 `npm install` → `npm run build`
+    (18 routes, TS 에러 0) → `next start`로 기동해 전 라우트 200 확인.
+  - 배포 파이프라인은 `VERCEL_TOKEN` 부재로 `NotConfigured` 처리 — 가짜 URL을 만들지 않고
+    사유를 Website 레코드·Audit Log·`/api/errors`에 정확히 남기는 의도된 동작 확인.
+    GitHub/Vercel 실제 연동은 이 환경에서 미검증.
+  - **Design 체인 전 단계 정상 동작 확인** — Design Plan → Storyboard → Wireframe → Prototype →
+    Claude Design → Review → Approval(approved) → Design Sync(version 1, 충돌 0) →
+    Figma Export(pages 4/components 5/tokens 9) → Design→Website Build(Success) 전부 성공.
+  - **다만 Design 산출물이 생성 코드에 전혀 반영되지 않음을 파일 단위로 확인** — 동일
+    `siteType`(dental)에 대해 Design 체인을 거친 빌드와 거치지 않은 빌드를 비교한 결과
+    `.tsx` 26개 전부 바이트 단위로 동일하고, `styles/tokens.ts`도 주석의 프로젝트명 한 줄만
+    다르며 색상값은 동일했다. `generateReactComponentTree`는 저장소에 존재하지 않고,
+    `lib/design/website-build-adapter.ts`는 Design Plan의 자유 텍스트 3개만 CLI 인자로 옮긴다.
+    즉 `DesignDocument → React Generator → React Source Code` 구간은 미구현이며, Website
+    Builder는 고정 템플릿으로 생성한다.
+  - **관측성 결함 4건 발견(이번 범위에서 수정하지 않음)** — ① `lib/aiJobs/worker.ts`가 실패 시
+    `updateAiJobStatus(jobId, "Failed", {})`로 빈 patch를 넘겨 `AiJobStatusPatch.error`가
+    있음에도 실패 사유가 레코드에 남지 않는다. ② `lib/aiJobs/registry.ts`의
+    `finishedAt/startedAt`이 `??`로 보존되어 재실행 시 이전 시도의 시각이 그대로 남아 소요시간
+    계측이 불가능하다. ③ 성공한 Job도 `progress`가 0, `result`가 null로 고정된다.
+    ④ `incrementMetric("websiteGenerationCount")`가 `app/api/websites/route.ts`(수동 경로)에만
+    있고 AiJob worker 경로에는 없어 대시보드 지표가 실제 생성량을 반영하지 못한다.
+  - 검증에 사용한 dev 서버·임시 계정·생성 산출물·로컬 데이터는 전부 종료·삭제했다.
+
+---
+
 ## 2026-08-03
 
 ### 추가 (Added)

@@ -53,7 +53,11 @@ export type AuditAction =
   | "customer.view_document"
   | "inquiry.update"
   | "inquiry.delete"
-  | "inquiry.analyze";
+  | "inquiry.analyze"
+  | "design.database.generate"
+  | "design.api.generate"
+  | "design.backend.generate"
+  | "design.testplan.generate";
 
 export interface AuditEntry {
   id: string;

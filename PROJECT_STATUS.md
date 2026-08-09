@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `d3fb4f2` 기준)
+> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `1fc0311` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -65,12 +65,14 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 - 인증(이메일/비밀번호 세션) + RBAC 4-role — `lib/auth/{types,password,users,session,auth,middleware,rbac}.ts`, `proxy.ts`
 - Website Builder v2(CLI `ai website create` + 대시보드) — `packages/cli/src/website/*`, `lib/websites/registry.ts`, `/developer/websites`
 - Database — `lib/db/{collectionStore,fsStore,memoryStore,supabaseStore,index}.ts`(단일 Supabase 테이블 `app_collections`)
+- **Design Automation — Database Design 생성기**(`lib/design/database-design{,-generator}.ts`, `POST/GET /api/design/database`, `GET /api/design/database/[id]`, 신규) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 산출물 서비스. 기존 Phase 2~9와 동일한 패턴(`chatViaCli()` + 결정론적 폴백, fs-JSON versioned registry)을 재사용하며, AI가 생성한 구조화된 설계 문서일 뿐 실제 SQL 마이그레이션을 실행하거나 진짜 데이터베이스에 반영하지는 않는다. `design.database.generate` 감사 로그 액션·`databaseDesignGenerationCount` 메트릭 카운터 추가(Audit Log·Errors·Metrics 화면 반영)
 
 ---
 
 ## 🚧 진행 중인 기능 (일부 구현) / 알려진 사소한 결함
 
 - Design Automation Phase 9(Website Build 연동) — 코드 존재, CHANGELOG 검증 기록 없음
+- **Design Automation — API Design 생성기**(`lib/design/api-design{,-generator}.ts`, 신규) — Database Design(테이블/관계) 위에서 REST API 엔드포인트·인증 전략·파일 업로드 엔드포인트·API 테스트 노트를 설계하는 Generator/타입만 추가된 상태. Database Design과 달리 대응하는 `POST/GET /api/design/api-design` 라우트·대시보드 페이지가 아직 없어 호출 경로가 연결되지 않음
 - 인증 — signup 백엔드·앱 내 역할관리 UI 없음(CLI 스크립트로만 가능)
 - Client/WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/clients/[id]`, `/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`·`/projects/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/clients`·`/developer/website-orders` 같은 자체 목록 화면은 아직 없음
 - **`WebsiteOrderRecord.aiJobIds`가 항상 빈 배열로 남는 표시 결함**(2026-08-03 E2E 검증 중 발견, `FINAL_E2E_REPORT_v5.md` 참고) — `app/api/inquiries/route.ts`가 `createAiJob()`만 호출하고 `addAiJobToWebsiteOrder()`를 호출하지 않음. AiJob 자체는 정상 생성·실행되고, GitHub/Vercel/Workspace 파이프라인은 `websiteIds`/`projectId`만 사용해 동작에 영향은 없음(순수 표시용 필드 누락). 낮은 우선순위, 별도 지시 하에 수정 권장
@@ -89,6 +91,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Design Automation — Database Design 생성기 신규 구현**(2026-08-09) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 `lib/design/database-design{,-generator}.ts`(신규)와 `POST/GET /api/design/database`·`GET /api/design/database/[id]`(신규) 추가. 기존 Design Automation Phase 2~9와 동일한 패턴(`chatViaCli()` + 결정론적 폴백, fs-JSON versioned registry)을 재사용하며 실제 SQL 마이그레이션은 실행하지 않는다. `design.database.generate` 감사 로그 액션과 `databaseDesignGenerationCount` 메트릭 카운터 추가(Audit Log·Errors·Metrics 화면 반영), 신규 테스트 2개 파일(`tests/design/database-design-{generator,registry}.test.ts`) 포함.
+- **Design Automation — API Design 생성기 코드 추가(라우트 미연결)**(2026-08-09) — `lib/design/api-design{,-generator}.ts`(신규)에 Database Design(테이블/관계) 위에서 REST API 엔드포인트·인증 전략·파일 업로드 엔드포인트·API 테스트 노트를 설계하는 Generator/타입을 추가했으나, 대응하는 API 라우트·대시보드 페이지는 이번 diff에 포함되지 않아 아직 호출 경로가 연결되지 않은 상태다. `lib/audit/log.ts`의 `AuditAction`에 `design.api.generate`·`design.backend.generate`·`design.testplan.generate`도 함께 선언·라벨/톤 매핑을 추가했으나 이 역시 향후 라우트를 위한 선반영이다.
 - **Design → Website Build → Deployment 연결 + React Generator 빌드 실패 버그 수정**(2026-08-09) — Design Automation이 승인된 Review로 생성한 사이트가 로컬 `outDir` 생성에서 멈추던 것을, 기존 `lib/deployment/pipeline.ts`의 `runDeploymentPipeline()`을 새 로직 없이 그대로 호출해(입력 형태는 `lib/aiJobs/worker.ts`의 `triggerDeployment()` 내부 호출과 동일) GitHub repo 생성→commit→push→Vercel 프로젝트 생성→배포까지 이어지도록 `POST /api/design/website`(`apps/cnbiz-web/app/api/design/website/route.ts`)를 연결했다. 응답에 `deployment` 필드를 추가해 `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정 시 "NotConfigured"가 그대로 노출되도록 했다. 이 연결을 실 GitHub/Vercel 계정으로 검증하는 과정에서, React Generator가 DesignDocument의 내부 추적용 메타데이터(`props.sourceType`, Wireframe→DesignDocument 컴포넌트 타입 매핑 시 원본 타입 보존 목적)를 실제 JSX 속성(`<div sourceType={"Navigation"} />`)으로 그대로 출력해 생성된 사이트가 Vercel에서 TypeScript 컴파일 오류로 항상 빌드 실패하던 버그를 발견·수정했다(`packages/cli/src/generators/react/tsx.ts`의 `PASSTHROUGH_HANDLED_KEYS`에 `"sourceType"` 1개 추가). 실 E2E로 실제 GitHub 저장소·Vercel 프로젝트를 생성해 빌드 실패(`readyState:"ERROR"`)를 먼저 재현한 뒤, 수정 후 로컬 재생성으로 18개 라우트 전부 정상 컴파일·빌드됨을 확인했다(검증에 사용한 GitHub 저장소·Vercel 프로젝트는 삭제 완료).
 - **`company_logo`/`service_images` 완료도 판정이 파일 종류를 전혀 구분하지 않던 버그 수정**(2026-08-09) — `service_images`가 `!LOGO_PATTERN.test(file)`(로고 이름이 아닌 모든 첨부파일)을 사진으로 인정해 PDF·TXT만 첨부해도 채워진 것처럼 표시되고, `company_logo`도 이름에 우연히 "logo"가 들어간 문서를 로고로 오인하던 결함을 수정. `lib/attachments/classify.ts`(신규)로 URL 확장자 기반 이미지/문서 판별 로직을 통합해 `lib/ai-analysis/analysis.ts`·`lib/attachments/extractText.ts`·`lib/ai-analysis/score.ts` 3곳의 중복 구현을 제거하고, `score.ts`의 두 체크리스트 항목에 `isImageUrl()` 조건을 추가. 신규 테스트 2개 포함 `90 files/760 tests` 전부 통과, 실 E2E로 PDF만 첨부 시 `service_images`가 여전히 누락 항목에 포함됨을 확인.
 - **`LOGO_PATTERN`("회사 로고" 완료 여부 판단) 버그 수정 — 원본 파일명을 URL에 슬러그로 보존**(2026-08-09) — 2026-08-09 (5)에서 후속 과제로 남겨뒀던 항목. 두 스토리지 구현(`fsStore.ts`·`supabaseStore.ts`) 모두 원본 파일명을 버리고 무작위 id(+확장자)만으로 URL을 만들어, 로고를 아무리 명확한 이름으로 첨부해도 `LOGO_PATTERN`(`/logo/i`)이 URL 문자열에서 "logo"를 절대 찾지 못해 "회사 로고" 항목이 항상 누락으로 표시되던 결함을 수정했다. `lib/storage/extension.ts`에 `safeSlug()`(신규)를 추가해 원본 파일명(확장자 제외)을 소문자·영숫자·하이픈만 남긴 슬러그(최대 40자)로 정규화하고, 스토리지 키 자체는 그대로 둔 채 반환 URL에 `?name=` 쿼리로 덧붙였다(확장자 기반 분류·서빙 라우트 모두 쿼리 스트링과 무관해 다른 코드 변경 불필요). 신규 테스트 12개(`tests/storage/extension.test.ts`·`tests/storage/fsStore.test.ts`·`tests/ai-analysis/score.test.ts` 보강) 추가, `90 files/758 tests` 전부 통과. 실 E2E로 "company-logo.png" 업로드 → 반환 URL이 `...png?name=company-logo` 형태임을 확인 → 그 URL만으로 의뢰 등록 → `analysis.missingItems`에 더 이상 `company_logo`가 포함되지 않음을 확인.

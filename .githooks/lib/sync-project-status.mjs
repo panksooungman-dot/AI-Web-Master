@@ -28,7 +28,7 @@ const SUBSTANTIVE_PREFIXES = ["apps/", "packages/"];
 const SECTION_MAP = [
   { key: "전체 진행률", heading: "## 전체 진행률", mode: "replace" },
   { key: "완료된 기능", heading: "## ✅ 완료된 기능", mode: "replace" },
-  { key: "진행 중인 기능", heading: "## 🚧 진행 중인 기능 (일부 구현)", mode: "replace" },
+  { key: "진행 중인 기능", heading: "## 🚧 진행 중인 기능 (일부 구현) / 알려진 사소한 결함", mode: "replace" },
   { key: "예정된 기능", heading: "## ⏳ 예정된 기능 (미구현)", mode: "replace" },
   { key: "최근 완료 작업", heading: "## 최근 완료 작업", mode: "prepend" },
   { key: "다음 작업 우선순위", heading: "## 다음 작업 우선순위", mode: "replace" },

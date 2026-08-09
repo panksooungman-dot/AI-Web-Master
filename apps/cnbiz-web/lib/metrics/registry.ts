@@ -47,6 +47,12 @@ export interface MetricsCounters {
   proposalGenerationCount: number;
   /** Customer Portal V1(lib/customerPortal) 신규 — 기존 22개 필드는 무변경. */
   customerPortalVisitCount: number;
+  /** AI Business OS 9단계 개발 프로세스 확장(Database/API/Backend/Test Plan Design) 신규 —
+   *  기존 23개 필드는 무변경. */
+  databaseDesignGenerationCount: number;
+  apiDesignGenerationCount: number;
+  backendDesignGenerationCount: number;
+  testPlanGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -75,6 +81,10 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   contractGenerationCount: 0,
   proposalGenerationCount: 0,
   customerPortalVisitCount: 0,
+  databaseDesignGenerationCount: 0,
+  apiDesignGenerationCount: 0,
+  backendDesignGenerationCount: 0,
+  testPlanGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

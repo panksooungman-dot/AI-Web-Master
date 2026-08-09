@@ -57,6 +57,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "inquiry.update": "의뢰 정보 수정",
   "inquiry.delete": "의뢰 삭제",
   "inquiry.analyze": "AI 재분석",
+  "design.database.generate": "Database Design",
+  "design.api.generate": "API Design",
+  "design.backend.generate": "Backend Design",
+  "design.testplan.generate": "Test Plan",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -105,6 +109,10 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "inquiry.update": "info",
   "inquiry.delete": "danger",
   "inquiry.analyze": "purple",
+  "design.database.generate": "purple",
+  "design.api.generate": "purple",
+  "design.backend.generate": "purple",
+  "design.testplan.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -145,6 +153,10 @@ const FILTERS: ("All" | AuditAction)[] = [
   "inquiry.update",
   "inquiry.delete",
   "inquiry.analyze",
+  "design.database.generate",
+  "design.api.generate",
+  "design.backend.generate",
+  "design.testplan.generate",
 ];
 
 export default function AuditLogPage() {

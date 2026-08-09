@@ -57,6 +57,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "inquiry.update": "의뢰 정보 수정",
   "inquiry.delete": "의뢰 삭제",
   "inquiry.analyze": "AI 재분석",
+  "design.database.generate": "Database Design",
+  "design.api.generate": "API Design",
+  "design.backend.generate": "Backend Design",
+  "design.testplan.generate": "Test Plan",
 };
 
 /**

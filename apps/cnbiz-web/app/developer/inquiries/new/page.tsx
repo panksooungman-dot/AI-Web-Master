@@ -7,12 +7,7 @@ import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { StatusMessage } from "@/components/developer/StatusMessage";
 import { ToastStack, type ToastMessage, type ToastTone } from "@/components/developer/Toast";
-
-const ACCEPTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".webp"];
-
-// 저장소 전체에 첨부파일 최대 크기 정책이 아직 없다(검색 결과 없음, 2026-07-21 확인) — Supabase
-// Storage 업로드가 실제로 구현되면 그때 정해지는 정책 값으로 교체한다. 그 전까지의 임시 기본값.
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+import { ACCEPTED_EXTENSIONS, MAX_FILE_SIZE_BYTES, isAcceptedFileName } from "@/lib/attachments/policy";
 
 const inputClass =
   "w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-blue-500";
@@ -62,18 +57,13 @@ export default function NewInquiryPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function isAcceptedFile(file: File): boolean {
-    const lower = file.name.toLowerCase();
-    return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
-  }
-
   function addFiles(list: FileList | File[]) {
     const incoming = Array.from(list);
     const accepted: StagedFile[] = [];
     const rejected: string[] = [];
 
     for (const file of incoming) {
-      if (!isAcceptedFile(file)) {
+      if (!isAcceptedFileName(file.name)) {
         rejected.push(`${file.name} (지원하지 않는 형식)`);
         continue;
       }
@@ -161,9 +151,35 @@ export default function NewInquiryPage() {
    * 합류시킨다. 이 라우트와 완전히 동일한 흐름을 cnbiz.kr의 공개 문의 폼(components/sections/
    * ContactForm.tsx)도 함께 사용한다 — "chatbot"이 아닌 "manual"을 source로 보내는 것만 다르다.
    *
-   * 남은 TODO(파일 업로드 스토리지·OCR)는 이번 범위가 아니다 — Supabase Storage 업로드 백엔드가
-   * 아직 없어 첨부파일은 실제 URL 없이 파일명만 rawPayload에 감사 목적으로 남긴다.
+   * 첨부파일은 POST /api/inquiries보다 먼저 /api/attachments/upload로 하나씩 업로드해 실제 URL을
+   * 받은 뒤 uploadedFiles(URL 목록)로 함께 보낸다 — lib/ai-analysis/analysis.ts가 이미지 URL을
+   * Claude vision에 그대로 전달하므로(packages/cli의 `ai chat --image`), 여기서 실패를 감추면
+   * "첨부파일을 반영했다"고 보이면서 실제로는 반영되지 않는 조용한 실패가 된다. 하나라도
+   * 업로드에 실패하면 등록 자체를 중단한다.
    */
+  async function uploadFiles(): Promise<string[] | null> {
+    const urls: string[] = [];
+    for (const staged of files) {
+      const body = new FormData();
+      body.append("file", staged.file);
+
+      try {
+        const res = await fetch("/api/attachments/upload", { method: "POST", body });
+        const data: { success: boolean; url?: string; error?: string } = await res.json();
+
+        if (!data.success || !data.url) {
+          pushToast("error", `${staged.file.name} 업로드 실패: ${data.error ?? "알 수 없는 오류"}`);
+          return null;
+        }
+        urls.push(data.url);
+      } catch {
+        pushToast("error", `${staged.file.name} 업로드 중 오류가 발생했습니다.`);
+        return null;
+      }
+    }
+    return urls;
+  }
+
   async function handleAnalyze() {
     if (loading) return;
     if (!validateForAnalysis()) return;
@@ -171,6 +187,9 @@ export default function NewInquiryPage() {
     setLoading("analyze");
 
     try {
+      const uploadedFiles = await uploadFiles();
+      if (uploadedFiles === null) return;
+
       const res = await fetch("/api/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,12 +199,8 @@ export default function NewInquiryPage() {
           contactName: form.contactName,
           email: form.email,
           requirements: content,
-          rawPayload: {
-            title: form.title,
-            // TODO: 실제 업로드 URL이 아니라 파일명만 감사 목적으로 보관 — Supabase Storage
-            // 연동이 구현되면 lib/inquiries/types.ts의 uploadedFiles(URL 목록)로 옮긴다.
-            uploadedFileNames: files.map((f) => f.file.name),
-          },
+          uploadedFiles,
+          rawPayload: { title: form.title },
         }),
       });
       const data: { success: boolean; inquiryId?: string; error?: string; errors?: Record<string, string> } =

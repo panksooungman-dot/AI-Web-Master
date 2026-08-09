@@ -29,15 +29,38 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
     };
   }
 
-  /** chat()/chatStream()이 공유하는 system/conversation 분리 로직. */
+  /**
+   * chat()/chatStream()이 공유하는 system/conversation 분리 로직. `request.images`가 있으면
+   * 마지막 user 메시지 하나에만 붙인다 — Anthropic Messages API는 메시지별로 content를
+   * string 또는 블록 배열로 받으므로, 이미지가 있는 메시지만 배열 형태(이미지 블록들 +
+   * 텍스트 블록)로 바꾸고 나머지는 기존과 동일한 문자열 그대로 둔다.
+   */
   function buildBody(request: ChatRequest, model: string, stream: boolean): string {
     const system = request.messages
       .filter((message) => message.role === "system")
       .map((message) => message.content)
       .join("\n\n");
-    const conversation = request.messages
-      .filter((message) => message.role !== "system")
-      .map((message) => ({ role: message.role, content: message.content }));
+    const nonSystem = request.messages.filter((message) => message.role !== "system");
+    const lastUserIndex = nonSystem.reduce(
+      (found, message, index) => (message.role === "user" ? index : found),
+      -1
+    );
+
+    const conversation = nonSystem.map((message, index) => {
+      if (index === lastUserIndex && request.images && request.images.length > 0) {
+        return {
+          role: message.role,
+          content: [
+            ...request.images.map((image) => ({
+              type: "image",
+              source: { type: "base64", media_type: image.mediaType, data: image.base64 }
+            })),
+            { type: "text", text: message.content }
+          ]
+        };
+      }
+      return { role: message.role, content: message.content };
+    });
 
     return JSON.stringify({
       model,

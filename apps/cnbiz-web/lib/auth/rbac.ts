@@ -76,6 +76,14 @@ const PAGE_AREA_PREFIXES: ReadonlyArray<readonly [string, ProtectedArea]> = [
  */
 const UNGATED_API_PREFIXES = [
   "/api/auth",
+  // GET-only file serving for lib/storage's local fs fallback (lib/storage/fsStore.ts). Only
+  // reachable in practice on local dev/preview — production always uses SUPABASE_URL, so
+  // getDefaultAttachmentStore() never returns the fs store there and this path 404s harmlessly.
+  // Ungated (not just "any authenticated role") because the CLI subprocess that fetches an
+  // attachment for vision analysis (packages/cli/src/commands/chat.ts's --image) is a plain
+  // `fetch()` with no session cookie — POST /api/attachments/upload (the actual mutation) is a
+  // separate path prefix and stays "developer"-gated, same pattern as POST /api/inquiries above.
+  "/api/attachment-files",
   "/api/workspaces",
   "/api/terminal",
   "/api/projects",

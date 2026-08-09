@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { getProviderManager } from "../providers/manager.js";
-import { ProviderError } from "../providers/types.js";
+import { ProviderError, type ChatImage } from "../providers/types.js";
 import { recordTask } from "../tasks/ledger.js";
 
 export interface ChatOptions {
@@ -8,15 +8,59 @@ export interface ChatOptions {
   provider?: string;
   json?: boolean;
   stream?: boolean;
+  image?: string[];
 }
 
 const DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant inside AI Business OS.";
 
+// Anthropic's per-image limit is 5MB of base64-encoded data; cap the source fetch below that so
+// we never build a request the API will reject outright. 6 images keeps a single chat() call
+// well within typical prompt/latency budgets — a business inquiry with a handful of reference
+// images is the intended use case here, not a bulk image-analysis pipeline.
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGES = 6;
+
 /**
- * `ai chat [message] [--system] [--provider] [--json] [--stream]` — ProviderManager.complete()/
- * streamComplete()를 그대로 재사용한다(새 실행 로직 없음). 호출마다 .runtime/tasks.json에
- * 기록되어 `ai task list/retry`의 대상이 된다. `--json`과 `--stream`을 함께 주면 스트리밍
- * 대신 기존 단일 JSON 응답으로 폴백한다(기존 --json 소비자와의 호환을 위해).
+ * `--image <url>` 인자들을 실제로 fetch해 base64로 인코딩한다. 하나가 실패해도 나머지는
+ * 계속 시도한다(첨부파일 중 하나가 깨져 있다고 전체 분석이 시뮬레이션으로 폴백하는 것은
+ * 과한 실패 모드다) — 실패한 이미지는 stderr 경고만 남기고 건너뛴다.
+ */
+async function resolveImages(urls: string[] | undefined): Promise<ChatImage[]> {
+  if (!urls || urls.length === 0) return [];
+
+  const images: ChatImage[] = [];
+  for (const url of urls.slice(0, MAX_IMAGES)) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(`[chat] 이미지를 가져오지 못했습니다 (${response.status}): ${url}`);
+        continue;
+      }
+      const mediaType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+      if (!mediaType.startsWith("image/")) {
+        console.error(`[chat] 이미지가 아닌 콘텐츠 타입(${mediaType})이라 건너뜁니다: ${url}`);
+        continue;
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > MAX_IMAGE_BYTES) {
+        console.error(`[chat] 이미지가 5MB를 초과해 건너뜁니다 (${buffer.byteLength} bytes): ${url}`);
+        continue;
+      }
+      images.push({ mediaType, base64: buffer.toString("base64") });
+    } catch (error) {
+      console.error(`[chat] 이미지 fetch 실패: ${url} — ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return images;
+}
+
+/**
+ * `ai chat [message] [--system] [--provider] [--json] [--stream] [--image <url>]` —
+ * ProviderManager.complete()/streamComplete()를 그대로 재사용한다(새 실행 로직 없음). 호출마다
+ * .runtime/tasks.json에 기록되어 `ai task list/retry`의 대상이 된다. `--json`과 `--stream`을
+ * 함께 주면 스트리밍 대신 기존 단일 JSON 응답으로 폴백한다(기존 --json 소비자와의 호환을 위해).
+ * `--image`는 스트리밍 경로에서는 지원하지 않는다(vision은 apps/cnbiz-web의 AI Analysis처럼
+ * `--json` 1회성 호출로만 쓰인다).
  */
 export async function chatCommand(message: string | undefined, options: ChatOptions = {}): Promise<void> {
   if (!message) {
@@ -34,12 +78,14 @@ export async function chatCommand(message: string | undefined, options: ChatOpti
   }
 
   try {
+    const images = await resolveImages(options.image);
     const manager = getProviderManager(cwd);
     const completion = await manager.complete({
       providerId: options.provider,
       systemPrompt,
       userPrompt: message,
-      fallbackLabel: `Chat: "${message.slice(0, 60)}"`
+      fallbackLabel: `Chat: "${message.slice(0, 60)}"`,
+      images
     });
 
     await recordTask(cwd, {

@@ -94,6 +94,16 @@ export interface GenerateAnalysisResult {
   model?: string;
 }
 
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
+
+/** uploadedFiles 중 실제로 vision에 넘길 수 있는 것만 고른다 — PDF/DOC/TXT는 이미지 콘텐츠
+ * 블록으로 보낼 수 없으므로 제외한다(개수는 여전히 프롬프트의 "업로드된 파일 수"에 전부 반영됨,
+ * OCR/문서 파싱은 이번 범위가 아니다). */
+function extractImageUrls(uploadedFiles: string[] | undefined): string[] {
+  if (!uploadedFiles) return [];
+  return uploadedFiles.filter((url) => IMAGE_EXTENSIONS.some((ext) => url.toLowerCase().split("?")[0].endsWith(ext)));
+}
+
 /**
  * Resolve(Provider 호출) → parse → 실패 시 결정론적 기본값 폴백. `chatFn` 기본값은 실제
  * lib/ai/bridge.ts의 chatViaCli()이며, 테스트에서는 가짜 함수를 주입해 실제 CLI 서브프로세스
@@ -106,11 +116,17 @@ export interface GenerateAnalysisResult {
  */
 export async function generateAnalysis(
   input: AIAnalysisInput,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (
+    message: string,
+    options?: { system?: string; provider?: string; images?: string[] }
+  ) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateAnalysisResult> {
   const { completeness, missingItems } = computeCompleteness(input);
 
-  const chatResult = await chatFn(buildAnalysisPrompt(input), { system: AI_ANALYSIS_SYSTEM_PROMPT });
+  const chatResult = await chatFn(buildAnalysisPrompt(input), {
+    system: AI_ANALYSIS_SYSTEM_PROMPT,
+    images: extractImageUrls(input.uploadedFiles),
+  });
 
   let judgment = chatResult.success && chatResult.content ? parseAiJudgment(chatResult.content) : null;
   const simulated = judgment === null;

@@ -101,8 +101,10 @@ async function runAiCli(args: (string | undefined)[], cwd: string = resolveCliWo
 
 export async function chatViaCli(
   message: string,
-  options: { system?: string; provider?: string } = {}
+  options: { system?: string; provider?: string; images?: string[] } = {}
 ): Promise<ChatResult> {
+  const imageArgs = (options.images ?? []).flatMap((url) => ["--image", url]);
+
   const result = await runAiCli([
     "chat",
     message,
@@ -110,6 +112,7 @@ export async function chatViaCli(
     options.system,
     options.provider ? "--provider" : undefined,
     options.provider,
+    ...imageArgs,
   ]);
 
   return {

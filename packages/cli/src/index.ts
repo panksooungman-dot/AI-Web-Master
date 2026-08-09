@@ -112,11 +112,12 @@ program
   .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama|openrouter). 생략 시 기본 provider")
   .option("--json", "JSON 형식으로 출력")
   .option("--stream", "지원하는 provider(openai/anthropic)에서 응답을 실시간 스트리밍으로 출력")
+  .option("--image <url>", "이미지 URL (여러 번 지정 가능, anthropic만 실제로 사용/vision)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .description("AI Provider와 1회성 대화를 실행 (ProviderManager.complete()/streamComplete() 재사용)")
   .action(
     async (
       message: string | undefined,
-      options: { system?: string; provider?: string; json?: boolean; stream?: boolean }
+      options: { system?: string; provider?: string; json?: boolean; stream?: boolean; image?: string[] }
     ) => {
       await chatCommand(message, options);
     }

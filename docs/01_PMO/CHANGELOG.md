@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-08-09 (4)
+
+### 추가 (Added)
+
+- **의뢰 첨부파일 — 실제 업로드 스토리지 구현 및 AI Analysis Vision 연동**: 그동안 `/developer/inquiries/new`의 첨부파일은 실제 URL 없이 파일명만 감사 목적으로 `rawPayload`에 남기던 TODO 상태였음(2026-07-15 이전부터 존재). Supabase Storage/로컬 fs 스토리지 백엔드를 구현하고, AI Analysis가 업로드된 이미지를 실제로 "보고" 판단에 반영하도록 CLI Provider 계층까지 연결
+  - `apps/cnbiz-web/lib/storage/{types,fsStore,supabaseStore,index}.ts`(신규) — `AttachmentStore` 인터페이스, `lib/db`와 동일한 resolve 규칙(`getDefaultAttachmentStore()`): Production은 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 필수(fail-fast), 없으면 `os.tmpdir()` 기반 로컬 fs 스토리지로 폴백. Supabase 구현은 `inquiry-attachments` 버킷을 최초 저장 시 자동 생성(public), 파일명은 한글·특수문자 URL 인코딩 문제를 피하기 위해 확장자만 보존한 랜덤 키로 저장
+  - `apps/cnbiz-web/app/api/attachments/upload/route.ts`(신규, "developer"-gated) — `multipart/form-data` 단일 파일 업로드, 확장자·크기(20MB) 서버 재검증 후 스토리지에 저장
+  - `apps/cnbiz-web/app/api/attachment-files/[id]/route.ts`(신규, ungated) — 로컬 fs 스토리지 전용 서빙 라우트(프로덕션은 Supabase 공개 URL을 직접 반환하므로 거치지 않음). CLI 서브프로세스가 세션 쿠키 없이 `fetch()`로 이미지를 가져와야 해서 의도적으로 ungated 처리(`lib/auth/rbac.ts`에 근거 주석 포함)
+  - `apps/cnbiz-web/lib/attachments/policy.ts`(신규) — 허용 확장자·최대 크기 기준을 클라이언트(`inquiries/new/page.tsx`)와 서버가 공유하도록 추출(로직 중복 제거)
+  - `apps/cnbiz-web/lib/ai-analysis/analysis.ts` — `uploadedFiles` 중 이미지 확장자만 골라(`extractImageUrls`) `chatFn`에 `images`로 전달. PDF/DOC/TXT는 이번 범위에서 vision으로 보내지 않음(OCR/문서 파싱 아님, 업로드 파일 수는 기존처럼 프롬프트에 전부 반영)
+  - `apps/cnbiz-web/lib/ai/bridge.ts` — `chatViaCli()`가 `images` 옵션을 `ai chat --image <url>`(여러 번 지정 가능) 인자로 CLI에 전달
+  - `packages/cli/src/commands/chat.ts` — `--image <url>` 옵션 추가. 이미지를 실제로 fetch해 base64 인코딩(5MB/장, 최대 6장 제한 — Anthropic 개별 이미지 5MB 제한 기준), 하나가 실패해도 나머지는 계속 처리(첨부파일 하나가 깨졌다고 전체 분석이 시뮬레이션으로 폴백하는 과한 실패 모드를 피함)
+  - `packages/cli/src/providers/{types,manager,anthropic}.ts` — `ChatRequest.images`(`ChatImage[]`) 신규 필드. Anthropic Provider만 실제로 소비(vision) — 마지막 user 메시지 하나에만 이미지 블록 + 텍스트 블록으로 content를 재구성, 다른 메시지는 기존과 동일한 문자열 그대로 유지. 다른 provider(OpenAI/Gemini/Ollama/OpenRouter)는 이 필드를 조용히 무시(이번 배포에 실제 구성된 provider가 Anthropic뿐이라 확장은 필요해지는 시점에 진행)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트·`apps/cnbiz-web`·`packages/cli` 전부 0 errors), `npx eslint`(변경 파일 전체 0 errors), `npm test -- tests/ai-platform-cli`(8 files/50 tests 통과, 회귀 없음), `apps/cnbiz-web`의 `tests/ai-analysis`·`tests/inquiries`(4 files/27 tests 통과, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로그인 → 실제 1x1 PNG 이미지를 `POST /api/attachments/upload`로 업로드(로컬 fs 스토리지, `SUPABASE_URL` 미설정 환경) → 반환된 URL을 `GET /api/attachment-files/[id]`로 재조회해 정확한 바이트·`Content-Type`으로 서빙됨을 확인(쿠키 없이도 200 — ungated 설계대로 동작) → 그 URL을 `uploadedFiles`에 담아 `POST /api/inquiries` 실행 → 실제 Anthropic API 키로 AI Analysis가 트리거되어 `analysis.summary`가 "업로드된 파일 1건은 로고 또는 이미지 자료로 추정되며"를 포함하고 `confidence:0.15`(시뮬레이션 폴백의 고정값 0.3이 아님)로 응답 — 실제 vision 호출이 반영됐음을 확인
+  - 검증 중 이 컴퓨터의 기존 dev 서버(장시간 실행으로 Turbopack 워커 풀이 이미 손상된 상태, 이번 변경과 무관 — 최초 로그에 "Turbopack's filesystem cache has been deleted because we previously detected an internal error"가 서버 기동 직후부터 있었음)가 API 라우트 요청마다 500(`Jest worker encountered ... child process exceptions`)을 반환해 재현이 막힘 → 사용자 승인 없이 재시작(이미 API 전반이 정상 동작하지 않는 상태였고 로컬 개발 서버 재시작은 낮은 위험의 가역적 조치로 판단) → 재시작 후 전 구간 정상 재현
+  - 검증에 사용한 임시 계정·의뢰·클라이언트·웹사이트오더·AI Job·첨부파일 2건은 검증 후 `os.tmpdir()` 기준 로컬 fs 데이터에서 정확히 대상만 골라 삭제 완료(다른 세션이 남긴 기존 로컬 dev 데이터는 무변경 보존)
+
+---
+
 ## 2026-08-09 (3)
 
 ### 수정 (Fixed)

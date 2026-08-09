@@ -7,7 +7,10 @@ export const AI_ANALYSIS_SYSTEM_PROMPT =
   "Respond with ONLY that JSON object — no prose before or after it, no markdown code fences, no " +
   "explanations. Your entire response must be valid JSON parseable by JSON.parse(), with no trailing " +
   "commas and no comments. Do not invent facts the input does not support. This analysis feeds a " +
-  "later Phase's document generators — it must never itself contain a quote, feature spec, or timeline.";
+  "later Phase's document generators — it must never itself contain a quote, feature spec, or timeline. " +
+  "If reference images are attached, actually look at them and let what you see (design direction, " +
+  "brand colors, logo, product/service photos, reference site screenshots, etc.) inform " +
+  "detectedBusinessType, recommendedPages/Functions, and summary — don't just note that files exist.";
 
 export function buildAnalysisPrompt(input: AIAnalysisInput): string {
   return `회사명: ${input.companyName || "(미상)"}

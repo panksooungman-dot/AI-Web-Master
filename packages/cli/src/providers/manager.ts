@@ -5,6 +5,7 @@ import type { AIProvider } from "./provider.js";
 import { recordUsage } from "./usage.js";
 import {
   ProviderError,
+  type ChatImage,
   type ChatMessage,
   type ChatStreamChunk,
   type ProviderConfig,
@@ -208,7 +209,7 @@ export class ProviderManager {
 
     try {
       const provider = await this.getProvider(resolvedProviderId);
-      const response = await provider.chat({ messages });
+      const response = await provider.chat({ messages, images: options.images });
 
       await recordUsage(this.cwd, {
         provider: response.provider,
@@ -326,6 +327,8 @@ export interface CompleteOptions {
   userPrompt: string;
   /** provider가 없거나 실패했을 때 [simulated] 메시지에 포함되는 설명. */
   fallbackLabel: string;
+  /** anthropic만 실제로 소비한다(vision) — 다른 provider는 조용히 무시. */
+  images?: ChatImage[];
 }
 
 export interface CompleteResult {

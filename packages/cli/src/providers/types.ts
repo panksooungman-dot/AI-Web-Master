@@ -3,11 +3,20 @@ export interface ChatMessage {
   content: string;
 }
 
+/** Base64-encoded image attached to the last user message. Only anthropic.ts consumes this
+ * today (vision) — other providers ignore the field rather than erroring, since only Anthropic
+ * is actually configured in this deployment. */
+export interface ChatImage {
+  mediaType: string;
+  base64: string;
+}
+
 export interface ChatRequest {
   model?: string;
   messages: ChatMessage[];
   temperature?: number;
   maxTokens?: number;
+  images?: ChatImage[];
 }
 
 export interface ChatResponse {

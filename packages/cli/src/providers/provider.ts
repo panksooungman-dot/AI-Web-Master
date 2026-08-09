@@ -16,9 +16,13 @@ export interface AIProvider {
 // document generators) can legitimately take longer to finish generating a large JSON payload —
 // especially now that anthropic.ts's max_tokens default was raised from 1024 to 4096 — and were
 // hitting TIMEOUT (itself retried, then falling back) even on slow-but-otherwise-successful calls.
-// 45s keeps the retry policy's own semantics (TIMEOUT/429/5xx are retryable) meaningful instead of
-// firing on ordinary generation latency.
-const DEFAULT_TIMEOUT_MS = 45000;
+// 45s was meant to fix that but proved still too short (2026-08-09): with max_tokens raised again
+// to 8192, lib/design/wireframe-generator.ts's prompt (desktop/tablet/mobile layouts across every
+// screen) timed out on all 3 attempts every time (~135s of retries, then silent fallback) while
+// smaller callers like the Design Plan generator finished in 35-45s. 120s keeps the retry policy's
+// own semantics (TIMEOUT/429/5xx are retryable) meaningful instead of firing on ordinary — if
+// large — generation latency.
+const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_RETRIES = 2;
 const DEFAULT_BASE_DELAY_MS = 300;
 

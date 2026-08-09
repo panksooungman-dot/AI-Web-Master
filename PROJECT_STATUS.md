@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-05 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `f79f7f8` 기준)
+> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `7b6777a` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Design 체인 시뮬레이션 폴백 잔여 원인 2건 추가 수정 — max_tokens·타임아웃 재상향**(2026-08-09) — `packages/cli/src/providers/anthropic.ts`의 기본 `max_tokens`(8192)가 `lib/design/wireframe-generator.ts`(데스크탑/태블릿/모바일 3-breakpoint 화면 구성)에는 부족해 응답이 8192 토큰에서 JSON 중간에 잘려 파싱 실패 → 시뮬레이션 폴백으로 이어짐을 실측(`usage.outputTokens: 8192`)으로 확인, 16000으로 재상향. `packages/cli/src/providers/provider.ts`의 요청 타임아웃 기본값(45000ms)도 같은 스키마에는 부족해 3회 재시도(각 45초, 총 약 2.3분)를 전부 소진한 뒤 폴백함을 확인, 120000ms로 재상향. 검증 전용 임시 계정으로 Design 체인 5단계(Requirements→Storyboard→Wireframe→Prototype→Claude Design) 전부 `simulated:false`로 실제 Anthropic 응답을 받음을 확인했다.
+- **AI 분석이 항상 시뮬레이션 폴백으로 떨어지던 근본 원인 수정 — PowerShell 인자 재구성 버그**(2026-08-09) — `apps/cnbiz-web/lib/ai/bridge.ts`의 `runAiCli()`가 `lib/commandEngine/engine.ts`의 `execute()`(명령을 통짜 문자열로 PowerShell `-Command`에 넘겨 재해석시키는 방식)로 CLI를 shell-out하던 것을, `node`를 argv 배열로 직접 `spawn()`하는 방식으로 교체. `ANTHROPIC_API_KEY`가 정상 설정되어 있어도 AI Analysis 프롬프트처럼 큰따옴표가 반복되는 JSON 스키마 예시가 인자에 포함되면 PowerShell이 `-Command` 문자열을 파싱한 뒤 그 결과를 다시 네이티브 프로세스 호출용 커맨드라인으로 재구성하는 단계에서 인자가 쪼개져(`too many arguments for 'chat'`) CLI가 항상 실패하고, `generateAnalysis()`가 조용히 결정론적 기본값(`simulated`)으로 폴백하던 문제를 근본 수정 — 중간 셸 문자열 계층 자체를 없애 재현되지 않음을 확인.
 - **프로젝트 상세 화면 — AI 의뢰 상담 내용 실시간 반영**(2026-08-05) — `websiteOrder.requirements`/`project.description`이 AI 의뢰 승인 시점에 한 번 복사된 스냅샷이라, 이후 관리자가 AI 의뢰 상세에서 상담 내용을 수정하거나 재분석해도 프로젝트 대시보드(`/projects/[id]`)에는 반영되지 않던 문제를 수정했다. `GET /api/inquiries/[id]`로 Inquiry를 직접 다시 조회해 항상 최신 `requirements`를 표시하고, "AI 의뢰 상세에서 수정 →" 링크를 추가했다.
 - **실시간 미리보기 — 고객 프로젝트 배포 URL 연동**(2026-08-05) — `LivePreviewPanel`이 항상 `http://localhost:3000`을 시도해, 원격(배포된 사이트)에서 관리자가 고객 프로젝트를 열면 항상 연결 실패하던 문제를 수정. `deployedUrl` prop(신규)을 추가해 고객 프로젝트는 `WebsiteRecord.deployment.url`(실제 배포 URL)을 우선 사용하고, 배포가 아직 없으면 iframe 자체를 생략하도록 변경. Visual Editor(dev-inspector 오버레이 필요)는 배포된 사이트에는 적용되지 않으므로 이 경우 편집 모드를 숨긴다.
 - **AI 의뢰 관리 — 의뢰 재분석(Re-analyze) 기능 추가**(2026-08-05) — `POST /api/inquiries/[id]/analyze`(신규) 추가. 신규 접수 시 자동 실행되는 것과 동일한 `generateAnalysis()`(`lib/ai-analysis/analysis`)를 현재 저장된 필드 값 기준으로 재실행해 `saveInquiryAnalysis()`로 결과를 갱신하고, 성공/실패 여부와 무관하게 `inquiry.analyze` 감사 로그(신규 `AuditAction`)를 기록한다. `/developer/inquiries/[id]`의 "AI 분석" 카드에 "재분석" 버튼과 로딩/에러 상태 UI를 추가(정보 수정 후 최신 값으로 다시 분석하거나, 최초 분석 실패 시 재시도하는 용도). `/developer/audit-log`·`/developer/errors`의 라벨/톤/필터 맵에 `inquiry.analyze` 반영.

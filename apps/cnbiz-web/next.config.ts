@@ -69,10 +69,44 @@ const nextConfig: NextConfig = {
   // ../../packages/cli at all (outputFileTracingIncludes globs are resolved relative to this app's
   // directory, but the root sets the outer boundary tracing is allowed to walk up into).
   outputFileTracingRoot: path.join(process.cwd(), "..", ".."),
+  // Every route below shells out to `node packages/cli/dist/index.js` — either through
+  // lib/ai/bridge.ts's chatViaCli() or through lib/commandEngine/engine.ts's execute().
+  // Tracing on its own only ever discovers dist/index.js (the path lib/paths/repoRoot.ts
+  // builds), never the ~470 sibling modules it requires at runtime nor the CLI's own
+  // node_modules, so a route missing from this map ships an entry point that dies on its
+  // first require() in production while working fine locally, where packages/cli/dist is
+  // present on disk. Routes that only read already-generated records (design/review,
+  // design/approval, design/figma, design/sync) never spawn the CLI and stay out to keep
+  // their bundles small.
   outputFileTracingIncludes: {
     "/api/ai-jobs/**": CLI_TRACE_INCLUDES,
     "/api/websites": CLI_TRACE_INCLUDES,
     "/api/external/inquiries": CLI_TRACE_INCLUDES,
+    // lib/ai-analysis/analysis.ts
+    "/api/inquiries": CLI_TRACE_INCLUDES,
+    "/api/inquiries/[id]/analyze": CLI_TRACE_INCLUDES,
+    // lib/design/*-generator.ts
+    "/api/design/requirements": CLI_TRACE_INCLUDES,
+    "/api/design/storyboard": CLI_TRACE_INCLUDES,
+    "/api/design/wireframe": CLI_TRACE_INCLUDES,
+    "/api/design/prototype": CLI_TRACE_INCLUDES,
+    "/api/design/claude": CLI_TRACE_INCLUDES,
+    // spawns `ai website create` via lib/commandEngine/engine.ts directly
+    "/api/design/website": CLI_TRACE_INCLUDES,
+    // lib/{estimates,specifications,timeline,proposals,contracts}/generator.ts
+    "/api/estimates": CLI_TRACE_INCLUDES,
+    "/api/specifications": CLI_TRACE_INCLUDES,
+    "/api/timeline": CLI_TRACE_INCLUDES,
+    "/api/proposals": CLI_TRACE_INCLUDES,
+    "/api/contracts": CLI_TRACE_INCLUDES,
+    // lib/ai/bridge.ts's chatViaCli/listProvidersViaCli/listUsageViaCli
+    "/api/ai/**": CLI_TRACE_INCLUDES,
+    // lib/metrics/registry.ts's getMetricsSummary() reads Provider usage through
+    // listUsageViaCli(), so the metrics dashboard needs the CLI too — without it the
+    // Provider Usage panel reports nothing and looks like "no AI calls ever happened".
+    "/api/metrics": CLI_TRACE_INCLUDES,
+    // lib/marketplace/registry.ts shells out to `... dist/index.js marketplace --json`
+    "/api/marketplace/**": CLI_TRACE_INCLUDES,
   },
   async redirects() {
     return [{ source: "/request", destination: CNBIZ_AI_URL, permanent: true }];

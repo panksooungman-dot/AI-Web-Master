@@ -51,8 +51,15 @@ apps/cnbiz-web/lib/data/
 /.generated-websites/
 
 # AI Business OS CLI runtime cache/state/logs (agent memory, history, execution logs —
-# regenerated on demand, not persistent data)
-/.runtime/
+# regenerated on demand, not persistent data). Not anchored to the repo root: the CLI is
+# shelled out to with cwd = whichever workspace invoked it (lib/ai/bridge.ts,
+# lib/aiJobs/executor.ts), so it also writes apps/cnbiz-web/.runtime/ at runtime — that
+# path was previously unignored and showed up as untracked noise after any AI call.
+# .runtime/config/ is the exception: it holds committed provider configuration
+# (env-var references only, no secrets), not cache.
+**/.runtime/
+!**/.runtime/config/
+!**/.runtime/config/**
 
 # Playwright MCP QA artifacts (screenshots, snapshots, console logs)
 .playwright-mcp/

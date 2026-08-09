@@ -26,6 +26,16 @@ function mapComponent(component: Component): ComponentMapResult {
   const className = [baseClass, ...eventClasses].filter(Boolean).join(" ");
 
   const childResults = (component.children ?? []).map(mapComponent);
+  const ownStubs = [...stubs];
+
+  // A form is rendered with an onSubmit binding unconditionally (tsx.ts's renderForm), so it
+  // needs a declared handler even when the DesignDocument attached no EventsContract to it.
+  // Without this the page compiles against an undefined identifier.
+  if (component.type === "form" && !handlers.onSubmit) {
+    const name = `handleSubmit_${component.id.replace(/[^a-zA-Z0-9_]+/g, "_")}`;
+    handlers.onSubmit = name;
+    ownStubs.push({ name, sourceAction: "submit" });
+  }
 
   return {
     node: {
@@ -37,7 +47,7 @@ function mapComponent(component: Component): ComponentMapResult {
       events: handlers,
       children: childResults.map((result) => result.node),
     },
-    stubs: [...stubs, ...childResults.flatMap((result) => result.stubs)],
+    stubs: [...ownStubs, ...childResults.flatMap((result) => result.stubs)],
   };
 }
 

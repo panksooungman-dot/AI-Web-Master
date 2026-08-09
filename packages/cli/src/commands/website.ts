@@ -1,7 +1,10 @@
 import { Command } from "commander";
 import chalk from "chalk";
+import fs from "fs-extra";
+import type { DesignDocument } from "@cnbiz/design-system/types/design";
 import { ask } from "../lib/prompt.js";
 import { buildWebsite } from "../website/builder.js";
+import { parseDesignDocument } from "../website/design-pages.js";
 import { WEBSITE_TYPES, siteTypeLabel } from "../website/types.js";
 import { WorkflowError } from "../workflow/types.js";
 import { RuntimeError } from "../runtime/types.js";
@@ -18,6 +21,37 @@ export interface WebsiteCreateOptions {
   language?: string;
   out?: string;
   provider?: string;
+  designDocument?: string;
+}
+
+/**
+ * `--design-document` 파일을 읽어 DesignDocument로 파싱한다. 읽기/파싱/스키마 어느 단계에서
+ * 실패하든 그대로 종료한다 — 조용히 무시하고 템플릿으로 진행하면 "디자인을 반영했다"고
+ * 믿게 만드는 잘못된 성공이 된다.
+ */
+async function readDesignDocument(filePath: string): Promise<DesignDocument> {
+  let raw: unknown;
+
+  try {
+    raw = JSON.parse(await fs.readFile(filePath, "utf-8"));
+  } catch (error) {
+    console.log(chalk.red(`❌ Could not read --design-document "${filePath}".`));
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+
+  const parsed = parseDesignDocument(raw);
+  if (!parsed) {
+    console.log(
+      chalk.red(
+        `❌ "${filePath}" is not a valid DesignDocument ` +
+          "(expected version/metadata.projectName/theme/pages[] — see packages/design-system/types/design.ts)."
+      )
+    );
+    process.exit(1);
+  }
+
+  return parsed;
 }
 
 const SITE_TYPE_LIST = WEBSITE_TYPES.join(", ");
@@ -57,12 +91,15 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
     );
   }
 
+  const designDocument = options.designDocument ? await readDesignDocument(options.designDocument) : undefined;
+
   try {
     const result = await buildWebsite({
       inputs,
       siteType: siteTypeInput,
       providerId: options.provider,
-      outDir: options.out
+      outDir: options.out,
+      designDocument
     });
 
     if (!result.workflowResult.success) {
@@ -74,6 +111,15 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
     console.log(chalk.gray(`📁 ${result.targetDir}`));
     console.log(chalk.gray(`🏷  Site Type: ${siteTypeLabel(result.siteType)} (${result.siteType})`));
     console.log(chalk.gray(`📄 Pages: Home, About, Services, Products, Pricing, FAQ, Blog, Contact, Privacy, Terms, 404`));
+
+    if (result.designPages.length > 0) {
+      console.log(
+        chalk.cyan(`🎨 Design Document applied — ${result.designPages.length} page(s) generated from the design:`)
+      );
+      for (const route of result.designPages) {
+        console.log(chalk.gray(`   ${route}`));
+      }
+    }
 
     if (result.contentSimulated) {
       console.log(
@@ -125,6 +171,10 @@ export function buildWebsiteCommand(): Command {
     .option("--language <language>", "Language")
     .option("--out <dir>", "출력 디렉터리 (기본값: ./<project-slug>)")
     .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama). 생략 시 기본 provider 또는 시뮬레이션")
+    .option(
+      "--design-document <path>",
+      "DesignDocument JSON 경로. 지정하면 React Generator로 변환해 해당 페이지를 스캐폴딩 위에 덮어쓴다"
+    )
     .action(async (options: WebsiteCreateOptions) => {
       await websiteCreateCommand(options);
     });

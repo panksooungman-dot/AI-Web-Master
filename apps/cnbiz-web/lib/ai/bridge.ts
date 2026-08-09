@@ -1,4 +1,4 @@
-import { execute } from "@/lib/commandEngine/engine";
+import { spawn } from "node:child_process";
 import { resolveCliEntry } from "@/lib/paths/repoRoot";
 
 export interface ChatResult {
@@ -41,9 +41,16 @@ interface CliRunResult {
 }
 
 /**
- * `node packages/cli/dist/index.js <args> --json`를 실행한다 — lib/marketplace/registry.ts의
- * runMarketplaceCli()와 동일한 shell-out bridge 패턴. Next.js 앱은 packages/cli를 in-process로
- * import하지 않고, 항상 빌드된 CLI를 별도 프로세스로 실행해 --json 출력을 파싱한다.
+ * `node packages/cli/dist/index.js <args> --json`를 실행한다. lib/commandEngine/engine.ts의
+ * execute()(명령을 통짜 문자열로 받아 PowerShell -Command로 재해석)를 쓰지 않고 node를 argv
+ * 배열로 직접 spawn한다 — AI Analysis 프롬프트(buildAnalysisPrompt)처럼 큰따옴표가 여러 번
+ * 반복되는 JSON 스키마 예시를 인자로 넘기면, PowerShell이 -Command 문자열을 파싱한 뒤 그
+ * 결과를 다시 네이티브 프로세스(node) 호출용 커맨드라인으로 재구성하는 단계에서 인자 하나가
+ * 둘로 쪼개진다(`error: too many arguments for 'chat'. Expected 1 argument but got 2.`) —
+ * 자체 따옴표 이스케이프로는 막을 수 없는, PowerShell의 네이티브 인자 재구성 로직 자체의
+ * 문제였다(2026-08-09 발견: ANTHROPIC_API_KEY가 정상 설정·정상 동작해도 항상 재현되어, AI
+ * Analysis를 포함한 모든 chatViaCli 호출이 예외 없이 시뮬레이션 폴백으로 떨어지고 있었다).
+ * argv 배열로 직접 spawn하면 이 중간 셸 문자열 계층 자체가 없어 안전하다.
  */
 async function runAiCli(args: (string | undefined)[], cwd: string = process.cwd()): Promise<CliRunResult> {
   const cliEntry = resolveCliEntry();
@@ -57,12 +64,19 @@ async function runAiCli(args: (string | undefined)[], cwd: string = process.cwd(
   }
 
   const tokens = [cliEntry, ...args.filter((a): a is string => Boolean(a)), "--json"];
-  const command = `node ${tokens.map((t) => `"${t}"`).join(" ")}`;
 
-  const result = await execute(command, { cwd, category: "development" });
+  const { stdout, stderr } = await new Promise<{ stdout: string; stderr: string }>((resolve) => {
+    const child = spawn(process.execPath, tokens, { cwd, windowsHide: true });
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (data) => (out += data.toString()));
+    child.stderr.on("data", (data) => (err += data.toString()));
+    child.on("error", (spawnError) => resolve({ stdout: out, stderr: err || String(spawnError) }));
+    child.on("close", () => resolve({ stdout: out, stderr: err }));
+  });
 
   try {
-    const parsed = JSON.parse(result.stdout.trim()) as Record<string, unknown>;
+    const parsed = JSON.parse(stdout.trim()) as Record<string, unknown>;
     return {
       success: Boolean(parsed.success),
       error: typeof parsed.error === "string" ? parsed.error : undefined,
@@ -71,7 +85,7 @@ async function runAiCli(args: (string | undefined)[], cwd: string = process.cwd(
   } catch {
     return {
       success: false,
-      error: result.error ?? (result.stderr.trim() || "CLI 응답을 해석할 수 없습니다."),
+      error: stderr.trim() || "CLI 응답을 해석할 수 없습니다.",
       raw: {},
     };
   }

@@ -4,6 +4,252 @@
 
 ---
 
+## 2026-08-09 (2)
+
+### 수정 (Fixed)
+
+- **Design 체인(Storyboard/Wireframe/Prototype/Claude Design)이 여전히 시뮬레이션 폴백에
+  걸리던 나머지 원인 2건 수정** — 앞선 PowerShell 인자 버그 수정 이후에도, Design 체인을
+  실제 로그인 세션으로 5단계 전부(Requirements→Storyboard→Wireframe→Prototype→Claude Design)
+  직접 실행해 검증하는 과정에서 별도의 두 가지 문제를 추가로 발견해 수정했다.
+  1. **`packages/cli/src/providers/anthropic.ts`** — `max_tokens` 기본값 8192(2026-08-07에
+     4096→8192로 상향된 값)도 `lib/design/wireframe-generator.ts`(데스크탑/태블릿/모바일
+     3개 breakpoint × 화면별 섹션·컴포넌트 목록)에는 부족해, 응답이 정확히 8192 토큰에서
+     JSON 중간에 잘려 파싱 실패 → 시뮬레이션 폴백으로 이어짐을 실측으로 확인
+     (`usage.outputTokens: 8192`, 내용이 문자열 중간에서 끊김). 16000으로 재상향.
+  2. **`packages/cli/src/providers/provider.ts`** — 요청 타임아웃 기본값 45000ms(2026-07-14에
+     15000→45000으로 상향된 값)도 Wireframe처럼 큰 스키마에는 부족해 3회 재시도(각 45초)를
+     전부 타임아웃으로 소진(`anthropic request timed out after 45000ms`, 총 약 2.3분)한 뒤
+     폴백함을 확인. 120000ms로 재상향.
+  - 두 상수 모두 이미 한 차례씩 상향된 이력이 있는 값이며, 이번에도 "작은 호출자에는 영향 없고
+    (스스로 한계 훨씬 아래에서 끝남) 큰 스키마 호출자에만 실질적인 여유를 준다"는 동일한
+    근거로 재상향했다.
+
+### 검증 (Verified)
+
+- 검증 전용 임시 계정(`developer` role)으로 로그인해 Design 체인 5단계를 실제로 순서대로
+  실행: Requirements(Design Plan, 3회 반복 확인) → Storyboard → Wireframe(4회 시도 끝에 원인
+  규명·수정) → Prototype → Claude Design. **5단계 전부 `simulated:false`, 실제 Anthropic
+  응답(입력 내용에 맞는 영어/한국어 콘텐츠, 매번 다른 문구) 확인.**
+  - Wireframe은 원인 규명 과정에서 `lib/ai/bridge.ts`에 임시 디버그 로그(`usage`·응답 끝부분
+    출력)를 추가해 정확한 실패 지점(토큰 상한/타임아웃)을 특정한 뒤 제거했다(최종 커밋에는
+    포함되지 않음).
+  - `npx tsc --noEmit`(루트·`apps/cnbiz-web` 양쪽 0 errors), `npx vitest run
+    tests/ai-platform-cli`(루트, 8 files/50 tests 통과), `npx vitest run tests/design`
+    (`apps/cnbiz-web`, 31 files/258 tests 통과) — 두 상수 변경으로 인한 회귀 없음 확인.
+  - 검증에 사용한 임시 계정(`designverify+*@example.com`)·dev 서버·테스트 산출물(`os.tmpdir()`
+    기준 로컬 데이터, 전부 git 미추적)은 검증 후 전부 삭제·종료했다.
+
+---
+
+## 2026-08-09
+
+### 수정 (Fixed)
+
+- **`ANTHROPIC_API_KEY`를 정상 설정해도 AI 분석이 항상 시뮬레이션 폴백으로 떨어지던 문제 수정**
+  (`apps/cnbiz-web/lib/ai/bridge.ts`) — `chatViaCli()`가 `lib/commandEngine/engine.ts`의
+  `execute()`(명령을 통짜 문자열로 받아 Windows에서 PowerShell `-Command`로 재해석)를 통해
+  `packages/cli`를 shell-out하고 있었는데, 인자를 `` `"${t}"` ``로만 감싸 넘기고 있었다. AI
+  Analysis 프롬프트(`buildAnalysisPrompt`)처럼 JSON 스키마 예시(큰따옴표가 여러 번 반복)를 담은
+  메시지를 넘기면, PowerShell이 `-Command` 문자열을 1차 파싱한 뒤 그 결과를 다시 네이티브
+  프로세스(node) 호출용 커맨드라인으로 재구성하는 2차 단계에서 인자 하나가 둘로 쪼개져
+  (`error: too many arguments for 'chat'. Expected 1 argument but got 2.`) CLI가 항상 실패하고,
+  `generateAnalysis()`가 조용히 결정론적 기본값으로 폴백하고 있었다 — API 키는 처음부터 정상이었고
+  (CLI를 직접 실행하면 실제 Anthropic 응답이 정상 반환됨을 확인), 문제는 순수하게 셸 인자 재구성
+  단계였다. 자체 따옴표 이스케이프로는 막을 수 없는 PowerShell 자체의 네이티브 인자 재구성 버그라
+  판단해, `execute()`(셸 문자열 경유)를 쓰지 않고 `node`를 argv 배열로 직접 `spawn()`하도록 변경 —
+  중간 셸 문자열 계층 자체를 없애 플랫폼 무관하게 안전하다.
+
+### 검증 (Verified)
+
+- 수정 전: `POST /api/inquiries`(치과·레스토랑 업종, 실제 AI Analysis 트리거)를 실제 dev
+  서버로 반복 호출 → 매번 `analysis.summary`에 "AI 분석 엔진이 상세 판단을 내리지 못해
+  기본값으로 대체된 요약입니다" 고정 문구, `confidence:0.3` 고정값 확인(재현 3회)
+- `lib/ai/bridge.ts`에 임시 디버그 로그를 추가해 원인을 `error: too many arguments for
+  'chat'. Expected 1 argument but got 2.`로 특정, 실제 프롬프트를 그대로 재현한 별도 스크립트로
+  PowerShell `-Command` 경유 방식에서만 재현되고 `spawn(process.execPath, argv)` 직접 호출에서는
+  재현되지 않음을 확인(디버그 로그는 검증 후 제거)
+- 수정 후: 동일한 `POST /api/inquiries` 호출 → `simulated:false`, 실제 Anthropic 응답 기반의
+  `summary`·`confidence`(0.6)·`recommendedPages`(입력 내용에 맞춰 동적으로 달라짐, 예: "Menu")
+  확인. `npx tsc --noEmit`(0 errors, 이 과정에서 발견된 손상된 `.next/dev/types/routes.d.ts`
+  — 이전 세션 강제 종료로 인한 빌드 캐시 손상, 2026-07-14 (2)와 동일한 기존 현상 — 는 `.next`
+  삭제로 재생성해 해소, 소스 변경 아님), `npx eslint lib/ai/bridge.ts`(0 errors) 통과
+- **미해결로 남긴 동일 계열 이슈**: `lib/marketplace/registry.ts`의 `runMarketplaceCli()`도
+  동일한 `` `"${t}"` `` 셸 문자열 패턴을 쓰지만, marketplace 인자(패키지 이름 등)는 이미
+  `validateManifest()`가 안전한 문자 집합(`/^[a-z0-9][a-z0-9-_]*$/i`)으로 제한하고 있어 실사용
+  경로에서 재현 가능성이 낮다고 판단해 이번 범위에서 수정하지 않음(요청 범위 밖).
+
+---
+
+## 2026-08-07
+
+### 추가 (Added)
+
+- **DesignDocument → React Generator → Website Builder 연결** — Design 체인(Storyboard→Wireframe→
+  Prototype→Claude Design→Review)의 산출물이 실제 생성 코드에 반영되도록 배선했다. 이전에는
+  동일 `siteType`에 대해 Design 체인을 거친 빌드와 거치지 않은 빌드의 `.tsx` 26개가 **바이트
+  단위로 동일**했다(2026-08-07 검증 기록 참고) — 디자인이 코드에 전혀 도달하지 못했다.
+  - **React Generator 자체는 이미 구현되어 있었다**(`packages/cli/src/generators/react/`, 7개
+    파일, 커밋 `7d78a2d`, 테스트 21개 통과). 문제는 **호출하는 코드가 한 곳도 없었다**는 것이다.
+    따라서 이번 작업은 신규 생성기 구현이 아니라 배선이다.
+  - `packages/cli/src/website/design-pages.ts`(신규) — 순수 생성기가 의도적으로 배제한 "파일 쓰기"
+    절반. `generateReactComponentTree()` 결과를 스캐폴딩된 프로젝트에 기록한다. **페이지 파일만**
+    쓰고 layout·components·styles·config·SEO·API 라우트는 건드리지 않는다 — DesignDocument가
+    3개 페이지만 기술해도 나머지 사이트가 계속 빌드되어야 하기 때문이다. `parseDesignDocument()`는
+    `@cnbiz/design-system`의 validator를 쓰지 않고 직접 구조 검사한다(그 패키지는 TS 소스를
+    배포하므로 런타임 import는 `rootDir` 밖 파일을 빌드·서버리스 번들로 끌어들인다).
+  - `ai website create --design-document <path>`(신규 플래그) — 읽기/파싱/스키마 중 어디서
+    실패하든 즉시 종료한다. 조용히 무시하고 템플릿으로 진행하면 "디자인을 반영했다"고 믿게 만드는
+    잘못된 성공이 되기 때문이다.
+  - `POST /api/design/website` — `buildWebsiteBuildHybridSource()`가 **이미 만들어 두고 버리던**
+    `document`를 임시 파일로 CLI에 전달한다(라우트가 `inputs`만 쓰고 있었다). 응답에
+    `designPageCount`를 추가해 0이면 템플릿 그대로임을 호출자가 알 수 있게 했다.
+  - 테스트 15개 신규(`tests/website/design-pages.test.ts`).
+
+- **`AI_DEFAULT_PROVIDER` 환경변수 — 배포 환경에서 기본 AI Provider를 고정할 수 있게 함**
+  (`packages/cli/src/providers/manager.ts`). 기존에는 기본 provider가
+  `.runtime/config/providers.json`의 `default` 필드로만 정해졌는데, 서버리스(Vercel)에서 이
+  파일은 요청마다 새로 만들어지는 임시 디렉터리(`resolveCliWorkingDir()` → `os.tmpdir()`)에
+  생성되므로 `ai provider set-default`로 바꿔도 다음 요청에서 사라지고 하드코딩된
+  `"anthropic"`으로 되돌아갔다. 즉 **배포 환경에서 기본 provider를 바꿀 방법이 아예 없었다**
+  (생성기들은 `chatViaCli`에 `provider`를 넘기지 않고 전부 기본값에 맡긴다). 우선순위는
+  `AI_DEFAULT_PROVIDER` > 설정 파일의 `default` > `"anthropic"`이며, env는 읽기 시점의
+  우선순위일 뿐 디스크의 설정을 덮어쓰지 않는다.
+  - 알 수 없는 provider 이름은 파이프라인 전체를 죽이지 않도록 무시하되 **stderr에 경고**를
+    남긴다 — 조용한 폴백이야말로 이번에 문제를 어렵게 만든 실패 방식이기 때문이다. stdout이
+    아닌 stderr인 이유는 호출자(`lib/ai/bridge.ts`)가 stdout을 JSON으로 파싱하기 때문이다.
+  - `setDefaultProvider()`는 env가 설정된 상태에서 호출되면 파일 쓰기는 수행하되 "그 값이
+    실제로는 적용되지 않는다"고 경고한다.
+  - 테스트 8개 신규(`tests/ai-platform-cli/default-provider-env.test.ts`).
+- **`apps/cnbiz-web/.env.example`에 AI Provider 설정 항목 문서화** — 그동안 AI 관련 키가
+  `.env.example`에 **한 줄도 없었다**. 프로덕션에 키가 누락된 원인 중 하나로 보여
+  `AI_DEFAULT_PROVIDER`·`ANTHROPIC_API_KEY`·`OPENAI_API_KEY`·`GEMINI_API_KEY`·
+  `OPENROUTER_API_KEY`·`OLLAMA_HOST`를 설명과 함께 추가했다. 특히 "설정하지 않아도 시스템은
+  동작하지만 모든 산출물이 결정론적 기본값이 된다"는 점을 명시했다 — 값이 비어 있는 것과
+  잘못 설정된 것이 겉으로 구분되지 않기 때문이다.
+
+### 수정 (Fixed)
+
+- **`Security Analysis` CI가 `main`에서 상시 실패하던 오탐**(`.github/workflows/security.yml`) —
+  시크릿 스캔이 접두사 4글자만 문자열 검색해서(`AKIA|AIza|ghp_|xoxb-`), 토큰 설정 방법을
+  설명하는 문서 본문의 **자리표시자**까지 시크릿으로 판정했다. 실제로 걸린 것은
+  `PHASE3_REPORT.md:275`의 "Classic PAT(`ghp_...`, `repo` scope)로 교체하는 것도 대안"이라는
+  한국어 산문 한 줄이며, 값은 말 그대로 점 세 개다. 2026-07-25 커밋 `55a9733` 이후 모든 실행이
+  실패했고, 상시 빨간 보안 체크는 결국 아무도 보지 않게 만든다.
+  각 접두사에 **실제 자격증명이 반드시 갖는 본체 길이**를 요구하도록 좁혔다
+  (`AKIA[0-9A-Z]{16}`·`AIza[0-9A-Za-z_-]{35}`·`ghp_[0-9A-Za-z]{36}`·
+  `xoxb-[0-9]{10,}-[0-9A-Za-z]{20,}`). 진짜 자격증명은 항상 본체가 있고 자리표시자는 없으므로
+  탐지력 손실이 없다.
+  - 개인키 헤더는 오히려 **탐지 범위가 넓어졌다** — 기존 패턴은 PKCS#8 헤더 literal 하나뿐이라
+    RSA·OPENSSH 변형 헤더를 **놓치고 있었다**(실측: 기존 0건 → 신규 2건 탐지). 헤더 중간의 키
+    종류를 `[A-Z ]*`로 받도록 교체했다. SSH·RSA 개인키가 커밋돼도 지금까지는 통과했다는 뜻이다.
+  - 검증: 실제 저장소 전수 스캔에서 매칭 0건(오탐 해소), 실제 형식과 동일한 길이의 가짜
+    자격증명 7종은 7건 전부 탐지, 문서에 흔한 자리표시자 4종은 0건 탐지.
+  - **이 CHANGELOG 자체가 한 번 걸렸다** — 위 설명에 개인키 헤더 literal을 그대로 적었더니 새
+    패턴에 매칭됐다(CI 1회 실패). 토큰 접두사와 달리 개인키 헤더는 "본체 길이"로 걸러낼 수 있는
+    구조가 아니므로, 정규식을 더 느슨하게 하는 대신 **문서에서 그 literal을 쓰지 않는 것**으로
+    해결했다. 스캔 대상에서 문서를 제외하는 선택은 하지 않았다 — 그 경로로 실제 키가 새면
+    막을 방법이 없어진다.
+
+- **React Generator가 만든 페이지가 Next.js에서 빌드조차 되지 않던 결함 2건** — 생성기가 배선된
+  적이 없어 산출물을 실제로 빌드해 본 적도 없었기 때문에 드러나지 않았다. 배선 과정에서 발견해
+  함께 고쳤다.
+  1. **`form`이 정의되지 않은 함수를 참조**(`componentTree.ts`·`tsx.ts`·`types.ts`) —
+     `renderForm()`이 항상 `onSubmit={handleSubmit_<id>}`를 렌더링하는데, `buildEvents()`는
+     `onClick`/`hover`/`focus`에 대해서만 stub을 만들어 `handleSubmit_*`은 **어디에도 선언되지
+     않았다.** 폼이 있는 페이지는 타입 체크에서 즉시 실패한다. `ReactEventHandlers.onSubmit`을
+     추가하고, `form` 컴포넌트에 EventsContract가 없어도 submit stub을 보장하도록 수정.
+  2. **이벤트 핸들러를 붙이면서 `"use client"`를 생성하지 않음**(`tsx.ts`) — App Router에서
+     서버 컴포넌트에 DOM 이벤트 핸들러를 바인딩하면 빌드가 실패한다. 핸들러가 있는 페이지에만
+     지시어를 붙이도록 했고, Next.js는 `"use client"` 모듈의 `metadata` export를 거부하므로
+     그 경우 `metadata`를 생략한다(둘은 상호 배타적이다). 인터랙션이 없는 페이지는 그대로
+     Server Component + `metadata`를 유지한다.
+
+- **프로덕션에서 AI 기능이 항상 기본값만 내놓던 문제 — `outputFileTracingIncludes` 누락**
+  (`apps/cnbiz-web/next.config.ts`). CLI를 spawn하는 라우트는 15개인데 트레이싱 include에는
+  3개(`/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`)만 등록되어 있었다.
+  나머지 12개는 `lib/paths/repoRoot.ts`가 만드는 경로 덕분에 `packages/cli/dist/index.js`
+  **엔트리 파일 1개만** 번들되고, 그것이 런타임에 require하는 형제 모듈 470개와 CLI 자체
+  node_modules 69개가 빠져 있었다 — 즉 엔트리는 찾지만 실행하면 첫 `require()`에서 죽는 상태였다.
+  `chatViaCli()`는 throw하지 않고 `{success:false}`를 반환하므로 500이 아니라 **조용히 결정론적
+  기본값으로 폴백**했고, `packages/cli/dist`가 디스크에 그대로 있는 로컬에서는 재현되지 않아
+  드러나지 않았다. 영향 범위: 의뢰 접수의 AI 분석(`/api/inquiries`,
+  `/api/inquiries/[id]/analyze`), Design 체인 5종(`requirements`·`storyboard`·`wireframe`·
+  `prototype`·`claude`), Design→Website Build(`/api/design/website`), 기획 산출물 4종
+  (`estimates`·`specifications`·`timeline`·`proposals`·`contracts`).
+  CLI를 쓰지 않는 라우트(`design/review`·`design/approval`·`design/figma`·`design/sync`·
+  `agents/run`·`customer/orders`·`health/run` — 이들은 `incrementMetric`만 import할 뿐
+  `packages/cli`를 spawn하지 않는다)는 번들 크기를 위해 의도적으로 제외했다.
+  `chatViaCli` 외에 `lib/ai/bridge.ts`의 `listProvidersViaCli`·`listUsageViaCli`,
+  `lib/marketplace/registry.ts`의 shell-out도 같은 CLI를 실행하므로 `/api/ai/**`·
+  `/api/metrics`·`/api/marketplace/**`도 함께 포함했다. 특히 `/api/metrics`가 빠져 있으면
+  Provider Usage 패널이 아무것도 집계하지 못해 "AI 호출이 한 번도 없었다"처럼 보이는데,
+  이는 원인 진단을 정반대로 오도할 수 있는 표시였다.
+
+### 검증 (Verified)
+
+- 실제 프로덕션 빌드(`npm run build`) 후 `.next/server/app/api/**/route.js.nft.json`을 **전수 파싱**해
+  대조: `packages/cli`를 참조하는 라우트 48개 중 수정 전 정상 번들은 3개뿐이었고, 수정 후
+  **39개**가 정상(471개 파일 + 런타임 deps 69개)이 되었다. 나머지 9개
+  (`agents/run`·`customer/orders`·`health/run`·`design/{approval,review,figma/export,figma/import,
+  sync,sync/rollback}`)는 CLI를 spawn하지 않음을 import 단위로 확인하고 1개로 유지했다.
+- **함수 크기 실측** — 트레이스 파일 목록의 실제 바이트를 합산한 결과 CLI 포함 라우트는 라우트당
+  **5.5MB**(Vercel 제한 250MB의 2.2%). 저장소 최대 함수는 이번 변경과 무관한
+  `/api/dev-inspector/*`의 22.4MB(8.9%). 파일 수는 565→1,360개로 늘지만 용량 증가는 약 3.5MB에
+  그쳐 제한에 여유가 크다.
+- `npx tsc --noEmit` 0 errors, `npm run lint` 통과.
+- `npm test` **4 failed / 738 passed**. 동일 커맨드를 `git stash`로 이 변경을 제거한 상태에서도
+  실행해 **4 failed / 738 passed로 완전히 동일**함을 확인 — `tests/requests/registry.test.ts`·
+  `tests/inquiries/registry.test.ts`의 `updatedAt` 비교가 같은 밀리초에 실행되면 깨지는 기존
+  타이밍 플레이크로, 이번 변경과 무관하다(머신 속도에 따라 CI에서는 통과함).
+- 프로덕션 사이트(`www.cnbiz.kr`)에서의 실증상 확인은 하지 못했다 — 이 실행 환경의 네트워크
+  정책이 기본 차단(allowlist)이라 `cnbiz.kr`·`*.vercel.app`은 물론 google.com·naver.com도
+  CONNECT 단계에서 403으로 막힌다(허용: npm registry·GitHub API·Anthropic API).
+
+- **`.gitignore`의 `/.runtime/`이 워크스페이스 하위 경로를 거르지 못하던 문제** — 루트 앵커(`/`)
+  패턴이라 `apps/cnbiz-web/.runtime/`은 매칭되지 않았다. 그런데 `lib/ai/bridge.ts`·
+  `lib/aiJobs/executor.ts`가 CLI를 `cwd = apps/cnbiz-web`으로 shell-out하므로, AI 호출이
+  한 번이라도 일어나면 `apps/cnbiz-web/.runtime/tasks.json`이 생성되어 매번 untracked
+  노이즈로 남았다(이번 모니터링 세션에서 실제로 재현). `**/.runtime/`로 교체하되, 이미
+  추적 중인 `**/.runtime/config/`(env-var 참조만 담은 provider 설정, 비밀값 아님)는
+  부정 패턴으로 예외 처리. `git check-ignore`로 캐시는 무시되고 config는 유지됨을 확인.
+  2026-07-14 (2)의 `tsconfig.json`·`eslint.config.mjs` 비재귀 ignore 패턴 버그와 동일 계열.
+
+### 검증 (Verified)
+
+- **로컬 실행 모니터링 — 고객 의뢰 파이프라인 전 구간 재확인**. 프로덕션(`www.cnbiz.kr`)은 이
+  실행 환경의 네트워크 정책이 차단해(프록시 게이트웨이 CONNECT 403) 접근할 수 없어, 동일 코드를
+  로컬에서 기동해 검증했다.
+  - `/developer` 30개 화면 전부 200, 서버 에러 0건. 공개 화면(`/`·`/about`·`/services`·
+    `/portfolio`·`/contact`·`/projects`) 200, `/customer` → `/customer/dashboard` 정상 리다이렉트.
+    `/request`의 `cnbiz.ai.kr` 308은 `next.config.ts`에 명시된 의도된 동작(결함 아님).
+  - 의뢰 접수 → AI Analysis → Client → WebsiteOrder → AiJob → Website Builder →
+    Project Workspace 자동 등록까지 실제 실행. 산출물을 `npm install` → `npm run build`
+    (18 routes, TS 에러 0) → `next start`로 기동해 전 라우트 200 확인.
+  - 배포 파이프라인은 `VERCEL_TOKEN` 부재로 `NotConfigured` 처리 — 가짜 URL을 만들지 않고
+    사유를 Website 레코드·Audit Log·`/api/errors`에 정확히 남기는 의도된 동작 확인.
+    GitHub/Vercel 실제 연동은 이 환경에서 미검증.
+  - **Design 체인 전 단계 정상 동작 확인** — Design Plan → Storyboard → Wireframe → Prototype →
+    Claude Design → Review → Approval(approved) → Design Sync(version 1, 충돌 0) →
+    Figma Export(pages 4/components 5/tokens 9) → Design→Website Build(Success) 전부 성공.
+  - **다만 Design 산출물이 생성 코드에 전혀 반영되지 않음을 파일 단위로 확인** — 동일
+    `siteType`(dental)에 대해 Design 체인을 거친 빌드와 거치지 않은 빌드를 비교한 결과
+    `.tsx` 26개 전부 바이트 단위로 동일하고, `styles/tokens.ts`도 주석의 프로젝트명 한 줄만
+    다르며 색상값은 동일했다. `generateReactComponentTree`는 저장소에 존재하지 않고,
+    `lib/design/website-build-adapter.ts`는 Design Plan의 자유 텍스트 3개만 CLI 인자로 옮긴다.
+    즉 `DesignDocument → React Generator → React Source Code` 구간은 미구현이며, Website
+    Builder는 고정 템플릿으로 생성한다.
+  - **관측성 결함 4건 발견(이번 범위에서 수정하지 않음)** — ① `lib/aiJobs/worker.ts`가 실패 시
+    `updateAiJobStatus(jobId, "Failed", {})`로 빈 patch를 넘겨 `AiJobStatusPatch.error`가
+    있음에도 실패 사유가 레코드에 남지 않는다. ② `lib/aiJobs/registry.ts`의
+    `finishedAt/startedAt`이 `??`로 보존되어 재실행 시 이전 시도의 시각이 그대로 남아 소요시간
+    계측이 불가능하다. ③ 성공한 Job도 `progress`가 0, `result`가 null로 고정된다.
+    ④ `incrementMetric("websiteGenerationCount")`가 `app/api/websites/route.ts`(수동 경로)에만
+    있고 AiJob worker 경로에는 없어 대시보드 지표가 실제 생성량을 반영하지 못한다.
+  - 검증에 사용한 dev 서버·임시 계정·생성 산출물·로컬 데이터는 전부 종료·삭제했다.
+
+---
+
 ## 2026-08-03
 
 ### 추가 (Added)

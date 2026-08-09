@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-08-09
+
+### 수정 (Fixed)
+
+- **`ANTHROPIC_API_KEY`를 정상 설정해도 AI 분석이 항상 시뮬레이션 폴백으로 떨어지던 문제 수정**
+  (`apps/cnbiz-web/lib/ai/bridge.ts`) — `chatViaCli()`가 `lib/commandEngine/engine.ts`의
+  `execute()`(명령을 통짜 문자열로 받아 Windows에서 PowerShell `-Command`로 재해석)를 통해
+  `packages/cli`를 shell-out하고 있었는데, 인자를 `` `"${t}"` ``로만 감싸 넘기고 있었다. AI
+  Analysis 프롬프트(`buildAnalysisPrompt`)처럼 JSON 스키마 예시(큰따옴표가 여러 번 반복)를 담은
+  메시지를 넘기면, PowerShell이 `-Command` 문자열을 1차 파싱한 뒤 그 결과를 다시 네이티브
+  프로세스(node) 호출용 커맨드라인으로 재구성하는 2차 단계에서 인자 하나가 둘로 쪼개져
+  (`error: too many arguments for 'chat'. Expected 1 argument but got 2.`) CLI가 항상 실패하고,
+  `generateAnalysis()`가 조용히 결정론적 기본값으로 폴백하고 있었다 — API 키는 처음부터 정상이었고
+  (CLI를 직접 실행하면 실제 Anthropic 응답이 정상 반환됨을 확인), 문제는 순수하게 셸 인자 재구성
+  단계였다. 자체 따옴표 이스케이프로는 막을 수 없는 PowerShell 자체의 네이티브 인자 재구성 버그라
+  판단해, `execute()`(셸 문자열 경유)를 쓰지 않고 `node`를 argv 배열로 직접 `spawn()`하도록 변경 —
+  중간 셸 문자열 계층 자체를 없애 플랫폼 무관하게 안전하다.
+
+### 검증 (Verified)
+
+- 수정 전: `POST /api/inquiries`(치과·레스토랑 업종, 실제 AI Analysis 트리거)를 실제 dev
+  서버로 반복 호출 → 매번 `analysis.summary`에 "AI 분석 엔진이 상세 판단을 내리지 못해
+  기본값으로 대체된 요약입니다" 고정 문구, `confidence:0.3` 고정값 확인(재현 3회)
+- `lib/ai/bridge.ts`에 임시 디버그 로그를 추가해 원인을 `error: too many arguments for
+  'chat'. Expected 1 argument but got 2.`로 특정, 실제 프롬프트를 그대로 재현한 별도 스크립트로
+  PowerShell `-Command` 경유 방식에서만 재현되고 `spawn(process.execPath, argv)` 직접 호출에서는
+  재현되지 않음을 확인(디버그 로그는 검증 후 제거)
+- 수정 후: 동일한 `POST /api/inquiries` 호출 → `simulated:false`, 실제 Anthropic 응답 기반의
+  `summary`·`confidence`(0.6)·`recommendedPages`(입력 내용에 맞춰 동적으로 달라짐, 예: "Menu")
+  확인. `npx tsc --noEmit`(0 errors, 이 과정에서 발견된 손상된 `.next/dev/types/routes.d.ts`
+  — 이전 세션 강제 종료로 인한 빌드 캐시 손상, 2026-07-14 (2)와 동일한 기존 현상 — 는 `.next`
+  삭제로 재생성해 해소, 소스 변경 아님), `npx eslint lib/ai/bridge.ts`(0 errors) 통과
+- **미해결로 남긴 동일 계열 이슈**: `lib/marketplace/registry.ts`의 `runMarketplaceCli()`도
+  동일한 `` `"${t}"` `` 셸 문자열 패턴을 쓰지만, marketplace 인자(패키지 이름 등)는 이미
+  `validateManifest()`가 안전한 문자 집합(`/^[a-z0-9][a-z0-9-_]*$/i`)으로 제한하고 있어 실사용
+  경로에서 재현 가능성이 낮다고 판단해 이번 범위에서 수정하지 않음(요청 범위 밖).
+
+---
+
 ## 2026-08-07
 
 ### 추가 (Added)

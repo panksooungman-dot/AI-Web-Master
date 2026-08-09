@@ -54,6 +54,12 @@ describe("AI Analysis — computeCompleteness()", () => {
     expect(missingItems.find((item) => item.id === "service_images")).toBeDefined();
   });
 
+  it("detects a logo via the real ?name= slug shape that lib/storage's stores actually produce (tests/storage/fsStore.test.ts covers the store side)", () => {
+    const realisticUrl = "http://localhost:3000/api/attachment-files/attachment-abc-123.png?name=company-logo";
+    const { missingItems } = computeCompleteness({ ...EMPTY_INPUT, uploadedFiles: [realisticUrl] });
+    expect(missingItems.find((item) => item.id === "company_logo")).toBeUndefined();
+  });
+
   it("treats a short requirements string as missing service_description (below the 10-char threshold)", () => {
     const { missingItems } = computeCompleteness({ ...EMPTY_INPUT, requirements: "짧음" });
     expect(missingItems.find((item) => item.id === "service_description")).toBeDefined();

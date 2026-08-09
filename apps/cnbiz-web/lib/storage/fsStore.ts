@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { generateId } from "@/lib/id";
-import { safeExtension } from "./extension";
+import { safeExtension, safeSlug } from "./extension";
 import type { AttachmentInput, AttachmentStore, StoredAttachment } from "./types";
 
 /**
@@ -44,12 +44,17 @@ export function createFsAttachmentStore(baseDir: string = DEFAULT_BASE_DIR): Att
       fs.writeFileSync(dataPath(baseDir, id), input.buffer);
       fs.writeFileSync(manifestPath(baseDir, id), JSON.stringify(manifest), "utf-8");
 
+      // supabaseStore.ts의 safeKey()와 동일하게 확장자를 URL에 남긴다 — lib/ai-analysis/
+      // analysis.ts·lib/attachments/extractText.ts가 URL 확장자로 이미지/문서를 분류하므로,
+      // 이게 없으면(수정 전 상태) 로컬 스토리지로 업로드된 파일은 vision/문서 파싱 어느 쪽으로도
+      // 절대 분류되지 못했다(둘 다 조용히 스킵 — 에러 없이 그냥 반영되지 않는 실패였다).
+      const slug = safeSlug(input.name);
+      // 원본 파일명을 사람이 읽을 수 있는 형태로 URL에 남긴다 — lib/ai-analysis/score.ts의
+      // LOGO_PATTERN이 URL 문자열로 "로고 첨부 여부"를 판단하므로(safeExtension 주석 참고).
+      const query = slug ? `?name=${slug}` : "";
+
       return {
-        // supabaseStore.ts의 safeKey()와 동일하게 확장자를 URL에 남긴다 — lib/ai-analysis/
-        // analysis.ts·lib/attachments/extractText.ts가 URL 확장자로 이미지/문서를 분류하므로,
-        // 이게 없으면(수정 전 상태) 로컬 스토리지로 업로드된 파일은 vision/문서 파싱 어느 쪽으로도
-        // 절대 분류되지 못했다(둘 다 조용히 스킵 — 에러 없이 그냥 반영되지 않는 실패였다).
-        url: `${siteOrigin()}/api/attachment-files/${id}${safeExtension(input.name)}`,
+        url: `${siteOrigin()}/api/attachment-files/${id}${safeExtension(input.name)}${query}`,
         name: input.name,
         contentType: input.contentType,
         size: input.buffer.length,

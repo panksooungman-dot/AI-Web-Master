@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-08-09 (6)
+
+### 수정 (Fixed)
+
+- **`lib/ai-analysis/score.ts`의 `LOGO_PATTERN`("회사 로고" 완료 여부 판단)이 애초에 정상 동작한 적이 없던 버그 수정** — 2026-08-09 (5)에서 후속 과제로만 남겨뒀던 항목. `LOGO_PATTERN`(`/logo/i`)은 `uploadedFiles`의 URL 문자열에 "logo"가 포함되는지로 판단하는데, `lib/storage`의 두 스토리지 구현(`fsStore.ts`·`supabaseStore.ts`) 모두 원본 파일명을 버리고 무작위 id(+확장자)만으로 URL을 만들어 원본 파일명이 "company-logo.png"였든 "product-photo.png"였든 URL에는 그 정보가 전혀 남지 않았다 — 즉 로고를 아무리 명확한 이름으로 첨부해도 "회사 로고" 항목은 항상 누락으로 표시됐다.
+  - `lib/storage/extension.ts`에 `safeSlug()`(신규) 추가 — 원본 파일명(확장자 제외)을 소문자·영숫자·하이픈만 남긴 슬러그로 정규화(최대 40자). 스토리지 키 자체(무작위 id)는 그대로 두고, 사람이 읽을 수 있는 슬러그만 반환 URL에 `?name=` 쿼리 파라미터로 덧붙이는 방식을 택함 — 쿼리 스트링은 `lib/ai-analysis/analysis.ts`·`lib/attachments/extractText.ts`의 확장자 기반 분류가 이미 떼어내고 판단하므로 영향이 없고, 서빙 라우트(`app/api/attachment-files/[id]/route.ts`)도 경로 세그먼트(`params.id`)만 보므로 쿼리 스트링과 무관해 라우트 쪽 변경이 전혀 필요 없었다
+  - `lib/storage/fsStore.ts`·`supabaseStore.ts` — `save()`가 반환하는 URL에 `safeSlug(input.name)`을 `?name=`으로 추가(슬러그가 비면 — 예: 한글 전용 파일명 — 쿼리 자체를 생략)
+  - 테스트(신규 12개): `tests/storage/extension.test.ts`(6개, `safeSlug()`의 소문자화·하이픈 치환·한글 전용 파일명 시 빈 문자열·40자 절단), `tests/storage/fsStore.test.ts`(3개, 실제 `createFsAttachmentStore()`가 만든 URL에 슬러그가 담기는지 + id/확장자 왕복 조회), `tests/ai-analysis/score.test.ts`에 1개 추가(스토리지가 실제로 만드는 `?name=` 형태 URL로 `LOGO_PATTERN`이 정상 매칭되는지)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`·`npx eslint`(변경 파일 전체 0 errors), `apps/cnbiz-web`의 `npx vitest run --exclude "**/ai/bridge.test.ts"`(90 files/758 tests 전부 통과, 신규 12개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 `company-logo.png`라는 이름의 실제 이미지를 업로드 → 반환된 URL이 `...png?name=company-logo` 형태임을 확인 → 그 URL 하나만으로 의뢰 등록 → `GET /api/inquiries/:id`의 `analysis.missingItems`에 더 이상 `company_logo`가 포함되지 않음을 확인(수정 전이라면 항상 포함되어야 함)
+  - 검증에 사용한 임시 계정·의뢰·클라이언트·웹사이트오더·AI Job·첨부파일 1건은 검증 후 정확히 대상만 골라 삭제 완료
+
+---
+
 ## 2026-08-09 (5)
 
 ### 추가 (Added)

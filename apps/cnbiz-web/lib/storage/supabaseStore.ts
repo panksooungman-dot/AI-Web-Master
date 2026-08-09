@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateId } from "@/lib/id";
-import { safeExtension } from "./extension";
+import { safeExtension, safeSlug } from "./extension";
 import type { AttachmentInput, AttachmentStore, StoredAttachment } from "./types";
 
 const BUCKET = "inquiry-attachments";
@@ -55,8 +55,15 @@ export function createSupabaseAttachmentStore(url: string, serviceRoleKey: strin
 
       const { data } = client.storage.from(BUCKET).getPublicUrl(key);
 
+      // 원본 파일명을 사람이 읽을 수 있는 형태로 URL에 남긴다(safeKey()는 오브젝트 키 자체는
+      // 무작위로 만들므로 이 정보가 없다) — lib/ai-analysis/score.ts의 LOGO_PATTERN이 URL
+      // 문자열로 "로고 첨부 여부"를 판단하므로(safeExtension 주석 참고). 쿼리 파라미터는 공개
+      // Storage URL의 오브젝트 조회에 영향을 주지 않는다(경로만으로 리소스가 결정됨).
+      const slug = safeSlug(input.name);
+      const url = slug ? `${data.publicUrl}?name=${slug}` : data.publicUrl;
+
       return {
-        url: data.publicUrl,
+        url,
         name: input.name,
         contentType: input.contentType,
         size: input.buffer.length,

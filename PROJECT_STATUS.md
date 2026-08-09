@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `7b6777a` 기준)
+> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `434465f` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -88,6 +88,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **AI 분석·Design 체인 프로덕션 시뮬레이션 폴백 근본 원인 추가 수정 — CLI 서브프로세스 cwd를 읽기 전용 배포 번들에서 tmpdir로 교체**(2026-08-09) — `chatViaCli()`가 CLI 서브프로세스의 cwd로 `process.cwd()`(Vercel Lambda에서는 읽기 전용 `/var/task/...`)를 그대로 넘기고 있어, `packages/cli`의 `chat` 명령이 호출 이력을 `<cwd>/.runtime/tasks.json`에 기록하려다 `mkdir`이 실패(`ENOENT`)해 CLI 프로세스가 즉시 죽고 `chatViaCli()`가 조용히 결정론적 기본값으로 폴백하던 문제를 수정했다(2026-08-05에 Website Builder 생성 경로에서 이미 한 번 겪어 만들어둔 `resolveCliWorkingDir()`가 이 파일에만 연결되어 있지 않았다). `ANTHROPIC_API_KEY`를 프로덕션에 처음 설정한 뒤에야 이 코드 경로가 실행되며 처음 드러난 잠재적 결함이었다. 임시 진단 로그를 담은 빌드로 실제 프로덕션에서 재현 → Vercel Runtime Logs로 정확한 스택트레이스 확인 → `runAiCli()`의 cwd 기본값을 `resolveCliWorkingDir()`로 교체 → 재배포 후 동일 요청 경로에서 오류 없이 정상 응답됨을 확인했다. 진단 과정에서 프로덕션 Supabase에 생성된 테스트 의뢰 2건이 남아있어 관리자 수동 삭제가 필요하다.
 - **Design 체인 시뮬레이션 폴백 잔여 원인 2건 추가 수정 — max_tokens·타임아웃 재상향**(2026-08-09) — `packages/cli/src/providers/anthropic.ts`의 기본 `max_tokens`(8192)가 `lib/design/wireframe-generator.ts`(데스크탑/태블릿/모바일 3-breakpoint 화면 구성)에는 부족해 응답이 8192 토큰에서 JSON 중간에 잘려 파싱 실패 → 시뮬레이션 폴백으로 이어짐을 실측(`usage.outputTokens: 8192`)으로 확인, 16000으로 재상향. `packages/cli/src/providers/provider.ts`의 요청 타임아웃 기본값(45000ms)도 같은 스키마에는 부족해 3회 재시도(각 45초, 총 약 2.3분)를 전부 소진한 뒤 폴백함을 확인, 120000ms로 재상향. 검증 전용 임시 계정으로 Design 체인 5단계(Requirements→Storyboard→Wireframe→Prototype→Claude Design) 전부 `simulated:false`로 실제 Anthropic 응답을 받음을 확인했다.
 - **AI 분석이 항상 시뮬레이션 폴백으로 떨어지던 근본 원인 수정 — PowerShell 인자 재구성 버그**(2026-08-09) — `apps/cnbiz-web/lib/ai/bridge.ts`의 `runAiCli()`가 `lib/commandEngine/engine.ts`의 `execute()`(명령을 통짜 문자열로 PowerShell `-Command`에 넘겨 재해석시키는 방식)로 CLI를 shell-out하던 것을, `node`를 argv 배열로 직접 `spawn()`하는 방식으로 교체. `ANTHROPIC_API_KEY`가 정상 설정되어 있어도 AI Analysis 프롬프트처럼 큰따옴표가 반복되는 JSON 스키마 예시가 인자에 포함되면 PowerShell이 `-Command` 문자열을 파싱한 뒤 그 결과를 다시 네이티브 프로세스 호출용 커맨드라인으로 재구성하는 단계에서 인자가 쪼개져(`too many arguments for 'chat'`) CLI가 항상 실패하고, `generateAnalysis()`가 조용히 결정론적 기본값(`simulated`)으로 폴백하던 문제를 근본 수정 — 중간 셸 문자열 계층 자체를 없애 재현되지 않음을 확인.
 - **프로젝트 상세 화면 — AI 의뢰 상담 내용 실시간 반영**(2026-08-05) — `websiteOrder.requirements`/`project.description`이 AI 의뢰 승인 시점에 한 번 복사된 스냅샷이라, 이후 관리자가 AI 의뢰 상세에서 상담 내용을 수정하거나 재분석해도 프로젝트 대시보드(`/projects/[id]`)에는 반영되지 않던 문제를 수정했다. `GET /api/inquiries/[id]`로 Inquiry를 직접 다시 조회해 항상 최신 `requirements`를 표시하고, "AI 의뢰 상세에서 수정 →" 링크를 추가했다.
@@ -263,7 +264,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 다음 작업 우선순위
 
-1. **수정된 Vercel 프로덕션 3종 결함(CLI 경로 해석·tmp 출력 디렉터리·Linux Shell 실행)의 실제 재배포·검증** — 이번 수정은 Vercel 함수 로그 근거로 작성됨. 재배포 후 `/api/ai-jobs/**`·`/api/websites`·`/api/external/inquiries`·`/api/inquiries` 라우트가 실제 프로덕션(Linux) 환경에서 CLI 실행·홈페이지 생성까지 정상 완료되는지 재확인 필요
+1. **프로덕션에 남은 진단용 테스트 의뢰 2건 삭제** — "Diag Test Co"·"Diag Test Co 2"가 실제 프로덕션 Supabase에 생성된 채 남아있음(Vercel의 Sensitive 환경변수 제약으로 CLI에서 실제 값을 읽지 못해 REST API로 직접 삭제하지 못함). `/developer/inquiries`에서 관리자가 직접 삭제 필요
 2. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
 3. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
 4. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음

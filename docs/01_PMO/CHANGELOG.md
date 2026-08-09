@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-08-09 (5)
+
+### 추가 (Added)
+
+- **의뢰 첨부파일 — PDF/DOC/DOCX/TXT 문서 텍스트 추출 및 AI Analysis 반영**: 2026-08-09 (4)에서 "이번 범위가 아니다"로 남겨뒀던 비이미지 첨부파일 처리를 구현. `pdf-parse@1.1.4`(순수 JS, pdf.js 기반 — 네이티브 바이너리 없는 구버전 계열을 의도적으로 선택, 최신 `pdf-parse@2.x`는 `@napi-rs/canvas` 등 네이티브 의존성을 포함한 별개 프로젝트로 리라이트되어 Vercel 서버리스에 부적합하다고 판단), `mammoth@1.12.0`(.docx), `word-extractor@1.0.4`(레거시 .doc) 신규 설치(+ `@types/pdf-parse`·`@types/word-extractor` devDependency)
+  - `apps/cnbiz-web/lib/attachments/extractText.ts`(신규) — `extractDocumentTexts(uploadedFiles)`가 URL 확장자로 문서를 골라(최대 5개) 병렬로 fetch+파싱. 이미지의 `MAX_IMAGE_BYTES`/`MAX_IMAGES`(packages/cli/src/commands/chat.ts)와 동일한 목적의 상한(`MAX_CHARS_PER_DOCUMENT` 8000자, `MAX_DOCUMENTS` 5개)을 둠. 개별 문서의 fetch 실패·빈 텍스트(스캔 이미지형 PDF 등)·파싱 오류는 예외를 던지지 않고 error로만 보고 — 첨부파일 하나가 깨져 있다고 전체 분석이 시뮬레이션 폴백으로 떨어지는 과한 실패 모드를 피함(이미지 쪽 `resolveImages()`와 동일 원칙)
+  - `apps/cnbiz-web/lib/ai-analysis/analysis.ts` — `buildPromptWithAttachments()`(신규)가 기본 프롬프트에 추출된 문서 원문을 `=== 첨부 문서 원문 ===` 섹션으로 덧붙여 `chatFn`에 전달. `lib/ai-analysis/prompts.ts`의 시스템 프롬프트에도 이 섹션을 실제로 읽고 판단에 반영하라는 지시 추가(이미지 지시문과 동일한 패턴)
+  - 테스트(신규 12개): `tests/attachments/extractText.test.ts`(10개, pdf-parse/mammoth/word-extractor를 vi.mock으로 대체해 우리 쪽 fetch/분류/상한/에러 처리 로직만 검증 — 각 라이브러리 자체의 파싱 정확도는 검증 대상이 아님), `tests/ai-analysis/analysis.test.ts`에 2개 추가(문서 섹션이 실제로 프롬프트에 삽입/생략되는지)
+
+### 수정 (Fixed)
+
+- **로컬 fs 스토리지(개발 환경)로 업로드된 첨부파일이 vision/문서 파싱 어느 쪽으로도 절대 분류되지 못하던 버그**(2026-08-09 (4)에서 처음 구현된 `lib/storage/fsStore.ts`에 이미 있던 결함, 오늘 문서 파싱 작업 중 발견) — `extractImageUrls()`/`extractDocumentTexts()`가 모두 URL 확장자로 분류하는데, `fsStore.ts`의 `save()`가 반환하는 URL(`/api/attachment-files/{id}`)에는 확장자가 전혀 없었다(내부 저장 키가 확장자 없는 UUID라서). Supabase 스토리지(`supabaseStore.ts`)는 `safeKey()`가 확장자를 보존해 우연히 정상 동작했지만, `SUPABASE_URL` 미설정 로컬 개발 환경에서는 업로드한 이미지가 vision 분석에 조용히 전혀 반영되지 않는 상태였다(에러 없이 그냥 빈 배열로 필터링됨) — 2026-08-09 (4)의 E2E 검증에서 "vision이 동작한다"고 확인했던 결과도 실제로는 확장자 없는 URL이었어서 재검증 결과 반영되지 않았음이 이번에 드러남(당시엔 confidence 0.15의 신중한 답변만으로 낮은 확신하에 통과 처리했던 것으로 재확인됨).
+  - `lib/storage/extension.ts`(신규) — `safeExtension()` 공유 헬퍼로 추출(기존 `supabaseStore.ts`의 인라인 로직과 통합, 중복 제거)
+  - `lib/storage/fsStore.ts` — 반환 URL에 `safeExtension(input.name)`을 붙이고(`supabaseStore.ts`와 동일하게), `readFsAttachment()`는 조회 시 URL에 붙은 확장자를 다시 떼어내 원래 저장 키로 되돌림
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트·`apps/cnbiz-web` 0 errors), `npx eslint`(변경 파일 전체 0 errors), `apps/cnbiz-web`의 `npx vitest run --exclude "**/ai/bridge.test.ts"`(88 files/748 tests 전부 통과, 신규 12개 포함, 회귀 없음). `tests/ai/bridge.test.ts`(5개 실패)는 조사 결과 이번 변경과 무관한 기존 결함으로 확인 — 그 테스트가 모킹하는 `lib/commandEngine/engine.ts`의 `execute()`를 `lib/ai/bridge.ts`가 이미 이전 커밋(`f3d62ff` 이전, 오늘 이 세션이 시작되기 전)에 `node:child_process`의 `spawn()` 직접 호출로 교체해 더 이상 사용하지 않는데, 테스트만 갱신되지 않아 매 실행마다 실제 CLI 서브프로세스를 그대로 실행하고 있었다(실제 `usage.json` 토큰 수치가 그대로 assertion에 찍혀 나오는 것으로 확인) — 이번 세션 범위 밖으로 판단해 수정하지 않음
+- 실 E2E(검증 전용 임시 계정, 실제 Anthropic API 키 사용): 직접 생성한 최소 유효 PDF·DOCX·TXT·PNG 4종 파일을 업로드 → 반환된 URL 전부가 올바른 확장자를 포함함을 확인(위 fsStore 버그 수정 검증 겸용) → `GET /api/attachment-files/[id].{ext}`로 4종 모두 정상 재조회(올바른 Content-Type) 확인 → 4개 URL을 `uploadedFiles`로 담아 의뢰 등록 → 실제 AI Analysis 결과의 `summary`에 DOCX 원문의 "3층 규모 매장", TXT 원문의 정확한 브랜드 컬러 헥스값("#1B4332")이 그대로 인용되고 `detectedBusinessType:"Restaurant"`·`recommendedPages`에 "Menu"·"Reservation"이 포함됨을 확인 — `requirements` 필드 자체에는 이런 단서가 전혀 없었으므로(고정 영어 placeholder 문구만 입력) 첨부 문서 원문이 실제로 분석에 반영되었음을 확실히 확인
+  - 검증에 사용한 임시 계정·의뢰·클라이언트·웹사이트오더·AI Job·첨부파일 4건은 검증 후 정확히 대상만 골라 삭제 완료(다른 세션의 기존 로컬 dev 데이터는 무변경 보존)
+- **후속 과제로 남긴 관련 결함(이번 범위 밖)**: `lib/ai-analysis/score.ts`의 `LOGO_PATTERN`(URL에 "logo" 문자열이 포함되는지로 로고 첨부 여부를 판단)도 동일한 근본 원인(원본 파일명이 URL에 보존되지 않음)으로 인해 애초에 정상 동작한 적이 없었던 것으로 추정됨(Supabase 스토리지도 `safeKey()`가 원본 파일명을 버리고 랜덤 키+확장자만 남기므로 "logo"라는 문자열이 URL에 남을 수 없음) — 완전한 수정에는 원본 파일명 보존이 필요해 이번 문서 파싱 작업 범위를 벗어난다고 판단, 수정하지 않음
+
+---
+
 ## 2026-08-09 (4)
 
 ### 추가 (Added)

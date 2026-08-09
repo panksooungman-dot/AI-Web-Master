@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { generateId } from "@/lib/id";
+import { safeExtension } from "./extension";
 import type { AttachmentInput, AttachmentStore, StoredAttachment } from "./types";
 
 /**
@@ -44,7 +45,11 @@ export function createFsAttachmentStore(baseDir: string = DEFAULT_BASE_DIR): Att
       fs.writeFileSync(manifestPath(baseDir, id), JSON.stringify(manifest), "utf-8");
 
       return {
-        url: `${siteOrigin()}/api/attachment-files/${id}`,
+        // supabaseStore.ts의 safeKey()와 동일하게 확장자를 URL에 남긴다 — lib/ai-analysis/
+        // analysis.ts·lib/attachments/extractText.ts가 URL 확장자로 이미지/문서를 분류하므로,
+        // 이게 없으면(수정 전 상태) 로컬 스토리지로 업로드된 파일은 vision/문서 파싱 어느 쪽으로도
+        // 절대 분류되지 못했다(둘 다 조용히 스킵 — 에러 없이 그냥 반영되지 않는 실패였다).
+        url: `${siteOrigin()}/api/attachment-files/${id}${safeExtension(input.name)}`,
         name: input.name,
         contentType: input.contentType,
         size: input.buffer.length,
@@ -53,11 +58,13 @@ export function createFsAttachmentStore(baseDir: string = DEFAULT_BASE_DIR): Att
   };
 }
 
-/** GET /api/attachment-files/[id](로컬 개발 전용 서빙 라우트)이 사용한다. */
+/** GET /api/attachment-files/[id](로컬 개발 전용 서빙 라우트)이 사용한다. 저장 시 확장자 없이
+ * `id`만으로 키를 잡으므로, 여기서는 URL에 붙어 온 확장자를 떼어내고 원래 id로 되돌린다. */
 export function readFsAttachment(
-  id: string,
+  idOrIdWithExtension: string,
   baseDir: string = DEFAULT_BASE_DIR
 ): { buffer: Buffer; contentType: string } | null {
+  const id = idOrIdWithExtension.replace(/\.[a-zA-Z0-9]{1,8}$/, "");
   const manifestFile = manifestPath(baseDir, id);
   const file = dataPath(baseDir, id);
   if (!fs.existsSync(manifestFile) || !fs.existsSync(file)) return null;

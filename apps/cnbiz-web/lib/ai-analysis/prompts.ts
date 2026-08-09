@@ -10,7 +10,10 @@ export const AI_ANALYSIS_SYSTEM_PROMPT =
   "later Phase's document generators — it must never itself contain a quote, feature spec, or timeline. " +
   "If reference images are attached, actually look at them and let what you see (design direction, " +
   "brand colors, logo, product/service photos, reference site screenshots, etc.) inform " +
-  "detectedBusinessType, recommendedPages/Functions, and summary — don't just note that files exist.";
+  "detectedBusinessType, recommendedPages/Functions, and summary — don't just note that files exist. " +
+  "If a section titled '=== 첨부 문서 원문 ===' appears after the main input, that is the extracted " +
+  "text of attached PDF/DOC/DOCX/TXT files — read it and let its actual content (requirements, menu " +
+  "items, company profile, etc.) inform your answer the same way, not just its presence.";
 
 export function buildAnalysisPrompt(input: AIAnalysisInput): string {
   return `회사명: ${input.companyName || "(미상)"}

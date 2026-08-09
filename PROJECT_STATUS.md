@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `f3d62ff` 기준)
+> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `d663a10` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -60,8 +60,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 - CNBIZ.KR 브랜드 홈페이지(Home/About/Services/Portfolio) — 문의·제작 의뢰 폼은 의도적으로 제거(아래 참고)
 - Development OS 대시보드 38개 페이지(Terminal/Workspace/GitHub/AI Workspace/Website Builder/Workflow Center/Marketplace/Settings/Logs/Health/Audit Log/Metrics/Backup/Design Automation 9종/AI 의뢰 관리 등) — 각 페이지 헤더에 `HelpTip`(신규, `components/developer/HelpTip.tsx`) 기반 맥락 도움말을 추가해 화면 목적·다른 화면과의 관계를 즉시 안내
 - **Phase 01·02·09 대시보드**(`/developer/analysis`, `/developer/planning`, `/developer/deployment`, 신규) — 새 분석·기획·배포 엔진을 만들지 않고 기존 문서·기존 API/lib 함수만 연결한 읽기 전용 집계 화면. Analysis는 `lib/inquiries/registry.ts`의 `listInquiries()`로 AI 분석 완성도·업종 분포를 집계하고 `PROJECT_STATUS.md`(본 문서)·`REQUEST.md`류를 fs로 직접 읽어 표시. Planning은 `lib/workflows/registry.ts`·`lib/workflows/engine.ts`의 기존 Workflow 정의·Run 이력을 집계. Deployment는 `lib/health/checks.ts`(`/api/health`와 동일 함수)로 Git 상태·Health 캐시를 보여주고 `.github/workflows/*.yml`을 정적 파싱해 CI 파이프라인 목록을 표시. 3개 페이지와 그 데이터 원본 화면(AI 의뢰 관리·Workflow Center·Health·Design·Website Builder) 사이에 상호 탐색 링크를 추가해 Design Automation이 이미 쓰던 "이전/다음 단계" 내비게이션 관례를 따름
-- AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`) — 문의 제목/고객명/회사명/**이메일**(2026-07-24 추가)/문의 내용/첨부파일(드래그앤드롭) 입력 UI. "AI 분석 시작" 버튼이 실제로 `POST /api/inquiries`를 호출한다(2026-07-24 Rewiring, 아래 참고). 첨부파일은 이제 등록 전에 `POST /api/attachments/upload`로 실제 스토리지(Supabase Storage, 미설정 시 로컬 fs 폴백)에 업로드되어 실제 URL로 전달되며, 이미지 확장자는 AI Analysis가 Claude vision으로 실제로 확인한다(2026-08-09 추가) — PDF/DOC/TXT의 OCR·문서 파싱은 이번 범위가 아니라 여전히 TODO
-- Storage(`lib/storage/{types,fsStore,supabaseStore,index}.ts`, 신규) — 첨부파일 저장 백엔드. `lib/db`와 동일한 resolve 규칙(`getDefaultAttachmentStore()`): Production은 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 필수(fail-fast), 없으면 `os.tmpdir()` 기반 로컬 fs 스토리지로 폴백. `GET /api/attachment-files/[id]`(신규, ungated)는 로컬 fs 스토리지 전용 서빙 라우트 — CLI 서브프로세스가 세션 쿠키 없이 이미지를 fetch해야 해서 의도적으로 ungated 처리
+- AI 의뢰 관리 "새 문의 등록"(`/developer/inquiries/new`) — 문의 제목/고객명/회사명/**이메일**(2026-07-24 추가)/문의 내용/첨부파일(드래그앤드롭) 입력 UI. "AI 분석 시작" 버튼이 실제로 `POST /api/inquiries`를 호출한다(2026-07-24 Rewiring, 아래 참고). 첨부파일은 등록 전에 `POST /api/attachments/upload`로 실제 스토리지(Supabase Storage, 미설정 시 로컬 fs 폴백)에 업로드되어 실제 URL로 전달되며, 이미지 확장자는 AI Analysis가 Claude vision으로, PDF/DOC/DOCX/TXT 문서는 텍스트 추출(`lib/attachments/extractText.ts`, 신규, pdf-parse/mammoth/word-extractor)을 거쳐 프롬프트 본문에 원문으로 삽입되어 실제로 판단에 반영된다(2026-08-09 추가)
+- Storage(`lib/storage/{types,fsStore,supabaseStore,extension,index}.ts`) — 첨부파일 저장 백엔드. `lib/db`와 동일한 resolve 규칙(`getDefaultAttachmentStore()`): Production은 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 필수(fail-fast), 없으면 `os.tmpdir()` 기반 로컬 fs 스토리지로 폴백. `GET /api/attachment-files/[id]`(신규, ungated)는 로컬 fs 스토리지 전용 서빙 라우트 — CLI 서브프로세스가 세션 쿠키 없이 이미지를 fetch해야 해서 의도적으로 ungated 처리. `safeExtension()`(신규, `extension.ts`, fsStore/supabaseStore 공유) 도입으로 로컬 fs 스토리지 URL도 확장자를 보존해 vision/문서 파싱 분류가 정상 동작한다(2026-08-09 버그 수정, 아래 참고)
 - 인증(이메일/비밀번호 세션) + RBAC 4-role — `lib/auth/{types,password,users,session,auth,middleware,rbac}.ts`, `proxy.ts`
 - Website Builder v2(CLI `ai website create` + 대시보드) — `packages/cli/src/website/*`, `lib/websites/registry.ts`, `/developer/websites`
 - Database — `lib/db/{collectionStore,fsStore,memoryStore,supabaseStore,index}.ts`(단일 Supabase 테이블 `app_collections`)
@@ -89,6 +89,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **의뢰 첨부파일 — PDF/DOC/DOCX/TXT 문서 텍스트 추출 및 AI Analysis 반영**(2026-08-09) — `pdf-parse`·`mammoth`·`word-extractor` 신규 설치, `lib/attachments/extractText.ts`(신규)가 URL 확장자로 문서를 골라(최대 5개, 문서당 최대 8000자) 병렬 fetch+파싱하고 개별 문서 실패는 예외 없이 error로만 보고한다(이미지 vision의 `resolveImages()`와 동일 원칙). `lib/ai-analysis/analysis.ts`의 `buildPromptWithAttachments()`가 추출된 원문을 프롬프트에 `=== 첨부 문서 원문 ===` 섹션으로 삽입, `prompts.ts` 시스템 프롬프트에도 이를 실제로 읽고 판단에 반영하라는 지시를 추가했다. 실 E2E(PDF·DOCX·TXT·PNG 4종 업로드→의뢰 등록)로 AI 분석 결과에 첨부 문서 원문(브랜드 컬러 헥스값 등)이 실제로 인용됨을 확인, `88 files/748 tests` 전부 통과(신규 12개 포함).
+- **로컬 fs 스토리지 첨부파일이 vision/문서 파싱 어느 쪽에도 분류되지 못하던 버그 수정**(2026-08-09) — `fsStore.ts`가 반환하는 URL(`/api/attachment-files/{id}`)에 확장자가 전혀 없어(Supabase는 `safeKey()`가 우연히 보존해 정상 동작), `SUPABASE_URL` 미설정 로컬 개발 환경에서는 업로드 이미지가 vision 분석에 조용히 전혀 반영되지 않고 있었다(2026-08-09 (4)의 E2E "검증 성공"도 실제로는 미반영이었음이 재확인됨). `lib/storage/extension.ts`(신규, `safeExtension()`)를 fsStore/supabaseStore가 공유하도록 통합해 로컬 fs URL도 확장자를 보존하게 수정. `lib/ai-analysis/score.ts`의 로고 판정(`LOGO_PATTERN`)도 동일 근본 원인으로 애초에 정상 동작한 적이 없었던 것으로 추정되나 완전한 수정은 원본 파일명 보존이 필요해 이번 범위에서 제외.
 - **의뢰 첨부파일 — 실제 업로드 스토리지 구현 및 AI Analysis Vision 연동**(2026-08-09) — 그동안 파일명만 감사 목적으로 남기던 첨부파일 TODO를 해소. Supabase Storage/로컬 fs 스토리지 백엔드(`lib/storage/*`)와 업로드 API(`POST /api/attachments/upload`)를 신규 구현하고, AI Analysis가 업로드된 이미지를 `packages/cli`의 `ai chat --image`(Anthropic vision, base64 인코딩·5MB/장·최대 6장 제한)로 실제로 확인해 판단에 반영하도록 CLI Provider 계층까지 연결했다. 실 계정으로 업로드→서빙→AI 분석 전 구간 E2E 검증 완료(`confidence:0.15`로 실제 vision 호출 확인, 시뮬레이션 고정값 0.3 아님).
 - **AI 분석·Design 체인 프로덕션 시뮬레이션 폴백 근본 원인 추가 수정 — CLI 서브프로세스 cwd를 읽기 전용 배포 번들에서 tmpdir로 교체**(2026-08-09) — `chatViaCli()`가 CLI 서브프로세스의 cwd로 `process.cwd()`(Vercel Lambda에서는 읽기 전용 `/var/task/...`)를 그대로 넘기고 있어, `packages/cli`의 `chat` 명령이 호출 이력을 `<cwd>/.runtime/tasks.json`에 기록하려다 `mkdir`이 실패(`ENOENT`)해 CLI 프로세스가 즉시 죽고 `chatViaCli()`가 조용히 결정론적 기본값으로 폴백하던 문제를 수정했다(2026-08-05에 Website Builder 생성 경로에서 이미 한 번 겪어 만들어둔 `resolveCliWorkingDir()`가 이 파일에만 연결되어 있지 않았다). `ANTHROPIC_API_KEY`를 프로덕션에 처음 설정한 뒤에야 이 코드 경로가 실행되며 처음 드러난 잠재적 결함이었다. 임시 진단 로그를 담은 빌드로 실제 프로덕션에서 재현 → Vercel Runtime Logs로 정확한 스택트레이스 확인 → `runAiCli()`의 cwd 기본값을 `resolveCliWorkingDir()`로 교체 → 재배포 후 동일 요청 경로에서 오류 없이 정상 응답됨을 확인했다. 진단 과정에서 프로덕션 Supabase에 생성된 테스트 의뢰 2건이 남아있어 관리자 수동 삭제가 필요하다.
 - **Design 체인 시뮬레이션 폴백 잔여 원인 2건 추가 수정 — max_tokens·타임아웃 재상향**(2026-08-09) — `packages/cli/src/providers/anthropic.ts`의 기본 `max_tokens`(8192)가 `lib/design/wireframe-generator.ts`(데스크탑/태블릿/모바일 3-breakpoint 화면 구성)에는 부족해 응답이 8192 토큰에서 JSON 중간에 잘려 파싱 실패 → 시뮬레이션 폴백으로 이어짐을 실측(`usage.outputTokens: 8192`)으로 확인, 16000으로 재상향. `packages/cli/src/providers/provider.ts`의 요청 타임아웃 기본값(45000ms)도 같은 스키마에는 부족해 3회 재시도(각 45초, 총 약 2.3분)를 전부 소진한 뒤 폴백함을 확인, 120000ms로 재상향. 검증 전용 임시 계정으로 Design 체인 5단계(Requirements→Storyboard→Wireframe→Prototype→Claude Design) 전부 `simulated:false`로 실제 Anthropic 응답을 받음을 확인했다.
@@ -267,14 +269,15 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 ## 다음 작업 우선순위
 
 1. **프로덕션에 남은 진단용 테스트 의뢰 2건 삭제** — "Diag Test Co"·"Diag Test Co 2"가 실제 프로덕션 Supabase에 생성된 채 남아있음(Vercel의 Sensitive 환경변수 제약으로 CLI에서 실제 값을 읽지 못해 REST API로 직접 삭제하지 못함). `/developer/inquiries`에서 관리자가 직접 삭제 필요
-2. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
-3. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
-4. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
-5. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
-6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
-7. **회원가입 백엔드 + 역할관리 UI**
-8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
-9. **Design Automation Phase 9 실사용 검증**
+2. **`lib/ai-analysis/score.ts`의 `LOGO_PATTERN` 로고 판정 수정** — URL에 원본 파일명이 보존되지 않아(로컬 fs·Supabase 둘 다) 로고 첨부 여부 판정이 애초에 정상 동작한 적이 없음. 완전한 수정에는 원본 파일명 보존이 필요
+3. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
+4. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
+5. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
+6. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
+7. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
+8. **회원가입 백엔드 + 역할관리 UI**
+9. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
+10. **Design Automation Phase 9 실사용 검증**
 
 ---
 

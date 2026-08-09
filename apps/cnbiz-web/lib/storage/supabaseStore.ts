@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateId } from "@/lib/id";
+import { safeExtension } from "./extension";
 import type { AttachmentInput, AttachmentStore, StoredAttachment } from "./types";
 
 const BUCKET = "inquiry-attachments";
@@ -9,9 +10,7 @@ const BUCKET = "inquiry-attachments";
  * 나머지는 영숫자로 치환한다. 사람이 읽을 원본 파일명은 별도로 항상 보관하므로(레코드의
  * `name` 필드) 여기서 정보가 손실돼도 문제없다. */
 function safeKey(name: string): string {
-  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
-  const safeExt = /^\.[a-zA-Z0-9]{1,8}$/.test(ext) ? ext : "";
-  return `${generateId("attachment")}${safeExt}`;
+  return `${generateId("attachment")}${safeExtension(name)}`;
 }
 
 let bucketEnsured: Promise<void> | null = null;

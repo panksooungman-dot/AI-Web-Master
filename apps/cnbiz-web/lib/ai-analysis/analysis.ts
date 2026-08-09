@@ -1,5 +1,6 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
 import { extractJsonPayload } from "@/lib/ai/json";
+import { extractDocumentTexts } from "@/lib/attachments/extractText";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 import { computeCompleteness } from "./score";
 import { AI_ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt } from "./prompts";
@@ -97,11 +98,34 @@ export interface GenerateAnalysisResult {
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
 
 /** uploadedFiles 중 실제로 vision에 넘길 수 있는 것만 고른다 — PDF/DOC/TXT는 이미지 콘텐츠
- * 블록으로 보낼 수 없으므로 제외한다(개수는 여전히 프롬프트의 "업로드된 파일 수"에 전부 반영됨,
- * OCR/문서 파싱은 이번 범위가 아니다). */
+ * 블록으로 보낼 수 없으므로 별도로 extractDocumentTexts()가 텍스트로 추출해 프롬프트 본문에
+ * 직접 삽입한다(아래 buildPromptWithAttachments 참고). */
 function extractImageUrls(uploadedFiles: string[] | undefined): string[] {
   if (!uploadedFiles) return [];
   return uploadedFiles.filter((url) => IMAGE_EXTENSIONS.some((ext) => url.toLowerCase().split("?")[0].endsWith(ext)));
+}
+
+/**
+ * 기본 프롬프트에 첨부 문서(PDF/DOC/DOCX/TXT)에서 추출한 원문을 덧붙인다. 추출에 실패한
+ * 문서(스캔 이미지형 PDF, 손상된 파일 등)는 조용히 건너뛰고 콘솔에만 경고를 남긴다 —
+ * packages/cli/src/commands/chat.ts의 resolveImages()와 동일하게, 첨부파일 하나의 실패가
+ * 전체 분석을 시뮬레이션 폴백으로 떨어뜨리는 과한 실패 모드를 피한다.
+ */
+async function buildPromptWithAttachments(input: AIAnalysisInput): Promise<string> {
+  const basePrompt = buildAnalysisPrompt(input);
+  const documents = await extractDocumentTexts(input.uploadedFiles);
+
+  const succeeded = documents.filter((doc): doc is { url: string; text: string } => typeof doc.text === "string");
+  for (const failed of documents) {
+    if (failed.error) console.warn(`[ai-analysis] 문서 텍스트 추출 실패 (${failed.url}): ${failed.error}`);
+  }
+  if (succeeded.length === 0) return basePrompt;
+
+  const section = succeeded
+    .map((doc, index) => `[첨부 문서 ${index + 1}]\n${doc.text}`)
+    .join("\n\n---\n\n");
+
+  return `${basePrompt}\n\n=== 첨부 문서 원문 ===\n\n${section}`;
 }
 
 /**
@@ -123,7 +147,7 @@ export async function generateAnalysis(
 ): Promise<GenerateAnalysisResult> {
   const { completeness, missingItems } = computeCompleteness(input);
 
-  const chatResult = await chatFn(buildAnalysisPrompt(input), {
+  const chatResult = await chatFn(await buildPromptWithAttachments(input), {
     system: AI_ANALYSIS_SYSTEM_PROMPT,
     images: extractImageUrls(input.uploadedFiles),
   });

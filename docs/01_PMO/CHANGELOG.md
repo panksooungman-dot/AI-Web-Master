@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-08-09 (2)
+
+### 수정 (Fixed)
+
+- **Design 체인(Storyboard/Wireframe/Prototype/Claude Design)이 여전히 시뮬레이션 폴백에
+  걸리던 나머지 원인 2건 수정** — 앞선 PowerShell 인자 버그 수정 이후에도, Design 체인을
+  실제 로그인 세션으로 5단계 전부(Requirements→Storyboard→Wireframe→Prototype→Claude Design)
+  직접 실행해 검증하는 과정에서 별도의 두 가지 문제를 추가로 발견해 수정했다.
+  1. **`packages/cli/src/providers/anthropic.ts`** — `max_tokens` 기본값 8192(2026-08-07에
+     4096→8192로 상향된 값)도 `lib/design/wireframe-generator.ts`(데스크탑/태블릿/모바일
+     3개 breakpoint × 화면별 섹션·컴포넌트 목록)에는 부족해, 응답이 정확히 8192 토큰에서
+     JSON 중간에 잘려 파싱 실패 → 시뮬레이션 폴백으로 이어짐을 실측으로 확인
+     (`usage.outputTokens: 8192`, 내용이 문자열 중간에서 끊김). 16000으로 재상향.
+  2. **`packages/cli/src/providers/provider.ts`** — 요청 타임아웃 기본값 45000ms(2026-07-14에
+     15000→45000으로 상향된 값)도 Wireframe처럼 큰 스키마에는 부족해 3회 재시도(각 45초)를
+     전부 타임아웃으로 소진(`anthropic request timed out after 45000ms`, 총 약 2.3분)한 뒤
+     폴백함을 확인. 120000ms로 재상향.
+  - 두 상수 모두 이미 한 차례씩 상향된 이력이 있는 값이며, 이번에도 "작은 호출자에는 영향 없고
+    (스스로 한계 훨씬 아래에서 끝남) 큰 스키마 호출자에만 실질적인 여유를 준다"는 동일한
+    근거로 재상향했다.
+
+### 검증 (Verified)
+
+- 검증 전용 임시 계정(`developer` role)으로 로그인해 Design 체인 5단계를 실제로 순서대로
+  실행: Requirements(Design Plan, 3회 반복 확인) → Storyboard → Wireframe(4회 시도 끝에 원인
+  규명·수정) → Prototype → Claude Design. **5단계 전부 `simulated:false`, 실제 Anthropic
+  응답(입력 내용에 맞는 영어/한국어 콘텐츠, 매번 다른 문구) 확인.**
+  - Wireframe은 원인 규명 과정에서 `lib/ai/bridge.ts`에 임시 디버그 로그(`usage`·응답 끝부분
+    출력)를 추가해 정확한 실패 지점(토큰 상한/타임아웃)을 특정한 뒤 제거했다(최종 커밋에는
+    포함되지 않음).
+  - `npx tsc --noEmit`(루트·`apps/cnbiz-web` 양쪽 0 errors), `npx vitest run
+    tests/ai-platform-cli`(루트, 8 files/50 tests 통과), `npx vitest run tests/design`
+    (`apps/cnbiz-web`, 31 files/258 tests 통과) — 두 상수 변경으로 인한 회귀 없음 확인.
+  - 검증에 사용한 임시 계정(`designverify+*@example.com`)·dev 서버·테스트 산출물(`os.tmpdir()`
+    기준 로컬 데이터, 전부 git 미추적)은 검증 후 전부 삭제·종료했다.
+
+---
+
 ## 2026-08-09
 
 ### 수정 (Fixed)

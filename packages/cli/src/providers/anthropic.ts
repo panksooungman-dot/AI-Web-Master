@@ -47,8 +47,14 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
       // when request.maxTokens is undefined). 1024 was too low a default for structured-JSON callers
       // (apps/cnbiz-web's Estimate/Specification/Timeline/Contract/Proposal generators can need
       // 2000-3000+ output tokens for their larger schemas) and would silently truncate mid-JSON,
-      // guaranteeing a JSON.parse failure. 4096 gives realistic headroom for those payloads.
-      max_tokens: request.maxTokens ?? 4096,
+      // guaranteeing a JSON.parse failure. 4096 was then found insufficient too (2026-08-09):
+      // lib/design/generator.ts's Design Plan landed right at the 4096 ceiling in a passing run
+      // (4004 output tokens). Raised to 8192 — still not enough for lib/design/wireframe-generator.ts
+      // (desktop/tablet/mobile layouts for every screen): confirmed hitting exactly 8192 output
+      // tokens with `usage.outputTokens: 8192` and mid-string truncation. 16000 gives that schema
+      // real headroom; smaller callers stop well short of the cap on their own so this doesn't
+      // change their cost/latency.
+      max_tokens: request.maxTokens ?? 16000,
       temperature: request.temperature,
       stream
     });

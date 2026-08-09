@@ -462,5 +462,30 @@ describe("React Generator — packages/cli/src/generators/react", () => {
       const tsx = generateReactComponentTree(document).pages[0].tsx;
       expect(tsx).toContain(JSON.stringify(`Say "hi" { welcome }`));
     });
+
+    it("never leaks props.sourceType (Design Adapter traceability metadata, not a real DOM prop) into rendered markup", () => {
+      // Reproduces an actual Vercel build failure: lib/design/claude-design-document-adapter.ts
+      // preserves the pre-mapping Wireframe component type (e.g. "Navigation"/"Hero"/"Footer",
+      // which all collapse onto ComponentType "container") in props.sourceType. "container" falls
+      // through to renderGeneric()'s passthrough attrs, which previously rendered it as a literal
+      // `sourceType={"Navigation"}` JSX attribute — invalid on a plain <div>, so `next build`'s
+      // TypeScript check failed with "Property 'sourceType' does not exist on type
+      // 'DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>'".
+      const document = baseDocument({
+        pages: [
+          {
+            id: "home",
+            title: "Home",
+            path: "/",
+            sections: [
+              { id: "s", type: "hero", components: [{ id: "nav", type: "container", props: { sourceType: "Navigation" } }] },
+            ],
+          },
+        ],
+      });
+
+      const tsx = generateReactComponentTree(document).pages[0].tsx;
+      expect(tsx).not.toContain("sourceType");
+    });
   });
 });

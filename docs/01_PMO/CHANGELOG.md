@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-08-10
+
+### 추가 (Added)
+
+- **Design → Website Build → Deployment 연결**(`apps/cnbiz-web/app/api/design/website/route.ts`) — Design Automation이 승인된 Review로 실제 웹사이트를 생성한 뒤 로컬 `outDir` 생성에서 멈추던 것을, 생성 성공 시 `lib/deployment/pipeline.ts`의 기존 `runDeploymentPipeline()`을 호출해 GitHub repo 생성→commit→push→Vercel 프로젝트 생성→연결→배포까지 이어지도록 연결. 새 파이프라인·서비스 없이 `lib/aiJobs/worker.ts`의 `triggerDeployment()`가 이미 쓰던 것과 동일한 입력 형태(`{websiteId, outDir, repoBaseName}`)로 기존 함수를 그대로 호출(코드 변경 19줄). `triggerDeployment()` 자체는 AiJob/WebsiteOrder 조회에 결합돼 있어 AiJob이 없는 이 경로에서는 직접 재사용할 수 없어, 그 내부 호출부만 재현. 응답에 `deployment` 필드 추가(GITHUB_TOKEN/VERCEL_TOKEN 미설정 시 "NotConfigured"가 그대로 노출되어 "배포까지 됐다"는 오해를 막음).
+
+### 수정 (Fixed)
+
+- **React Generator가 DesignDocument의 내부 추적용 메타데이터(`props.sourceType`)를 실제 JSX 속성으로 그대로 출력해 생성된 사이트가 Vercel에서 빌드 실패하던 버그**(`packages/cli/src/generators/react/tsx.ts`) — 위 Design→Deployment 연결을 실제로 검증하는 과정에서 발견. `lib/design/claude-design-document-adapter.ts:91`이 Wireframe의 13종 컴포넌트 어휘(Navigation/Hero/Card/Footer 등)를 DesignDocument의 18종 ComponentType으로 매핑하면서 원본 타입을 정보 손실 방지 목적으로 `props: { sourceType: wireframeType }`에 보존하는데(의도된 설계), `tsx.ts`의 `renderGeneric()` → `passthroughAttrs()`가 특별 처리되지 않는 모든 `props` 키를 그대로 JSX 속성으로 내보내면서 `sourceType`이 스킵 목록(`PASSTHROUGH_HANDLED_KEYS`)에 없어 `<div sourceType={"Navigation"} />`처럼 존재하지 않는 HTML 속성으로 출력됐다. `PASSTHROUGH_HANDLED_KEYS`에 `"sourceType"` 1개 추가로 수정 — Design Adapter·React Generator의 다른 로직은 무변경.
+  - 테스트(신규 1개): `tests/react-generator/react-generator.test.ts` — "container" 타입 컴포넌트에 `props.sourceType`이 있어도 렌더링된 TSX에 `sourceType` 문자열이 전혀 나타나지 않는지 검증(실제 재현된 버그 시나리오 그대로).
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트·`packages/cli` 0 errors), `npm test`(루트, 19 files/171 tests 전부 통과, 신규 1개 포함, 회귀 없음), `apps/cnbiz-web`의 `npx tsc --noEmit`·`npx eslint`(0 errors)
+- **실 E2E(1차, 연결 검증 — 실제 GitHub/Vercel 리소스 생성)**: 검증 전용 계정으로 Design Plan→Storyboard→Wireframe→Prototype→Claude Design→Review→승인→`POST /api/design/website` 전 구간을 실제로 실행 → 실제 GitHub 저장소(`panksooungman-dot/website-d19ae78c`, private)와 Vercel 프로젝트(`website-d19ae78c`) 생성 및 배포 트리거까지 확인(`designPageCount:4` — DesignDocument의 4개 페이지가 실제로 React Generator를 거쳐 코드에 반영됨을 확인) → Vercel 배포를 20초간 폴링해 실제 빌드 상태 확인 → **이때 위 `sourceType` 버그로 인한 빌드 실패(`readyState:"ERROR"`, TypeScript 컴파일 오류)를 실제로 재현·발견**. 검증 후 실제 생성된 GitHub 저장소·Vercel 프로젝트는 `lib/github/client.ts`의 `deleteRepository()`·`lib/vercel/client.ts`의 `deleteProject()`(기존 롤백 함수 그대로 재사용, 신규 코드 없음)로 삭제, API 재조회로 완전히 삭제됨을 확인
+- **실 E2E(2차, 버그 수정 검증 — 로컬만, 외부 리소스 생성 없음)**: 1차 재현과 동일한 구조(Navigation/Hero/Card/Footer → container/card)의 DesignDocument로 `ai website create --design-document`를 직접 재실행 → 생성된 `app/about/page.tsx`에 `sourceType` 속성이 전혀 없음을 확인 → 그 프로젝트에서 실제로 `npm install && npm run build` 실행 → **18개 라우트 전부 정상 컴파일·정적 생성 성공**(수정 전 실패했던 지점 포함) 확인. 검증에 사용한 로컬 산출물은 삭제 완료
+- 검증 과정에서 CLI를 저장소 루트(`apps/cnbiz-web`)를 cwd로 직접 실행해 생성된 `agents/`·`workflows/website-builder/`(2026-07-14 (4)에 처음 정리했던 것과 동일한 CLI 부작용 — `--out`과 무관하게 cwd 기준으로 스캐폴딩됨) 미추적 디렉터리도 함께 삭제
+
+---
+
 ## 2026-08-09 (7)
 
 ### 수정 (Fixed)

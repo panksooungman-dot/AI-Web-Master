@@ -172,6 +172,13 @@ const PASSTHROUGH_HANDLED_KEYS = new Set([
   "size",
   "icon",
   "disabled",
+  // Internal traceability metadata, not a real DOM/JSX prop — upstream tooling that produces a
+  // DesignDocument may stash a pre-mapping component classification here so it isn't lost when
+  // several distinct upstream types collapse onto one ComponentType. Left un-excluded, this
+  // leaked straight into rendered markup as `sourceType={"Navigation"}` on a plain <div>, which
+  // fails Next.js's TypeScript build (HTMLDivElement has no such attribute) — confirmed by an
+  // actual production build failure, not a hypothetical.
+  "sourceType",
 ]);
 
 function renderComponent(node: ReactComponentNode, context: RenderContext, indent: string): string {

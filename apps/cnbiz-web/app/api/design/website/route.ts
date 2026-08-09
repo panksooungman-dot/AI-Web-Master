@@ -9,6 +9,7 @@ import { getPrototype } from "@/lib/design/prototype";
 import { buildWebsiteBuildHybridSource } from "@/lib/design/website-build-document-adapter";
 import { listWebsiteBuilds, recordWebsiteBuild, type WebsiteBuildRecord } from "@/lib/design/website-build";
 import { createWebsiteRecord } from "@/lib/websites/registry";
+import { runDeploymentPipeline } from "@/lib/deployment/pipeline";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
@@ -221,7 +222,28 @@ export async function POST(request: Request) {
     );
   }
 
+  // Design → Website Build → Deployment 연결점. lib/aiJobs/worker.ts의 triggerDeployment()가
+  // AI Generate 성공 직후 정확히 이 입력 형태(websiteId/outDir/repoBaseName)로
+  // runDeploymentPipeline()을 호출하는 것과 동일한 패턴이다 — triggerDeployment() 자체는
+  // AiJob→WebsiteOrder 조회에 결합되어 있어(jobId를 받아 websiteOrder.websiteIds를 역추적) AiJob이
+  // 존재하지 않는 이 경로(Design Automation은 Review/Plan 기반, AiJob 없음)에서는 그 함수를 직접
+  // 호출할 수 없으므로, 그 내부가 실제로 수행하는 runDeploymentPipeline() 호출만 동일하게
+  // 재현한다. GITHUB_TOKEN/VERCEL_TOKEN이 없으면 runDeploymentPipeline() 자체가 이미
+  // "NotConfigured"로 안전하게 스킵하므로(lib/deployment/pipeline.ts) 별도 사전 조건 분기를
+  // 추가하지 않았다. 실패해도 이미 완료된 Website Build 응답 자체를 실패로 바꾸지 않는다
+  // (worker.ts가 배포 실패로 AiJob의 "Success"를 되돌리지 않는 것과 동일한 원칙).
+  const deployment = await runDeploymentPipeline({
+    websiteId: websiteRecord.id,
+    outDir: websiteRecord.outDir,
+    repoBaseName: inputs.siteType || "site",
+  }).catch((error) => {
+    console.error(`[design/website] Deployment pipeline failed for website ${websiteRecord.id}`, error);
+    return null;
+  });
+
   // designPageCount는 "이 빌드에서 디자인이 실제로 코드에 반영된 페이지 수"다. 0이면 스캐폴딩
   // 템플릿 그대로라는 뜻이므로, 호출자가 성공 응답만 보고 반영됐다고 오해하지 않도록 노출한다.
-  return NextResponse.json({ ...toResponse(buildRecord), designPageCount, output: result.stdout });
+  // deployment도 같은 이유로 노출한다 — GITHUB_TOKEN/VERCEL_TOKEN 미설정이면 status가
+  // "NotConfigured"로 그대로 드러나 "배포까지 됐다"고 오해하지 않게 한다.
+  return NextResponse.json({ ...toResponse(buildRecord), designPageCount, output: result.stdout, deployment });
 }

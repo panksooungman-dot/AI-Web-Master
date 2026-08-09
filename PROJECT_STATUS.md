@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `b1fe302` 기준)
+> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `d3fb4f2` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -45,11 +45,11 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
 | Development OS 대시보드 | 97% | `/developer/**` 48개 페이지 실동작(기술 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 관리 포함). AI 의뢰 관리 "새 문의 등록"이 실제 `POST /api/inquiries` 호출로 연결됨 |
-| AI 홈페이지 생성기(Website Builder v2) | 85% | CLI+대시보드 완결, Design Automation Phase 9 연동만 미검증 |
+| AI 홈페이지 생성기(Website Builder v2) | 88% | CLI+대시보드 완결. **Design Automation(승인된 Review) → Website Build → Deployment 파이프라인 연결 완료**(`runDeploymentPipeline()` 재사용, `POST /api/design/website` 응답에 `deployment` 필드 노출) — 실 GitHub/Vercel 계정으로 연결 자체와, 검증 중 발견된 React Generator 빌드 실패 버그(`props.sourceType` 누출) 수정까지 확인 완료 |
 | **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) |
 | 인증/권한 | 85% | 세션 인증 + RBAC **5-role**(신규 `customer` role 추가) + 정확한 (method,path) 단위 예외 완비. `proxy.ts`가 `/customer/**`도 세션 보호 대상에 포함. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated` |
-| **고객(의뢰자) 시스템 — Customer Portal V1** | **90%** | **신규 구현(이번 커밋)** — 고객 로그인(`customer.login` 감사 로그), 본인 주문 목록(`/customer/orders`)·대시보드(`/customer/dashboard`)·주문 상세(`/customer/orders/[id]`, 견적서·명세서·타임라인·계약서·제안서·배포 상태 열람). `lib/customerPortal/view.ts`가 로그인 이메일 기준으로만 필터링해 타인 데이터 접근을 원천 차단(존재하지 않음/타인 소유 모두 동일하게 404). 회원가입·비밀번호 변경·알림 설정 등은 아직 없음 |
-| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + 실 계정 E2E PASS 확정(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) |
+| **고객(의뢰자) 시스템 — Customer Portal V1** | **90%** | 고객 로그인(`customer.login` 감사 로그), 본인 주문 목록(`/customer/orders`)·대시보드(`/customer/dashboard`)·주문 상세(`/customer/orders/[id]`, 견적서·명세서·타임라인·계약서·제안서·배포 상태 열람). `lib/customerPortal/view.ts`가 로그인 이메일 기준으로만 필터링해 타인 데이터 접근을 원천 차단(존재하지 않음/타인 소유 모두 동일하게 404). 회원가입·비밀번호 변경·알림 설정 등은 아직 없음 |
+| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + 실 계정 E2E PASS 확정(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). Design Automation 경로에서도 동일 파이프라인 재사용 확인(2026-08-09) |
 | 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과 |
 
 ---
@@ -89,6 +89,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Design → Website Build → Deployment 연결 + React Generator 빌드 실패 버그 수정**(2026-08-09) — Design Automation이 승인된 Review로 생성한 사이트가 로컬 `outDir` 생성에서 멈추던 것을, 기존 `lib/deployment/pipeline.ts`의 `runDeploymentPipeline()`을 새 로직 없이 그대로 호출해(입력 형태는 `lib/aiJobs/worker.ts`의 `triggerDeployment()` 내부 호출과 동일) GitHub repo 생성→commit→push→Vercel 프로젝트 생성→배포까지 이어지도록 `POST /api/design/website`(`apps/cnbiz-web/app/api/design/website/route.ts`)를 연결했다. 응답에 `deployment` 필드를 추가해 `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정 시 "NotConfigured"가 그대로 노출되도록 했다. 이 연결을 실 GitHub/Vercel 계정으로 검증하는 과정에서, React Generator가 DesignDocument의 내부 추적용 메타데이터(`props.sourceType`, Wireframe→DesignDocument 컴포넌트 타입 매핑 시 원본 타입 보존 목적)를 실제 JSX 속성(`<div sourceType={"Navigation"} />`)으로 그대로 출력해 생성된 사이트가 Vercel에서 TypeScript 컴파일 오류로 항상 빌드 실패하던 버그를 발견·수정했다(`packages/cli/src/generators/react/tsx.ts`의 `PASSTHROUGH_HANDLED_KEYS`에 `"sourceType"` 1개 추가). 실 E2E로 실제 GitHub 저장소·Vercel 프로젝트를 생성해 빌드 실패(`readyState:"ERROR"`)를 먼저 재현한 뒤, 수정 후 로컬 재생성으로 18개 라우트 전부 정상 컴파일·빌드됨을 확인했다(검증에 사용한 GitHub 저장소·Vercel 프로젝트는 삭제 완료).
 - **`company_logo`/`service_images` 완료도 판정이 파일 종류를 전혀 구분하지 않던 버그 수정**(2026-08-09) — `service_images`가 `!LOGO_PATTERN.test(file)`(로고 이름이 아닌 모든 첨부파일)을 사진으로 인정해 PDF·TXT만 첨부해도 채워진 것처럼 표시되고, `company_logo`도 이름에 우연히 "logo"가 들어간 문서를 로고로 오인하던 결함을 수정. `lib/attachments/classify.ts`(신규)로 URL 확장자 기반 이미지/문서 판별 로직을 통합해 `lib/ai-analysis/analysis.ts`·`lib/attachments/extractText.ts`·`lib/ai-analysis/score.ts` 3곳의 중복 구현을 제거하고, `score.ts`의 두 체크리스트 항목에 `isImageUrl()` 조건을 추가. 신규 테스트 2개 포함 `90 files/760 tests` 전부 통과, 실 E2E로 PDF만 첨부 시 `service_images`가 여전히 누락 항목에 포함됨을 확인.
 - **`LOGO_PATTERN`("회사 로고" 완료 여부 판단) 버그 수정 — 원본 파일명을 URL에 슬러그로 보존**(2026-08-09) — 2026-08-09 (5)에서 후속 과제로 남겨뒀던 항목. 두 스토리지 구현(`fsStore.ts`·`supabaseStore.ts`) 모두 원본 파일명을 버리고 무작위 id(+확장자)만으로 URL을 만들어, 로고를 아무리 명확한 이름으로 첨부해도 `LOGO_PATTERN`(`/logo/i`)이 URL 문자열에서 "logo"를 절대 찾지 못해 "회사 로고" 항목이 항상 누락으로 표시되던 결함을 수정했다. `lib/storage/extension.ts`에 `safeSlug()`(신규)를 추가해 원본 파일명(확장자 제외)을 소문자·영숫자·하이픈만 남긴 슬러그(최대 40자)로 정규화하고, 스토리지 키 자체는 그대로 둔 채 반환 URL에 `?name=` 쿼리로 덧붙였다(확장자 기반 분류·서빙 라우트 모두 쿼리 스트링과 무관해 다른 코드 변경 불필요). 신규 테스트 12개(`tests/storage/extension.test.ts`·`tests/storage/fsStore.test.ts`·`tests/ai-analysis/score.test.ts` 보강) 추가, `90 files/758 tests` 전부 통과. 실 E2E로 "company-logo.png" 업로드 → 반환 URL이 `...png?name=company-logo` 형태임을 확인 → 그 URL만으로 의뢰 등록 → `analysis.missingItems`에 더 이상 `company_logo`가 포함되지 않음을 확인.
 - **의뢰 첨부파일 — PDF/DOC/DOCX/TXT 문서 텍스트 추출 및 AI Analysis 반영**(2026-08-09) — `pdf-parse`·`mammoth`·`word-extractor` 신규 설치, `lib/attachments/extractText.ts`(신규)가 URL 확장자로 문서를 골라(최대 5개, 문서당 최대 8000자) 병렬 fetch+파싱하고 개별 문서 실패는 예외 없이 error로만 보고한다(이미지 vision의 `resolveImages()`와 동일 원칙). `lib/ai-analysis/analysis.ts`의 `buildPromptWithAttachments()`가 추출된 원문을 프롬프트에 `=== 첨부 문서 원문 ===` 섹션으로 삽입, `prompts.ts` 시스템 프롬프트에도 이를 실제로 읽고 판단에 반영하라는 지시를 추가했다. 실 E2E(PDF·DOCX·TXT·PNG 4종 업로드→의뢰 등록)로 AI 분석 결과에 첨부 문서 원문(브랜드 컬러 헥스값 등)이 실제로 인용됨을 확인, `88 files/748 tests` 전부 통과(신규 12개 포함).
@@ -278,7 +279,6 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
 7. **회원가입 백엔드 + 역할관리 UI**
 8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
-9. **Design Automation Phase 9 실사용 검증**
 
 ---
 

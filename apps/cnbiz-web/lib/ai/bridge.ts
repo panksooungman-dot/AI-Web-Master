@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { resolveCliEntry } from "@/lib/paths/repoRoot";
+import { resolveCliEntry, resolveCliWorkingDir } from "@/lib/paths/repoRoot";
 
 export interface ChatResult {
   success: boolean;
@@ -51,8 +51,16 @@ interface CliRunResult {
  * 문제였다(2026-08-09 발견: ANTHROPIC_API_KEY가 정상 설정·정상 동작해도 항상 재현되어, AI
  * Analysis를 포함한 모든 chatViaCli 호출이 예외 없이 시뮬레이션 폴백으로 떨어지고 있었다).
  * argv 배열로 직접 spawn하면 이 중간 셸 문자열 계층 자체가 없어 안전하다.
+ *
+ * cwd 기본값은 반드시 resolveCliWorkingDir()(os.tmpdir() 기반)이어야 한다 — process.cwd()로
+ * 두면 Vercel 프로덕션(읽기 전용 `/var/task/...` 번들)에서 `ai chat`이 `.runtime/tasks.json`을
+ * 기록하려다 `ENOENT: no such file or directory, mkdir '/var/task/apps/cnbiz-web/.runtime'`로
+ * 즉시 죽는다(2026-08-09 발견 — 2026-08-05에 website generation에서 같은 원인으로 이미 한 번
+ * 겪었던 문제, lib/paths/repoRoot.ts의 resolveCliWorkingDir() 주석 참고). ANTHROPIC_API_KEY를
+ * 프로덕션에 처음 설정한 뒤에야 이 코드 경로가 실제로 실행되면서 드러났다 — 그 전까지는 CLI가
+ * 항상 provider 미설정으로 즉시 시뮬레이션 응답을 반환해 이 mkdir을 아예 타지 않았다.
  */
-async function runAiCli(args: (string | undefined)[], cwd: string = process.cwd()): Promise<CliRunResult> {
+async function runAiCli(args: (string | undefined)[], cwd: string = resolveCliWorkingDir()): Promise<CliRunResult> {
   const cliEntry = resolveCliEntry();
 
   if (!cliEntry) {

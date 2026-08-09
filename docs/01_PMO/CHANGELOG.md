@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-08-09 (3)
+
+### 수정 (Fixed)
+
+- **프로덕션(Vercel)에서 AI 분석·Design 체인이 배포 이후에도 계속 시뮬레이션 폴백이던 진짜
+  이유 — `chatViaCli()`가 읽기 전용 번들 경로를 CLI의 작업 디렉터리로 넘기던 문제 수정**
+  (`apps/cnbiz-web/lib/ai/bridge.ts`). 앞선 두 차례 수정(PowerShell 인자 버그, max_tokens/
+  timeout 상향)을 프로덕션에 배포하고 `ANTHROPIC_API_KEY`를 Vercel Production 환경변수로
+  추가한 뒤에도 실제 고객 의뢰 재분석이 여전히 시뮬레이션으로 떨어져, 임시 진단용 콘솔 로그를
+  담은 빌드를 한 차례 배포해 실제 Vercel Runtime Logs로 원인을 특정했다.
+  - **실제 오류**: `Error: ENOENT: no such file or directory, mkdir
+    '/var/task/apps/cnbiz-web/.runtime'` — `runAiCli()`가 CLI 서브프로세스의 `cwd`를
+    `process.cwd()`(Next.js 서버 프로세스 기준, Vercel Lambda에서는 읽기 전용 배포 번들 경로
+    `/var/task/...`)로 넘기고 있었는데, `packages/cli`의 `chat` 명령이 호출 이력을
+    `<cwd>/.runtime/tasks.json`에 기록하려다 그 디렉터리를 만들지 못해 즉시 uncaught
+    exception으로 죽고 있었다. CLI 프로세스 자체가 시작하자마자 죽으므로 stdout이 비어
+    `JSON.parse`가 실패하고, `chatViaCli()`는 이를 "CLI 응답을 해석할 수 없음"으로만 처리해
+    호출자(`generateAnalysis()` 등)는 조용히 결정론적 기본값으로 폴백했다.
+  - **왜 지금까지 드러나지 않았나**: 이 코드 경로는 provider가 실제로 구성돼 있을 때만
+    실행된다. `ANTHROPIC_API_KEY`가 프로덕션에 한 번도 설정된 적이 없었으므로, 그 전까지는
+    CLI가 provider 미설정으로 매번 그보다 훨씬 이전 단계에서 즉시 시뮬레이션 응답을 반환해
+    이 `mkdir` 자체를 탄 적이 없었다 — 즉 이번에 처음으로 키를 넣었기 때문에 처음으로
+    드러난, 원래부터 있었던 잠재적 결함이다.
+  - **왜 로컬에서는 재현되지 않았나**: 로컬 dev 서버의 `process.cwd()`(`D:\ai-web-master\
+    apps\cnbiz-web`)는 일반 쓰기 가능한 디렉터리라 `.runtime` 생성이 아무 문제 없이
+    성공했다 — Windows·Linux 차이가 아니라 "쓰기 가능한 로컬 디스크 vs 읽기 전용 배포
+    번들"의 차이였다.
+  - **이미 알려진 문제였다**: `lib/paths/repoRoot.ts`의 `resolveCliWorkingDir()`(os.tmpdir()
+    기반)가 정확히 이 문제를 해결하기 위해 이미 존재했다 — 2026-08-05에 Website Builder에서
+    동일한 원인(`ENOENT ... mkdir '/var/task/apps/cnbiz-web/agents'`)으로 이미 한 번 겪고
+    고친 자리다. `app/api/design/website/route.ts`·`app/api/websites/route.ts`·
+    `lib/aiJobs/executor.ts`는 이미 이 헬퍼를 쓰고 있었는데, `lib/ai/bridge.ts`만 여기 연결돼
+    있지 않았다. `runAiCli()`의 `cwd` 기본값을 `process.cwd()` → `resolveCliWorkingDir()`로
+    교체.
+
+### 검증 (Verified)
+
+- 진단용 콘솔 로그(cliEntry/cwd/실행 결과/JSON 파싱 실패 상세)를 임시로 추가해 프로덕션에
+  배포 → `POST https://www.cnbiz.kr/api/inquiries`로 테스트 의뢰 1건을 실제로 생성해 재현 →
+  Vercel Runtime Logs(`vercel logs`)에서 위 ENOENT 스택트레이스를 직접 확인 → 원인 특정 후
+  진단 로그 제거, `resolveCliWorkingDir()` 연결 → 재배포.
+- 수정 후 동일한 방식으로 테스트 의뢰를 다시 생성 → Runtime Logs에 오류 없이 `info` 레벨의
+  정상 응답만 기록됨을 확인(수정 전 재현 때와 동일한 요청 경로에서 더 이상 uncaught
+  exception이 발생하지 않음).
+- `npx tsc --noEmit`(0 errors).
+- **진단에 사용한 테스트 의뢰 2건("Diag Test Co", "Diag Test Co 2")이 실제 프로덕션
+  Supabase에 생성된 채 남아 있음** — Vercel의 "Sensitive" 환경변수는 CLI로 값을 다시 읽을 수
+  없어(`vercel env pull`이 실제 값 대신 `[SENSITIVE]` placeholder만 반환) Supabase REST
+  API로 직접 조회·삭제하지 못했다. `/developer/inquiries`에서 관리자가 직접 삭제 필요.
+
+---
+
 ## 2026-08-09 (2)
 
 ### 수정 (Fixed)

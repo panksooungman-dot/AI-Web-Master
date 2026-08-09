@@ -1,3 +1,4 @@
+import { isImageUrl } from "@/lib/attachments/classify";
 import type { AIAnalysisInput, MissingItem } from "./types";
 
 /**
@@ -66,13 +67,17 @@ const CHECKLIST: ChecklistItem[] = [
     id: "company_logo",
     title: "회사 로고",
     reason: "브랜드 아이덴티티 제작을 위해 로고 파일이 필요합니다.",
-    check: (input) => (input.uploadedFiles ?? []).some((file) => LOGO_PATTERN.test(file)),
+    // isImageUrl() 없이 LOGO_PATTERN만 보면 "requirements-logo.pdf"처럼 이름에 우연히 "logo"가
+    // 들어간 문서도 로고로 인정돼 버린다 — 로고는 실제로 이미지여야 의미가 있으므로 함께 확인한다.
+    check: (input) => (input.uploadedFiles ?? []).some((file) => isImageUrl(file) && LOGO_PATTERN.test(file)),
   },
   {
     id: "service_images",
     title: "서비스/제품 사진",
     reason: "메인·서비스 페이지 제작을 위한 사진 자료가 필요합니다.",
-    check: (input) => (input.uploadedFiles ?? []).some((file) => !LOGO_PATTERN.test(file)),
+    // 이전에는 "로고가 아닌 모든 첨부파일"을 사진으로 인정해, 요구사항 PDF나 텍스트 메모만
+    // 첨부해도 이 항목이 채워진 것처럼 보였다 — 실제로 사진(이미지)인 것만 인정해야 한다.
+    check: (input) => (input.uploadedFiles ?? []).some((file) => isImageUrl(file) && !LOGO_PATTERN.test(file)),
   },
   {
     id: "reference_site",

@@ -1,10 +1,12 @@
 import mammoth from "mammoth";
 import PdfParse from "pdf-parse";
 import WordExtractor from "word-extractor";
+import { extensionOf, isDocumentUrl } from "./classify";
 
-/** lib/ai-analysis/analysis.ts의 extractImageUrls()와 대칭되는 목록 — 첨부파일 중 어떤 것이
- * "문서로서 읽을 수 있는" 파일인지 URL 확장자로 판단한다(lib/storage의 두 store 구현 모두
- * 확장자를 URL에 보존한다, lib/storage/extension.ts 참고). */
+export { isDocumentUrl };
+
+/** 확장자별 실제 파싱 로직 — "이 확장자가 문서인가"의 판단 자체는 lib/attachments/classify.ts가
+ * 담당하고, 여기서는 이미 문서로 분류된 URL을 실제로 어떻게 텍스트로 바꿀지만 다룬다. */
 const DOCUMENT_EXTRACTORS: Record<string, (buffer: Buffer) => Promise<string>> = {
   ".pdf": async (buffer) => (await PdfParse(buffer)).text,
   ".docx": async (buffer) => (await mammoth.extractRawText({ buffer })).value,
@@ -24,16 +26,6 @@ export interface ExtractedDocument {
   text?: string;
   /** 실패 시에만 존재 — fetch 실패, 확장자 미지원, 파싱 오류 등. */
   error?: string;
-}
-
-function extensionOf(url: string): string {
-  const withoutQuery = url.toLowerCase().split("?")[0];
-  const match = withoutQuery.match(/\.[a-z0-9]{1,8}$/);
-  return match ? match[0] : "";
-}
-
-export function isDocumentUrl(url: string): boolean {
-  return extensionOf(url) in DOCUMENT_EXTRACTORS;
 }
 
 function truncate(text: string): string {

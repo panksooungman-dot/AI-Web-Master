@@ -60,6 +60,27 @@ describe("AI Analysis — computeCompleteness()", () => {
     expect(missingItems.find((item) => item.id === "company_logo")).toBeUndefined();
   });
 
+  it("does not count a non-image document as a service/product photo, even with a matching-ish name", () => {
+    const docsOnly = {
+      ...EMPTY_INPUT,
+      uploadedFiles: [
+        "https://example.com/uploads/requirements.pdf",
+        "https://example.com/uploads/company-logo-info.docx", // "logo"가 이름에 있어도 이미지가 아니면 로고로도 인정하지 않는다
+      ],
+    };
+    const { missingItems } = computeCompleteness(docsOnly);
+    expect(missingItems.find((item) => item.id === "service_images")).toBeDefined();
+    expect(missingItems.find((item) => item.id === "company_logo")).toBeDefined();
+  });
+
+  it("still counts a genuine non-logo image as a service/product photo", () => {
+    const { missingItems } = computeCompleteness({
+      ...EMPTY_INPUT,
+      uploadedFiles: ["https://example.com/uploads/storefront.jpg"],
+    });
+    expect(missingItems.find((item) => item.id === "service_images")).toBeUndefined();
+  });
+
   it("treats a short requirements string as missing service_description (below the 10-char threshold)", () => {
     const { missingItems } = computeCompleteness({ ...EMPTY_INPUT, requirements: "짧음" });
     expect(missingItems.find((item) => item.id === "service_description")).toBeDefined();

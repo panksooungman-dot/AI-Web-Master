@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-08-09 (7)
+
+### 수정 (Fixed)
+
+- **`lib/ai-analysis/score.ts`의 `company_logo`/`service_images` 완료도 항목이 파일 종류를 전혀 구분하지 않던 버그 수정** — `service_images`는 `!LOGO_PATTERN.test(file)`(로고 이름이 아닌 모든 첨부파일)을 사진으로 인정하고 있어서, PDF 요구사항 문서나 TXT 메모만 첨부해도 "서비스/제품 사진" 항목이 채워진 것처럼 표시됐다(오늘 문서 파싱 기능(2026-08-09 (5))으로 비이미지 첨부가 실제로 흔해지면서 더 눈에 띄게 됨). `company_logo`도 대칭적으로 같은 결함이 있었다 — 예를 들어 "company-logo-info.pdf"처럼 이름에 우연히 "logo"가 들어간 문서도 로고로 인정됐다.
+  - `lib/attachments/classify.ts`(신규) — URL 확장자로 이미지/문서 여부를 판단하는 로직을 하나로 통합. `lib/ai-analysis/analysis.ts`(vision 이미지 선별)·`lib/attachments/extractText.ts`(문서 텍스트 추출 대상 선별)·`lib/ai-analysis/score.ts`(로고/사진 완료도 판별)까지 3곳이 동일한 판단을 각자 구현하고 있었던 것을 하나로 정리(CNBIZ_RULES.md의 "중복 코드 3회 이상 시 추출" 기준)
+  - `lib/ai-analysis/score.ts` — `company_logo`/`service_images` 체크에 `isImageUrl()` 조건을 추가해, 실제 이미지가 아닌 파일은 어느 쪽으로도 인정되지 않도록 수정
+  - 테스트(신규 2개, `tests/ai-analysis/score.test.ts`): 비이미지 문서만 첨부됐을 때 `company_logo`·`service_images` 둘 다 여전히 누락으로 표시되는지, 실제 비-로고 이미지는 여전히 `service_images`를 정상적으로 채우는지
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`·`npx eslint`(0 errors), `apps/cnbiz-web`의 `npx vitest run --exclude "**/ai/bridge.test.ts"`(90 files/760 tests 전부 통과, 신규 2개 포함, 회귀 없음)
+- 실 E2E: 검증 전용 임시 계정으로 로고가 아닌 실제 PDF 문서 1건만 첨부해 의뢰 등록 → `analysis.missingItems`에 `service_images`가 포함됨을 확인(수정 전이라면 PDF도 "사진"으로 인정되어 누락 목록에서 빠졌어야 함)
+  - 검증에 사용한 임시 계정·의뢰·클라이언트·웹사이트오더·AI Job·첨부파일 1건은 검증 후 정확히 대상만 골라 삭제 완료
+
+---
+
 ## 2026-08-09 (6)
 
 ### 수정 (Fixed)

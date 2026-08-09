@@ -1,5 +1,6 @@
 import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
 import { extractJsonPayload } from "@/lib/ai/json";
+import { isImageUrl } from "@/lib/attachments/classify";
 import { extractDocumentTexts } from "@/lib/attachments/extractText";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 import { computeCompleteness } from "./score";
@@ -95,14 +96,12 @@ export interface GenerateAnalysisResult {
   model?: string;
 }
 
-const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
-
 /** uploadedFiles 중 실제로 vision에 넘길 수 있는 것만 고른다 — PDF/DOC/TXT는 이미지 콘텐츠
  * 블록으로 보낼 수 없으므로 별도로 extractDocumentTexts()가 텍스트로 추출해 프롬프트 본문에
  * 직접 삽입한다(아래 buildPromptWithAttachments 참고). */
 function extractImageUrls(uploadedFiles: string[] | undefined): string[] {
   if (!uploadedFiles) return [];
-  return uploadedFiles.filter((url) => IMAGE_EXTENSIONS.some((ext) => url.toLowerCase().split("?")[0].endsWith(ext)));
+  return uploadedFiles.filter(isImageUrl);
 }
 
 /**

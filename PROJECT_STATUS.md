@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `8129809` 기준)
+> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `b1fe302` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -89,6 +89,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **`company_logo`/`service_images` 완료도 판정이 파일 종류를 전혀 구분하지 않던 버그 수정**(2026-08-09) — `service_images`가 `!LOGO_PATTERN.test(file)`(로고 이름이 아닌 모든 첨부파일)을 사진으로 인정해 PDF·TXT만 첨부해도 채워진 것처럼 표시되고, `company_logo`도 이름에 우연히 "logo"가 들어간 문서를 로고로 오인하던 결함을 수정. `lib/attachments/classify.ts`(신규)로 URL 확장자 기반 이미지/문서 판별 로직을 통합해 `lib/ai-analysis/analysis.ts`·`lib/attachments/extractText.ts`·`lib/ai-analysis/score.ts` 3곳의 중복 구현을 제거하고, `score.ts`의 두 체크리스트 항목에 `isImageUrl()` 조건을 추가. 신규 테스트 2개 포함 `90 files/760 tests` 전부 통과, 실 E2E로 PDF만 첨부 시 `service_images`가 여전히 누락 항목에 포함됨을 확인.
 - **`LOGO_PATTERN`("회사 로고" 완료 여부 판단) 버그 수정 — 원본 파일명을 URL에 슬러그로 보존**(2026-08-09) — 2026-08-09 (5)에서 후속 과제로 남겨뒀던 항목. 두 스토리지 구현(`fsStore.ts`·`supabaseStore.ts`) 모두 원본 파일명을 버리고 무작위 id(+확장자)만으로 URL을 만들어, 로고를 아무리 명확한 이름으로 첨부해도 `LOGO_PATTERN`(`/logo/i`)이 URL 문자열에서 "logo"를 절대 찾지 못해 "회사 로고" 항목이 항상 누락으로 표시되던 결함을 수정했다. `lib/storage/extension.ts`에 `safeSlug()`(신규)를 추가해 원본 파일명(확장자 제외)을 소문자·영숫자·하이픈만 남긴 슬러그(최대 40자)로 정규화하고, 스토리지 키 자체는 그대로 둔 채 반환 URL에 `?name=` 쿼리로 덧붙였다(확장자 기반 분류·서빙 라우트 모두 쿼리 스트링과 무관해 다른 코드 변경 불필요). 신규 테스트 12개(`tests/storage/extension.test.ts`·`tests/storage/fsStore.test.ts`·`tests/ai-analysis/score.test.ts` 보강) 추가, `90 files/758 tests` 전부 통과. 실 E2E로 "company-logo.png" 업로드 → 반환 URL이 `...png?name=company-logo` 형태임을 확인 → 그 URL만으로 의뢰 등록 → `analysis.missingItems`에 더 이상 `company_logo`가 포함되지 않음을 확인.
 - **의뢰 첨부파일 — PDF/DOC/DOCX/TXT 문서 텍스트 추출 및 AI Analysis 반영**(2026-08-09) — `pdf-parse`·`mammoth`·`word-extractor` 신규 설치, `lib/attachments/extractText.ts`(신규)가 URL 확장자로 문서를 골라(최대 5개, 문서당 최대 8000자) 병렬 fetch+파싱하고 개별 문서 실패는 예외 없이 error로만 보고한다(이미지 vision의 `resolveImages()`와 동일 원칙). `lib/ai-analysis/analysis.ts`의 `buildPromptWithAttachments()`가 추출된 원문을 프롬프트에 `=== 첨부 문서 원문 ===` 섹션으로 삽입, `prompts.ts` 시스템 프롬프트에도 이를 실제로 읽고 판단에 반영하라는 지시를 추가했다. 실 E2E(PDF·DOCX·TXT·PNG 4종 업로드→의뢰 등록)로 AI 분석 결과에 첨부 문서 원문(브랜드 컬러 헥스값 등)이 실제로 인용됨을 확인, `88 files/748 tests` 전부 통과(신규 12개 포함).
 - **로컬 fs 스토리지 첨부파일이 vision/문서 파싱 어느 쪽에도 분류되지 못하던 버그 수정**(2026-08-09) — `fsStore.ts`가 반환하는 URL(`/api/attachment-files/{id}`)에 확장자가 전혀 없어(Supabase는 `safeKey()`가 우연히 보존해 정상 동작), `SUPABASE_URL` 미설정 로컬 개발 환경에서는 업로드 이미지가 vision 분석에 조용히 전혀 반영되지 않고 있었다(2026-08-09 (4)의 E2E "검증 성공"도 실제로는 미반영이었음이 재확인됨). `lib/storage/extension.ts`(신규, `safeExtension()`)를 fsStore/supabaseStore가 공유하도록 통합해 로컬 fs URL도 확장자를 보존하게 수정. `lib/ai-analysis/score.ts`의 로고 판정(`LOGO_PATTERN`)도 동일 근본 원인으로 애초에 정상 동작한 적이 없었던 것으로 추정되나 완전한 수정은 원본 파일명 보존이 필요해 이번 범위에서 제외.

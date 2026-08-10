@@ -57,7 +57,11 @@ export type AuditAction =
   | "design.database.generate"
   | "design.api.generate"
   | "design.backend.generate"
-  | "design.testplan.generate";
+  | "design.testplan.generate"
+  | "design.backend-code.generate"
+  | "design.api-code.generate"
+  | "design.database-code.generate"
+  | "design.test-code.generate";
 
 export interface AuditEntry {
   id: string;

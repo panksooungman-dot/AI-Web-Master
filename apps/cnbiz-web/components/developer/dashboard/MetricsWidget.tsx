@@ -43,6 +43,10 @@ export function MetricsWidget() {
           apiDesignGenerationCount: 0,
           backendDesignGenerationCount: 0,
           testPlanGenerationCount: 0,
+          backendCodeGenerationCount: 0,
+          apiCodeGenerationCount: 0,
+          databaseCodeGenerationCount: 0,
+          testCodeGenerationCount: 0,
         })
       );
   }, []);

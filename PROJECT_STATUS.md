@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-09 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `1fc0311` 기준)
+> 최종 분석: 2026-08-10 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `ab7162a` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -39,18 +39,18 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 전체 진행률
 
-**약 96%**
+**약 97%**
 
 | 영역 | 진행률 | 근거 |
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
 | Development OS 대시보드 | 97% | `/developer/**` 48개 페이지 실동작(기술 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 관리 포함). AI 의뢰 관리 "새 문의 등록"이 실제 `POST /api/inquiries` 호출로 연결됨 |
-| AI 홈페이지 생성기(Website Builder v2) | 88% | CLI+대시보드 완결. **Design Automation(승인된 Review) → Website Build → Deployment 파이프라인 연결 완료**(`runDeploymentPipeline()` 재사용, `POST /api/design/website` 응답에 `deployment` 필드 노출) — 실 GitHub/Vercel 계정으로 연결 자체와, 검증 중 발견된 React Generator 빌드 실패 버그(`props.sourceType` 누출) 수정까지 확인 완료 |
+| AI 홈페이지 생성기(Website Builder v2) | 90% | CLI+대시보드 완결. **Design Automation 9단계 개발 프로세스 중 04 DB/05 API/06 Backend/08 Test 4개 Phase를 문서 산출물에서 실제 실행 가능한 코드(Route Handler·SQL DDL/RLS·서비스 함수·통합 테스트)로 완성**하고, **Chain A(Review 기반, Website Build) ↔ Chain B(Plan 기반, Database/API/Backend/Test Code) 연결**(`lib/design/website-fullstack-adapter.ts`)까지 구현 — Website Build 성공 시 같은 planId의 최신 산출물을 실제 프로젝트 파일로 병합해 GitHub 커밋에 포함. 실 subprocess E2E(vitest 서브프로세스로 생성 코드를 직접 실행)로 auth-guard try-블록 배치 버그·한글 리소스명 슬러그 충돌 버그를 재현·수정·재검증 완료 |
 | **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) |
 | 인증/권한 | 85% | 세션 인증 + RBAC **5-role**(신규 `customer` role 추가) + 정확한 (method,path) 단위 예외 완비. `proxy.ts`가 `/customer/**`도 세션 보호 대상에 포함. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated` |
 | **고객(의뢰자) 시스템 — Customer Portal V1** | **90%** | 고객 로그인(`customer.login` 감사 로그), 본인 주문 목록(`/customer/orders`)·대시보드(`/customer/dashboard`)·주문 상세(`/customer/orders/[id]`, 견적서·명세서·타임라인·계약서·제안서·배포 상태 열람). `lib/customerPortal/view.ts`가 로그인 이메일 기준으로만 필터링해 타인 데이터 접근을 원천 차단(존재하지 않음/타인 소유 모두 동일하게 404). 회원가입·비밀번호 변경·알림 설정 등은 아직 없음 |
-| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + 실 계정 E2E PASS 확정(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). Design Automation 경로에서도 동일 파이프라인 재사용 확인(2026-08-09) |
-| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과 |
+| 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + 실 계정 E2E PASS 확정(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). Design Automation 경로에서도 동일 파이프라인 재사용 확인(2026-08-09), Chain A/B 연결로 실제 생성 코드까지 함께 커밋됨(2026-08-10) |
+| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과. 이번 회차는 실 subprocess로 생성 코드를 직접 실행하는 검증까지 추가 |
 
 ---
 
@@ -65,14 +65,15 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 - 인증(이메일/비밀번호 세션) + RBAC 4-role — `lib/auth/{types,password,users,session,auth,middleware,rbac}.ts`, `proxy.ts`
 - Website Builder v2(CLI `ai website create` + 대시보드) — `packages/cli/src/website/*`, `lib/websites/registry.ts`, `/developer/websites`
 - Database — `lib/db/{collectionStore,fsStore,memoryStore,supabaseStore,index}.ts`(단일 Supabase 테이블 `app_collections`)
-- **Design Automation — Database Design 생성기**(`lib/design/database-design{,-generator}.ts`, `POST/GET /api/design/database`, `GET /api/design/database/[id]`, 신규) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 산출물 서비스. 기존 Phase 2~9와 동일한 패턴(`chatViaCli()` + 결정론적 폴백, fs-JSON versioned registry)을 재사용하며, AI가 생성한 구조화된 설계 문서일 뿐 실제 SQL 마이그레이션을 실행하거나 진짜 데이터베이스에 반영하지는 않는다. `design.database.generate` 감사 로그 액션·`databaseDesignGenerationCount` 메트릭 카운터 추가(Audit Log·Errors·Metrics 화면 반영)
+- **Design Automation — Database Design 생성기**(`lib/design/database-design{,-generator}.ts`, `POST/GET /api/design/database`, `GET /api/design/database/[id]`) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 산출물 서비스
+- **Design Automation — 04 DB/05 API/06 Backend/08 Test 4개 Phase, 실제 실행 가능한 코드까지 완성**(`lib/design/{database-code,api-code,backend-code,test-code}{,-generator}.ts`, 신규) — Database Design의 Table/Relationship/Index로부터 SQL DDL을 결정론적으로 생성하고 RLS Policy만 AI로 번역(`database-code`), API Design+Backend Design을 조합해 Next.js Route Handler·인증 가드(`lib/auth-guard.ts`)·파일 업로드(`lib/file-storage.ts`)·OpenAPI 문서(`openapi.json`)·프론트엔드 API 클라이언트(`lib/api-client.ts`)·구조화 로거(`lib/logger.ts`)까지 생성(`api-code`, AI 미사용 — 순수 기계적 변환), Backend Design의 자연어 규칙을 실제 TypeScript 서비스 함수로 번역(`backend-code`), Test Plan을 실제 Route Handler를 호출하는 Vitest unit/integration 테스트로 번역(`test-code`). `POST/GET /api/design/{api,api-code,backend,backend-code,database-code,test-code,testplan}` 라우트, `design.{api,api-code,backend,backend-code,database-code,test-code,testplan}.generate` 감사 로그 액션·대응 메트릭 카운터 전부 신규 추가
+- **Design Automation — Chain A(Review 기반) ↔ Chain B(Plan 기반) 연결**(`lib/design/website-fullstack-adapter.ts`, 신규) — Website Build(`POST /api/design/website`) 성공 직후 같은 planId로 생성된 Chain B의 최신 Database/Backend/API/Test Code를 찾아 같은 프로젝트 디렉터리에 실제 파일로 병합(`applyFullStackCode()`)해 GitHub 커밋에 포함시킨다. `mergePackageRequirements()`가 생성 코드가 실제로 요구하는 npm 패키지(`@supabase/supabase-js`, `vitest` 등)를 산출물 `package.json`에 병합, 응답에 `fullStackCode` 필드 노출
 
 ---
 
 ## 🚧 진행 중인 기능 (일부 구현) / 알려진 사소한 결함
 
-- Design Automation Phase 9(Website Build 연동) — 코드 존재, CHANGELOG 검증 기록 없음
-- **Design Automation — API Design 생성기**(`lib/design/api-design{,-generator}.ts`, 신규) — Database Design(테이블/관계) 위에서 REST API 엔드포인트·인증 전략·파일 업로드 엔드포인트·API 테스트 노트를 설계하는 Generator/타입만 추가된 상태. Database Design과 달리 대응하는 `POST/GET /api/design/api-design` 라우트·대시보드 페이지가 아직 없어 호출 경로가 연결되지 않음
+- Design Automation Phase 9(Website Build 연동) — 코드 존재, CHANGELOG 검증 기록 없음(Chain A↔B 파일 병합은 이번 diff로 연결 완료, 실 GitHub/Vercel 계정으로의 전체 파이프라인 검증은 별도)
 - 인증 — signup 백엔드·앱 내 역할관리 UI 없음(CLI 스크립트로만 가능)
 - Client/WebsiteOrder 전용 관리자 목록 화면 — 개별 GET API(`/api/clients/[id]`, `/api/website-orders/[id]`)는 있고 `/developer/inquiries/[id]`·`/projects/[id]`에서 연결된 레코드를 확인할 수 있지만, `/developer/clients`·`/developer/website-orders` 같은 자체 목록 화면은 아직 없음
 - **`WebsiteOrderRecord.aiJobIds`가 항상 빈 배열로 남는 표시 결함**(2026-08-03 E2E 검증 중 발견, `FINAL_E2E_REPORT_v5.md` 참고) — `app/api/inquiries/route.ts`가 `createAiJob()`만 호출하고 `addAiJobToWebsiteOrder()`를 호출하지 않음. AiJob 자체는 정상 생성·실행되고, GitHub/Vercel/Workspace 파이프라인은 `websiteIds`/`projectId`만 사용해 동작에 영향은 없음(순수 표시용 필드 누락). 낮은 우선순위, 별도 지시 하에 수정 권장
@@ -91,6 +92,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **Design Automation Chain A↔B 연결 + 04 DB/05 API/06 Backend/08 Test 4개 Phase를 실행 가능한 코드로 완성**(2026-08-10) — `lib/design/website-fullstack-adapter.ts`(신규)가 Website Build(`POST /api/design/website`) 성공 직후 같은 planId의 Database/Backend/API/Test Code를 실제 파일로 프로젝트 디렉터리에 병합해 GitHub 커밋에 포함시킨다. `lib/design/api-code-generator.ts`가 인증 가드·파일 업로드·OpenAPI 문서·프론트엔드 API 클라이언트·구조화 로거·패키지 요구사항 병합까지 실제 코드로 완성했고, Test Code Generator는 실제 Route Handler를 `vi.mock`으로 스토어만 대체해 호출하는 진짜 통합 테스트를 생성하도록 확장했다. `app/api/design/{api,api-code,backend,backend-code,database-code,test-code,testplan}[/route.ts, [id]/route.ts]`·`lib/design/*-{code,design}-generator.ts`·`tests/design/*.test.ts` 대량 신규.
+- **실 subprocess E2E로 발견·수정한 버그 2건**(2026-08-10) — 한글 리소스명을 인식하지 못해 서로 다른 테이블이 같은 API 파일로 충돌 병합되던 `toFileSlug()` 정규식 결함(api-code/backend-code/test-code generator 3곳 공통) 수정, `requireAuth(request)` 호출이 `try` 블록 밖에 있어 인증 실패가 401 대신 처리되지 않은 예외로 그대로 전파되던 버그(`api-code-generator.ts`) 수정 — 둘 다 생성 코드를 실제 파일로 써서 `vitest run`을 자식 프로세스로 실행해 재현·수정·재검증했다.
 - **Design Automation — Database Design 생성기 신규 구현**(2026-08-09) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 `lib/design/database-design{,-generator}.ts`(신규)와 `POST/GET /api/design/database`·`GET /api/design/database/[id]`(신규) 추가. 기존 Design Automation Phase 2~9와 동일한 패턴(`chatViaCli()` + 결정론적 폴백, fs-JSON versioned registry)을 재사용하며 실제 SQL 마이그레이션은 실행하지 않는다. `design.database.generate` 감사 로그 액션과 `databaseDesignGenerationCount` 메트릭 카운터 추가(Audit Log·Errors·Metrics 화면 반영), 신규 테스트 2개 파일(`tests/design/database-design-{generator,registry}.test.ts`) 포함.
 - **Design Automation — API Design 생성기 코드 추가(라우트 미연결)**(2026-08-09) — `lib/design/api-design{,-generator}.ts`(신규)에 Database Design(테이블/관계) 위에서 REST API 엔드포인트·인증 전략·파일 업로드 엔드포인트·API 테스트 노트를 설계하는 Generator/타입을 추가했으나, 대응하는 API 라우트·대시보드 페이지는 이번 diff에 포함되지 않아 아직 호출 경로가 연결되지 않은 상태다. `lib/audit/log.ts`의 `AuditAction`에 `design.api.generate`·`design.backend.generate`·`design.testplan.generate`도 함께 선언·라벨/톤 매핑을 추가했으나 이 역시 향후 라우트를 위한 선반영이다.
 - **Design → Website Build → Deployment 연결 + React Generator 빌드 실패 버그 수정**(2026-08-09) — Design Automation이 승인된 Review로 생성한 사이트가 로컬 `outDir` 생성에서 멈추던 것을, 기존 `lib/deployment/pipeline.ts`의 `runDeploymentPipeline()`을 새 로직 없이 그대로 호출해(입력 형태는 `lib/aiJobs/worker.ts`의 `triggerDeployment()` 내부 호출과 동일) GitHub repo 생성→commit→push→Vercel 프로젝트 생성→배포까지 이어지도록 `POST /api/design/website`(`apps/cnbiz-web/app/api/design/website/route.ts`)를 연결했다. 응답에 `deployment` 필드를 추가해 `GITHUB_TOKEN`/`VERCEL_TOKEN` 미설정 시 "NotConfigured"가 그대로 노출되도록 했다. 이 연결을 실 GitHub/Vercel 계정으로 검증하는 과정에서, React Generator가 DesignDocument의 내부 추적용 메타데이터(`props.sourceType`, Wireframe→DesignDocument 컴포넌트 타입 매핑 시 원본 타입 보존 목적)를 실제 JSX 속성(`<div sourceType={"Navigation"} />`)으로 그대로 출력해 생성된 사이트가 Vercel에서 TypeScript 컴파일 오류로 항상 빌드 실패하던 버그를 발견·수정했다(`packages/cli/src/generators/react/tsx.ts`의 `PASSTHROUGH_HANDLED_KEYS`에 `"sourceType"` 1개 추가). 실 E2E로 실제 GitHub 저장소·Vercel 프로젝트를 생성해 빌드 실패(`readyState:"ERROR"`)를 먼저 재현한 뒤, 수정 후 로컬 재생성으로 18개 라우트 전부 정상 컴파일·빌드됨을 확인했다(검증에 사용한 GitHub 저장소·Vercel 프로젝트는 삭제 완료).

@@ -61,6 +61,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.api.generate": "API Design",
   "design.backend.generate": "Backend Design",
   "design.testplan.generate": "Test Plan",
+  "design.backend-code.generate": "Backend Code",
+  "design.api-code.generate": "API Code",
+  "design.database-code.generate": "Database Code",
+  "design.test-code.generate": "Test Code",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -113,6 +117,10 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.api.generate": "purple",
   "design.backend.generate": "purple",
   "design.testplan.generate": "purple",
+  "design.backend-code.generate": "purple",
+  "design.api-code.generate": "purple",
+  "design.database-code.generate": "purple",
+  "design.test-code.generate": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -157,6 +165,10 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.api.generate",
   "design.backend.generate",
   "design.testplan.generate",
+  "design.backend-code.generate",
+  "design.api-code.generate",
+  "design.database-code.generate",
+  "design.test-code.generate",
 ];
 
 export default function AuditLogPage() {

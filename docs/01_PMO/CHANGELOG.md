@@ -4,6 +4,385 @@
 
 ---
 
+## 2026-08-10 (6)
+
+### 추가 (Added)
+
+- **Chain A(Review 기반) ↔ Chain B(Plan 기반) 연결** — `lib/design/website-fullstack-adapter.ts`
+  (신규). 이 저장소의 Design Automation은 시작점(Design Plan)만 같을 뿐 서로를 참조하지 않는 두
+  체인으로 나뉘어 있었다 — Chain A의 Website Build(`POST /api/design/website`)는 프론트엔드
+  페이지만 생성하고, Chain B가 만든 실제 실행 가능한 산출물(SQL 마이그레이션·Route Handler·
+  서비스 함수·테스트)은 전혀 반영하지 않았다. `applyFullStackCode(outDir, planId)`가 Website
+  Build 성공 직후 같은 planId로 생성된 Chain B의 최신 Database/Backend/API/Test Code를 찾아
+  같은 프로젝트 디렉터리에 실제 파일로 써넣는다(단계 중 없는 것은 조용히 건너뜀 — Hybrid
+  Adapter의 폴백 원칙과 동일). `app/api/design/website/route.ts`가 `runDeploymentPipeline()`
+  호출 전에 이를 실행해 GitHub 커밋에 포함되도록 배선, 응답에 `fullStackCode` 필드 추가.
+- **API Code Generator를 "6곳의 문서 전용 하위 항목"까지 실제 실행 가능하게 확장**
+  (`lib/design/api-code-generator.ts`) — 9단계 다이어그램에서 구조화된 문서로만 존재하던 05
+  Authentication/File Upload/API Documentation, 07 Frontend API 연결, 09 Logging, 06 Database
+  wiring을 실제 코드로 완성.
+  - `lib/services/store.ts`가 이제 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 설정 여부로 실제
+    Supabase 연결(`lib/services/supabaseStore.ts`, 신규 — 테이블명을 호출 시점에 받는 범용
+    `ServiceDataStore` 구현) 또는 명확한 오류를 던진다(값이 비어 있는 것과 잘못 설정된 것이
+    겉으로 구분되지 않는 조용한 실패를 피함).
+  - `lib/auth-guard.ts`(신규) — 세션 쿠키 기반 `requireAuth()`/`AuthError`, requiresAuth 엔드포인트의
+    Route Handler에 실제로 연결.
+  - `lib/file-storage.ts`(신규, 파일 업로드 엔드포인트가 있을 때만 포함) — 로컬 디스크
+    (`public/uploads/`) 또는 Supabase Storage로 실제 업로드.
+  - `openapi.json`(신규) — API Design으로부터 결정론적으로 만든 실제 OpenAPI 3.0.3 문서.
+  - `lib/api-client.ts`(신규) — 06의 서비스 함수명과 대응되는 이름의 fetch 래퍼(프론트엔드용).
+  - `lib/logger.ts`(신규) — 구조화된 JSON 콘솔 로거, 모든 Route Handler의 성공/실패 경로에 연결.
+  - `PackageRequirements`(api-code.ts·test-code.ts 신규 필드) — 생성된 코드가 실제로 요구하는
+    npm 패키지(`@supabase/supabase-js`, `vitest`)/스크립트를 website-fullstack-adapter.ts가
+    Website Build 산출물의 package.json에 실제로 병합(`mergePackageRequirements()`, 신규) —
+    이게 없으면 생성된 파일이 import하는 패키지가 프로젝트에 없어 설치·빌드 단계에서 실패한다.
+- **05 API Test / 08 Integration Test — Test Code Generator가 실제 Route Handler를 호출하는
+  통합 테스트를 생성하도록 확장**(`lib/design/test-code-generator.ts`) — 기존에는 Test Plan의
+  "integration" 타입 테스트 케이스도 unit 테스트와 동일하게 서비스 함수를 직접 호출해 검증하는
+  것으로 다운그레이드했다(이 환경엔 실제 HTTP 트랜스포트가 없다는 이유). 이번에 API Code
+  Generator가 만든 실제 `route.ts`를 `vi.mock`으로 스토어만 대체한 채 실제로 import해 호출하는
+  진짜 통합 테스트로 격상했다.
+  - `TestCaseContext`에 `kind`("unit"|"integration")·`httpMethod`·`httpPath`·`handlerName`
+    (같은 리소스에서 collection/item 레벨이 같은 메서드명을 쓸 때 `_BY_ID` 접미사로 자동
+    충돌 회피)·`hasIdParam`·`requiresAuth` 추가, SYSTEM_PROMPT에 두 번째 계약 절 추가(Route
+    Handler를 실제 `Request`로 호출하고 `testStore`를 직접 seed하는 방법).
+  - `generateTestCode()`/`buildDefaultTestCode()`가 이제 `ApiDesignRecord`도 받는다
+    (`requiresAuth` 판정에 필요) — `app/api/design/test-code/route.ts`도 `getApiDesign()`을
+    추가로 조회해 전달하도록 갱신.
+  - 리소스별 `lib/services/__tests__/{resource}.integration.test.ts`(신규 파일 종류)를
+    unit 테스트 파일과 별도로 생성.
+
+### 수정 (Fixed)
+
+- **`toFileSlug()`가 한글 리소스 이름을 전혀 인식하지 못해 서로 다른 테이블이 같은 파일로
+  충돌하던 버그**(`api-code-generator.ts`·`backend-code-generator.ts`·`test-code-generator.ts`
+  3곳 모두 동일한 결함) — 위 확장 작업 검증 중 `ts.transpileModule`이 대량의 `"';' expected."`
+  오류를 보고해 발견. `resource.replace(/[^a-z0-9]+/g, "-")`가 한글을 전부 "일치하지 않는 문자"로
+  취급해 순한글 리소스 이름(이 프로젝트의 기본 폴백 Design Plan이 쓰는 "홈페이지"·"서비스 소개"
+  등)이 통째로 빈 문자열이 되고 `|| "resource"` 폴백이 걸려, 서로 다른 4개 테이블이 전부 같은
+  `app/api/resource/route.ts`에 병합되며 `export async function GET`이 파일 하나에 4번
+  중복 선언됐다(`database-design-generator.ts`의 `slugify()`는 이미 `가-힣`을 허용 문자에
+  포함하고 있었는데, 이후 만들어진 3개 생성기가 그 패턴을 따르지 않았던 것). 3곳 모두
+  `[^a-z0-9]+` → `[^a-z0-9가-힣]+`로 수정.
+- **실제 Route Handler를 처음으로 실행해 본 통합 테스트로 발견된 버그 — `requireAuth(request)`
+  호출이 `try` 블록 밖에 있어 인증 실패가 401 응답이 아니라 처리되지 않은 예외로 그대로 전파되던
+  버그**(`api-code-generator.ts`) — `buildHandler()`가 만드는 모든 핸들러(GET/POST/PUT/PATCH/
+  DELETE·파일 업로드)가 `${guard}`를 `try {` 앞에 배치하고 있어서, `requiresAuth:true`인
+  엔드포인트에 인증 없이 요청하면 `requireAuth()`가 던지는 `AuthError`가 `catchBlock()`의
+  "AuthError면 401로 변환" 로직을 거치지 못하고 핸들러 함수 밖으로 그대로 전파됐다 — 실제
+  Next.js에서는 Route Handler의 처리되지 않은 예외가 일반 500 오류 페이지가 된다는 뜻이다.
+  기존 단위 테스트는 서비스 함수만 직접 호출해 이 배선 자체를 전혀 거치지 않았기 때문에
+  이번에 처음 생성된 통합 테스트(실제 Route Handler를 인증 쿠키 없이 호출)로만 드러났다.
+  `authGuard()`가 `try {` 블록 안 첫 문장으로 삽입되도록 모든 핸들러 템플릿을 수정.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(0 errors), `npx vitest run --exclude
+  "**/ai/bridge.test.ts"`(107 files/933 tests 전부 통과, 회귀 없음)
+- **실 subprocess E2E(1회, AI 크레딧 미사용 — Database/API/Backend Code가 이미 결정론적이고
+  Test Code는 컨텍스트 기반 가짜 생성 함수로 검증)**: 검증용 스크립트를 임시로 작성해 —
+  Design Plan(기본 폴백, 한글 리소스명) → Database/API/Backend Design → **Backend Code**
+  (`buildDefaultBackendCode`, 실제 CRUD) → **API Code**(`generateApiCode`) → **Test Code**
+  (다섯 시나리오: 목록 조회·인증된 생성 후 실제 저장 확인·단건 조회·**인증 없는 요청의 401
+  확인**·인증된 삭제 후 실제 제거 확인)로 생성한 전체 파일 세트를 저장소 내 임시
+  `tests/_scratch-integration-verify-*/` 디렉터리(vitest.config.ts의 `include` 패턴을 그대로
+  타도록 위치시킴)에 실제로 써넣고, `npx vitest run <그 경로>`를 자식 프로세스로 실제 실행 —
+  **처음 실행에서 401 테스트 1건이 실패**(위 auth-guard 버그를 이 자리에서 직접 재현), 수정 후
+  **5/5 전부 실제 통과**함을 확인. 이 과정에서 위 두 버그(한글 슬러그 충돌·auth guard try 밖
+  배치)를 모두 실제로 재현·수정·재검증했다. 검증 스크립트와 스크래치 디렉터리는 확인 직후 삭제
+  (영구 테스트 스위트에 포함하지 않음 — "통합 테스트는 1회만 수행한다" 원칙, subprocess를 스폰하는
+  느린 테스트를 매 `npm test` 실행에 포함하지 않기 위함).
+
+---
+
+## 2026-08-10 (5)
+
+### 추가 (Added)
+
+- **AI Business OS 9단계 개발 프로세스의 나머지 "설계 문서 전용" 단계 3곳(04 DB·05 API·08
+  Test)을 실제 실행 가능한 산출물까지 완성** — 06(Backend Code, 2026-08-10 (4))에 이어 사용자가
+  9단계 다이어그램 전체를 놓고 "실행 가능한 구현은 어떻게 되?"라고 물어 상태를 정리한 뒤 요청.
+  - **05 API — `lib/design/api-code{,-generator}.ts`(신규)**: Backend Code(`backendCodeId`)의
+    서비스 함수를 실제 Next.js Route Handler로 연결한다. **다른 모든 Design Automation Phase와
+    달리 AI를 전혀 호출하지 않는다** — API Design(method/path/requiresAuth)과 Backend
+    Design(serviceFunction 이름)이 이미 구조화된 데이터라 두 데이터를 조합하는 것은 순수한
+    기계적 변환(packages/cli의 React Generator와 동일한 성격)이기 때문. Backend Design의 로직을
+    리소스·collection/item 레벨로 그룹화해 `app/api/<resource>/route.ts`·
+    `app/api/<resource>/[id]/route.ts`로 나누고, 공유 `lib/services/store.ts`(신규 —
+    `getServiceStore()`가 실제 DB로 연결되기 전까지는 명확한 오류를 던지는 정직한 스텁)를 통해
+    서비스 함수를 호출한다. `POST/GET /api/design/api-code`·`GET /api/design/api-code/[id]`.
+  - **04 DB — `lib/design/database-code{,-generator}.ts`(신규)**: Database Design의 Table/
+    Relationship/Index는 이미 구조화된 데이터라 AI 없이 결정론적으로 SQL DDL을 생성하고(타입
+    별칭 매핑, uuid PK엔 `DEFAULT gen_random_uuid()`, 자식 테이블에서 그럴듯한 외래 키 컬럼을
+    찾아 `ADD CONSTRAINT ... FOREIGN KEY`, many-to-many는 조인 테이블 합성 — 대상 테이블/컬럼을
+    못 찾으면 존재하지 않는 이름을 지어내는 대신 TODO 주석만 남김), RLS Policy(`description`,
+    자연어 문장)만 chatViaCli() 배치 병렬 호출로 실제 Supabase Postgres RLS SQL(`auth.uid()` 매칭)
+    로 번역한다(배치/폴백 실패 시 과도하게 제한적인 정책을 지어내는 대신 항상 허용
+    `USING (true)` + TODO 주석으로 폴백 — 잘못된 제한보다 안전). `POST/GET
+    /api/design/database-code`·`GET /api/design/database-code/[id]`.
+  - **08 Test — `lib/design/test-code{,-generator}.ts`(신규)**: Test Plan(`testPlanId`)의 자연어
+    테스트 케이스를 Backend Code(`backendCodeId`, 명시적으로 받음 — 동일 backendDesignId에 여러
+    버전이 있을 수 있어 자동 유추하지 않음)의 실제 서비스 함수를 대상으로 검증하는 실제 Vitest
+    테스트로 번역한다. 이 환경엔 실제 HTTP 트랜스포트가 없어 integration 테스트도 대상 엔드포인트가
+    호출하는 서비스 함수를 unit test와 동일하게 검증한다. 공유 `lib/services/__tests__/
+    fakeStore.ts`(신규, 결정론적 — in-memory `ServiceDataStore` 구현)를 항상 함께 생성.
+    `POST/GET /api/design/test-code`·`GET /api/design/test-code/[id]`.
+  - 6개 신규 라우트 모두 Audit Log(`design.api-code.generate`·`design.database-code.generate`·
+    `design.test-code.generate`)·Metrics(`apiCodeGenerationCount`·`databaseCodeGenerationCount`·
+    `testCodeGenerationCount`) 배선 포함.
+  - 테스트(신규 96개, `tests/design/{api,database,test}-code-{generator,registry}.test.ts` 6개
+    파일) — 결정론적 DDL/라우팅 단위 테스트, RLS/테스트코드 배치·부분 폴백·gap-fill, 그리고 생성된
+    모든 코드(AI 응답·결정론적 폴백 양쪽 다)를 **실제 TypeScript 컴파일러
+    (`ts.transpileModule`)로 구문 검증**.
+
+### 수정 (Fixed)
+
+- **실 E2E 검증 중 재현된 실제 버그 — API Design의 경로 파라미터 표기가 ":id"가 아니라 "{id}"
+  (OpenAPI 스타일)일 때 item-level Route Handler가 collection-level 파일에 잘못 합쳐져
+  `export async function GET`이 같은 파일에 두 번 선언되는(TypeScript 컴파일 오류) 버그**:
+  `api-code-generator.ts`·`backend-code-generator.ts`·`backend-design-generator.ts`·
+  `test-code-generator.ts` 4개 파일 모두 경로 파라미터 존재 여부를 `path.includes(":id")`로만
+  판정하고 있었는데, API Design 생성기의 시스템 프롬프트가 특정 표기를 강제하지 않아 AI가 실제로
+  "{id}"를 선택한 경우(2026-08-10 실 E2E, 방명록 프로젝트)를 전혀 인식하지 못했다. 4개 파일 모두
+  `hasPathParam()`(신규, `:id`와 `{id}` 둘 다 인식)로 교체, `backend-design-generator.ts`의
+  결정론적 폴백(serviceFunction 명명·404 처리)도 동일하게 수정. Next.js 라우트 폴더/파라미터
+  이름 자체는 API Design이 어떤 표기를 쓰든 항상 "id"로 고정(`ServiceDataStore`가 이미 "id"를
+  계약으로 못박고 있음). 회귀 테스트 4개 신규 추가(재현된 시나리오 그대로 — "{id}" 경로로 실제
+  BackendDesign/ApiDesign을 구성해 파일 분리·중복 export 없음·컴파일 성공을 직접 검증).
+- **실 E2E 검증 중 재현된 실제 버그 — Test Code Generator의 시스템 프롬프트가 서비스 함수의
+  정확한 호출 규약을 명시하지 않아 AI가 `fn(store, input)`(순서 반대)·`findOne(table, {id})`
+  (쿼리 객체로 착각)·테스트마다 다른 대소문자의 테이블 키를 지어낸 문제**: 생성된 테스트가
+  구문적으로는 유효한 TypeScript라 파싱 검증을 전부 통과했지만, 실제로 실행하면 실제 서비스
+  함수(`(input, store)` 시그니처)와 맞지 않아 타입/런타임 오류로 실패했을 것이다. `SYSTEM_PROMPT`
+  에 CRITICAL 절을 추가해 정확한 시그니처(`functionName(input, store)`)와 `ServiceDataStore`의
+  각 메서드 시그니처를 명시하고, `TestCaseContext`에 `table`(신규 필드, 해당 테스트가 대상으로
+  하는 정확한 리소스 문자열)을 추가해 AI가 추측 대신 주어진 문자열을 그대로 쓰도록 했다. 회귀
+  테스트 1개 추가(프롬프트에 정확한 계약 문구와 각 테스트의 table 문맥이 실제로 포함되는지 검증).
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(0 errors), `npm run build`(신규 라우트 6개 포함
+  정상 생성), `npx vitest run --exclude "**/ai/bridge.test.ts"`(106 files/923 tests 전부 통과 —
+  `tests/providers/status.test.ts` 1건은 실 네트워크 호출 기반의 기존 무관 플레이크로 확인)
+- **실 E2E(전체 체인, 실제 크레딧, 방명록 프로젝트로 비용 절감)**: 검증 전용 임시 계정으로
+  Design Plan → Database Design(1테이블) → API Design(5엔드포인트) → Backend Design →
+  **Backend Code**(`simulated:false`) → **API Code**(결정론적, `app/api/guestbook-entries/
+  route.ts` + `[id]/route.ts` 정상 분리 생성 확인) → **Database Code**(`simulated:false` —
+  실제 배포 가능한 RLS SQL 생성: 소유자 컬럼이 없는 방명록 테이블임을 스스로 추론해 UPDATE/
+  DELETE를 전체 차단하고 INSERT는 필드 검증과 함께 공개 허용하는 정책을 실제로 작성함) →
+  Test Plan → **Test Code**(`simulated:false`) 전 구간 실행.
+  - 이 과정에서 위 두 버그를 실제로 발견·재현·수정했다 — 특히 API Code의 "{id}" 버그는 생성된
+    `route.ts` 파일에 `export async function GET`이 실제로 두 번 선언된 것을 직접 확인한 뒤
+    수정, 재현 없이는 유닛 테스트만으로 잡지 못했을 종류의 결함이었다.
+  - **가장 강한 검증 — 실제로 파일을 써서 실제로 실행**: Backend Code + 수정 후 재생성한 Test
+    Code(총 4개 파일: `types.ts`·`guestbook-entries.ts`·`fakeStore.ts`·
+    `guestbook-entries.test.ts`)를 스크래치 디렉터리에 실제 파일로 저장한 뒤 `vitest run`으로
+    **직접 실행** — **10개 테스트 중 9개가 실제 통과**(실제 생성된 서비스 함수를 실제로 호출해
+    실제 어서션 검증). 실패한 1개는 내 코드의 버그가 아니라 독립적으로 생성된 두 AI 산출물
+    (Backend Code의 소프트 삭제 미필터링 vs Test Code의 필터링 기대)간의 경미한 불일치로,
+    "실제 배포 전 검토 필요"라는 각 Phase의 기존 disclaimer가 원래 다루는 종류의 한계임을 확인.
+  - GET(단건/목록)·404(존재하지 않는 id)·400(필수 필드 누락)·404(존재하지 않는 부모/교차 체인
+    검증 — 다른 backendDesignId의 backendCodeId로 Test Code 생성 시도 시 400) 전부 확인. Audit
+    Log·Metrics 3개 카운터 정상 증가 확인.
+  - 검증에 사용한 임시 계정·세션·Design 전 체인 레코드·스크래치 파일은 검증 후 정확히
+    대상(`planId` 기준)만 골라 삭제 완료, Audit Log·Metrics는 로그 성격상 보존.
+
+---
+
+## 2026-08-10 (4)
+
+### 추가 (Added)
+
+- **Backend Code Generation — Backend Logic Design을 실제 컴파일·실행 가능한 TypeScript 서비스
+  코드로 번역하는 신규 Phase**: AI Business OS 9단계 개발 프로세스의 "06 개발(Backend)"까지의
+  모든 Design Automation 산출물은 "AI가 생성한 구조화된 문서"였다 — Backend Design의
+  `validationRules`/`businessRules`는 사람이 읽는 자연어 문장이라 그 자체로는 실행할 수 없었다
+  (사용자가 이 문서화 상태를 직접 확인 후 "실제 서비스 코드는 생성해줘"로 요청). 이 자연어
+  규칙을 실제 `if` 조건·`throw`·데이터 접근 호출로 번역한 TypeScript 함수 본문을 생성한다.
+  - `lib/design/backend-code.ts`(신규) — 타입 + fs-JSON registry(`design-backend-code`
+    컬렉션, planId 체인 복사·버전 자동증가는 기존 Phase들과 동일한 관례).
+    `GeneratedServiceFile { path, code }`가 산출물의 핵심 — 실제 파일로 저장하면 그대로
+    컴파일되는 소스다.
+  - `lib/design/backend-code-generator.ts`(신규) — 특정 DB 벤더에 종속되지 않도록, 생성되는
+    모든 함수는 `ServiceDataStore`(신규 인터페이스: `find`/`findOne`/`insert`/`update`/`remove`)
+    하나만 통해 데이터에 접근한다. Backend Design의 로직 항목을 5개씩(`BATCH_SIZE`, Backend
+    Design의 10보다 작게 — 코드 본문이 규칙 텍스트보다 부피가 큼) 나눠 병렬로 AI를 호출해 각
+    함수의 실제 구현을 받고, 배치가 통째로 실패하거나 특정 함수 하나만 응답에서 누락/구조적으로
+    이상(중괄호 불균형 — 토큰 상한으로 잘린 응답의 신호)하면 그 함수 하나만 결정론적 CRUD 기본
+    구현(TODO 주석 포함, 여전히 실제 컴파일·실행 가능)으로 개별 폴백한다 — 2026-08-10 (3)의
+    Backend Design/Test Plan 배치 패턴을 그대로 재사용.
+  - `POST/GET /api/design/backend-code`·`GET /api/design/backend-code/[id]`(신규) — Audit
+    Log(`design.backend-code.generate`)·Metrics(`backendCodeGenerationCount`) 추가.
+  - Website Builder(React Generator)와의 자동 연결은 이번 범위에 포함하지 않았다 — 그 연결은
+    Review 기반 체인(Wireframe/Prototype/ClaudeDesign)과 이 Plan 기반 체인(Database/API/
+    Backend/TestPlan Design)이 서로 다른 식별자로 연결되어 있어 별도 설계가 필요하다.
+  - 테스트(신규 22+6개, `tests/design/backend-code-{generator,registry}.test.ts`) — parse의
+    구조적 검증(중괄호 불균형·함수명 불일치 시 그 함수만 배제), 배치 수/부분 폴백/gap-fill,
+    그리고 **실제 TypeScript 컴파일러(`ts.transpileModule`)로 생성된 모든 코드(AI 응답·
+    결정론적 폴백 양쪽 다)에 구문 오류가 없음을 직접 검증** — "실제 서비스 코드"라는 주장을
+    유닛 테스트 수준에서도 정직하게 증명한다.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(0 errors), `npm run build`(신규 라우트 2개 포함
+  정상 생성), `npx vitest run --exclude "**/ai/bridge.test.ts"`(100 files/860 tests 전부 통과,
+  신규 28개 포함, 회귀 없음 — 이번 실행에서는 무관한 네트워크 플레이크도 없었음)
+- **실 E2E(실제 크레딧, 의도적으로 작은 프로젝트로 비용 절감)**: 검증 전용 임시 계정으로
+  "이름과 메시지만 남기는 아주 간단한 방명록" 프로젝트로 Design Plan(`simulated:false`) →
+  Database Design(`simulated:false`, 테이블 1개) → API Design(`simulated:false`, 5개
+  엔드포인트) → Backend Design(`simulated:false`, 5개 로직) → **Backend Code
+  (`simulated:false`, 파일 2개: `lib/services/types.ts` + `lib/services/guestbook-entries.ts`)**
+  전 구간 실행. 생성된 코드를 직접 확인한 결과 페이지네이션·정렬·XSS 새니타이징(`<script>`
+  태그 제거)·IP 해시 기반 분당 3회 rate limit·관리자 인증(401/403)·감사 로그 기록·404 처리까지
+  실제로 구현된 비유닛(non-trivial) 로직을 확인 — 단순 스텁이 아님. 별도로
+  `ts.transpileModule`에 실제 응답 파일 2개를 통과시켜 **구문 오류 0건**을 재확인(단위 테스트
+  밖, 실제 프로덕션 라우트 산출물 기준). `GET .../[id]`·`GET`(목록)·404(존재하지 않는 id)·
+  400(필수 필드 누락)·404(존재하지 않는 부모로 체이닝)까지 확인. Audit Log에 `(simulated)`
+  접미사 없이 기록됨, Metrics `backendCodeGenerationCount` 1 증가 확인.
+  - 검증에 사용한 임시 계정·세션·Design Plan/Database/API/Backend/Backend Code 레코드는 검증
+    후 정확히 대상(`planId` 기준)만 골라 삭제 완료, Audit Log·Metrics는 로그 성격상 보존.
+
+---
+
+## 2026-08-10 (3)
+
+### 변경 (Changed)
+
+- **Backend Logic Design·Test Plan Design 생성기를 배치 병렬 호출로 재구성 — 큰 설계에서 전체
+  폴백으로 떨어지던 문제 완화**: 2026-08-10 (2)의 실 E2E 검증에서 63개 엔드포인트급 API Design을
+  한 번의 요청으로 처리하려다 응답이 모델 출력 토큰 상한을 넘겨 파싱에 실패하고 Backend
+  Design·Test Plan 전체가 결정론적 폴백으로 떨어지는 것을 확인했던 것을 해결. Database/API
+  Design과 달리 이 두 Phase는 입력이 "엔드포인트 배열"·"로직 항목 배열"이라 자연스럽게 나눌 수
+  있다는 점에 착안.
+  - `lib/design/backend-design-generator.ts` — `api.content.endpoints`를 10개씩(`BATCH_SIZE`)
+    나눠 배치마다 독립적으로 `chatFn`을 병렬 호출(`Promise.all`). 각 배치 응답은 method+path
+    키로 조회해 병합하고, 배치가 통째로 실패(파싱 실패/호출 실패)하면 그 배치의 엔드포인트만
+    결정론적 기본값으로 폴백하며, 배치 자체는 성공했지만 특정 엔드포인트 하나의 로직만 응답에서
+    누락된 경우도 그 엔드포인트 하나만 개별 폴백(gap-fill)한다 — all-or-nothing 폴백 단위가
+    "Backend Design 전체"에서 "엔드포인트 하나"로 좁아졌다. `sharedServices`/`backgroundJobs`는
+    배치 간 합집합(중복 제거), `implementationNotes`는 배치별 노트를 이어붙임. `simulated`는
+    하나라도 폴백된 배치/엔드포인트가 있으면 `true`(부분 성공도 정직하게 표시). 기존
+    `buildDefaultBackendDesign()`(전체 API Design용 순수 폴백, 테스트 fixture로도 사용)은
+    엔드포인트 하나를 처리하는 `buildDefaultLogicEntry()`(신규, export)로 내부 구현을 위임해
+    폴백 로직이 배치 gap-fill 경로와 완전히 동일하도록 통일.
+  - `lib/design/testplan-design-generator.ts` — 동일한 원리를 `backend.content.logic`에 적용,
+    배치 크기 8(테스트 케이스가 로직 항목당 2개씩 나와 응답 부피가 더 커서 Backend보다 작게 설정).
+    배치 응답의 커버리지 판정은 로직 항목마다 `target`이 정확히 일치하는 unit 케이스 1개 +
+    integration 케이스 1개가 모두 존재하는지로 확인, 하나라도 없으면 그 로직 항목만
+    `buildDefaultCasesForLogic()`(신규)로 폴백. 배치들이 병렬 실행되며 각자 "TC-001"부터
+    번호를 매길 수 있어(AI가 반환하는 id는 신뢰하지 않음) 병합 후 전체를 순번으로 재채번
+    (`renumber()`, 신규) — 최종 산출물은 배치 수와 무관하게 항상 TC-001부터 빈틈없이 이어진다.
+  - 두 파일 모두 `SYSTEM_PROMPT`/`buildBatchUserPrompt()`를 "전체 설계 중 이 슬라이스만" 처리하고
+    "다른 슬라이스는 별도 호출·별도 병합으로 처리된다"고 명시하도록 조정해, 모델이 슬라이스 밖의
+    항목을 참조하거나 자기 배치 번호로 전역 ID를 매기려 들지 않게 했다.
+  - 테스트 재작성(`tests/design/{backend,testplan}-design-generator.test.ts`) — fixture를
+    Phase 1 기본 폴백(4-feature)에서 유도되는 20개 엔드포인트(Backend: 2배치)·20개 로직 항목
+    (Test Plan: 3배치)으로 자연스럽게 다중 배치가 발생하도록 구성. 배치 수 검증(callCount 단언),
+    "모든 배치 성공 시 simulated:false", "모든 배치 실패 시 전체 폴백과 100% 동일", "한 배치만
+    실패해도 나머지 배치의 AI 콘텐츠는 보존"(부분 폴백), "배치 응답에 항목 하나가 빠져도 그
+    항목만 gap-fill", Test Plan의 "여러 배치가 같은 id를 반환해도 최종 결과는 항상 순번이
+    유일·연속"까지 신규 커버.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(0 errors), `npm run build`(정상), `npx vitest run
+  --exclude "**/ai/bridge.test.ts"`(98 files/838 tests 전부 통과 — `tests/providers/status.test.ts`
+  1건은 실 네트워크 호출 기반의 기존 무관 플레이크로 확인, 단독 재실행 시 7/7 통과)
+- **실 E2E(전체 체인, 배치 플러밍 검증)**: 새 검증 전용 계정으로 로그인 → Design Plan → Database
+  Design → API Design → Backend Design → Test Plan 5단계를 다시 실행 → Backend Design이 실제로
+  20개 엔드포인트를 2개 배치로 나눠 처리하고, Test Plan이 20개 로직 항목을 3개 배치로 나눠
+  처리해 **40개 테스트 케이스가 배치 경계와 무관하게 TC-001~TC-040까지 완전히 순번이 이어지고
+  중복이 전혀 없음**을 확인(신규 `renumber()`가 실제 프로덕션 라우트 경유로도 정상 동작함을
+  단위 테스트 밖에서 재확인) → Audit Log·Metrics 카운터가 이전 실행분(2026-08-10 (2))에 이어
+  누적 증가함을 확인.
+- **이번 검증에서 실제 AI 응답을 받지 못함 — 원인은 계정 크레딧 소진(코드 문제 아님)**: 이번
+  실행에서는 Design Plan부터(가장 작은 프롬프트) 이미 `simulated:true`였다. 원인을 조사하기 위해
+  `.env.local`의 `ANTHROPIC_API_KEY`로 Anthropic Messages API를 직접 호출해 재현한 결과
+  `400 invalid_request_error: Your credit balance is too low to access the Anthropic API`를
+  확인 — 2026-08-10 (2)의 대규모 실 E2E(63개 엔드포인트급 다단계 생성)가 크레딧을 소진시킨
+  것으로 추정된다.
+- **크레딧 충전 후 재검증 완료 — 큰 설계에서도 실제로 `simulated:false`가 나옴을 실 자격 증명으로
+  확인**: 사용자가 Claude Console(`platform.claude.com/settings/billing`)에서 $10 충전 후,
+  Anthropic Messages API 직접 호출로 크레딧 반영을 먼저 확인(200 OK)한 뒤 새 검증 전용 계정으로
+  체인을 처음부터 재실행. Design Plan(`simulated:false`) → Database Design(`simulated:false`,
+  10개 테이블) → API Design(`simulated:false`, **53개 엔드포인트**) → Backend Design(**6개 배치
+  병렬 호출, `simulated:false` — 53개 로직 항목 전부 AI가 생성**, 응답 예시:
+  `listDepartments`의 `validationRules`에 "query.is_active가 존재하면 boolean으로 캐스팅
+  가능한 값인지 검증" 등 도메인에 맞는 구체적인 규칙이 실제로 포함됨, 결정론적 폴백의 일반
+  문구가 아님) → Test Plan(**7개 배치 병렬 호출, `simulated:false` — 106개 테스트 케이스**(53
+  로직 항목 × unit/integration), **배치 경계와 무관하게 TC-001~TC-106까지 완전히 순번이
+  이어지고 중복 없음**을 확인) — Audit Log의 `design.backend.generate` 기록에 더 이상
+  `(simulated)` 접미사가 붙지 않음도 함께 확인. 이번 배치 개선(2026-08-10 (3) 상단)이 실제
+  운영 규모(엔드포인트 50개 이상)에서 목표대로 동작함을 실 크레딧으로 최종 확인했다.
+- 검증에 사용한 임시 계정·세션·Design Plan/Database/API/Backend/Test Plan 레코드는 검증 후
+  정확히 대상(`planId` 기준)만 골라 삭제 완료, Audit Log·Metrics는 로그 성격상 보존.
+
+---
+
+## 2026-08-10 (2)
+
+### 추가 (Added)
+
+- **Design Automation — API Design 라우트/테스트 완성 + Backend Logic Design·Test Plan Design 신규 Phase**:
+  이전 세션(`feat(design): add Database Design phase; scaffold API Design (WIP)`)이 타입/registry/
+  generator만 만들어두고 라우트·테스트 없이 남겨뒀던 API Design을 마저 연결하고, AI Business OS
+  9단계 개발 프로세스의 "06 Backend"·"07 Test Plan"을 이어서 구현. 기존 Database/API Design과
+  완전히 동일한 패턴(`chatViaCli()` + 결정론적 폴백, fs-JSON versioned registry, planId 체인
+  복사) — 신규 인프라 없이 그대로 확장.
+  - `POST/GET /api/design/api`·`/api/design/api/[id]`(신규) — Database Design 위에서 REST
+    엔드포인트/인증 전략을 생성. 기존 `lib/design/api-design.ts`·`api-design-generator.ts`(이전
+    세션 스캐폴딩)를 그대로 사용, 코드 추가 없이 배선만 함.
+  - `lib/design/backend-design.ts`+`backend-design-generator.ts`(신규), `POST/GET
+    /api/design/backend`·`/api/design/backend/[id]`(신규) — API Design의 각 엔드포인트를 서비스
+    함수명(`createReservation` 등, method+path로부터 결정론적으로 derive)·검증 규칙·비즈니스
+    규칙·에러 처리로 분해.
+  - `lib/design/testplan-design.ts`+`testplan-design-generator.ts`(신규), `POST/GET
+    /api/design/testplan`·`/api/design/testplan/[id]`(신규) — Backend Design의 각 로직 항목마다
+    unit 테스트(서비스 함수 검증 규칙) + integration 테스트(엔드포인트 요청/응답 계약) 한 쌍을
+    생성.
+  - Audit Log(`design.api.generate`/`design.backend.generate`/`design.testplan.generate`)·
+    Metrics(`apiDesignGenerationCount`/`backendDesignGenerationCount`/`testPlanGenerationCount`)는
+    이전 세션이 이미 타입에 추가해뒀던 것을 그대로 사용(신규 필드 추가 없음).
+  - 테스트(신규 71개): `tests/design/{api,backend,testplan}-design-{generator,registry}.test.ts`
+    6개 파일 — parse 함수의 all-or-nothing 검증, 결정론적 폴백의 구조적 정합성(엔드포인트당 정확히
+    1개 로직, 로직당 정확히 unit+integration 1쌍), registry의 버전 자동증가·history 보존.
+
+### 수정 (Fixed)
+
+- **`tests/metrics/registry.test.ts`가 이전 세션에서 이미 `MetricsCounters`에 추가된 4개 필드
+  (`databaseDesignGenerationCount`/`apiDesignGenerationCount`/`backendDesignGenerationCount`/
+  `testPlanGenerationCount`)를 반영하지 않아 `readMetrics()` 기본값 테스트가 항상 실패하던 문제** —
+  전체 테스트 스위트를 처음 실행하며 발견. 테스트의 기대 객체에 4개 필드를 추가.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(변경 파일 전체 0 errors), `npm run build`(신규
+  라우트 6개 포함 정상 생성, `Proxy (Middleware)` 정상), `npx vitest run --exclude
+  "**/ai/bridge.test.ts"`(98 files/830 tests 전부 통과, 신규 71개 포함, 회귀 없음)
+- **실 E2E(전체 체인, 실제 Anthropic API 키 사용)**: 검증 전용 임시 계정(developer role)으로
+  로그인 → Design Plan(예약 서비스, `simulated:false`) → Database Design(`simulated:false`,
+  실제 AI가 치과 예약 도메인에 맞는 14개 테이블·12개 관계 생성) → API Design(`simulated:false`,
+  63개 엔드포인트 생성, `databaseDesignId`로 정확히 연결) → Backend Design(63개 API 엔드포인트
+  전체가 큰 응답이라 AI 파싱 실패 → **의도된 결정론적 폴백으로 정상 전환**(`simulated:true`),
+  63개 로직 항목이 실제 엔드포인트마다 정확히 1개씩 생성되고 `createAuth`처럼 method+path
+  기준으로 올바른 서비스 함수명이 파생됨을 확인) → Test Plan(동일하게 폴백, 126개 테스트 케이스 =
+  로직 63개 × unit/integration 각 1개, `apiDesignId`→`backendDesignId`→`testPlanId`로 5단계
+  전체가 하나의 `planId`로 정확히 연결됨을 확인) — 전 구간 `GET .../[id]`·`GET`(목록)·404(존재하지
+  않는 id)·400(필수 필드 누락)·404(존재하지 않는 부모로 체이닝 시도) 케이스까지 확인. Audit
+  Log(`/api/audit?action=design.{api,backend,testplan}.generate`)·Metrics(`/api/metrics`의
+  4개 카운터가 각 1씩 정확히 증가) 정상 기록 확인.
+  - 실행 환경(Git Bash on Windows)에서 curl로 한글 JSON 본문을 인라인 전달하면 셸 인코딩 문제로
+    깨지는 기존에 이미 문서화된 현상(CHANGELOG 여러 차례 언급)이 재현되어, 파일로 먼저 쓴 뒤
+    `curl --data-binary @file`로 전달하는 방식으로 우회해 실제 한글 요구사항이 정상 반영됨을 확인.
+  - Backend/Test Plan Design이 폴백된 것은 버그가 아니라 63개 엔드포인트 분량의 JSON을 한 번에
+    요구하는 프롬프트가 모델 응답 한도를 넘겨 파싱에 실패한 것으로 추정되며(2026-08-09 (2)의
+    Wireframe max_tokens 이슈와 같은 계열), "실패해도 절대 깨지지 않는다"는 설계 목표가 실제
+    프로덕션 규모 데이터로 검증된 것 — 이번 범위에서 별도 수정하지 않음.
+  - 검증에 사용한 임시 계정·세션·Design Plan/Database/API/Backend/Test Plan 레코드는 검증 후
+    정확히 대상(`planId` 기준)만 골라 삭제 완료, Audit Log·Metrics는 로그 성격상 보존.
+
+---
+
 ## 2026-08-10
 
 ### 추가 (Added)

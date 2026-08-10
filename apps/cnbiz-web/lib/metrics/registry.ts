@@ -53,6 +53,14 @@ export interface MetricsCounters {
   apiDesignGenerationCount: number;
   backendDesignGenerationCount: number;
   testPlanGenerationCount: number;
+  /** Backend Code Generation(lib/design/backend-code.ts) 신규 — 기존 27개 필드는 무변경. */
+  backendCodeGenerationCount: number;
+  /** API Route Code Generation(lib/design/api-code.ts) 신규 — 기존 28개 필드는 무변경. */
+  apiCodeGenerationCount: number;
+  /** Database Migration Code Generation(lib/design/database-code.ts) 신규 — 기존 29개 필드는 무변경. */
+  databaseCodeGenerationCount: number;
+  /** Test Code Generation(lib/design/test-code.ts) 신규 — 기존 30개 필드는 무변경. */
+  testCodeGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -85,6 +93,10 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   apiDesignGenerationCount: 0,
   backendDesignGenerationCount: 0,
   testPlanGenerationCount: 0,
+  backendCodeGenerationCount: 0,
+  apiCodeGenerationCount: 0,
+  databaseCodeGenerationCount: 0,
+  testCodeGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

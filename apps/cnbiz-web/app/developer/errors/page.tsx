@@ -61,6 +61,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.api.generate": "API Design",
   "design.backend.generate": "Backend Design",
   "design.testplan.generate": "Test Plan",
+  "design.backend-code.generate": "Backend Code",
+  "design.api-code.generate": "API Code",
+  "design.database-code.generate": "Database Code",
+  "design.test-code.generate": "Test Code",
 };
 
 /**

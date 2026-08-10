@@ -7,6 +7,7 @@ import { getReview } from "@/lib/design/review-registry";
 import { getClaudeDesign } from "@/lib/design/claude-design";
 import { getPrototype } from "@/lib/design/prototype";
 import { buildWebsiteBuildHybridSource } from "@/lib/design/website-build-document-adapter";
+import { applyFullStackCode } from "@/lib/design/website-fullstack-adapter";
 import { listWebsiteBuilds, recordWebsiteBuild, type WebsiteBuildRecord } from "@/lib/design/website-build";
 import { createWebsiteRecord } from "@/lib/websites/registry";
 import { runDeploymentPipeline } from "@/lib/deployment/pipeline";
@@ -74,6 +75,14 @@ export async function GET() {
  * Approval Rule(Figma Export와 동일한 원칙) — Review 상태가 "approved"가 아니면 409를 반환한다.
  * 실제 코드를 생성하는 마지막 단계이므로, 참고 자료 성격인 Figma Import보다는 Figma Export/
  * Design Sync와 같은 게이트를 적용하는 것이 맞다고 판단했다.
+ *
+ * [Chain A ↔ Chain B 연결, 2026-08-10] 이 Review는 항상 Chain A(Storyboard/Wireframe/
+ * Prototype/ClaudeDesign, reviewId로 이어짐)에 속한다. 같은 `plan.id`로 Chain B(Database/API/
+ * Backend/Test Code, planId로 이어짐)의 산출물이 존재하면, CLI가 프론트엔드 페이지를 다 쓴 뒤
+ * `applyFullStackCode()`(website-fullstack-adapter.ts)가 그 실제 SQL 마이그레이션·Route
+ * Handler·서비스 함수·테스트 파일을 같은 프로젝트에 써넣는다 — runDeploymentPipeline()(commit+
+ * push)보다 먼저 실행되므로 배포되는 코드에 포함된다. Chain B가 아직 하나도 생성되지 않았으면
+ * 아무 파일도 쓰지 않고 조용히 넘어간다(응답의 `fullStackCode.filesWritten`이 빈 배열로 드러남).
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -222,6 +231,13 @@ export async function POST(request: Request) {
     );
   }
 
+  // Chain A(Review 기반: 이 라우트) ↔ Chain B(Plan 기반: Database/API/Backend/Test Code) 연결점.
+  // 같은 planId로 생성된 Chain B의 최신 산출물이 있으면 지금 막 스캐폴딩된 프로젝트(outDir)에
+  // 실제 파일로 써넣는다 — 반드시 아래 runDeploymentPipeline()(commit+push) 이전에 실행해야
+  // 커밋에 포함된다. Chain B 어느 단계도 아직 없으면 아무 파일도 쓰지 않고 조용히 넘어간다
+  // (website-fullstack-adapter.ts 참고).
+  const fullStackCode = await applyFullStackCode(outDir, plan.id);
+
   // Design → Website Build → Deployment 연결점. lib/aiJobs/worker.ts의 triggerDeployment()가
   // AI Generate 성공 직후 정확히 이 입력 형태(websiteId/outDir/repoBaseName)로
   // runDeploymentPipeline()을 호출하는 것과 동일한 패턴이다 — triggerDeployment() 자체는
@@ -244,6 +260,14 @@ export async function POST(request: Request) {
   // designPageCount는 "이 빌드에서 디자인이 실제로 코드에 반영된 페이지 수"다. 0이면 스캐폴딩
   // 템플릿 그대로라는 뜻이므로, 호출자가 성공 응답만 보고 반영됐다고 오해하지 않도록 노출한다.
   // deployment도 같은 이유로 노출한다 — GITHUB_TOKEN/VERCEL_TOKEN 미설정이면 status가
-  // "NotConfigured"로 그대로 드러나 "배포까지 됐다"고 오해하지 않게 한다.
-  return NextResponse.json({ ...toResponse(buildRecord), designPageCount, output: result.stdout, deployment });
+  // "NotConfigured"로 그대로 드러나 "배포까지 됐다"고 오해하지 않게 한다. fullStackCode도 동일한
+  // 이유 — filesWritten이 빈 배열이면 Chain B(Database/API/Backend/Test Code) 산출물이 아직
+  // 하나도 없어서 프론트엔드 페이지만 반영됐다는 뜻이다.
+  return NextResponse.json({
+    ...toResponse(buildRecord),
+    designPageCount,
+    fullStackCode,
+    output: result.stdout,
+    deployment,
+  });
 }

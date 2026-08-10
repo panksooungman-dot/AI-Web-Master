@@ -43,6 +43,14 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       contractGenerationCount: 0,
       proposalGenerationCount: 0,
       customerPortalVisitCount: 0,
+      databaseDesignGenerationCount: 0,
+      apiDesignGenerationCount: 0,
+      backendDesignGenerationCount: 0,
+      testPlanGenerationCount: 0,
+      backendCodeGenerationCount: 0,
+      apiCodeGenerationCount: 0,
+      databaseCodeGenerationCount: 0,
+      testCodeGenerationCount: 0,
     });
   });
 

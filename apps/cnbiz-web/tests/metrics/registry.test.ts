@@ -51,6 +51,8 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       apiCodeGenerationCount: 0,
       databaseCodeGenerationCount: 0,
       testCodeGenerationCount: 0,
+      crudFrontendGenerationCount: 0,
+      orchestrationRunCount: 0,
     });
   });
 

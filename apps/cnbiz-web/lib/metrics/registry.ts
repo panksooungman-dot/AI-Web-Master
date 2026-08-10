@@ -61,6 +61,11 @@ export interface MetricsCounters {
   databaseCodeGenerationCount: number;
   /** Test Code Generation(lib/design/test-code.ts) 신규 — 기존 30개 필드는 무변경. */
   testCodeGenerationCount: number;
+  /** CRUD Frontend Generation(lib/design/crud-frontend.ts) 신규 — 기존 31개 필드는 무변경. */
+  crudFrontendGenerationCount: number;
+  /** 9-Stage Orchestrator(lib/design/orchestrator.ts) 신규 — 기존 32개 필드는 무변경. 10개 단계를
+   *  개별 호출로 실행한 횟수가 아니라, 이 오케스트레이터로 전 구간을 한 번에 실행한 횟수만 센다. */
+  orchestrationRunCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -97,6 +102,8 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   apiCodeGenerationCount: 0,
   databaseCodeGenerationCount: 0,
   testCodeGenerationCount: 0,
+  crudFrontendGenerationCount: 0,
+  orchestrationRunCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

@@ -101,6 +101,7 @@ describe("Website Fullstack Adapter — applyFullStackCode() (Chain A ↔ Chain 
       backendCodeId: null,
       apiCodeId: null,
       testCodeId: null,
+      crudFrontendId: null,
       filesWritten: [],
       packageChanges: [],
     });

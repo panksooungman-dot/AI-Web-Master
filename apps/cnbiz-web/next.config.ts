@@ -93,6 +93,22 @@ const nextConfig: NextConfig = {
     "/api/design/claude": CLI_TRACE_INCLUDES,
     // spawns `ai website create` via lib/commandEngine/engine.ts directly
     "/api/design/website": CLI_TRACE_INCLUDES,
+    // AI Business OS 9-stage chain (lib/design/{database-design,api-design,backend-design,
+    // backend-code,database-code,testplan-design,test-code}-generator.ts) — these were added
+    // after the CLI-tracing bug above was fixed and never got added to this map, so on Vercel
+    // they would silently fall back to simulated:true forever (same failure mode as the routes
+    // documented above, just never actually verified in production). "/api/design/api-code" and
+    // "/api/design/crud-frontend" are intentionally NOT here — both are pure deterministic
+    // transforms of already-generated records and never call chatViaCli.
+    "/api/design/database": CLI_TRACE_INCLUDES,
+    "/api/design/api": CLI_TRACE_INCLUDES,
+    "/api/design/backend": CLI_TRACE_INCLUDES,
+    "/api/design/backend-code": CLI_TRACE_INCLUDES,
+    "/api/design/database-code": CLI_TRACE_INCLUDES,
+    "/api/design/testplan": CLI_TRACE_INCLUDES,
+    "/api/design/test-code": CLI_TRACE_INCLUDES,
+    // lib/design/orchestrator.ts runs the full 9-stage chain above in one call
+    "/api/design/orchestrate": CLI_TRACE_INCLUDES,
     // lib/{estimates,specifications,timeline,proposals,contracts}/generator.ts
     "/api/estimates": CLI_TRACE_INCLUDES,
     "/api/specifications": CLI_TRACE_INCLUDES,

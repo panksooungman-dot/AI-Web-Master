@@ -4,6 +4,62 @@
 
 ---
 
+## 2026-08-10 (7)
+
+### 추가 (Added)
+
+- **9-Stage Orchestrator — `POST /api/design/orchestrate`**: 지금까지 AI Business OS 9단계
+  개발 프로세스(Design Plan → Database → API → Backend(Design+Code) → API Code → Database
+  Code → Test Plan → Test Code, + CRUD Frontend)는 각 단계 산출물의 id를 사용자가 직접 다음
+  호출에 넘겨가며 10번의 개별 API 호출을 순서대로 실행해야만 완결됐다 — 요구사항 한 번 입력으로
+  실행 가능한 풀스택 앱까지 자동으로 나오는 경험은 없었다. `lib/design/orchestrator.ts`(신규,
+  `runDesignOrchestration()`)가 그 10개 호출을 하나의 체인으로 묶어, `projectName`/
+  `requirements` 등 최초 입력 하나만으로 10개 산출물을 전부 생성하고 각 산출물의 id를
+  응답(`planId`~`crudFrontendId`)으로 반환한다. 새 실행 로직을 추가하지 않고 각 Phase의 기존
+  `generate*()`/`create*()` 함수를 그대로 순서대로 호출만 한다(중복 없음). 라우트는 각 단계마다
+  해당 단계를 개별 호출했을 때와 동일한 Audit Log 액션·Metrics 카운터를 그대로 기록해
+  Dashboard·Audit Log·Metrics가 생성 경로(개별 호출 vs 오케스트레이터)를 구분하지 않고 동일하게
+  집계하도록 했고, `design.orchestrate.run`(신규 Audit Action)·`orchestrationRunCount`(신규
+  Metrics 카운터)로 "전체 체인을 한 번에 실행했다"는 사실 자체도 별도로 기록한다.
+  - 테스트(신규 3개, `tests/design/orchestrator.test.ts`) — 항상 실패하는 `chatFn`을 주입해
+    모든 단계가 결정론적 `buildDefault*()` 폴백을 타도록 강제(실제 AI 호출 없이 체이닝 로직만
+    검증), 10개 산출물의 FK가 정확히 이전 단계를 가리키는지, 각 산출물이 실제로 비어있지 않은지,
+    같은 입력으로 두 번 실행해도 registry가 각각 독립적으로 보존되는지 확인.
+
+### 수정 (Fixed)
+
+- **`next.config.ts`의 `outputFileTracingIncludes`에 9단계 체인 중 7개 라우트가 처음부터
+  빠져 있던 버그** — 2026-08-07에 "CLI를 shell-out하는 라우트가 이 맵에 없으면 Vercel에서
+  `require()` 단계부터 조용히 죽는다"는 문제를 발견해 당시 존재하던 라우트들을 전부 등록했는데,
+  그 이후에 추가된 Database/API/Backend Design·Backend/Database Code·Test Plan/Test Code
+  라우트(`app/api/design/{database,api,backend,backend-code,database-code,testplan,
+  test-code}/route.ts`, 전부 `chatViaCli()`를 호출함)는 이 맵이 갱신되지 않아 계속 빠진 채로
+  남아 있었다 — 로컬에서는 `packages/cli/dist`가 디스크에 있어 정상 동작하지만, 프로덕션에서는
+  각 라우트가 조용히 `simulated:true` 결정론적 폴백만 반환했을 것으로 추정된다(실제 프로덕션
+  재현은 하지 않음 — 아래 검증 참고). 이번 오케스트레이터가 이 7개 단계를 전부 체이닝하는 만큼
+  방치할 수 없어 함께 수정. 7개 라우트 + 신규 `/api/design/orchestrate`를
+  `CLI_TRACE_INCLUDES`에 추가. `/api/design/api-code`·`/api/design/crud-frontend`는
+  `chatViaCli()`를 전혀 호출하지 않는 순수 결정론적 변환이라(각 generator 파일에 `lib/ai/bridge`
+  import 자체가 없음을 확인) 의도적으로 제외.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(변경 파일 전체 0 errors), `npm run build`(신규
+  라우트 1개 포함 정상 생성), `npx vitest run --exclude "**/ai/bridge.test.ts"`(110 files/951
+  tests 전부 통과, 신규 3개 포함, 회귀 없음)
+- **`outputFileTracingIncludes` 수정 전/후 실제 빌드 산출물(`*.nft.json`) 대조**: 수정 전 7개
+  라우트 모두 108~110개 파일만 추적(CLI 미포함, `/api/design/review`처럼 CLI를 아예 쓰지 않는
+  라우트와 동일한 수준)되던 것을, 수정 후 전부 908~909개 파일(CLI 471개 + 런타임 deps 69개
+  포함, 2026-08-07에 확인했던 정상 패턴과 동일한 규모)로 정상 추적됨을 직접 확인 — 2026-08-07의
+  검증 방법을 그대로 재사용.
+- 오케스트레이터 자체의 실 E2E(로그인 세션·실제 AI 크레딧 소모)는 수행하지 않음 — 각 단계가
+  호출하는 `generate*()` 함수 자체는 이미 Phase별로 실 E2E 검증이 끝난 상태이고, 이번 추가분은
+  "그 호출들을 순서대로 체이닝하는 로직"뿐이라 결정론적 폴백 기준 통합 테스트로 체이닝 정확성을
+  검증하는 것으로 충분하다고 판단(Testing Policy: 통합 테스트는 1회만 수행). 다음 세션에서 실제
+  사용 중 문제가 발견되면 그때 실 E2E로 재검증.
+
+---
+
 ## 2026-08-10 (6)
 
 ### 추가 (Added)

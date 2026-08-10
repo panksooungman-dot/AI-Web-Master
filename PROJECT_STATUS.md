@@ -1,6 +1,6 @@
 # AI Business OS - PROJECT STATUS
 
-> 최종 분석: 2026-08-10 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `ab7162a` 기준)
+> 최종 분석: 2026-08-10 (Claude Code, apps/**·packages/** 변경 자동 반영 — 커밋 `23953d0` 기준)
 > 커밋 `edba62a` 기준)
 > 이 문서는 추측이 아닌 실제 파일/코드 확인 결과만 반영합니다.
 
@@ -45,12 +45,12 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 |---|---|---|
 | CNBIZ.KR 브랜드 홈페이지 | 92% | Home/About/Services/Portfolio + **`/contact` 복원**(내부 `POST /api/inquiries` 제출). `/request`만 여전히 cnbiz.ai.kr로 308 redirect(별도 결정 대기). Portfolio 실콘텐츠·회사 연락처 정보만 TODO |
 | Development OS 대시보드 | 97% | `/developer/**` 48개 페이지 실동작(기술 견적서·기능 명세서·프로젝트 타임라인·계약서·제안서 관리 포함). AI 의뢰 관리 "새 문의 등록"이 실제 `POST /api/inquiries` 호출로 연결됨 |
-| AI 홈페이지 생성기(Website Builder v2) | 90% | CLI+대시보드 완결. **Design Automation 9단계 개발 프로세스 중 04 DB/05 API/06 Backend/08 Test 4개 Phase를 문서 산출물에서 실제 실행 가능한 코드(Route Handler·SQL DDL/RLS·서비스 함수·통합 테스트)로 완성**하고, **Chain A(Review 기반, Website Build) ↔ Chain B(Plan 기반, Database/API/Backend/Test Code) 연결**(`lib/design/website-fullstack-adapter.ts`)까지 구현 — Website Build 성공 시 같은 planId의 최신 산출물을 실제 프로젝트 파일로 병합해 GitHub 커밋에 포함. 실 subprocess E2E(vitest 서브프로세스로 생성 코드를 직접 실행)로 auth-guard try-블록 배치 버그·한글 리소스명 슬러그 충돌 버그를 재현·수정·재검증 완료 |
+| AI 홈페이지 생성기(Website Builder v2) | 92% | CLI+대시보드 완결. **Design Automation 9단계 개발 프로세스 중 04 DB/05 API/06 Backend/08 Test 4개 Phase를 문서 산출물에서 실제 실행 가능한 코드(Route Handler·SQL DDL/RLS·서비스 함수·통합 테스트)로 완성**하고, **Chain A(Review 기반, Website Build) ↔ Chain B(Plan 기반, Database/API/Backend/Test Code) 연결**(`lib/design/website-fullstack-adapter.ts`)까지 구현. **07 CRUD Frontend Generator**(`lib/design/crud-frontend{,-generator}.ts`, 신규)로 Backend Design+Database Design을 조합해 실제 백엔드 API를 호출하는 목록/등록/수정 화면까지 완성했고, **9-Stage Orchestrator**(`POST /api/design/orchestrate`, 신규)가 Design Plan부터 CRUD Frontend까지 10개 산출물 전체를 요구사항 한 번 입력으로 순서대로 생성하도록 체이닝했다. `outputFileTracingIncludes`에서 7개 CLI 호출 라우트가 처음부터 누락돼 있던 프로덕션 버그도 함께 수정. 실 subprocess E2E(vitest 서브프로세스로 생성 코드를 직접 실행)로 auth-guard try-블록 배치 버그·한글 리소스명 슬러그 충돌 버그를 재현·수정·재검증 완료 |
 | **Customer Inquiry Pipeline (Version 1)** | **100% — 공식 완료(PASS)** | 의뢰 접수→관리자 승인→AiJob→AI 생성→Project Workspace 자동 등록→GitHub Repo→Commit/Push→Vercel Project→Production Deploy→Production URL까지 11단계 전 구간을 실 계정으로 E2E 검증해 전부 PASS(`FINAL_E2E_REPORT_v5.md`, 2026-08-03) |
 | 인증/권한 | 85% | 세션 인증 + RBAC **5-role**(신규 `customer` role 추가) + 정확한 (method,path) 단위 예외 완비. `proxy.ts`가 `/customer/**`도 세션 보호 대상에 포함. signup 백엔드·역할관리 UI만 없음. `x-api-key`(`CHATBOT_API_KEY`) 인증은 `@deprecated` |
 | **고객(의뢰자) 시스템 — Customer Portal V1** | **90%** | 고객 로그인(`customer.login` 감사 로그), 본인 주문 목록(`/customer/orders`)·대시보드(`/customer/dashboard`)·주문 상세(`/customer/orders/[id]`, 견적서·명세서·타임라인·계약서·제안서·배포 상태 열람). `lib/customerPortal/view.ts`가 로그인 이메일 기준으로만 필터링해 타인 데이터 접근을 원천 차단(존재하지 않음/타인 소유 모두 동일하게 404). 회원가입·비밀번호 변경·알림 설정 등은 아직 없음 |
 | 배포 자동화(고객별 GitHub/Vercel) | 100% | 파이프라인·롤백·감사 로그·Git Scope 보호 구현·테스트 완료 + 실 계정 E2E PASS 확정(`FINAL_E2E_REPORT_v5.md`, 2026-08-03). Design Automation 경로에서도 동일 파이프라인 재사용 확인(2026-08-09), Chain A/B 연결로 실제 생성 코드까지 함께 커밋됨(2026-08-10) |
-| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과. 이번 회차는 실 subprocess로 생성 코드를 직접 실행하는 검증까지 추가 |
+| 테스트 인프라 | 100% | `apps/cnbiz-web` 실 계정 E2E 검증 중 발견된 버그에 대한 신규/보강 테스트 포함해 전부 통과. Orchestrator는 결정론적 폴백 기준 통합 테스트로 체이닝 정확성을 검증(실 AI 크레딧 미사용) |
 
 ---
 
@@ -68,6 +68,7 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 - **Design Automation — Database Design 생성기**(`lib/design/database-design{,-generator}.ts`, `POST/GET /api/design/database`, `GET /api/design/database/[id]`) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 산출물 서비스
 - **Design Automation — 04 DB/05 API/06 Backend/08 Test 4개 Phase, 실제 실행 가능한 코드까지 완성**(`lib/design/{database-code,api-code,backend-code,test-code}{,-generator}.ts`, 신규) — Database Design의 Table/Relationship/Index로부터 SQL DDL을 결정론적으로 생성하고 RLS Policy만 AI로 번역(`database-code`), API Design+Backend Design을 조합해 Next.js Route Handler·인증 가드(`lib/auth-guard.ts`)·파일 업로드(`lib/file-storage.ts`)·OpenAPI 문서(`openapi.json`)·프론트엔드 API 클라이언트(`lib/api-client.ts`)·구조화 로거(`lib/logger.ts`)까지 생성(`api-code`, AI 미사용 — 순수 기계적 변환), Backend Design의 자연어 규칙을 실제 TypeScript 서비스 함수로 번역(`backend-code`), Test Plan을 실제 Route Handler를 호출하는 Vitest unit/integration 테스트로 번역(`test-code`). `POST/GET /api/design/{api,api-code,backend,backend-code,database-code,test-code,testplan}` 라우트, `design.{api,api-code,backend,backend-code,database-code,test-code,testplan}.generate` 감사 로그 액션·대응 메트릭 카운터 전부 신규 추가
 - **Design Automation — Chain A(Review 기반) ↔ Chain B(Plan 기반) 연결**(`lib/design/website-fullstack-adapter.ts`, 신규) — Website Build(`POST /api/design/website`) 성공 직후 같은 planId로 생성된 Chain B의 최신 Database/Backend/API/Test Code를 찾아 같은 프로젝트 디렉터리에 실제 파일로 병합(`applyFullStackCode()`)해 GitHub 커밋에 포함시킨다. `mergePackageRequirements()`가 생성 코드가 실제로 요구하는 npm 패키지(`@supabase/supabase-js`, `vitest` 등)를 산출물 `package.json`에 병합, 응답에 `fullStackCode` 필드 노출
+- **Design Automation — 07 CRUD Frontend Generator + 9-Stage Orchestrator**(`lib/design/crud-frontend{,-generator}.ts`, `lib/design/orchestrator.ts`, 신규) — API Code(`apiCodeId`)로부터 그 체인을 거슬러 Backend Design(serviceFunction 이름)·Database Design(컬럼 정보)을 함께 조회해 리소스마다 실제 백엔드 API를 호출하는 목록/등록/수정 화면을 생성한다(AI 미사용, 순수 기계적 변환). `POST/GET /api/design/crud-frontend`·`GET /api/design/crud-frontend/[id]` 신규. `runDesignOrchestration()`(`lib/design/orchestrator.ts`)이 Design Plan→Database→API→Backend(Design+Code)→API Code→Database Code→Test Plan→Test Code→CRUD Frontend까지 10개 산출물을 하나의 요구사항 입력으로 순서대로 생성하도록 체이닝하며, `POST /api/design/orchestrate`가 각 단계별로 개별 호출했을 때와 동일한 Audit Log 액션·Metrics 카운터를 그대로 기록하고 `design.orchestrate.run`(신규 액션)·`orchestrationRunCount`(신규 카운터)로 전체 체인 실행 자체도 별도 기록한다. `next.config.ts`의 `outputFileTracingIncludes`에서 이 신규 라우트를 포함해 7개 CLI 호출 라우트가 처음부터 빠져 있던 프로덕션 버그(Vercel에서 `require()` 단계부터 조용히 실패)도 함께 수정
 
 ---
 
@@ -92,6 +93,8 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 ## 최근 완료 작업
 
+- **9-Stage Orchestrator + CRUD Frontend Generator 신규 구현**(2026-08-10) — `POST /api/design/orchestrate`(`lib/design/orchestrator.ts`, 신규)가 Design Plan→Database→API→Backend(Design+Code)→API Code→Database Code→Test Plan→Test Code→CRUD Frontend까지 10개 산출물을 요구사항 한 번 입력으로 순서대로 생성하도록 기존 `generate*()`/`create*()` 함수를 그대로 체이닝했다(신규 실행 로직 없음). `lib/design/crud-frontend{,-generator}.ts`(신규)는 API Code 체인을 거슬러 Backend/Database Design을 조회해 실제 백엔드 API를 호출하는 목록/등록/수정 화면을 AI 없이 기계적으로 생성한다. 각 단계는 개별 호출 시와 동일한 Audit Log 액션·Metrics 카운터를 기록하며, `design.orchestrate.run`·`orchestrationRunCount`(신규)로 전체 체인 실행 자체도 별도 집계한다.
+- **`next.config.ts`의 `outputFileTracingIncludes`에 7개 CLI 호출 라우트가 처음부터 누락돼 있던 프로덕션 버그 수정**(2026-08-10) — 2026-08-07 수정 이후 추가된 Database/API/Backend Design·Backend/Database Code·Test Plan/Test Code 라우트(`chatViaCli()` 호출)가 트레이싱 목록에 등록되지 않아 Vercel에서 `require()` 단계부터 조용히 `simulated:true` 폴백만 반환했을 것으로 추정. 신규 `/api/design/orchestrate` 포함 8개 라우트를 `CLI_TRACE_INCLUDES`에 추가하고, 수정 전/후 실제 빌드 산출물(`*.nft.json`)을 직접 대조해 108~110개 파일(CLI 미포함)에서 908~909개 파일(CLI 471개 포함)로 정상 추적됨을 확인했다.
 - **Design Automation Chain A↔B 연결 + 04 DB/05 API/06 Backend/08 Test 4개 Phase를 실행 가능한 코드로 완성**(2026-08-10) — `lib/design/website-fullstack-adapter.ts`(신규)가 Website Build(`POST /api/design/website`) 성공 직후 같은 planId의 Database/Backend/API/Test Code를 실제 파일로 프로젝트 디렉터리에 병합해 GitHub 커밋에 포함시킨다. `lib/design/api-code-generator.ts`가 인증 가드·파일 업로드·OpenAPI 문서·프론트엔드 API 클라이언트·구조화 로거·패키지 요구사항 병합까지 실제 코드로 완성했고, Test Code Generator는 실제 Route Handler를 `vi.mock`으로 스토어만 대체해 호출하는 진짜 통합 테스트를 생성하도록 확장했다. `app/api/design/{api,api-code,backend,backend-code,database-code,test-code,testplan}[/route.ts, [id]/route.ts]`·`lib/design/*-{code,design}-generator.ts`·`tests/design/*.test.ts` 대량 신규.
 - **실 subprocess E2E로 발견·수정한 버그 2건**(2026-08-10) — 한글 리소스명을 인식하지 못해 서로 다른 테이블이 같은 API 파일로 충돌 병합되던 `toFileSlug()` 정규식 결함(api-code/backend-code/test-code generator 3곳 공통) 수정, `requireAuth(request)` 호출이 `try` 블록 밖에 있어 인증 실패가 401 대신 처리되지 않은 예외로 그대로 전파되던 버그(`api-code-generator.ts`) 수정 — 둘 다 생성 코드를 실제 파일로 써서 `vitest run`을 자식 프로세스로 실행해 재현·수정·재검증했다.
 - **Design Automation — Database Design 생성기 신규 구현**(2026-08-09) — Design Plan(Phase 1) 위에서 ERD/Table/Relationship/Index/RLS Policy를 생성하는 `lib/design/database-design{,-generator}.ts`(신규)와 `POST/GET /api/design/database`·`GET /api/design/database/[id]`(신규) 추가. 기존 Design Automation Phase 2~9와 동일한 패턴(`chatViaCli()` + 결정론적 폴백, fs-JSON versioned registry)을 재사용하며 실제 SQL 마이그레이션은 실행하지 않는다. `design.database.generate` 감사 로그 액션과 `databaseDesignGenerationCount` 메트릭 카운터 추가(Audit Log·Errors·Metrics 화면 반영), 신규 테스트 2개 파일(`tests/design/database-design-{generator,registry}.test.ts`) 포함.
@@ -280,12 +283,13 @@ AI Generate(Website Builder) 성공 직후, `lib/deployment/pipeline.ts`가 `lib
 
 1. **프로덕션에 남은 진단용 테스트 의뢰 2건 삭제** — "Diag Test Co"·"Diag Test Co 2"가 실제 프로덕션 Supabase에 생성된 채 남아있음(Vercel의 Sensitive 환경변수 제약으로 CLI에서 실제 값을 읽지 못해 REST API로 직접 삭제하지 못함). `/developer/inquiries`에서 관리자가 직접 삭제 필요
 2. **`WebsiteOrderRecord.aiJobIds` 누락 수정** — `app/api/inquiries/route.ts`가 `createAiJob()` 후 `addAiJobToWebsiteOrder()`를 호출하지 않아 항상 빈 배열로 남음(2026-08-03 E2E 검증 중 발견, 동작 영향 없는 낮은 우선순위 결함)
-3. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
-4. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
-5. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
-6. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
-7. **회원가입 백엔드 + 역할관리 UI**
-8. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
+3. **9-Stage Orchestrator 실 E2E(실제 AI 크레딧) 검증** — 현재는 결정론적 폴백 기준 통합 테스트로만 체이닝 정확성을 검증했음. 실제 사용 중 문제가 발견되면 실 크레딧으로 재검증 필요
+4. **cnbiz.ai.kr이 실제로 이 시스템과 연동해야 하는지 최종 확인** — Rewiring 조사 결과 지금까지 실사용 증거가 없었음이 확인됐으나, cnbiz.ai.kr이 향후 실제로 연동할 계획이라면 `@deprecated`로 남겨둔 `/api/external/inquiries`·`CHATBOT_API_KEY`를 언제 완전히 제거할지 결정 필요. 연동 계획이 없다면 별도 커밋으로 제거
+5. **실제 AI Provider 연결** — 이 환경엔 `packages/cli`가 지원하는 5개 Provider 중 하나도 설정되어 있지 않음(`.env.local` 2곳·로컬 Ollama 전부 확인). 하나라도 연결되어야 AI Analysis Engine·Estimate/Specification/Timeline/Contract/Proposal Generator 및 Orchestrator의 진짜 판단 경로(현재는 결정론적 폴백만 동작 확인됨)를 검증할 수 있음
+6. **`/request`도 `/contact`처럼 내부 처리로 전환할지 결정** — `/contact`는 복원했지만 `/request`는 아직 cnbiz.ai.kr로 308 redirect 중
+7. **Client/WebsiteOrder 전용 관리자 목록 화면** — 현재는 Inquiry 상세·`/projects`에서만 연결된 레코드 확인 가능
+8. **회원가입 백엔드 + 역할관리 UI**
+9. **Portfolio 실콘텐츠·회사 연락처 정보 확정**(자료 수령 필요)
 
 ---
 

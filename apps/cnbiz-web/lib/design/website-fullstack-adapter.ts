@@ -6,6 +6,7 @@ import { getLatestDatabaseCodeForPlan } from "./database-code";
 import { getLatestBackendCodeForPlan } from "./backend-code";
 import { getLatestApiCodeForPlan, type PackageRequirements } from "./api-code";
 import { getLatestTestCodeForPlan } from "./test-code";
+import { getLatestCrudFrontendForPlan } from "./crud-frontend";
 
 /**
  * Chain A ↔ Chain B 연결점. 이 저장소의 Design Automation은 서로 다른 식별자로 이어지는 두
@@ -15,13 +16,19 @@ import { getLatestTestCodeForPlan } from "./test-code";
  *   Review → **Website Build**(`POST /api/design/website`, React Generator로 프론트엔드
  *   페이지 생성) → Deployment. reviewId로 이어진다.
  * - Chain B(Plan 기반): Design Plan → Database Design → API Design → Backend Design →
- *   {Backend Code, API Code, Database Code, Test Plan → Test Code}. planId로 이어진다.
+ *   {Backend Code, API Code, Database Code, Test Plan → Test Code, **CRUD Frontend**}.
+ *   planId로 이어진다. CRUD Frontend(lib/design/crud-frontend.ts)는 Chain A의 Wireframe이
+ *   추상적 컴포넌트만 알고 어느 리소스의 데이터인지 모르는 것과 달리, API Code(lib/api-client.ts의
+ *   실제 함수)와 Database Design(컬럼 정보)만으로 리소스마다 실제로 백엔드를 호출하는 목록·등록·
+ *   수정 화면을 생성한다 — Chain A 없이도 Chain B 단독으로 완결된, 실제 동작하는 다중 페이지
+ *   CRUD 앱이 나온다(상가 관리·재고 관리 같은 데이터 중심 앱에 적합, 마케팅 페이지는 Chain A가
+ *   여전히 담당).
  *
  * 두 체인은 시작점(Design Plan)만 같을 뿐 서로를 참조하지 않는다 — Chain A의 Website Build는
  * 지금까지 프론트엔드 페이지만 생성하고 Chain B의 실제 실행 가능한 산출물(SQL 마이그레이션·
- * Route Handler·서비스 함수·테스트)은 전혀 반영하지 않았다. 이 모듈이 그 간극을 메운다 — Website
- * Build가 성공한 뒤, 같은 planId로 생성된 Chain B의 최신 산출물을 찾아 같은 프로젝트 디렉터리에
- * 실제 파일로 써넣는다.
+ * Route Handler·서비스 함수·테스트·CRUD 화면)은 전혀 반영하지 않았다. 이 모듈이 그 간극을 메운다
+ * — Website Build가 성공한 뒤, 같은 planId로 생성된 Chain B의 최신 산출물을 찾아 같은 프로젝트
+ * 디렉터리에 실제 파일로 써넣는다.
  *
  * Chain B의 각 단계는 독립적으로 생성되므로(사용자가 어떤 단계까지 만들었는지 알 수 없음) 없는
  * 단계는 조용히 건너뛴다 — Website Build 자체를 실패시키지 않는다(Hybrid Adapter가 Prototype
@@ -33,6 +40,7 @@ export interface FullStackCodeSummary {
   backendCodeId: string | null;
   apiCodeId: string | null;
   testCodeId: string | null;
+  crudFrontendId: string | null;
   /** 실제로 써넣은 파일 경로(프로젝트 루트 기준 상대 경로), 순서 보존. */
   filesWritten: string[];
   /** package.json에 실제로 병합한 dependency/devDependency/script 이름 목록(추적용). */
@@ -101,11 +109,12 @@ export async function applyFullStackCode(
   planId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<FullStackCodeSummary> {
-  const [databaseCode, backendCode, apiCode, testCode] = await Promise.all([
+  const [databaseCode, backendCode, apiCode, testCode, crudFrontend] = await Promise.all([
     getLatestDatabaseCodeForPlan(planId, store),
     getLatestBackendCodeForPlan(planId, store),
     getLatestApiCodeForPlan(planId, store),
     getLatestTestCodeForPlan(planId, store),
+    getLatestCrudFrontendForPlan(planId, store),
   ]);
 
   const files = [
@@ -113,6 +122,7 @@ export async function applyFullStackCode(
     ...(backendCode?.content.files ?? []),
     ...(apiCode?.content.files ?? []),
     ...(testCode?.content.files ?? []),
+    ...(crudFrontend?.content.files ?? []),
   ];
 
   const filesWritten: string[] = [];
@@ -133,6 +143,7 @@ export async function applyFullStackCode(
     backendCodeId: backendCode?.id ?? null,
     apiCodeId: apiCode?.id ?? null,
     testCodeId: testCode?.id ?? null,
+    crudFrontendId: crudFrontend?.id ?? null,
     filesWritten,
     packageChanges,
   };

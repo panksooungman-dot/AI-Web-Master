@@ -65,6 +65,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.api-code.generate": "API Code",
   "design.database-code.generate": "Database Code",
   "design.test-code.generate": "Test Code",
+  "design.crud-frontend.generate": "CRUD Frontend",
+  "design.orchestrate.run": "9-Stage Orchestrator",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -121,6 +123,8 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.api-code.generate": "purple",
   "design.database-code.generate": "purple",
   "design.test-code.generate": "purple",
+  "design.crud-frontend.generate": "purple",
+  "design.orchestrate.run": "purple",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -169,6 +173,8 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.api-code.generate",
   "design.database-code.generate",
   "design.test-code.generate",
+  "design.crud-frontend.generate",
+  "design.orchestrate.run",
 ];
 
 export default function AuditLogPage() {

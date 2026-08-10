@@ -47,6 +47,8 @@ export function MetricsWidget() {
           apiCodeGenerationCount: 0,
           databaseCodeGenerationCount: 0,
           testCodeGenerationCount: 0,
+          crudFrontendGenerationCount: 0,
+          orchestrationRunCount: 0,
         })
       );
   }, []);

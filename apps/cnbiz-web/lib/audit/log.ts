@@ -61,7 +61,9 @@ export type AuditAction =
   | "design.backend-code.generate"
   | "design.api-code.generate"
   | "design.database-code.generate"
-  | "design.test-code.generate";
+  | "design.test-code.generate"
+  | "design.crud-frontend.generate"
+  | "design.orchestrate.run";
 
 export interface AuditEntry {
   id: string;

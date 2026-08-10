@@ -53,6 +53,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       testCodeGenerationCount: 0,
       crudFrontendGenerationCount: 0,
       orchestrationRunCount: 0,
+      orchestrationScopeStopCount: 0,
     });
   });
 

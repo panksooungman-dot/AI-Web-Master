@@ -49,6 +49,7 @@ export function MetricsWidget() {
           testCodeGenerationCount: 0,
           crudFrontendGenerationCount: 0,
           orchestrationRunCount: 0,
+          orchestrationScopeStopCount: 0,
         })
       );
   }, []);

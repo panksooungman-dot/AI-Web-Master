@@ -22,6 +22,7 @@ import { generateTestCode } from "./test-code-generator";
 import { createTestCode, type TestCodeRecord } from "./test-code";
 import { generateCrudFrontend } from "./crud-frontend-generator";
 import { createCrudFrontend, type CrudFrontendRecord } from "./crud-frontend";
+import { AUTO_RUN_BATCH_LIMIT, estimateScope, type ScopeEstimate } from "./scope-check";
 
 /**
  * Design Automation — 9-Stage Orchestrator. 지금까지 AI Business OS의 "9단계 개발 프로세스"
@@ -38,10 +39,19 @@ import { createCrudFrontend, type CrudFrontendRecord } from "./crud-frontend";
  * (chatViaCli() 실패 → simulated:true 폴백), 이 오케스트레이터가 도중에 실패하는 경우는
  * 사실상 registry 쓰기(fs) 실패 같은 예외적 상황뿐이다 — 그런 경우는 그대로 던져 호출자가
  * 처리하게 한다(다른 Phase의 registry 쓰기와 동일하게 조용히 삼키지 않는다).
+ *
+ * **범위 사전 검증(scope-check) — Multi-Step Workflow 전환**: Database Design·API Design까지
+ * 생성한 직후(아직 배치 기반 5개 단계는 시작 전) `estimateScope()`(scope-check.ts)로 남은 단계의
+ * 예상 AI 호출(배치) 총합을 계산한다. 이 값이 `AUTO_RUN_BATCH_LIMIT`을 넘으면 — 프로젝트 규모가
+ * 커서 이 한 번의 호출 안에서 자동으로 전 구간을 끝까지 실행하기에 적합하지 않다는 뜻이다 — 여기서
+ * 멈추고 `completed:false`를 반환한다. 이미 생성된 Database Design/API Design은 그대로 남아있으니
+ * 호출자는 그 `apiDesignId`부터 `/api/design/backend` 등 개별 엔드포인트로 나머지를 나눠(multi-step)
+ * 진행할 수 있다. `force:true`를 주면 이 검사를 건너뛰고 항상 끝까지 실행한다.
  */
 type ChatFn = (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult>;
 
-export interface OrchestrationResult {
+interface CompletedOrchestrationResult {
+  completed: true;
   planId: string;
   designPlan: DesignPlanRecord;
   databaseDesign: DatabaseDesignRecord;
@@ -53,12 +63,28 @@ export interface OrchestrationResult {
   testPlan: TestPlanRecord;
   testCode: TestCodeRecord;
   crudFrontend: CrudFrontendRecord;
+  scope: ScopeEstimate;
 }
+
+interface ScopeStoppedOrchestrationResult {
+  completed: false;
+  /** 지금 구조상 항상 "api-design"이다 — 규모를 알 수 있는 시점이 API Design 완료 직후뿐이라서. */
+  stoppedAtStage: "api-design";
+  reason: string;
+  scope: ScopeEstimate;
+  planId: string;
+  designPlan: DesignPlanRecord;
+  databaseDesign: DatabaseDesignRecord;
+  apiDesign: ApiDesignRecord;
+}
+
+export type OrchestrationResult = CompletedOrchestrationResult | ScopeStoppedOrchestrationResult;
 
 export async function runDesignOrchestration(
   input: DesignPlanInput,
   store: CollectionStore = getDefaultStore(),
-  chatFn: ChatFn = chatViaCli
+  chatFn: ChatFn = chatViaCli,
+  force = false
 ): Promise<OrchestrationResult> {
   const plan = await generateDesignPlan(input, chatFn);
   const designPlan = await createDesignPlan(
@@ -84,6 +110,25 @@ export async function runDesignOrchestration(
     },
     store
   );
+
+  const scope = estimateScope(databaseDesign, apiDesign);
+
+  if (!scope.withinAutoRunLimit && !force) {
+    return {
+      completed: false,
+      stoppedAtStage: "api-design",
+      reason:
+        `테이블 ${scope.tableCount}개·엔드포인트 ${scope.endpointCount}개 규모로, 남은 단계에서 ` +
+        `예상 AI 호출이 ${scope.estimatedRemainingBatchCalls}회(자동 실행 권장 상한 ${AUTO_RUN_BATCH_LIMIT}회)` +
+        `에 달합니다. apiDesignId="${apiDesign.id}"부터 개별 엔드포인트로 나눠 진행하거나, ` +
+        `force:true로 다시 요청해 강행할 수 있습니다.`,
+      scope,
+      planId: designPlan.id,
+      designPlan,
+      databaseDesign,
+      apiDesign,
+    };
+  }
 
   const backend = await generateBackendDesign(apiDesign, chatFn);
   const backendDesign = await createBackendDesign(
@@ -169,6 +214,7 @@ export async function runDesignOrchestration(
   );
 
   return {
+    completed: true,
     planId: designPlan.id,
     designPlan,
     databaseDesign,
@@ -180,5 +226,6 @@ export async function runDesignOrchestration(
     testPlan,
     testCode,
     crudFrontend,
+    scope,
   };
 }

@@ -66,6 +66,9 @@ export interface MetricsCounters {
   /** 9-Stage Orchestrator(lib/design/orchestrator.ts) 신규 — 기존 32개 필드는 무변경. 10개 단계를
    *  개별 호출로 실행한 횟수가 아니라, 이 오케스트레이터로 전 구간을 한 번에 실행한 횟수만 센다. */
   orchestrationRunCount: number;
+  /** 범위 사전 검증(lib/design/scope-check.ts)에 걸려 API Design까지만 완료하고 중단한 횟수
+   *  — 기존 33개 필드는 무변경. */
+  orchestrationScopeStopCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -104,6 +107,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   testCodeGenerationCount: 0,
   crudFrontendGenerationCount: 0,
   orchestrationRunCount: 0,
+  orchestrationScopeStopCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

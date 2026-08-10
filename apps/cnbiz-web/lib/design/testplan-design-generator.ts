@@ -11,7 +11,8 @@ const TEST_CASE_TYPES: TestCaseType[] = ["unit", "integration", "e2e"];
  * E2E 검증에서 63개 로직 항목으로 인한 전체 파싱 실패·전체 폴백을 재현·확인 — Backend Design과
  * 동일한 원인). 배치별로 실패해도 그 배치의 로직 항목만 폴백되어 전체가 폴백되지 않는다.
  */
-const BATCH_SIZE = 8;
+export const TESTPLAN_BATCH_SIZE = 8;
+const BATCH_SIZE = TESTPLAN_BATCH_SIZE;
 
 const DEFAULT_COVERAGE_SUMMARY =
   "AI Provider 미설정으로 생성된 기본값입니다. 각 서비스 함수의 unit 테스트와 엔드포인트별 integration 테스트만 포함합니다.";

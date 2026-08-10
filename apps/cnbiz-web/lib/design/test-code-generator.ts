@@ -6,7 +6,8 @@ import type { GeneratedTestFile, TestCodeContent } from "./test-code";
 
 /** 테스트 케이스 배치 크기 — 테스트 본문은 규칙 텍스트보다 부피가 커서 Backend Code와
  *  동일하게 작게 잡는다. */
-const BATCH_SIZE = 5;
+export const TEST_CODE_BATCH_SIZE = 5;
+const BATCH_SIZE = TEST_CODE_BATCH_SIZE;
 
 /**
  * CRITICAL 절 없이 처음 배포했을 때(2026-08-10 실 E2E) 실제로 재현된 문제 — AI가 서비스 함수의

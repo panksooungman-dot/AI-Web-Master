@@ -67,6 +67,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.test-code.generate": "Test Code",
   "design.crud-frontend.generate": "CRUD Frontend",
   "design.orchestrate.run": "9-Stage Orchestrator",
+  "design.orchestrate.scope_stop": "Orchestrator Scope Stop",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -125,6 +126,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "design.test-code.generate": "purple",
   "design.crud-frontend.generate": "purple",
   "design.orchestrate.run": "purple",
+  "design.orchestrate.scope_stop": "orange",
 };
 
 const FILTERS: ("All" | AuditAction)[] = [
@@ -175,6 +177,7 @@ const FILTERS: ("All" | AuditAction)[] = [
   "design.test-code.generate",
   "design.crud-frontend.generate",
   "design.orchestrate.run",
+  "design.orchestrate.scope_stop",
 ];
 
 export default function AuditLogPage() {

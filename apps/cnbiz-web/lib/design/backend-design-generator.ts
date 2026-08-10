@@ -9,7 +9,8 @@ import type { BackendDesignContent, BackendLogicEndpoint } from "./backend-desig
  * 이 크기로 나눠 병렬 호출하면 각 응답이 항상 작게 유지되어 실패 확률이 낮아지고, 설령 일부
  * 배치가 실패해도 그 배치의 엔드포인트만 폴백되어 전체가 폴백되지 않는다.
  */
-const BATCH_SIZE = 10;
+export const BACKEND_DESIGN_BATCH_SIZE = 10;
+const BATCH_SIZE = BACKEND_DESIGN_BATCH_SIZE;
 
 const SYSTEM_PROMPT =
   "You are a senior backend engineer for AI Business OS's Design Automation system. You are given " +

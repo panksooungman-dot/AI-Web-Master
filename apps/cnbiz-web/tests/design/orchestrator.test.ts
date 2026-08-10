@@ -4,6 +4,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
 import { runDesignOrchestration } from "../../lib/design/orchestrator";
+import { listBackendDesigns } from "../../lib/design/backend-design";
 import type { DesignPlanInput } from "../../lib/design/types";
 import type { ChatResult } from "../../lib/ai/bridge";
 
@@ -33,6 +34,7 @@ describe("Design Automation — 9-Stage Orchestrator (lib/design/orchestrator.ts
 
   it("runs all 10 stages end-to-end, chaining each record's id into the next stage's foreign key", async () => {
     const result = await runDesignOrchestration(INPUT, store, FAILING_CHAT_FN);
+    if (!result.completed) throw new Error(`expected completed:true, stopped: ${result.reason}`);
 
     expect(result.planId).toBe(result.designPlan.id);
     expect(result.databaseDesign.planId).toBe(result.designPlan.id);
@@ -64,6 +66,9 @@ describe("Design Automation — 9-Stage Orchestrator (lib/design/orchestrator.ts
     expect(result.designPlan.simulated).toBe(true);
     expect(result.databaseDesign.simulated).toBe(true);
     expect(result.testCode.simulated).toBe(true);
+
+    // 기본 폴백 규모(테이블 5개 안팎)는 자동 실행 상한을 넘지 않아야 한다
+    expect(result.scope.withinAutoRunLimit).toBe(true);
   });
 
   it("persists every stage's record to its own collection so it is independently retrievable later", async () => {
@@ -101,5 +106,72 @@ describe("Design Automation — 9-Stage Orchestrator (lib/design/orchestrator.ts
 
     const plans = JSON.parse(fs.readFileSync(path.join(baseDir, "design-plans.json"), "utf-8"));
     expect(plans).toHaveLength(2);
+  });
+
+  describe("scope-check — stops after API Design when the estimated remaining work is too large", () => {
+    /** 첫 chatFn 호출(Design Plan)에만 20개 feature를 담은 실제 JSON 응답을 주고, 나머지는 전부
+     *  실패시킨다 — buildDefaultDatabaseDesign()이 feature마다 테이블 1개를 만들고
+     *  buildDefaultApiDesign()이 테이블마다 엔드포인트 5개를 만드는 결정론적 관계를 그대로 이용해,
+     *  Database/API Design 단계에서 이미 큰 규모(테이블 21개·엔드포인트 100개)가 자연스럽게
+     *  나오도록 한다. */
+    const bigFeatureList = Array.from({ length: 20 }, (_, i) => ({
+      name: `기능-${i}`,
+      description: `기능 ${i} 설명`,
+      priority: "Medium" as const,
+    }));
+    const bigPlanContent = {
+      requirementAnalysis: {
+        projectSummary: "대규모 관리 시스템",
+        functionalRequirements: ["요구사항 A"],
+        nonFunctionalRequirements: ["요구사항 B"],
+        businessRules: ["규칙 A"],
+        targetUsers: ["관리자"],
+      },
+      featureList: bigFeatureList,
+      siteMap: [{ path: "/", title: "홈" }],
+      userFlows: [{ name: "기본 흐름", steps: [{ step: 1, screen: "홈", action: "방문", next: "Complete" }] }],
+      screenList: [{ name: "홈", path: "/", description: "홈 화면", components: ["Hero"] }],
+    };
+
+    let callCount: number;
+    const bigScopeChatFn = async (): Promise<ChatResult> => {
+      callCount += 1;
+      if (callCount === 1) {
+        return { success: true, content: JSON.stringify(bigPlanContent), provider: "anthropic", model: "claude-sonnet-5" };
+      }
+      return { success: false, error: "no provider configured" };
+    };
+
+    beforeEach(() => {
+      callCount = 0;
+    });
+
+    it("returns completed:false with the reason and the two records that were actually generated", async () => {
+      const result = await runDesignOrchestration(INPUT, store, bigScopeChatFn);
+
+      expect(result.completed).toBe(false);
+      if (result.completed) throw new Error("expected completed:false");
+
+      expect(result.stoppedAtStage).toBe("api-design");
+      expect(result.scope.tableCount).toBe(21); // 20 features + users
+      expect(result.scope.endpointCount).toBe(100); // 20 non-users tables × 5 endpoints
+      expect(result.scope.withinAutoRunLimit).toBe(false);
+      expect(result.reason).toContain(result.apiDesign.id);
+
+      // Database Design·API Design은 실제로 생성·저장됐다 — 중단은 "실패"가 아니라 안내다
+      expect(result.databaseDesign.content.tables.length).toBe(21);
+      expect(result.apiDesign.content.endpoints.length).toBe(100);
+      expect(await listBackendDesigns(store)).toHaveLength(0);
+    });
+
+    it("force:true bypasses the scope check and runs all 10 stages anyway", async () => {
+      const result = await runDesignOrchestration(INPUT, store, bigScopeChatFn, true);
+
+      expect(result.completed).toBe(true);
+      if (!result.completed) throw new Error("expected completed:true");
+
+      expect(result.scope.withinAutoRunLimit).toBe(false);
+      expect(result.crudFrontend.content.files.length).toBeGreaterThan(0);
+    });
   });
 });

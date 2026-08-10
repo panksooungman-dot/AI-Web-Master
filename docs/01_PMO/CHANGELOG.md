@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-08-11
+
+### 추가 (Added)
+
+- **9-Stage Orchestrator — 범위 사전 검증(scope-check) 및 Multi-Step Workflow 전환**
+  (`lib/design/scope-check.ts`, 신규): 2026-08-10 (7)에 만든 `/api/design/orchestrate`는
+  Database Design·API Design 이후 5개 배치 기반 단계(Backend Design/Code·Database Code·
+  Test Plan/Code)를 규모와 무관하게 항상 끝까지 자동 실행했다. `estimateScope()`가 Database
+  Design·API Design 생성 직후(아직 배치 기반 단계는 시작 전) 남은 5개 단계의 예상 AI 호출(배치)
+  총합을 각 생성기의 실제 `BATCH_SIZE` 상수(`export`로 전환, 신규 중복 없이 재사용)와 결정론적
+  관계(로직 수=엔드포인트 수, 테스트 케이스 수=로직 수×2, RLS Policy 수=테이블 수)로 정확히
+  계산한다. `AUTO_RUN_BATCH_LIMIT`(40)을 넘으면 오케스트레이터가 API Design 단계에서 멈추고
+  `completed:false` + 안내 메시지(`apiDesignId`부터 개별 엔드포인트로 이어가거나 `force:true`로
+  강행)를 반환한다 — Database Design/API Design 자체는 그대로 생성·저장되어 있으므로 "실패"가
+  아니라 "이후는 나눠서(multi-step) 진행하라"는 안내다.
+  - `lib/design/orchestrator.ts` — `OrchestrationResult`를 `completed:true`(10개 산출물 전체 +
+    `scope`)/`completed:false`(Design Plan·Database Design·API Design + `stoppedAtStage`·
+    `reason`·`scope`) 판별 유니언으로 재정의. `runDesignOrchestration()`에 `force` 파라미터 추가.
+  - `app/api/design/orchestrate/route.ts` — body의 `force:true`를 받아 전달. `completed:false`일
+    때는 실제로 생성된 2개 단계(Design Plan·Database Design·API Design)의 Audit/Metrics만
+    기록하고, 신규 `design.orchestrate.scope_stop` Audit Action + `orchestrationScopeStopCount`
+    Metrics 카운터로 "범위 초과로 중단"을 별도 기록.
+  - 테스트(신규 9개): `tests/design/scope-check.test.ts`(4개, 순수 함수 단위 테스트 — 카운트
+    계산·경계값·0으로 나누기 없음), `tests/design/orchestrator.test.ts`에 5개 추가(대규모
+    Design Plan 응답을 주입해 Database/API Design이 자연스럽게 커지도록 만든 뒤 실제로
+    `completed:false`가 반환되는지, `force:true`로 우회하면 10단계 전부 완료되는지 확인).
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(변경 파일 전체 0 errors), `npm run build`(정상),
+  `npx vitest run --exclude "**/ai/bridge.test.ts"`(111 files/957 tests 중 956 통과 — 실패한
+  1건(`tests/providers/status.test.ts`의 Ollama Unreachable 케이스)은 단독 재실행 시 7/7 전부
+  통과해 병렬 실행 중 네트워크 자원 경합으로 인한 기존 무관 플레이크로 확인, 이번 변경과 무관)
+- **임계값(`AUTO_RUN_BATCH_LIMIT`) 재보정 — 최초 15로 설정했다가 실제 계산값으로 즉시 수정**:
+  처음엔 "5개 단계 합쳐도 여유 있게 안전"하다는 감으로 15를 잡았는데, 기존 정상 회귀 테스트를
+  돌려본 결과 Design Plan의 결정론적 기본 폴백(고정 feature 4개)만으로도 이미 18회가 나와
+  가장 작은 기본 케이스조차 "범위 초과"로 즉시 멈추는 결함을 테스트 실행 중 바로 발견했다.
+  실제 계산값(기본 폴백=18회, 2026-08-10 (2)~(3)에서 실제로 문제가 됐던 엔드포인트 53개/
+  테이블 14개 규모=약 48회) 사이에서 40으로 재보정 — 감이 아니라 실측값 기준으로 정한 값이다.
+
+---
+
 ## 2026-08-10 (7)
 
 ### 추가 (Added)

@@ -10,7 +10,8 @@ import type {
 import type { DatabaseCodeContent, GeneratedMigrationFile } from "./database-code";
 
 /** RLS Policy 배치 크기 — 테이블당 보통 1개씩이라 Backend Design/Code보다 훨씬 여유 있게 잡는다. */
-const RLS_BATCH_SIZE = 10;
+export const DATABASE_CODE_RLS_BATCH_SIZE = 10;
+const RLS_BATCH_SIZE = DATABASE_CODE_RLS_BATCH_SIZE;
 
 const RLS_SYSTEM_PROMPT =
   "You are a senior database security engineer for AI Business OS's Design Automation system. " +

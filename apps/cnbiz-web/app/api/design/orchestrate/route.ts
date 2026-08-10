@@ -22,6 +22,12 @@ function str(body: Record<string, unknown>, key: string): string {
  * 호출했을 때와 동일한 Audit Log 액션·Metrics 카운터를 기록한다 — Dashboard·Audit Log·Metrics는
  * 어떤 경로로 생성됐는지 구분하지 않고 동일하게 집계되어야 하기 때문이다. `design.orchestrate.run`
  * 은 그 10개와 별개로 "전체 체인을 한 번에 실행했다"는 사실 자체를 추가로 기록한다.
+ *
+ * **범위가 크면 API Design에서 멈춘다**: `runDesignOrchestration()`이 Database Design·API
+ * Design 생성 직후 규모를 추정해(lib/design/scope-check.ts), 남은 5개 배치 기반 단계의 예상 AI
+ * 호출이 너무 많으면 `completed:false`를 반환한다 — 이 경우 이미 생성된 2개 단계의 Audit/
+ * Metrics만 기록하고, `design.orchestrate.run` 대신 `design.orchestrate.scope_stop`을 기록한다.
+ * `force:true`를 body에 담아 다시 요청하면 이 검사를 건너뛰고 강행한다.
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -41,6 +47,7 @@ export async function POST(request: Request) {
   const requirements = str(body, "requirements");
   const targetUsers = str(body, "targetUsers");
   const projectId = str(body, "projectId") || undefined;
+  const force = body.force === true;
 
   if (!projectName || !requirements) {
     return NextResponse.json(
@@ -50,9 +57,11 @@ export async function POST(request: Request) {
   }
 
   const input: DesignPlanInput = { projectName, projectType, requirements, targetUsers, projectId };
-  const result = await runDesignOrchestration(input);
+  const result = await runDesignOrchestration(input, undefined, undefined, force);
   const actor = await getCurrentActorEmail();
 
+  // Database Design·API Design은 completed 여부와 무관하게 항상 생성되므로, 두 단계의
+  // Audit/Metrics는 completed:false일 때도 그대로 기록한다 — 실제로 만들어진 산출물이기 때문이다.
   const stages: { action: AuditAction; metric: keyof MetricsCounters; detail: string }[] = [
     {
       action: "design.generate",
@@ -73,56 +82,83 @@ export async function POST(request: Request) {
         result.apiDesign.content.endpoints.length
       }개)${result.apiDesign.simulated ? " (simulated)" : ""}`,
     },
-    {
-      action: "design.backend.generate",
-      metric: "backendDesignGenerationCount",
-      detail: `Backend Design 생성: apiDesignId=${result.apiDesign.id} (로직 ${
-        result.backendDesign.content.logic.length
-      }개)${result.backendDesign.simulated ? " (simulated)" : ""}`,
-    },
-    {
-      action: "design.backend-code.generate",
-      metric: "backendCodeGenerationCount",
-      detail: `Backend Code 생성: backendDesignId=${result.backendDesign.id} (파일 ${
-        result.backendCode.content.files.length
-      }개)${result.backendCode.simulated ? " (simulated)" : ""}`,
-    },
-    {
-      action: "design.api-code.generate",
-      metric: "apiCodeGenerationCount",
-      detail: `API Code 생성: backendCodeId=${result.backendCode.id} (파일 ${result.apiCode.content.files.length}개)`,
-    },
-    {
-      action: "design.database-code.generate",
-      metric: "databaseCodeGenerationCount",
-      detail: `Database Code 생성: databaseDesignId=${result.databaseDesign.id} (파일 ${
-        result.databaseCode.content.files.length
-      }개)${result.databaseCode.simulated ? " (simulated)" : ""}`,
-    },
-    {
-      action: "design.testplan.generate",
-      metric: "testPlanGenerationCount",
-      detail: `Test Plan 생성: backendDesignId=${result.backendDesign.id} (테스트 케이스 ${
-        result.testPlan.content.testCases.length
-      }개)${result.testPlan.simulated ? " (simulated)" : ""}`,
-    },
-    {
-      action: "design.test-code.generate",
-      metric: "testCodeGenerationCount",
-      detail: `Test Code 생성: testPlanId=${result.testPlan.id} (파일 ${result.testCode.content.files.length}개)${
-        result.testCode.simulated ? " (simulated)" : ""
-      }`,
-    },
-    {
-      action: "design.crud-frontend.generate",
-      metric: "crudFrontendGenerationCount",
-      detail: `CRUD Frontend 생성: apiCodeId=${result.apiCode.id} (파일 ${result.crudFrontend.content.files.length}개)`,
-    },
   ];
+
+  if (result.completed) {
+    stages.push(
+      {
+        action: "design.backend.generate",
+        metric: "backendDesignGenerationCount",
+        detail: `Backend Design 생성: apiDesignId=${result.apiDesign.id} (로직 ${
+          result.backendDesign.content.logic.length
+        }개)${result.backendDesign.simulated ? " (simulated)" : ""}`,
+      },
+      {
+        action: "design.backend-code.generate",
+        metric: "backendCodeGenerationCount",
+        detail: `Backend Code 생성: backendDesignId=${result.backendDesign.id} (파일 ${
+          result.backendCode.content.files.length
+        }개)${result.backendCode.simulated ? " (simulated)" : ""}`,
+      },
+      {
+        action: "design.api-code.generate",
+        metric: "apiCodeGenerationCount",
+        detail: `API Code 생성: backendCodeId=${result.backendCode.id} (파일 ${result.apiCode.content.files.length}개)`,
+      },
+      {
+        action: "design.database-code.generate",
+        metric: "databaseCodeGenerationCount",
+        detail: `Database Code 생성: databaseDesignId=${result.databaseDesign.id} (파일 ${
+          result.databaseCode.content.files.length
+        }개)${result.databaseCode.simulated ? " (simulated)" : ""}`,
+      },
+      {
+        action: "design.testplan.generate",
+        metric: "testPlanGenerationCount",
+        detail: `Test Plan 생성: backendDesignId=${result.backendDesign.id} (테스트 케이스 ${
+          result.testPlan.content.testCases.length
+        }개)${result.testPlan.simulated ? " (simulated)" : ""}`,
+      },
+      {
+        action: "design.test-code.generate",
+        metric: "testCodeGenerationCount",
+        detail: `Test Code 생성: testPlanId=${result.testPlan.id} (파일 ${result.testCode.content.files.length}개)${
+          result.testCode.simulated ? " (simulated)" : ""
+        }`,
+      },
+      {
+        action: "design.crud-frontend.generate",
+        metric: "crudFrontendGenerationCount",
+        detail: `CRUD Frontend 생성: apiCodeId=${result.apiCode.id} (파일 ${result.crudFrontend.content.files.length}개)`,
+      }
+    );
+  }
 
   for (const stage of stages) {
     await recordAuditEvent({ action: stage.action, actor, success: true, detail: stage.detail });
     await incrementMetric(stage.metric);
+  }
+
+  if (!result.completed) {
+    await recordAuditEvent({
+      action: "design.orchestrate.scope_stop",
+      actor,
+      success: true,
+      detail: `9-Stage 자동 생성 범위 초과로 중단: "${projectName}" (${result.reason})`,
+    });
+    await incrementMetric("orchestrationScopeStopCount");
+
+    return NextResponse.json({
+      success: true,
+      completed: false,
+      stoppedAtStage: result.stoppedAtStage,
+      reason: result.reason,
+      scope: result.scope,
+      planId: result.planId,
+      databaseDesignId: result.databaseDesign.id,
+      apiDesignId: result.apiDesign.id,
+      result,
+    });
   }
 
   const totalFiles =
@@ -154,6 +190,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
+    completed: true,
     planId: result.planId,
     databaseDesignId: result.databaseDesign.id,
     apiDesignId: result.apiDesign.id,
@@ -164,6 +201,7 @@ export async function POST(request: Request) {
     testPlanId: result.testPlan.id,
     testCodeId: result.testCode.id,
     crudFrontendId: result.crudFrontend.id,
+    scope: result.scope,
     totalFiles,
     result,
   });

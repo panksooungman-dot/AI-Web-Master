@@ -8,7 +8,8 @@ import type { BackendCodeContent, GeneratedServiceFile } from "./backend-code";
  * 큰 응답의 토큰 상한 초과)로 backend-design-generator.ts/testplan-design-generator.ts와 같은
  * 배치 병렬 호출 패턴을 그대로 재사용한다.
  */
-const BATCH_SIZE = 5;
+export const BACKEND_CODE_BATCH_SIZE = 5;
+const BATCH_SIZE = BACKEND_CODE_BATCH_SIZE;
 
 /** 모든 생성 함수가 공유하는 데이터 접근 계약 — 특정 DB 벤더에 종속되지 않도록 이 인터페이스
  *  하나만 통해 데이터에 접근한다. 배포 시 이 인터페이스를 실제 DB 클라이언트로 구현하면 된다. */

@@ -64,7 +64,8 @@ export type AuditAction =
   | "design.test-code.generate"
   | "design.crud-frontend.generate"
   | "design.orchestrate.run"
-  | "design.orchestrate.scope_stop";
+  | "design.orchestrate.scope_stop"
+  | "design.chain-orchestrate.run";
 
 export interface AuditEntry {
   id: string;

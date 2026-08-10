@@ -68,6 +68,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.crud-frontend.generate": "CRUD Frontend",
   "design.orchestrate.run": "9-Stage Orchestrator",
   "design.orchestrate.scope_stop": "Orchestrator Scope Stop",
+  "design.chain-orchestrate.run": "Chain A Orchestrator",
 };
 
 /**

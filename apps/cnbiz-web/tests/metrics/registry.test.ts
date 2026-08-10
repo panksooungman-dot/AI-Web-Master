@@ -54,6 +54,7 @@ describe("Metrics — lib/metrics/registry.ts", () => {
       crudFrontendGenerationCount: 0,
       orchestrationRunCount: 0,
       orchestrationScopeStopCount: 0,
+      designChainOrchestrationRunCount: 0,
     });
   });
 

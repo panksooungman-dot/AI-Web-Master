@@ -50,6 +50,7 @@ export function MetricsWidget() {
           crudFrontendGenerationCount: 0,
           orchestrationRunCount: 0,
           orchestrationScopeStopCount: 0,
+          designChainOrchestrationRunCount: 0,
         })
       );
   }, []);

@@ -69,6 +69,10 @@ export interface MetricsCounters {
   /** 범위 사전 검증(lib/design/scope-check.ts)에 걸려 API Design까지만 완료하고 중단한 횟수
    *  — 기존 33개 필드는 무변경. */
   orchestrationScopeStopCount: number;
+  /** Chain A Orchestrator(lib/design/design-chain-orchestrator.ts) 신규 — 기존 34개 필드는
+   *  무변경. Requirements~Review를 한 번에 실행한 횟수만 센다(개별 단계 카운터는 그대로 별도
+   *  집계). */
+  designChainOrchestrationRunCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -108,6 +112,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   crudFrontendGenerationCount: 0,
   orchestrationRunCount: 0,
   orchestrationScopeStopCount: 0,
+  designChainOrchestrationRunCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

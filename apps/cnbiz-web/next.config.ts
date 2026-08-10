@@ -109,6 +109,9 @@ const nextConfig: NextConfig = {
     "/api/design/test-code": CLI_TRACE_INCLUDES,
     // lib/design/orchestrator.ts runs the full 9-stage chain above in one call
     "/api/design/orchestrate": CLI_TRACE_INCLUDES,
+    // lib/design/design-chain-orchestrator.ts runs Requirements->Storyboard->Wireframe->
+    // Prototype->Claude Design in one call (Chain A counterpart of the above)
+    "/api/design/design-orchestrate": CLI_TRACE_INCLUDES,
     // lib/{estimates,specifications,timeline,proposals,contracts}/generator.ts
     "/api/estimates": CLI_TRACE_INCLUDES,
     "/api/specifications": CLI_TRACE_INCLUDES,

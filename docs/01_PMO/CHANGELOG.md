@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-08-11 (2)
+
+### 추가 (Added)
+
+- **Chain A Orchestrator — `POST /api/design/design-orchestrate`**: 2026-08-11에 만든 Chain B
+  9-Stage Orchestrator(`/api/design/orchestrate`)의 대응물. `lib/design/design-chain-
+  orchestrator.ts`(신규, `runDesignChainOrchestration()`)가 Requirements → Storyboard →
+  Wireframe → Prototype → Claude Design 5단계를 한 번의 호출로 순서대로 생성한다 — 지금까지는
+  `/developer/design/*` 화면 5개를 사람이 순서대로 돌아다니며 매번 "직전 산출물 선택 → Generate
+  클릭"을 반복해야 했다(Chain B와 달리 Chain A는 대시보드 화면 자체가 존재해 이 문제가 더
+  체감됐다).
+  - **Review에서 항상 멈춘다 — Chain B의 규모 검사와는 다른 이유의 의도적 정지점**: Chain B는
+    "규모가 크면" 멈추지만, Chain A는 규모와 무관하게 Claude Design 다음 Review
+    (`createReview()`, `in_review` 상태) 생성까지만 하고 절대 승인을 대신하지 않는다 — Review는
+    생성 단계가 아니라 "고객/관리자가 승인·반려·수정요청을 판단"하는 사람의 결정 지점이기
+    때문이다(review.ts의 기존 설계 의도 그대로 존중). Figma Export·Design Sync는 승인된 Review
+    위에서만 의미가 있어(website.ts의 Approval Rule과 동일 원칙) 이 체인에 포함하지 않았다 —
+    승인 이후 절차는 기존과 동일하게 관리자가 별도로 진행한다.
+  - `app/api/design/design-orchestrate/route.ts`(신규) — 각 단계마다 개별 라우트를 그대로
+    호출했을 때와 동일한 Audit Log 액션·Metrics 카운터를 기록하고, 신규
+    `design.chain-orchestrate.run` Audit Action + `designChainOrchestrationRunCount` Metrics
+    카운터로 "5단계를 한 번에 실행했다"는 사실을 추가로 기록. `actor`(로그인 사용자)를
+    Review의 히스토리 항목에 그대로 전달(승인·반려처럼 실제 사람이 한 일로 남아야 함).
+  - `next.config.ts`의 `outputFileTracingIncludes`에 신규 라우트 추가(2026-08-11의 CLI
+    번들링 누락 수정과 동일한 이유 — `chatViaCli()`를 호출하는 라우트는 이 맵에 없으면
+    프로덕션에서 조용히 폴백만 반환한다).
+  - 테스트(신규 4개, `tests/design/design-chain-orchestrator.test.ts`) — 5개 산출물의 FK가
+    정확히 이전 단계를 가리키는지, Review가 항상 `in_review`로 멈추는지(자동 승인 없음),
+    전달한 `actor`가 Review 히스토리에 그대로 기록되는지, 같은 입력으로 두 번 실행해도 각각
+    독립적으로 v1부터 시작하는지 확인.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(변경 파일 전체 0 errors), `npm run build`(신규
+  라우트 정상 생성, `.nft.json` 파일 수 908개로 CLI 번들링 정상 확인), `npx vitest run --exclude
+  "**/ai/bridge.test.ts"`(112 files/961 tests 전부 통과, 신규 4개 포함, 회귀 없음)
+- Chain B와 동일하게 실 E2E(로그인 세션·실제 AI 크레딧)는 수행하지 않음 — 각 단계의
+  `generate*()` 함수 자체는 이미 Phase별로 실 E2E 검증이 끝난 상태이고, 이번 추가분은 그 호출을
+  순서대로 체이닝하는 로직뿐이라 결정론적 폴백 기준 통합 테스트로 충분하다고 판단.
+
+---
+
 ## 2026-08-11
 
 ### 추가 (Added)

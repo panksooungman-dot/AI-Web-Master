@@ -4,6 +4,70 @@
 
 ---
 
+## 2026-08-24 (11)
+
+### 추가 (Added)
+
+- **Visual Editor에 "코드 에디터에서 열기" 버튼 추가**: 화면 라벨에서 파일 경로를 감춘
+  직후((10)번 항목) "그럼 코드 에디터로 수정하려면 결국 파일을 직접 찾아야 하는 거 아니냐"는
+  지적을 받아, 편집 패널에 버튼을 추가해 클릭 한 번으로 VS Code가 정확한 파일을 열도록 연결
+  - `packages/dev-inspector/src/routes/open-in-editor.ts`(신규) — `GET
+    /api/dev-inspector/open-in-editor?file=<상대경로>`. 기존 save-* 핸들러와 동일하게
+    `resolveSafeSourcePath()`(경로 탈출 방지·`components/`·`app/` 하위 `.tsx`/`.jsx`만 허용·
+    실존 파일만 허용)로 검증한 뒤, `vscode://file/<절대경로>` URI를 돌려준다.
+    `NODE_ENV !== "development"`면 다른 핸들러와 동일하게 403
+  - `packages/dev-inspector/src/server.ts` — `openInEditorHandler` export 추가
+  - `apps/cnbiz-web/app/api/dev-inspector/open-in-editor/route.ts`(신규) — 기존 save-*
+    라우트와 동일한 얇은 재노출 wiring 파일
+  - `packages/dev-inspector/src/EditPanel.tsx` — "💻 코드 에디터에서 열기" 버튼을 "텍스트
+    수정" 바로 아래 추가. 클릭 시 위 API를 호출해 받은 `editorUrl`로
+    `window.location.href`를 이동시켜 OS의 `vscode://` 프로토콜 핸들러(VS Code 설치·URI
+    핸들러 등록 필요)를 트리거한다
+
+### 수정 (Fixed)
+
+- **`/api/dev-inspector/**`(Visual Editor의 save-text/save-image/save-style + 방금 추가한
+  open-in-editor)가 전부 RBAC에 의해 "developer" role 로그인을 요구하고 있어, 실사용
+  경로(로그인하지 않은 공개 페이지 미리보기 위에서 쓰는 로컬 전용 도구)에서 항상 401로
+  막히던 버그 발견·수정**: 위 기능을 실제 dev 서버에 대고 curl로 검증하던 중
+  `{"success":false,"error":"로그인이 필요합니다."}`(401)을 재현 — `lib/auth/rbac.ts`가 명시적
+  예외 목록에 없는 모든 `/api/**`를 기본적으로 "developer" 영역으로 게이팅하는데,
+  `/api/dev-inspector`가 그 목록에 없었다. 즉 이번에 새로 만든 open-in-editor뿐 아니라
+  **기존에 이미 배포돼 있던 save-text/save-image/save-style도 처음부터 로그인 없이는 전혀
+  동작한 적이 없었던 것**으로 확인됨(각 핸들러 자체가 이미 `NODE_ENV !== "development"`면
+  403을 반환하는 별도 방어선을 갖고 있어 프로덕션 노출 위험은 없었음)
+  - `apps/cnbiz-web/lib/auth/rbac.ts` — `UNGATED_API_PREFIXES`에 `/api/dev-inspector` 추가.
+    `/api/uploads`와 동일한 논리: 로컬 dev 서버에 접근 가능하다는 것 자체가 이미 그
+    프로젝트 파일시스템 전체에 접근 가능하다는 뜻이라 RBAC로 추가 보호할 실익이 없고, 오히려
+    실사용을 막고 있었다
+  - `apps/cnbiz-web/tests/auth/rbac.test.ts` — `/api/dev-inspector/save-text`를 "developer"로
+    단언하던 기존 테스트를 제거하고, save-text/save-image/save-style/open-in-editor 4개
+    전부 `null`(비게이팅)을 단언하는 새 테스트로 교체
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(dev-inspector 패키지·cnbiz-web 양쪽 0 errors), `npm run lint`(0 errors),
+  `npm run build` 통과(`/api/dev-inspector/open-in-editor` 라우트 정상 생성 확인)
+- `npx vitest run tests/auth/`(8 files, 116 tests 전부 통과, `proxy.test.ts` 41개 포함 —
+  실제 미들웨어 동작까지 검증하는 테스트라 회귀 없음을 신뢰도 높게 확인)
+- **RBAC 수정 전/후 실제 재현**: 수정 전 `curl`로 `GET /api/dev-inspector/open-in-editor`·
+  `POST /api/dev-inspector/save-style`가 로그인 없이 매번 401로 막힘을 확인 → 수정 후 동일
+  요청이 실제 핸들러 로직까지 도달해 정상 동작함을 확인(존재하지 않는 className으로
+  save-style을 호출해 `{"success":false,"reason":"not-found"}"(200)`를 받아, 실제 파일을
+  건드리지 않고도 요청이 인증 게이트를 통과해 핸들러까지 도달했음을 확인). 경로 탈출
+  시도(`../../../etc/passwd`)·존재하지 않는 파일·필수 파라미터 누락은 여전히 각각
+  `invalid-file`/`invalid-request`(400)로 정상 차단됨을 재확인
+- Playwright로 실제 브라우저 조작 — 편집 패널에 "💻 코드 에디터에서 열기" 버튼이 정상
+  렌더링됨을 확인, 버튼이 호출하는 것과 동일한 fetch를 브라우저 컨텍스트에서 직접 실행해
+  `{success:true, editorUrl:"vscode://file//...HeroSection.tsx"}`를 받음을 확인(이 실행
+  환경에는 VS Code가 없어 `vscode://` 프로토콜이 실제로 VS Code를 여는 것까지는 검증하지
+  못함 — URI 생성까지가 이 코드의 책임 범위이고, 그 이후는 OS·브라우저·VS Code 설치 여부에
+  달려있음)
+  - 검증에 사용한 dev 서버·임시 Playwright 스크립트·`.next` 빌드 캐시는 검증 후 전부
+    종료·삭제
+
+---
+
 ## 2026-08-24 (10)
 
 ### 변경 (Changed)

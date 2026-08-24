@@ -6,3 +6,4 @@ export { resolveSafeSourcePath } from "./safe-source-path";
 export { saveTextHandler } from "./routes/save-text";
 export { saveImageHandler } from "./routes/save-image";
 export { saveStyleHandler } from "./routes/save-style";
+export { openInEditorHandler } from "./routes/open-in-editor";

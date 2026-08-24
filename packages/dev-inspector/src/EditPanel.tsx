@@ -7,6 +7,9 @@ import { useState, type CSSProperties } from "react";
  * DevInspectorOverlay가 선택한 요소(targetEl)를 넘겨주면, 색상·여백 변경은
  * 이 컴포넌트가 직접 /api/dev-inspector/save-style을 호출해 저장한다.
  * 텍스트·이미지 편집은 DevInspectorOverlay가 이미 가진 로직을 콜백으로 위임한다.
+ * "코드 에디터에서 열기"는 화면에는 감춘 파일 경로를 /api/dev-inspector/open-in-editor로
+ * 절대 경로로 변환해 받아 vscode:// URI로 이동한다(레이블만으로는 코드를 찾기 어렵다는
+ * 피드백에 대응 — VS Code가 로컬에 설치·URI 핸들러 등록돼 있어야 동작한다).
  */
 
 interface EditPanelProps {
@@ -54,6 +57,15 @@ function describeSaveFailure(reason: string | undefined): string {
   }
 }
 
+function describeOpenEditorFailure(reason: string | undefined): string {
+  switch (reason) {
+    case "invalid-file":
+      return "코드 파일을 찾지 못했습니다.";
+    default:
+      return "코드 에디터를 여는 중 오류가 발생했습니다.";
+  }
+}
+
 export function EditPanel({
   displayLabel,
   componentFile,
@@ -78,6 +90,24 @@ export function EditPanel({
   );
   const [notice, setNotice] = useState<Notice | null>(null);
   const [saving, setSaving] = useState(false);
+  const [openingEditor, setOpeningEditor] = useState(false);
+
+  async function openInEditor() {
+    setOpeningEditor(true);
+    try {
+      const res = await fetch(`/api/dev-inspector/open-in-editor?file=${encodeURIComponent(componentFile)}`);
+      const data = (await res.json()) as { success: boolean; editorUrl?: string; reason?: string };
+      if (data.success && data.editorUrl) {
+        window.location.href = data.editorUrl;
+      } else {
+        setNotice({ tone: "error", text: describeOpenEditorFailure(data.reason) });
+      }
+    } catch {
+      setNotice({ tone: "error", text: "코드 에디터를 여는 중 오류가 발생했습니다." });
+    } finally {
+      setOpeningEditor(false);
+    }
+  }
 
   async function saveStyle(styles: Record<string, string>) {
     setSaving(true);
@@ -125,6 +155,15 @@ export function EditPanel({
             </button>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => void openInEditor()}
+          disabled={openingEditor}
+          style={openEditorButtonStyle}
+        >
+          {openingEditor ? "여는 중..." : "💻 코드 에디터에서 열기"}
+        </button>
 
         <div style={fieldRowStyle}>
           <label style={labelStyle}>텍스트 색상</label>
@@ -261,6 +300,17 @@ const numberInputStyle: CSSProperties = {
   border: "1px solid #374151",
   background: "#1f2937",
   color: "#e5e7eb",
+};
+
+const openEditorButtonStyle: CSSProperties = {
+  padding: "6px 10px",
+  borderRadius: 6,
+  border: "1px solid #374151",
+  background: "#1f2937",
+  color: "#e5e7eb",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
 };
 
 function actionButtonStyle(active: boolean): CSSProperties {

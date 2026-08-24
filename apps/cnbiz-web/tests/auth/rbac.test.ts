@@ -98,7 +98,13 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/websites")).toBe("developer");
       expect(resolveProtectedArea("/api/agents/tasks")).toBe("developer");
       expect(resolveProtectedArea("/api/metrics")).toBe("developer");
-      expect(resolveProtectedArea("/api/dev-inspector/save-text")).toBe("developer");
+    });
+
+    it("leaves /api/dev-inspector/** ungated (Visual Editor save-text/save-image/save-style/open-in-editor — used unauthenticated on public page previews by a local developer; each handler already self-gates on NODE_ENV !== 'development', so requiring a login too just breaks the real usage path, as reproduced against a running dev server)", () => {
+      expect(resolveProtectedArea("/api/dev-inspector/save-text")).toBeNull();
+      expect(resolveProtectedArea("/api/dev-inspector/save-image")).toBeNull();
+      expect(resolveProtectedArea("/api/dev-inspector/save-style")).toBeNull();
+      expect(resolveProtectedArea("/api/dev-inspector/open-in-editor")).toBeNull();
     });
 
     it("leaves /api/auth/** ungated (must stay reachable to log in at all)", () => {

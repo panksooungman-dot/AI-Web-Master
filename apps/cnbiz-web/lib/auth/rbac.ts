@@ -85,6 +85,13 @@ const UNGATED_API_PREFIXES = [
   // (lib/ai-analysis/vision.ts)이 세션 쿠키 없이 서버-투-서버로 이 URL을 직접 fetch하므로
   // 로그인 게이트를 걸면 그 경로가 항상 실패한다.
   "/api/uploads",
+  // Visual Editor(@cnbiz/dev-inspector)의 save-text/save-image/save-style/open-in-editor.
+  // 이 오버레이는 공개 마케팅 페이지(/) 미리보기 위에서 로그인 없이 쓰는 로컬 전용 도구라,
+  // "developer" role 로그인을 요구하면 실사용 경로가 항상 401로 막힌다(실제 재현 확인).
+  // 각 핸들러가 이미 자체적으로 `NODE_ENV !== "development"`면 403을 반환하므로 프로덕션
+  // 노출 위험은 없고, 로컬 dev 서버에 접근 가능하다는 것 자체가 이미 그 프로젝트 파일시스템
+  // 전체에 접근 가능하다는 뜻이라 RBAC로 추가 보호할 실익도 없다.
+  "/api/dev-inspector",
 ];
 
 /**

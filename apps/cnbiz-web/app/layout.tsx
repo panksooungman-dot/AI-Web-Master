@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { WorkspaceStoreProvider } from "@/lib/store/workspace-store";
 import { OG_DEFAULTS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site-config";
+import { DevInspectorOverlay } from "@cnbiz/dev-inspector";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -65,6 +66,7 @@ export default function RootLayout({
           </AuthProvider>
         </main>
         <Footer />
+        <DevInspectorOverlay />
       </body>
       {isProduction && gaMeasurementId ? (
         <GoogleAnalytics gaId={gaMeasurementId} />

@@ -1,4 +1,5 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const steps = [
   { step: "01", title: "상담 신청", desc: "홈페이지 또는 이메일로 문의를 남겨주시면 담당자가 영업일 24시간 내 연락드립니다." },
@@ -10,7 +11,7 @@ const steps = [
 
 export function ServiceProcessSection() {
   return (
-    <Section background="alt">
+    <Section {...componentMarker("ServiceProcessSection", "components/sections/ServiceProcessSection.tsx", "도입 프로세스")} background="alt">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

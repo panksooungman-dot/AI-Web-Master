@@ -1,5 +1,6 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { Card } from "@cnbiz/ui";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const values = [
   { title: "전문성", desc: "각 분야 최고 전문가들이 검증된 방법론으로 문제를 해결합니다." },
@@ -10,7 +11,7 @@ const values = [
 
 export function ValuesSection() {
   return (
-    <Section background="white" id="values">
+    <Section {...componentMarker("ValuesSection", "components/sections/ValuesSection.tsx", "핵심 가치")} background="white" id="values">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

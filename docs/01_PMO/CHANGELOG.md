@@ -4,6 +4,233 @@
 
 ---
 
+## 2026-08-24 (12)
+
+### 추가 (Added)
+
+- **Visual Editor — "AI로 수정 요청" (버튼·애니메이션 등 구조적 변경)**: 색상·여백처럼
+  기계적인 값 변경으로는 안 되는 요청("이 버튼에 호버 애니메이션 추가해줘")을 자연어로
+  입력하면 Claude가 파일 전체를 다시 써서 제안한다. 색상/여백 편집과 달리 AI가 파일
+  구조 자체를 재작성하는 것이라 문법 오류·의도치 않은 변경으로 실제 코드가 깨질 위험이
+  있어, **응답을 바로 저장하지 않고 "변경 전 / AI 제안" 미리보기를 먼저 보여준 뒤 사용자가
+  "적용"을 눌러야만 실제 파일에 저장**된다("적용 전 미리보기" 방식을 선택 — 즉시 저장
+  방식과의 차이를 설명한 뒤 사용자가 이 방식으로 확정)
+  - `packages/dev-inspector/src/routes/ai-edit.ts`(신규) — `POST
+    /api/dev-inspector/ai-edit`. `resolveSafeSourcePath()`로 파일 검증 후, 이 모노레포의
+    다른 Anthropic 호출(`lib/ai-analysis/vision.ts`, `packages/cli/.../anthropic.ts`)과
+    동일하게 raw fetch로 Messages API를 직접 호출한다(SDK 미설치 상태 유지, 새 의존성
+    추가 없음). 코드를 다시 쓰는 작업이라 정확성이 중요해 모델은 `claude-opus-5`를
+    사용(다른 호출들의 `claude-sonnet-5`보다 상위 모델 — 코드 생성/수정은 판단 난이도가
+    더 높다고 보고 의도적으로 다르게 선택). 파일에는 쓰지 않고 `{originalContent,
+    proposedContent}`만 반환. `ANTHROPIC_API_KEY` 미설정 시 `not-configured`로 명확히 응답
+  - `packages/dev-inspector/src/routes/save-file.ts`(신규) — `POST
+    /api/dev-inspector/save-file`. 미리보기를 확인한 사용자가 "적용"을 눌렀을 때만
+    호출되는 적용 단계. `save-style`처럼 속성 일부만 바꾸는 게 아니라 파일 전체 내용을
+    그대로 덮어쓴다
+  - `packages/dev-inspector/src/server.ts`·`apps/cnbiz-web/app/api/dev-inspector/
+    {ai-edit,save-file}/route.ts` — 기존 save-* 라우트와 동일한 얇은 재노출 wiring
+  - `packages/dev-inspector/src/EditPanel.tsx` — "코드 에디터에서 열기" 아래에 "🤖 AI로
+    수정 요청" textarea + 버튼 추가. 요청 성공 시 패널이 640px로 넓어지며 "변경 전"/"AI
+    제안(변경 후)" 코드 블록을 스크롤 가능한 `<pre>`로 나란히 보여주고, "적용"/"취소"
+    버튼으로 이어진다. "적용"이 성공하면 파일 전체가 바뀌어 색상/여백처럼 DOM을 직접
+    미리보기할 수 없으므로 `window.location.reload()`로 새로고침해 Next.js가 새 파일
+    내용을 그대로 다시 렌더링하게 한다
+  - `apps/cnbiz-web/.env.example` — `ANTHROPIC_API_KEY` 설명에 이 기능도 재사용한다는 내용
+    추가(신규 변수 아님, 기존 vision.ts와 동일한 키 재사용)
+
+### 수정 (Fixed)
+
+- **ai-edit 핸들러의 검증 순서 버그**: 최초 구현은 `ANTHROPIC_API_KEY` 존재 여부를 요청
+  본문 파싱·파일 안전성 검증보다 먼저 확인하고 있어, 키가 없는 환경에서는 잘못된
+  파일 경로(`../../../etc/passwd` 등)나 빈 요청을 보내도 항상 `not-configured`만 반환하고
+  `resolveSafeSourcePath()`의 실제 검증 로직을 전혀 거치지 않는 것을 검증 중 발견. 키
+  설정 여부와 무관하게 입력 검증이 항상 먼저 실행되도록(defense in depth, 다른 save-*
+  핸들러와 동일한 순서) 재배치
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(dev-inspector 패키지·cnbiz-web 양쪽 0 errors), `npm run lint`(0
+  errors), `npm run build` 통과(`/api/dev-inspector/ai-edit`·`/api/dev-inspector/save-file`
+  라우트 정상 생성 확인)
+- `npx vitest run tests/auth/`(8 files, 116 tests 전부 통과, 회귀 없음)
+- **API 검증 순서**: curl로 `{file 없음}`·`{instruction 없음}` → `invalid-request`(400),
+  `../../../etc/passwd` → `invalid-file`(400), 유효한 파일+요청이지만 키 없음 →
+  `not-configured`(400) 순서로 정확히 분기됨을 확인(수정 전에는 전부 `not-configured`로만
+  응답하던 버그를 재현 후 수정 확인)
+  - 이 실행 환경에 `ANTHROPIC_API_KEY`가 없어 **실제 AI 응답을 받는 성공 경로는 검증하지
+    못했다** — `not-configured` 폴백 경로까지만 실제로 검증됨(정직하게 명시)
+- **UI 동작(Playwright)**: 편집 패널에 AI 요청 textarea·버튼이 정상 렌더링됨을 확인, 요청
+  전송 후 `ANTHROPIC_API_KEY` 미설정 오류 메시지가 패널에 정확히 표시됨을 확인
+- **적용 플로우(API 응답을 Playwright로 모킹해 검증)**: ai-edit·save-file 두 API를
+  가짜 응답으로 가로채(실제 파일은 전혀 건드리지 않음) "변경 전"/"AI 제안" 코드 블록과
+  적용/취소 버튼이 정확히 렌더링됨을 확인, "적용" 클릭 시 save-file이 정확한 파일 경로와
+  AI가 제안한 전체 내용으로 호출됨을 확인(요청 body를 가로채 실제 전송된
+  content에 제안된 변경사항이 포함돼 있음을 문자열 검사로 확인)
+  - 검증에 사용한 dev 서버·임시 Playwright 스크립트·`.next` 빌드 캐시는 검증 후 전부
+    종료·삭제. 실제 소스 파일은 이번 검증 과정에서 단 한 번도 수정되지 않았음을 `git
+    status`로 확인(모킹된 API만 사용, 실제 파일 write 없음)
+
+---
+
+## 2026-08-24 (11)
+
+### 추가 (Added)
+
+- **Visual Editor에 "코드 에디터에서 열기" 버튼 추가**: 화면 라벨에서 파일 경로를 감춘
+  직후((10)번 항목) "그럼 코드 에디터로 수정하려면 결국 파일을 직접 찾아야 하는 거 아니냐"는
+  지적을 받아, 편집 패널에 버튼을 추가해 클릭 한 번으로 VS Code가 정확한 파일을 열도록 연결
+  - `packages/dev-inspector/src/routes/open-in-editor.ts`(신규) — `GET
+    /api/dev-inspector/open-in-editor?file=<상대경로>`. 기존 save-* 핸들러와 동일하게
+    `resolveSafeSourcePath()`(경로 탈출 방지·`components/`·`app/` 하위 `.tsx`/`.jsx`만 허용·
+    실존 파일만 허용)로 검증한 뒤, `vscode://file/<절대경로>` URI를 돌려준다.
+    `NODE_ENV !== "development"`면 다른 핸들러와 동일하게 403
+  - `packages/dev-inspector/src/server.ts` — `openInEditorHandler` export 추가
+  - `apps/cnbiz-web/app/api/dev-inspector/open-in-editor/route.ts`(신규) — 기존 save-*
+    라우트와 동일한 얇은 재노출 wiring 파일
+  - `packages/dev-inspector/src/EditPanel.tsx` — "💻 코드 에디터에서 열기" 버튼을 "텍스트
+    수정" 바로 아래 추가. 클릭 시 위 API를 호출해 받은 `editorUrl`로
+    `window.location.href`를 이동시켜 OS의 `vscode://` 프로토콜 핸들러(VS Code 설치·URI
+    핸들러 등록 필요)를 트리거한다
+
+### 수정 (Fixed)
+
+- **`/api/dev-inspector/**`(Visual Editor의 save-text/save-image/save-style + 방금 추가한
+  open-in-editor)가 전부 RBAC에 의해 "developer" role 로그인을 요구하고 있어, 실사용
+  경로(로그인하지 않은 공개 페이지 미리보기 위에서 쓰는 로컬 전용 도구)에서 항상 401로
+  막히던 버그 발견·수정**: 위 기능을 실제 dev 서버에 대고 curl로 검증하던 중
+  `{"success":false,"error":"로그인이 필요합니다."}`(401)을 재현 — `lib/auth/rbac.ts`가 명시적
+  예외 목록에 없는 모든 `/api/**`를 기본적으로 "developer" 영역으로 게이팅하는데,
+  `/api/dev-inspector`가 그 목록에 없었다. 즉 이번에 새로 만든 open-in-editor뿐 아니라
+  **기존에 이미 배포돼 있던 save-text/save-image/save-style도 처음부터 로그인 없이는 전혀
+  동작한 적이 없었던 것**으로 확인됨(각 핸들러 자체가 이미 `NODE_ENV !== "development"`면
+  403을 반환하는 별도 방어선을 갖고 있어 프로덕션 노출 위험은 없었음)
+  - `apps/cnbiz-web/lib/auth/rbac.ts` — `UNGATED_API_PREFIXES`에 `/api/dev-inspector` 추가.
+    `/api/uploads`와 동일한 논리: 로컬 dev 서버에 접근 가능하다는 것 자체가 이미 그
+    프로젝트 파일시스템 전체에 접근 가능하다는 뜻이라 RBAC로 추가 보호할 실익이 없고, 오히려
+    실사용을 막고 있었다
+  - `apps/cnbiz-web/tests/auth/rbac.test.ts` — `/api/dev-inspector/save-text`를 "developer"로
+    단언하던 기존 테스트를 제거하고, save-text/save-image/save-style/open-in-editor 4개
+    전부 `null`(비게이팅)을 단언하는 새 테스트로 교체
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(dev-inspector 패키지·cnbiz-web 양쪽 0 errors), `npm run lint`(0 errors),
+  `npm run build` 통과(`/api/dev-inspector/open-in-editor` 라우트 정상 생성 확인)
+- `npx vitest run tests/auth/`(8 files, 116 tests 전부 통과, `proxy.test.ts` 41개 포함 —
+  실제 미들웨어 동작까지 검증하는 테스트라 회귀 없음을 신뢰도 높게 확인)
+- **RBAC 수정 전/후 실제 재현**: 수정 전 `curl`로 `GET /api/dev-inspector/open-in-editor`·
+  `POST /api/dev-inspector/save-style`가 로그인 없이 매번 401로 막힘을 확인 → 수정 후 동일
+  요청이 실제 핸들러 로직까지 도달해 정상 동작함을 확인(존재하지 않는 className으로
+  save-style을 호출해 `{"success":false,"reason":"not-found"}"(200)`를 받아, 실제 파일을
+  건드리지 않고도 요청이 인증 게이트를 통과해 핸들러까지 도달했음을 확인). 경로 탈출
+  시도(`../../../etc/passwd`)·존재하지 않는 파일·필수 파라미터 누락은 여전히 각각
+  `invalid-file`/`invalid-request`(400)로 정상 차단됨을 재확인
+- Playwright로 실제 브라우저 조작 — 편집 패널에 "💻 코드 에디터에서 열기" 버튼이 정상
+  렌더링됨을 확인, 버튼이 호출하는 것과 동일한 fetch를 브라우저 컨텍스트에서 직접 실행해
+  `{success:true, editorUrl:"vscode://file//...HeroSection.tsx"}`를 받음을 확인(이 실행
+  환경에는 VS Code가 없어 `vscode://` 프로토콜이 실제로 VS Code를 여는 것까지는 검증하지
+  못함 — URI 생성까지가 이 코드의 책임 범위이고, 그 이후는 OS·브라우저·VS Code 설치 여부에
+  달려있음)
+  - 검증에 사용한 dev 서버·임시 Playwright 스크립트·`.next` 빌드 캐시는 검증 후 전부
+    종료·삭제
+
+---
+
+## 2026-08-24 (10)
+
+### 변경 (Changed)
+
+- **Visual Editor — 화면에 노출되는 기술적 표기(파일 경로) 제거, 사람이 읽는 이름으로 교체**:
+  방금 상시 연결한 Visual Editor((9)번 항목)를 실제로 써보니 요소에 마우스를 올리거나
+  선택할 때 `HeroSection · components/sections/HeroSection.tsx`처럼 소스 파일 경로가 그대로
+  노출되어 비개발자에게는 낯설고 직관적이지 않았다("직관적으로 편집 가능하도록 개선할 수
+  있어?"라는 요청에 "기술적 표기 감추기"를 선택). 파일 경로는 저장 API가 실제 파일을 찾는
+  데 여전히 필요해 완전히 없애지는 않되, **화면(호버 라벨·선택 라벨·편집 패널 헤더)에는
+  더 이상 노출하지 않고** 사람이 읽는 한글 이름만 보여주도록 변경
+  - `packages/dev-inspector/src/component-marker.ts` — `componentMarker(id, file, label?)`에
+    선택적 3번째 인자 `label` 추가, 있으면 `data-component-label` 속성으로 심음(없으면
+    기존처럼 `id`로 폴백 — `components/developer/**`처럼 원래 기술적인 이름이 그대로
+    보여도 무방한 곳은 수정할 필요 없음)
+  - `packages/dev-inspector/src/DevInspectorOverlay.tsx` — 호버·선택 시 뜨는 라벨을
+    `componentId · componentFile`에서 `displayLabel`(label 또는 id) 단독 표기로 교체.
+    "블러(blur) 시 저장" 같은 개발자 용어도 "다른 곳을 클릭하면 저장"으로 함께 순화
+  - `packages/dev-inspector/src/EditPanel.tsx` — 패널 헤더에서 파일 경로 줄 자체를 제거하고
+    `displayLabel`만 표시(내부적으로 저장 요청에는 `componentFile`을 여전히 사용, 화면에만
+    안 보이게 함)
+  - `apps/cnbiz-web/components/sections/*.tsx`(16개 파일 전부) — 각 `componentMarker()`
+    호출에 한글 이름 추가(예: HeroSection→"메인 히어로", ValuesSection→"핵심 가치",
+    ContactForm→"문의 폼" 등). 레이아웃·로직은 무변경
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(dev-inspector 패키지·cnbiz-web 양쪽 0 errors), `npm run lint`(0 errors),
+  `npm run build` 통과
+- Playwright로 실제 확인 — 편집 모드 켠 뒤 Hero 섹션 호버 시 라벨이 정확히 "메인 히어로"로
+  표시되고, 화면에 보이는 텍스트(`innerText`) 전체를 검사해 `HeroSection.tsx` 같은 파일
+  경로 문자열이 어디에도 나타나지 않음을 확인. 클릭 시 편집 패널 헤더에도 "메인 히어로"만
+  표시되고 파일 경로 줄이 사라졌음을 스크린샷으로 확인
+- **프로덕션 재확인**: `next build` → `next start`로 프로덕션 서버를 다시 띄워 "편집 모드"
+  토글 버튼(실제 인터랙티브 UI)은 여전히 전혀 렌더링되지 않음을 확인. 다만 `data-component-*`
+  속성 자체(파일 경로 포함)는 `componentMarker()`가 NODE_ENV와 무관하게 항상 DOM에 심는
+  값이라 프로덕션 HTML 소스에도 계속 존재함을 확인했는데, 이는 이번 변경 이전부터
+  `components/developer/**` 26개 파일에 이미 존재하던 동일한 동작이라(오버레이 UI 자체만
+  개발 모드 전용으로 게이팅되고 마커 자체는 게이팅된 적이 없음) 이번 범위(화면에 보이는
+  라벨 텍스트 순화)를 벗어나는 별개의 기존 특성으로 판단, 수정하지 않음
+  - 검증에 사용한 dev/prod 서버·임시 Playwright 스크립트·`.next` 빌드 캐시는 검증 후 전부
+    종료·삭제
+
+---
+
+## 2026-08-24 (9)
+
+### 추가 (Added)
+
+- **CNBIZ Website(cnbiz.kr) 공개 마케팅 페이지에 Visual Editor(`@cnbiz/dev-inspector`) 상시
+  연결**: `packages/dev-inspector`는 이미 구현돼 있었지만(화면 요소를 클릭해 텍스트·이미지·
+  색상·여백을 편집하면 실제 소스 파일에 저장되는 오버레이), `ai devmode` 실행 시에만
+  일회성으로 `app/layout.tsx`에 삽입되는 방식이라 평소에는 꺼져 있었고, 그마저도 이
+  오버레이가 요소를 찾는 데 쓰는 `data-component-id` 마커가 `components/sections/*`(Hero·
+  Values·서비스 소개 등 실제 홈페이지 콘텐츠)에는 하나도 없어 붙여도 아무것도 선택할 수
+  없는 상태였다("화면 보면서 편집 기능은 되어 있어?"라는 질문에 이 간극을 확인 후, "쉽게
+  사용할 수 있도록 만들어달라"는 요청으로 두 가지를 모두 해결)
+  - `apps/cnbiz-web/app/layout.tsx` — `<DevInspectorOverlay />`를 루트 레이아웃에 상시
+    추가. 이 컴포넌트 자체가 `process.env.NODE_ENV !== "development"`면 렌더링하지 않고
+    `null`을 반환하도록 이미 구현돼 있어(`packages/dev-inspector`), 별도의 조건부 렌더링
+    코드 없이 그대로 추가해도 프로덕션 빌드·배포된 cnbiz.kr에는 어떤 영향도 주지 않는다
+  - `apps/cnbiz-web/components/sections/*.tsx`(16개 파일 전부: Hero·Values·
+    CompanyOverview·MissionVision·AboutProcess·ServicesHero·ServicesOverview·
+    ServicesDetail·ServiceProcess·PortfolioHero·PortfolioPlaceholder·ContactHero·
+    ContactForm·CTA·FAQ) — 각 컴포넌트의 최상위 `<Section>` 요소에
+    `componentMarker(컴포넌트명, 파일경로)`를 추가. 기존에 이미 `components/developer/**`
+    26개 파일에 적용돼 있던 것과 동일한 수동 마킹 컨벤션(AGENTS.md "Component ID 작업
+    원칙")을 그대로 따랐고, Turbopack 환경에서 별도 `babel.config.js`(babel 플러그인 자동
+    주입 방식)를 새로 도입하는 대신 이미 검증된 기존 방식을 재사용해 빌드 도구 변경 리스크를
+    피했다. 각 섹션의 레이아웃·로직·Props는 한 글자도 바꾸지 않고 최상위 요소에 속성만 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors, `Section` 컴포넌트가 `data-*` 속성을 명시적으로 타입에
+  선언하지 않았음에도 TypeScript의 JSX `data-*` 예외 처리로 정상 통과 확인),
+  `npm run lint`(0 errors), `npm run build` 통과
+- **프로덕션 빌드에서 비활성 확인**: `next build` 후 `next start`로 실제 프로덕션 서버를
+  띄워 홈페이지(`curl`)의 서버 렌더링 HTML에 "편집 모드" 토글 버튼 텍스트가 전혀 포함되지
+  않음을 확인(오버레이가 서버 사이드에서부터 아예 렌더링되지 않음), 페이지 자체는 200과
+  함께 정상 콘텐츠를 반환함을 재확인
+- **개발 모드에서 실제 동작 확인**: dev 서버에서 Playwright로 실제 브라우저 조작 —
+  좌측 하단 "🎨 편집 모드" 토글 버튼이 보이고 클릭 시 "편집 모드 ON"으로 전환됨을 확인,
+  Hero 섹션에 마우스를 올리면 실제로 "HeroSection · components/sections/HeroSection.tsx"
+  라벨이 달린 파란 하이라이트 박스가 뜨는 것을 확인, 클릭하면 우측 하단에 편집 패널
+  (텍스트 수정·텍스트 색상·배경 색상·바깥/안쪽 여백)이 정확한 componentId·파일 경로와
+  함께 열리는 것을 확인. 실제 저장(텍스트/스타일 변경 후 blur)까지는 소스 파일이 실제로
+  수정되는 동작이라 검증 중 의도치 않은 콘텐츠 변경을 남기지 않기 위해 패널이 여는 것까지만
+  확인하고 실제 저장은 트리거하지 않음(저장 로직 자체는 기존에 이미 구현·존재하던 코드로,
+  이번 변경 대상이 아님)
+  - 검증에 사용한 dev/prod 서버·QA 전용 fs-fallback 계정·임시 Playwright 스크립트·`.next`
+    빌드 캐시는 검증 후 전부 종료·삭제. `git status`로 의도한 17개 파일(layout.tsx + 섹션
+    16개)만 변경됐고 실제 카피·콘텐츠는 전혀 바뀌지 않았음을 확인
+
+---
+
 ## 2026-08-24 (8)
 
 ### 추가 (Added)

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { Card } from "@cnbiz/ui";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const services = [
   {
@@ -27,7 +28,7 @@ const services = [
 
 export function ServicesOverviewSection() {
   return (
-    <Section background="alt">
+    <Section {...componentMarker("ServicesOverviewSection", "components/sections/ServicesOverviewSection.tsx", "서비스 요약")} background="alt">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">What We Do</p>

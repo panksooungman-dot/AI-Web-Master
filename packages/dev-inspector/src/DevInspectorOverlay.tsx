@@ -43,6 +43,8 @@ const OVERLAY_SOURCE = "dev-inspector";
 interface TaggedInfo {
   componentId: string;
   componentFile: string;
+  /** 비개발자에게 보여줄 이름 — componentMarker()의 label 인자, 없으면 componentId로 폴백 */
+  displayLabel: string;
   tagName: string;
   rect: { top: number; left: number; width: number; height: number };
 }
@@ -53,11 +55,13 @@ function resolveTagged(target: EventTarget | null): { el: HTMLElement; info: Tag
   if (!el) return null;
 
   const rect = el.getBoundingClientRect();
+  const componentId = el.getAttribute("data-component-id") ?? "";
   return {
     el,
     info: {
-      componentId: el.getAttribute("data-component-id") ?? "",
+      componentId,
       componentFile: el.getAttribute("data-component-file") ?? "",
+      displayLabel: el.getAttribute("data-component-label") ?? componentId,
       tagName: el.tagName.toLowerCase(),
       rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
     },
@@ -353,9 +357,7 @@ export function DevInspectorOverlay() {
             background: "rgba(59,130,246,0.08)",
           }}
         >
-          <span style={hoverLabelStyle}>
-            {hoveredInfo.componentId} · {hoveredInfo.componentFile}
-          </span>
+          <span style={hoverLabelStyle}>{hoveredInfo.displayLabel}</span>
         </div>
       )}
 
@@ -374,7 +376,7 @@ export function DevInspectorOverlay() {
           }}
         >
           <span style={{ ...hoverLabelStyle, background: editingText ? "#f59e0b" : "#1d4ed8" }}>
-            {editingText ? "텍스트 수정 중… (blur 시 저장)" : `선택됨 · ${selectedInfo.componentId}`}
+            {editingText ? "텍스트 수정 중… (다른 곳을 클릭하면 저장)" : `선택됨 · ${selectedInfo.displayLabel}`}
           </span>
         </div>
       )}
@@ -382,7 +384,7 @@ export function DevInspectorOverlay() {
       {active && selectedInfo && editTargetEl && (
         <EditPanel
           key={selectionKey}
-          componentId={selectedInfo.componentId}
+          displayLabel={selectedInfo.displayLabel}
           componentFile={selectedInfo.componentFile}
           targetEl={editTargetEl}
           hasImage={hasImage}

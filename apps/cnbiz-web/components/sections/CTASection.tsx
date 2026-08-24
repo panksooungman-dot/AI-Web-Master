@@ -5,7 +5,7 @@ import { componentMarker } from "@/lib/dev/component-marker";
 
 export function CTASection() {
   return (
-    <Section {...componentMarker("CTASection", "components/sections/CTASection.tsx")} background="dark">
+    <Section {...componentMarker("CTASection", "components/sections/CTASection.tsx", "문의 유도 배너")} background="dark">
       <Container className="text-center">
         <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
           AI가 홈페이지를 자동으로 제작해드립니다

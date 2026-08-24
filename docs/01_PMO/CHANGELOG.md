@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-08-24 (10)
+
+### 변경 (Changed)
+
+- **Visual Editor — 화면에 노출되는 기술적 표기(파일 경로) 제거, 사람이 읽는 이름으로 교체**:
+  방금 상시 연결한 Visual Editor((9)번 항목)를 실제로 써보니 요소에 마우스를 올리거나
+  선택할 때 `HeroSection · components/sections/HeroSection.tsx`처럼 소스 파일 경로가 그대로
+  노출되어 비개발자에게는 낯설고 직관적이지 않았다("직관적으로 편집 가능하도록 개선할 수
+  있어?"라는 요청에 "기술적 표기 감추기"를 선택). 파일 경로는 저장 API가 실제 파일을 찾는
+  데 여전히 필요해 완전히 없애지는 않되, **화면(호버 라벨·선택 라벨·편집 패널 헤더)에는
+  더 이상 노출하지 않고** 사람이 읽는 한글 이름만 보여주도록 변경
+  - `packages/dev-inspector/src/component-marker.ts` — `componentMarker(id, file, label?)`에
+    선택적 3번째 인자 `label` 추가, 있으면 `data-component-label` 속성으로 심음(없으면
+    기존처럼 `id`로 폴백 — `components/developer/**`처럼 원래 기술적인 이름이 그대로
+    보여도 무방한 곳은 수정할 필요 없음)
+  - `packages/dev-inspector/src/DevInspectorOverlay.tsx` — 호버·선택 시 뜨는 라벨을
+    `componentId · componentFile`에서 `displayLabel`(label 또는 id) 단독 표기로 교체.
+    "블러(blur) 시 저장" 같은 개발자 용어도 "다른 곳을 클릭하면 저장"으로 함께 순화
+  - `packages/dev-inspector/src/EditPanel.tsx` — 패널 헤더에서 파일 경로 줄 자체를 제거하고
+    `displayLabel`만 표시(내부적으로 저장 요청에는 `componentFile`을 여전히 사용, 화면에만
+    안 보이게 함)
+  - `apps/cnbiz-web/components/sections/*.tsx`(16개 파일 전부) — 각 `componentMarker()`
+    호출에 한글 이름 추가(예: HeroSection→"메인 히어로", ValuesSection→"핵심 가치",
+    ContactForm→"문의 폼" 등). 레이아웃·로직은 무변경
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(dev-inspector 패키지·cnbiz-web 양쪽 0 errors), `npm run lint`(0 errors),
+  `npm run build` 통과
+- Playwright로 실제 확인 — 편집 모드 켠 뒤 Hero 섹션 호버 시 라벨이 정확히 "메인 히어로"로
+  표시되고, 화면에 보이는 텍스트(`innerText`) 전체를 검사해 `HeroSection.tsx` 같은 파일
+  경로 문자열이 어디에도 나타나지 않음을 확인. 클릭 시 편집 패널 헤더에도 "메인 히어로"만
+  표시되고 파일 경로 줄이 사라졌음을 스크린샷으로 확인
+- **프로덕션 재확인**: `next build` → `next start`로 프로덕션 서버를 다시 띄워 "편집 모드"
+  토글 버튼(실제 인터랙티브 UI)은 여전히 전혀 렌더링되지 않음을 확인. 다만 `data-component-*`
+  속성 자체(파일 경로 포함)는 `componentMarker()`가 NODE_ENV와 무관하게 항상 DOM에 심는
+  값이라 프로덕션 HTML 소스에도 계속 존재함을 확인했는데, 이는 이번 변경 이전부터
+  `components/developer/**` 26개 파일에 이미 존재하던 동일한 동작이라(오버레이 UI 자체만
+  개발 모드 전용으로 게이팅되고 마커 자체는 게이팅된 적이 없음) 이번 범위(화면에 보이는
+  라벨 텍스트 순화)를 벗어나는 별개의 기존 특성으로 판단, 수정하지 않음
+  - 검증에 사용한 dev/prod 서버·임시 Playwright 스크립트·`.next` 빌드 캐시는 검증 후 전부
+    종료·삭제
+
+---
+
 ## 2026-08-24 (9)
 
 ### 추가 (Added)

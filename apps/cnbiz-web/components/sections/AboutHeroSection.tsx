@@ -3,7 +3,7 @@ import { componentMarker } from "@/lib/dev/component-marker";
 
 export function AboutHeroSection() {
   return (
-    <Section {...componentMarker("AboutHeroSection", "components/sections/AboutHeroSection.tsx")} background="dark" className="relative overflow-hidden">
+    <Section {...componentMarker("AboutHeroSection", "components/sections/AboutHeroSection.tsx", "회사소개 히어로")} background="dark" className="relative overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-48 -right-48 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
       </div>

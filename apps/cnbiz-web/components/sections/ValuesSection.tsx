@@ -11,7 +11,7 @@ const values = [
 
 export function ValuesSection() {
   return (
-    <Section {...componentMarker("ValuesSection", "components/sections/ValuesSection.tsx")} background="white" id="values">
+    <Section {...componentMarker("ValuesSection", "components/sections/ValuesSection.tsx", "핵심 가치")} background="white" id="values">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

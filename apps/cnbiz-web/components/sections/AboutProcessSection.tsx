@@ -10,7 +10,7 @@ const steps = [
 
 export function AboutProcessSection() {
   return (
-    <Section {...componentMarker("AboutProcessSection", "components/sections/AboutProcessSection.tsx")} background="white">
+    <Section {...componentMarker("AboutProcessSection", "components/sections/AboutProcessSection.tsx", "협업 프로세스")} background="white">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

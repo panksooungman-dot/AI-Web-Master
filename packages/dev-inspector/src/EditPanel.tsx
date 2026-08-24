@@ -10,7 +10,9 @@ import { useState, type CSSProperties } from "react";
  */
 
 interface EditPanelProps {
-  componentId: string;
+  /** 비개발자에게 보여줄 이름(componentMarker의 label, 없으면 componentId) — 파일 경로는
+   *  저장 요청에만 쓰고 화면에는 노출하지 않는다. */
+  displayLabel: string;
   componentFile: string;
   targetEl: HTMLElement;
   hasImage: boolean;
@@ -53,7 +55,7 @@ function describeSaveFailure(reason: string | undefined): string {
 }
 
 export function EditPanel({
-  componentId,
+  displayLabel,
   componentFile,
   targetEl,
   hasImage,
@@ -106,12 +108,7 @@ export function EditPanel({
   return (
     <div style={panelStyle}>
       <div style={headerStyle}>
-        <div>
-          <div style={{ fontWeight: 700 }}>{componentId}</div>
-          <div style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace" }}>
-            {componentFile}
-          </div>
-        </div>
+        <div style={{ fontWeight: 700 }}>{displayLabel}</div>
         <button type="button" onClick={onClose} style={closeButtonStyle} aria-label="편집 패널 닫기">
           ×
         </button>

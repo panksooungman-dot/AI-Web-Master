@@ -4,6 +4,102 @@
 
 ---
 
+## 2026-08-24 (8)
+
+### 추가 (Added)
+
+- **Design 체인 — 전체 단계 진행 표시줄(`DesignChainStepper`) 추가**: Design Automation
+  9단계(Requirements→Storyboard→Wireframe→Prototype→Claude Design→Review→Figma→Design
+  Sync→Website Build)가 각 페이지 `PageHeader` 우측에 인접 단계로만 이동 가능한 작은
+  "← 이전 / 다음 →" 텍스트 링크만 갖고 있어, 중간에 잘못된 단계로 넘어갔거나 여러 단계
+  전으로 되돌아가고 싶을 때 매번 그 페이지까지 한 단계씩 거슬러 올라가야 했다("최고관리자
+  페이지에서 단계별로 넘어갈 때 잘못했을 때 뒤로가기 기능"을 만들어달라는 요청). 기존
+  "← 이전 / 다음 →" 링크·각 페이지의 데이터 로딩/생성 로직은 전혀 건드리지 않고, 9단계
+  전체를 한눈에 보여주고 어느 단계로든 즉시 이동 가능한 진행 표시줄을 각 페이지 상단에
+  추가로 배치(additive)
+  - `apps/cnbiz-web/components/developer/design/DesignChainStepper.tsx`(신규) —
+    `usePathname()`으로 현재 위치를 파악해 9단계를 가로 브레드크럼으로 렌더링. 현재 단계는
+    파란 배경으로 강조, 지나온 단계는 파란 텍스트(클릭 가능), 아직 가지 않은 단계는 회색
+    텍스트(마찬가지로 클릭 가능 — 순서를 건너뛰어 먼저 확인하는 것도 막지 않음). 각 항목은
+    실제 라우트로 이동하는 `Link`라 페이지 자체의 "먼저 X를 생성하세요" 빈 상태 안내가
+    자연스럽게 이어짐. `DeveloperNav.tsx`의 `usePathname` 기반 active-link 패턴과 동일한
+    방식으로 구현해 코드베이스 관례와 일관성 유지
+  - `apps/cnbiz-web/app/developer/design/{page,storyboard,wireframe,prototype,claude,review,figma,sync,website}/page.tsx`
+    9개 페이지 전부에 `<DesignChainStepper />`를 `<PageHeader>` 바로 위에 추가. 각 페이지의
+    기존 `PageHeader actions`(인접 단계 링크)·데이터 fetch·생성 로직은 한 줄도 수정하지 않음
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(9개 Design
+  라우트 전부 정상 생성)
+- 실 로그인 세션(fs-fallback 개발 계정)으로 Playwright 검증 — 9개 페이지 전부 방문해
+  진행 표시줄이 정확히 9단계를 표시하고 `aria-current="step"`이 현재 라우트와 정확히
+  일치하는 항목 하나에만 붙음을 확인(Requirements=1번째 ~ Website Build=9번째 순서대로
+  정확히 일치). Wireframe 페이지에서 진행 표시줄의 "2. Storyboard"를 클릭해 실제로
+  `/developer/design/storyboard`로 이동됨을 확인(여러 단계 건너뛰어 되돌아가는 시나리오)
+  - QA 중 콘솔에 404가 재현됐으나 원인을 끝까지 추적한 결과 `apps/cnbiz-web`에 favicon
+    자체가 없어(파일 확인 결과 `app/favicon.ico`·`app/icon.*` 어디에도 없음) 브라우저가
+    자동으로 시도하는 `/favicon.ico` 프로브가 404를 반환하는 것이었다 — 이 요청은 Playwright의
+    `page.on("response")` 네트워크 이벤트에는 잡히지 않고 브라우저 콘솔에만
+    "Failed to load resource: 404" 형태로 남는 Chromium의 알려진 동작. 로그인 페이지
+    최초 진입 시점(로그인 전, Design 체인 페이지 방문 이전)에 발생해 이번 변경과 무관한
+    사이트 전역의 기존 결함임을 확인(요청 범위 밖이라 별도 수정하지 않음)
+  - 검증에 사용한 dev 서버(포트 3913)·QA 전용 fs-fallback 계정·임시 Playwright 스크립트
+    4개·`.next` 빌드 캐시는 검증 후 전부 종료·삭제
+
+---
+
+## 2026-08-24 (7)
+
+### 변경 (Changed)
+
+- **`/developer` 사이드바(`DeveloperNav`) — 평면 목록 → 업무 흐름 단계별 그룹화**: 그동안
+  `/developer` 하위 27개 메뉴가 알파벳도 기능 순서도 아닌 임의 순서의 단일 평면 목록으로
+  나열돼 있어("정리가 안 되어 있다"는 사용자 지적), 원하는 메뉴를 찾기가 어려웠다. 실제
+  조직처럼 "부서"로 나누는 방식(예: 개발팀·기획팀·디자인팀)도 검토했으나, 이 팀은 부서별로
+  나뉜 대규모 조직이 아니라 소수 인원(+AI)이 의뢰 하나를 접수부터 배포·운영까지 전 과정
+  처리하는 구조라(`PROJECT_VISION.md`의 AI Team Structure 참고) 부서명은 실제와 맞지 않는
+  겉치레 라벨이 될 위험이 있었다. 대신 의뢰 하나가 실제로 지나가는 업무 흐름 단계(접수→
+  기획→디자인→개발/배포→운영) + 상시 도구(도구) 6개 그룹으로 재구성 — 각 그룹은 실제
+  실행 순서와 일치해 "이 메뉴가 왜 여기 있는지"를 그룹명만으로 알 수 있다(사용자가 두
+  대안 중 이 방식을 선택)
+  - `apps/cnbiz-web/components/developer/DeveloperNav.tsx` — 기존 `NAV_LINKS`(평면 배열)를
+    `NAV_GROUPS`(그룹명 + 하위 링크 배열)로 전면 교체. **접수**(의뢰 관리·AI 의뢰 관리·
+    고객사 관리·주문 관리) · **기획**(Analysis·Planning·기술 견적서·기능 명세서·프로젝트
+    일정·계약서·제안서) · **디자인**(Design) · **개발 / 배포**(프로젝트 관리·Workspace·
+    Terminal·GitHub·Website Builder·Workflow Center·Deployment) · **운영**(Logs·Health·
+    Audit Log·Metrics·Backup·Error Report) · **도구**(AI Workspace·Prompt Library·
+    Marketplace·UI Explorer·Settings) 6개 그룹, 그룹당 대문자 회색 소제목(uppercase
+    tracking-widest) 표시. Dashboard 링크는 그룹 밖 최상단에 고정. 기존 활성 링크 강조
+    로직(`pathname === href || pathname.startsWith(href + "/")`)·RBAC 가드
+    (`roleCanAccessArea` 기반 미승인 role에는 렌더링 자체를 하지 않는 defense-in-depth)는
+    변경 없이 그대로 유지 — 메뉴 27개 항목의 href·label·이동 대상은 단 하나도 바뀌지 않고
+    그룹 구조만 추가됨(라우트·페이지 자체는 무수정)
+  - `apps/cnbiz-web/app/developer/layout.tsx` — 좁은 폭(`lg:w-56`) 사이드바 + 본문 2단
+    레이아웃으로 변경(`flex flex-col lg:flex-row`). 모바일(390px)에서는 세로 스택 + 하단
+    구분선(`border-b lg:border-b-0 lg:border-r`)으로 자연스럽게 접히도록 함(별도 반응형
+    분기 코드 없이 Tailwind 클래스만으로 처리)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run build` 통과
+- 실 로그인 세션(fs-fallback 개발 계정)으로 Playwright 검증 — 데스크탑(1440px)에서
+  6개 그룹 소제목(`['접수', '기획', '디자인', '개발 / 배포', '운영', '도구']`)이 정확한
+  순서로 렌더링됨을 확인, `/developer`(Dashboard 활성)·`/developer/inquiries`(AI 의뢰 관리
+  활성) 간 이동 시 활성 링크 강조가 그룹 구조 안에서도 정확히 한 항목에만 적용됨을 확인,
+  모바일(390px)에서 사이드바가 본문 위에 세로로 쌓이고 구분선으로 분리됨을 확인
+  - QA 중 최초 1회 콘솔에 404가 관측됐으나, 동일 시나리오를 새로 재실행한 결과 재현되지
+    않아 dev 서버 최초 요청 시 온디맨드 컴파일로 인한 1회성 워밍업 아티팩트로 판단(사이드바
+    코드 자체의 결함 아님). 함께 관측된 `401 /api/auth/me`는 `AuthProvider`가 `/login`
+    페이지에서도 세션 여부를 확인하며 발생하는 기존 알려진 동작(2026-08-24 (2)에 이미
+    문서화된 "비로그인 방문자의 정상적인 401")이며, 로그인된 `/developer` 하위 페이지
+    자체에서 새로 발생한 오류가 아님을 응답 상태 코드를 페이지별로 분리 추적해 확인
+  - 검증에 사용한 dev 서버(포트 3912)·이전 세션에서 남아있던 prod 서버(포트 3910)·QA
+    전용 fs-fallback 계정(`lib/data/users.json`)·임시 Playwright 스크립트·`.next` 빌드
+    캐시는 검증 후 전부 종료·삭제
+
+---
+
 ## 2026-08-24 (6)
 
 ### 삭제 (Removed)

@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-08-24 (13)
+
+### 추가 (Added)
+
+- **cnbiz.kr `/contact` 페이지 개선**: "의뢰자용 접수 홈페이지 디자인"을 이번 세션에서 만든
+  Design Automation 체인(`/developer/design`)으로 먼저 시도했으나, 이 환경에
+  `ANTHROPIC_API_KEY`가 없어 요구사항을 반영하지 못하는 범용 템플릿 폴백만 나오는 것을
+  실제로 확인 — 사용자 확인 후 카피라이터·디자이너 역할로 직접 작업하는 방식으로 전환.
+  신뢰 요소 부족·폼 완료율이라는 실제 문제를 대상으로, 확정되지 않은 사실(전화번호·주소·
+  운영시간)은 지어내지 않고 이미 검증된 사실(영업일 24시간 내 응답, 5단계 도입
+  프로세스 — `ServiceProcessSection.tsx`와 동일한 문구 재사용)만 활용해 개선
+  - `apps/cnbiz-web/components/sections/ContactHeroSection.tsx` — 히어로 하단에
+    "⏱ 영업일 기준 24시간 이내 답변드립니다" 배지 추가(응답 지연에 대한 불안 완화)
+  - `apps/cnbiz-web/components/sections/ContactProcessSection.tsx`(신규) — 폼 진입 전 문의
+    처리 절차를 4단계로 짧게 안내(상담 신청→요구사항 분석→제안 및 견적→프로젝트 착수).
+    `ServiceProcessSection.tsx`의 앞 4단계와 동일한 사실을 재사용, 새 정책·수치 없음
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — 폼 필드를 "담당자 정보"(담당자명·
+    회사명·이메일·연락처)·"프로젝트 정보"(희망 사이트 유형·예산·문의 내용) 2개 그룹으로
+    시각적으로 구분(구분선 + 소제목), 필드·검증 로직·제출 로직은 무변경. 제출 완료 메시지에
+    24시간 응답 정책과 다음 단계(상담)를 명시해 제출 직후의 불확실성 해소
+  - `apps/cnbiz-web/app/contact/page.tsx` — `ContactProcessSection`을 Hero와 Form 사이에 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- Playwright로 데스크탑(1440px)·모바일(390px) 렌더링 확인(배지·4단계 프로세스·그룹화된
+  폼 전부 정상 표시), 실제 폼 제출 → 성공 상태 화면에서 새 안내 문구 정상 표시 확인
+  - 세션 진행 중 이전 답변이 "API Error: Connection lost mid-response" 메시지로 끊긴 적이
+    있었으나 코드 오류가 아닌 세션 연결 문제였음을 확인(작업한 파일은 디스크에 정상
+    저장돼 있어 유실 없이 이어서 진행)
+  - 검증에 사용한 dev 서버·QA 전용 fs-fallback 계정·임시 Playwright 스크립트·`.next` 빌드
+    캐시·Design Automation 체인 테스트 산출물(시뮬레이션 Design Plan 1건)은 검증 후 전부
+    종료·삭제
+
+---
+
 ## 2026-08-24 (12)
 
 ### 추가 (Added)

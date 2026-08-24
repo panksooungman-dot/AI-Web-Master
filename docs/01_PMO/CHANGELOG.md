@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-08-24 (8)
+
+### 추가 (Added)
+
+- **Design 체인 — 전체 단계 진행 표시줄(`DesignChainStepper`) 추가**: Design Automation
+  9단계(Requirements→Storyboard→Wireframe→Prototype→Claude Design→Review→Figma→Design
+  Sync→Website Build)가 각 페이지 `PageHeader` 우측에 인접 단계로만 이동 가능한 작은
+  "← 이전 / 다음 →" 텍스트 링크만 갖고 있어, 중간에 잘못된 단계로 넘어갔거나 여러 단계
+  전으로 되돌아가고 싶을 때 매번 그 페이지까지 한 단계씩 거슬러 올라가야 했다("최고관리자
+  페이지에서 단계별로 넘어갈 때 잘못했을 때 뒤로가기 기능"을 만들어달라는 요청). 기존
+  "← 이전 / 다음 →" 링크·각 페이지의 데이터 로딩/생성 로직은 전혀 건드리지 않고, 9단계
+  전체를 한눈에 보여주고 어느 단계로든 즉시 이동 가능한 진행 표시줄을 각 페이지 상단에
+  추가로 배치(additive)
+  - `apps/cnbiz-web/components/developer/design/DesignChainStepper.tsx`(신규) —
+    `usePathname()`으로 현재 위치를 파악해 9단계를 가로 브레드크럼으로 렌더링. 현재 단계는
+    파란 배경으로 강조, 지나온 단계는 파란 텍스트(클릭 가능), 아직 가지 않은 단계는 회색
+    텍스트(마찬가지로 클릭 가능 — 순서를 건너뛰어 먼저 확인하는 것도 막지 않음). 각 항목은
+    실제 라우트로 이동하는 `Link`라 페이지 자체의 "먼저 X를 생성하세요" 빈 상태 안내가
+    자연스럽게 이어짐. `DeveloperNav.tsx`의 `usePathname` 기반 active-link 패턴과 동일한
+    방식으로 구현해 코드베이스 관례와 일관성 유지
+  - `apps/cnbiz-web/app/developer/design/{page,storyboard,wireframe,prototype,claude,review,figma,sync,website}/page.tsx`
+    9개 페이지 전부에 `<DesignChainStepper />`를 `<PageHeader>` 바로 위에 추가. 각 페이지의
+    기존 `PageHeader actions`(인접 단계 링크)·데이터 fetch·생성 로직은 한 줄도 수정하지 않음
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(9개 Design
+  라우트 전부 정상 생성)
+- 실 로그인 세션(fs-fallback 개발 계정)으로 Playwright 검증 — 9개 페이지 전부 방문해
+  진행 표시줄이 정확히 9단계를 표시하고 `aria-current="step"`이 현재 라우트와 정확히
+  일치하는 항목 하나에만 붙음을 확인(Requirements=1번째 ~ Website Build=9번째 순서대로
+  정확히 일치). Wireframe 페이지에서 진행 표시줄의 "2. Storyboard"를 클릭해 실제로
+  `/developer/design/storyboard`로 이동됨을 확인(여러 단계 건너뛰어 되돌아가는 시나리오)
+  - QA 중 콘솔에 404가 재현됐으나 원인을 끝까지 추적한 결과 `apps/cnbiz-web`에 favicon
+    자체가 없어(파일 확인 결과 `app/favicon.ico`·`app/icon.*` 어디에도 없음) 브라우저가
+    자동으로 시도하는 `/favicon.ico` 프로브가 404를 반환하는 것이었다 — 이 요청은 Playwright의
+    `page.on("response")` 네트워크 이벤트에는 잡히지 않고 브라우저 콘솔에만
+    "Failed to load resource: 404" 형태로 남는 Chromium의 알려진 동작. 로그인 페이지
+    최초 진입 시점(로그인 전, Design 체인 페이지 방문 이전)에 발생해 이번 변경과 무관한
+    사이트 전역의 기존 결함임을 확인(요청 범위 밖이라 별도 수정하지 않음)
+  - 검증에 사용한 dev 서버(포트 3913)·QA 전용 fs-fallback 계정·임시 Playwright 스크립트
+    4개·`.next` 빌드 캐시는 검증 후 전부 종료·삭제
+
+---
+
 ## 2026-08-24 (7)
 
 ### 변경 (Changed)

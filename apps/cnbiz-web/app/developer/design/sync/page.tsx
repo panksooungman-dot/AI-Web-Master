@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
+import { DesignChainStepper } from "@/components/developer/design/DesignChainStepper";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { ReviewRecord } from "@/lib/design/review";
@@ -269,6 +270,7 @@ export default function DesignSyncPage() {
 
   return (
     <div>
+      <DesignChainStepper />
       <PageHeader
         icon="🔄"
         title="Design — Design Sync"

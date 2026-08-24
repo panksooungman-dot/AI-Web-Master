@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
+import { DesignChainStepper } from "@/components/developer/design/DesignChainStepper";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { StoryboardRecord } from "@/lib/design/storyboard";
@@ -152,6 +153,7 @@ export default function WireframePage() {
 
   return (
     <div>
+      <DesignChainStepper />
       <PageHeader
         icon="🧱"
         title="Design — Wireframe"

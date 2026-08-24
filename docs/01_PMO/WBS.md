@@ -14,9 +14,9 @@
 | 항목 | 내용 |
 |------|------|
 | **활성 프로젝트** | `apps/cnbiz-web` (v2 모노레포) — `cnbiz.kr` 프로덕션 |
-| **v2 현재 작업** | 10단계 테스트(반응형·접근성·Lighthouse) |
-| **v2 최근 완료** | SEO 보강(OG 이미지·canonical·metadataBase·Organization JSON-LD, v1 이식) (2026-08-24) |
-| **v2 다음 작업** | 반응형(390/768/1280) 전 페이지 확인, `/portfolio` 실 콘텐츠·`/about` 연혁·`/contact` 연락처 정보(자료 수령 후), GSC 연동 |
+| **v2 현재 작업** | `/portfolio` 실 콘텐츠·`/about` 연혁·`/contact` 연락처 정보(자료 수령 대기), GSC 연동 |
+| **v2 최근 완료** | 10단계 테스트(반응형·접근성·Lighthouse) 완료 — 모바일 메뉴 Escape 닫힘·푸터 색상 대비 결함 발견·수정 (2026-08-24) |
+| **v2 다음 작업** | 자료 수령 후 `/portfolio`·`/about`·`/contact` 콘텐츠 반영, GSC 연동 |
 | **v1(레거시) 상태** | 2026-07-01 기준 71%(55항목 중 39항목)에서 동결, 더 이상 갱신하지 않음 |
 
 ---
@@ -144,9 +144,9 @@ packages/
 |------|------|------|
 | `npm run build` 통과 | ✅ 완료 | 매 기능 추가 시 확인 |
 | Playwright 렌더링·콘솔 에러 확인 | ✅ 완료 | 매 기능 추가 시 페이지 단위로 확인(CHANGELOG 참고) |
-| 모바일(390px)·태블릿(768px)·데스크탑(1280px) 반응형 전수 확인 | 🔲 대기 | 페이지별 부분 확인만 있었음, 전체 감사 미실시 |
-| 키보드 네비게이션·접근성(aria) 전수 확인 | 🔲 대기 | |
-| Lighthouse 성능 점수 확인 | 🔲 대기 | |
+| 모바일(390px)·태블릿(768px)·데스크탑(1280px) 반응형 전수 확인 | ✅ 완료 | 5페이지×3뷰포트 전수 확인(2026-08-24), 가로 스크롤·레이아웃 깨짐 0건 |
+| 키보드 네비게이션·접근성(aria) 전수 확인 | ✅ 완료 | 모바일 메뉴 Escape 닫힘 미구현 발견·수정, 색상 대비 부족 1건 발견·수정(2026-08-24) |
+| Lighthouse 성능 점수 확인 | ✅ 완료 | 5페이지 평균 Performance 99·Accessibility 100(수정 후)·Best Practices 96·SEO 100(2026-08-24) |
 
 ### 배포
 
@@ -162,8 +162,7 @@ packages/
 
 1. `/portfolio` 실제 사례 콘텐츠 (자료 수령 필요)
 2. `/about` 연혁·조직도, `/contact` 연락처 정보 (사실 정보 확인 필요)
-3. 반응형·접근성·Lighthouse 전수 테스트
-4. GSC 연동
+3. GSC 연동
 
 ---
 
@@ -338,6 +337,7 @@ packages/
 | 2026-07-05 | Google Analytics 4 연동 완료 반영 (`@next/third-parties`, Vercel 환경 변수 설정 후 프로덕션 확인) | Claude Code |
 | 2026-07-05 | AI Business OS 문서 체계 구축 착수. `REQUEST.md` → `docs/01_PMO/` 재분류, `docs/00_COMPANY/`에 `ORGANIZATION.md`·`COMPANY_POLICY.md`·`DOCUMENT_INDEX.md` 신설, `docs/05_AI/`에 `AGENTS.md`·`TOKEN_POLICY.md`·`WORKFLOW.md`·`PROMPTS.md` 신설 | Claude Code |
 | 2026-08-24 | v2(`apps/cnbiz-web`) SEO 보강 완료 — v1의 OG 이미지·canonical·metadataBase·Organization JSON-LD를 이식(`lib/site-config.ts` 신설, `app/opengraph-image.tsx` 신설, 루트+4개 페이지 metadata 확장). 도메인은 v1의 임시값(`cnbiz.co.kr`) 대신 실제 프로덕션 도메인 `cnbiz.kr` 사용. SEO 9.1~9.5 v2 기준 전 항목 완료 | Claude Code |
+| 2026-08-24 | v2 10단계 테스트(반응형·접근성·Lighthouse) 완료. 5페이지×3뷰포트 반응형 전수 확인(가로 스크롤 0건), Lighthouse 5페이지 평균 Perf 99·A11y 100·BP 96·SEO 100. 실제 결함 2건 발견·수정: ① `MobileDrawer`(`packages/layout-primitives`)에 Escape 키 닫힘 미구현 → `useEffect` keydown 핸들러 추가, ② 푸터 저작권 텍스트 색상 대비 부족(3.74:1, WCAG AA 4.5:1 미달) → `text-slate-500`→`text-slate-400` 수정 | Claude Code |
 
 ---
 

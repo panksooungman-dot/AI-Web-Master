@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-08-24 (2)
+
+### 수정 (Fixed)
+
+- **CNBIZ Website v2 — 반응형·접근성·Lighthouse 전수 테스트에서 발견한 결함 2건 수정**
+  (WBS.md 10단계 테스트 항목 완료 처리를 위해 실행). `apps/cnbiz-web`을 프로덕션 빌드해
+  Playwright로 5페이지(`/`·`/about`·`/services`·`/portfolio`·`/contact`) × 3뷰포트
+  (390/768/1280px) 전수 확인, Lighthouse(mobile+desktop preset)를 5페이지 전부 실행하는
+  과정에서 실제 결함 2건을 발견해 수정.
+  1. **모바일 메뉴가 Escape 키로 닫히지 않음**(`packages/layout-primitives/src/MobileDrawer.tsx`)
+     — `role="dialog" aria-modal="true"`로 이미 모달 시맨틱은 갖췄지만 배경 클릭 또는 내부
+     "닫기" 버튼으로만 닫혔고 키보드로 열려 있는 모달을 닫을 방법이 전혀 없었다(WAI-ARIA
+     Dialog 패턴의 표준 기대와 불일치). `open` 상태일 때만 등록되는 `keydown` 리스너를
+     `useEffect`로 추가해 Escape 시 `onClose()`를 호출하도록 수정. 이 컴포넌트는
+     `apps/cnbiz-web`의 모바일 헤더 메뉴가 그대로 재사용하므로 별도 소비처 수정 없이
+     해결됨.
+  2. **푸터 저작권 텍스트의 색상 대비 부족**(`apps/cnbiz-web/components/layout/Footer.tsx`)
+     — `text-slate-500`(`#62748e`)를 `bg-slate-900`(`#0f172b`) 배경 위에 사용해 실측 대비율
+     3.74:1로 WCAG AA 본문 기준(4.5:1)에 미달(Lighthouse `color-contrast` 감사 0점으로 최초
+     발견). 같은 푸터 내 다른 텍스트가 이미 쓰던 `text-slate-400`으로 통일해 기준을 충족.
+     루트 레이아웃에서 전 페이지가 공유하는 푸터라 5페이지 전부에 동일하게 적용됨.
+
+### 검증 (Verified)
+
+- 두 수정 모두 `npm run build` 재실행 후 프로덕션 서버(`next start`)에서 Playwright로
+  재현·재확인: MobileDrawer는 클릭으로 열림(`aria-expanded=true`, `role="dialog"` 요소
+  visible) → Escape 입력 → 닫힘(`aria-expanded=false`, dialog 언마운트) 확인. Footer는
+  수정 전 Lighthouse `color-contrast` 감사 점수 0 → 수정 후 1로 전환, Accessibility
+  카테고리 점수 96→100 상승 확인(홈 페이지 기준)
+- **반응형**: 5페이지×3뷰포트(390/768/1280) 전부 `document.documentElement.scrollWidth`가
+  `clientWidth`를 초과하는 가로 스크롤 없음(0건), 페이지 로드 콘솔 에러도 예상된
+  `/api/auth/me` 401(아래 참고) 외에는 없음을 확인
+- **Lighthouse**(mobile preset, `--only-categories=performance,accessibility,best-practices,seo`):
+  수정 후 5페이지 — Performance 98~100 · Accessibility 100(전부) · Best Practices 96(전부)
+  · SEO 100(전부). 홈 페이지 desktop preset도 별도 확인(Performance 100 · 나머지 동일)
+- `npx tsc --noEmit`(0 errors)
+- 검증에 사용한 프로덕션 빌드(`.next`)·Playwright/Lighthouse 임시 스크립트·서버 프로세스는
+  전부 종료·삭제
+
+### 발견했으나 이번 범위에서 수정하지 않음 (보고만)
+
+- **Best Practices 96/100로 고정되는 원인**: 공개 마케팅 페이지(`/`·`/about`·`/services`·
+  `/portfolio`·`/contact`) 전부가 루트 레이아웃에서 `AuthProvider`로 감싸여 있어, 로그인하지
+  않은 일반 방문자의 모든 페이지 로드마다 `GET /api/auth/me`가 401로 실패하고 콘솔 에러로
+  기록된다(Lighthouse `errors-in-console` 감사 0점의 원인). 동작상 문제는 없으나(세션 없음을
+  정상적으로 감지) 원래 `/developer`·`/projects`(Development OS 전용) 보호를 위해 도입된
+  `AuthProvider`/`WorkspaceStoreProvider`가 공개 마케팅 사이트의 루트 레이아웃까지 감싸고
+  있는 것이 근본 원인으로 보인다. 마케팅 페이지에서 이 두 Provider를 걷어내는 것은 이번
+  "테스트" 범위를 벗어난 구조 변경이라 별도 승인 후 진행 필요.
+
+---
+
 ## 2026-08-24
 
 ### 추가 (Added)

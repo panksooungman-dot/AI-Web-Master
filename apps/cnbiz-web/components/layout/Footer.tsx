@@ -49,7 +49,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-3 py-6 text-xs text-slate-500 sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-3 py-6 text-xs text-slate-400 sm:flex-row">
           <p>© 2026 CNBIZ. All rights reserved.</p>
           <p>사업자 정보·주소는 확인 후 게시 예정입니다.</p>
         </div>

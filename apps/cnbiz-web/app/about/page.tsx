@@ -4,11 +4,24 @@ import { CompanyOverviewSection } from "@/components/sections/CompanyOverviewSec
 import { MissionVisionSection } from "@/components/sections/MissionVisionSection";
 import { AboutProcessSection } from "@/components/sections/AboutProcessSection";
 import { CTASection } from "@/components/sections/CTASection";
+import { OG_DEFAULTS, SITE_URL } from "@/lib/site-config";
+
+const title = "회사소개";
+const description =
+  "CNBIZ는 기업의 디지털 전환을 이끄는 IT 전문 기업입니다. 회사 개요, Mission·Vision, 핵심 가치, 일하는 방식을 소개합니다.";
 
 export const metadata: Metadata = {
-  title: "회사소개",
-  description:
-    "CNBIZ는 기업의 디지털 전환을 이끄는 IT 전문 기업입니다. 회사 개요, Mission·Vision, 핵심 가치, 일하는 방식을 소개합니다.",
+  title,
+  description,
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    ...OG_DEFAULTS,
+    title,
+    description,
+    url: `${SITE_URL}/about`,
+  },
 };
 
 export default function AboutPage() {

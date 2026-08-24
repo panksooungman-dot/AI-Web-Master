@@ -4,6 +4,96 @@
 
 ---
 
+## 2026-08-24 (2)
+
+### 수정 (Fixed)
+
+- **CNBIZ Website v2 — 반응형·접근성·Lighthouse 전수 테스트에서 발견한 결함 2건 수정**
+  (WBS.md 10단계 테스트 항목 완료 처리를 위해 실행). `apps/cnbiz-web`을 프로덕션 빌드해
+  Playwright로 5페이지(`/`·`/about`·`/services`·`/portfolio`·`/contact`) × 3뷰포트
+  (390/768/1280px) 전수 확인, Lighthouse(mobile+desktop preset)를 5페이지 전부 실행하는
+  과정에서 실제 결함 2건을 발견해 수정.
+  1. **모바일 메뉴가 Escape 키로 닫히지 않음**(`packages/layout-primitives/src/MobileDrawer.tsx`)
+     — `role="dialog" aria-modal="true"`로 이미 모달 시맨틱은 갖췄지만 배경 클릭 또는 내부
+     "닫기" 버튼으로만 닫혔고 키보드로 열려 있는 모달을 닫을 방법이 전혀 없었다(WAI-ARIA
+     Dialog 패턴의 표준 기대와 불일치). `open` 상태일 때만 등록되는 `keydown` 리스너를
+     `useEffect`로 추가해 Escape 시 `onClose()`를 호출하도록 수정. 이 컴포넌트는
+     `apps/cnbiz-web`의 모바일 헤더 메뉴가 그대로 재사용하므로 별도 소비처 수정 없이
+     해결됨.
+  2. **푸터 저작권 텍스트의 색상 대비 부족**(`apps/cnbiz-web/components/layout/Footer.tsx`)
+     — `text-slate-500`(`#62748e`)를 `bg-slate-900`(`#0f172b`) 배경 위에 사용해 실측 대비율
+     3.74:1로 WCAG AA 본문 기준(4.5:1)에 미달(Lighthouse `color-contrast` 감사 0점으로 최초
+     발견). 같은 푸터 내 다른 텍스트가 이미 쓰던 `text-slate-400`으로 통일해 기준을 충족.
+     루트 레이아웃에서 전 페이지가 공유하는 푸터라 5페이지 전부에 동일하게 적용됨.
+
+### 검증 (Verified)
+
+- 두 수정 모두 `npm run build` 재실행 후 프로덕션 서버(`next start`)에서 Playwright로
+  재현·재확인: MobileDrawer는 클릭으로 열림(`aria-expanded=true`, `role="dialog"` 요소
+  visible) → Escape 입력 → 닫힘(`aria-expanded=false`, dialog 언마운트) 확인. Footer는
+  수정 전 Lighthouse `color-contrast` 감사 점수 0 → 수정 후 1로 전환, Accessibility
+  카테고리 점수 96→100 상승 확인(홈 페이지 기준)
+- **반응형**: 5페이지×3뷰포트(390/768/1280) 전부 `document.documentElement.scrollWidth`가
+  `clientWidth`를 초과하는 가로 스크롤 없음(0건), 페이지 로드 콘솔 에러도 예상된
+  `/api/auth/me` 401(아래 참고) 외에는 없음을 확인
+- **Lighthouse**(mobile preset, `--only-categories=performance,accessibility,best-practices,seo`):
+  수정 후 5페이지 — Performance 98~100 · Accessibility 100(전부) · Best Practices 96(전부)
+  · SEO 100(전부). 홈 페이지 desktop preset도 별도 확인(Performance 100 · 나머지 동일)
+- `npx tsc --noEmit`(0 errors)
+- 검증에 사용한 프로덕션 빌드(`.next`)·Playwright/Lighthouse 임시 스크립트·서버 프로세스는
+  전부 종료·삭제
+
+### 발견했으나 이번 범위에서 수정하지 않음 (보고만)
+
+- **Best Practices 96/100로 고정되는 원인**: 공개 마케팅 페이지(`/`·`/about`·`/services`·
+  `/portfolio`·`/contact`) 전부가 루트 레이아웃에서 `AuthProvider`로 감싸여 있어, 로그인하지
+  않은 일반 방문자의 모든 페이지 로드마다 `GET /api/auth/me`가 401로 실패하고 콘솔 에러로
+  기록된다(Lighthouse `errors-in-console` 감사 0점의 원인). 동작상 문제는 없으나(세션 없음을
+  정상적으로 감지) 원래 `/developer`·`/projects`(Development OS 전용) 보호를 위해 도입된
+  `AuthProvider`/`WorkspaceStoreProvider`가 공개 마케팅 사이트의 루트 레이아웃까지 감싸고
+  있는 것이 근본 원인으로 보인다. 마케팅 페이지에서 이 두 Provider를 걷어내는 것은 이번
+  "테스트" 범위를 벗어난 구조 변경이라 별도 승인 후 진행 필요.
+
+---
+
+## 2026-08-24
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — SEO 보강(OG 이미지·canonical·metadataBase·Organization JSON-LD) 이식**:
+  v1(`app/`, 레거시)에는 2026-07-01에 이미 구현되어 있었지만 모노레포 전환(v2, `apps/cnbiz-web`)
+  과정에서 옮겨지지 않았던 4개 항목을 v1 구현을 참고해 이식. 기본 메타 title·description·
+  sitemap.xml·robots.txt는 v2에 이미 있었음(변경 없음).
+  - `apps/cnbiz-web/lib/site-config.ts`(신규) — `SITE_URL`·`SITE_NAME`·`SITE_TITLE`·
+    `SITE_DESCRIPTION`·`OG_DEFAULTS` 공통 상수. v1은 도메인 미확정 상태의 임시값
+    (`cnbiz.co.kr`)을 썼으나, v2는 이미 확정·배포된 실제 프로덕션 도메인
+    `https://cnbiz.kr`(WBS.md 배포 섹션 기준)을 사용하도록 수정해 이식
+  - `apps/cnbiz-web/app/opengraph-image.tsx`(신규) — `next/og` 기반 동적 OG 이미지.
+    하드코딩된 색상 대신 `@cnbiz/design-system`의 `colors` 토큰(secondary·primaryLight)을
+    사용하도록 v1보다 개선(마침 두 값이 우연히 v1의 하드코딩 값과 동일해 결과물은 동일)
+  - `apps/cnbiz-web/app/layout.tsx` — `metadataBase`·`alternates.canonical`·`openGraph`·
+    `twitter`·`robots`·Organization JSON-LD(`<script type="application/ld+json">`) 추가
+  - `apps/cnbiz-web/app/{about,services,portfolio,contact}/page.tsx` — 페이지별
+    `alternates.canonical`·`openGraph`(title/description/url) 추가. 홈(`/`)은 별도
+    metadata export가 없어 루트 레이아웃 값을 그대로 상속(v1과 동일한 패턴)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run build`(정상 빌드, `/opengraph-image` 정적 라우트
+  생성 확인)
+- `next start`로 로컬 프로덕션 서버를 띄워 실제 HTML 응답을 curl로 직접 확인 — 홈에
+  `<title>`·`<link rel="canonical" href="https://cnbiz.kr"/>`·`og:title`·`og:description`·
+  `og:url`·`og:site_name`·`og:locale`·`og:image`(1200×630)·`og:type` 전부 정상 렌더링,
+  `/about`의 canonical·og:url이 `/about` 기준으로 정확히 달라짐을 확인, Organization
+  JSON-LD 스크립트가 실제 값(name/url/description)으로 채워져 렌더링됨을 확인,
+  `/opengraph-image` 요청이 200과 함께 `image/png`를 반환함을 확인
+- 검증에 사용한 로컬 프로덕션 서버·빌드 산출물(`apps/cnbiz-web/.next`)은 검증 후 종료·삭제
+- 이 작업과 무관하게 `npm install` 과정에서 발생한 `package-lock.json` 변경(154줄 삭제)과
+  `packages/cli/bin/ai.js`의 파일 모드 변경은 범위 밖으로 판단해 커밋 전 원복
+- WBS.md v2 SEO 섹션·남은 작업 목록 갱신(3개 항목 ✅ 완료로 전환)
+
+---
+
 ## 2026-08-09 (3)
 
 ### 수정 (Fixed)

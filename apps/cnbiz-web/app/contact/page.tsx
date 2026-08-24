@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ContactHeroSection } from "@/components/sections/ContactHeroSection";
+import { ContactProcessSection } from "@/components/sections/ContactProcessSection";
 import { ContactForm } from "@/components/sections/ContactForm";
 import { OG_DEFAULTS, SITE_URL } from "@/lib/site-config";
 
@@ -24,6 +25,7 @@ export default function ContactPage() {
   return (
     <>
       <ContactHeroSection />
+      <ContactProcessSection />
       <ContactForm />
     </>
   );

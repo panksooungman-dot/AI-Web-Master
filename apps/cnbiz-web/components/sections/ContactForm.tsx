@@ -88,7 +88,8 @@ export function ContactForm() {
         <Container className="max-w-2xl text-center">
           <h2 className="text-2xl font-bold text-slate-900">문의가 접수되었습니다</h2>
           <p className="mt-3 text-base text-slate-600">
-            남겨주신 연락처로 담당자가 순차적으로 연락드리겠습니다. 감사합니다.
+            영업일 기준 24시간 이내에 담당자가 남겨주신 연락처로 연락드립니다. 다음 단계는
+            요구사항을 함께 점검하는 상담입니다. 감사합니다.
           </p>
           <Button type="button" variant="secondary" className="mt-8" onClick={() => setStatus("idle")}>
             새 문의 작성하기
@@ -101,80 +102,88 @@ export function ContactForm() {
   return (
     <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx", "문의 폼")}>
       <Container className="max-w-2xl">
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Input
-              id="contactName"
-              label="담당자명 *"
-              value={form.contactName}
-              onChange={(e) => updateField("contactName", e.target.value)}
-            />
-            <Input
-              id="companyName"
-              label="회사명"
-              value={form.companyName}
-              onChange={(e) => updateField("companyName", e.target.value)}
-            />
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-8">
+          <div className="flex flex-col gap-5">
+            <p className="text-sm font-semibold uppercase tracking-widest text-primary">담당자 정보</p>
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Input
+                id="contactName"
+                label="담당자명 *"
+                value={form.contactName}
+                onChange={(e) => updateField("contactName", e.target.value)}
+              />
+              <Input
+                id="companyName"
+                label="회사명"
+                value={form.companyName}
+                onChange={(e) => updateField("companyName", e.target.value)}
+              />
+            </div>
+
+            {errors.contactName && <p className="-mt-3 text-sm text-red-600">{errors.contactName}</p>}
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Input
+                id="email"
+                type="email"
+                label="이메일 *"
+                value={form.email}
+                onChange={(e) => updateField("email", e.target.value)}
+              />
+              <Input
+                id="phone"
+                label="연락처"
+                placeholder="010-1234-5678"
+                value={form.phone}
+                onChange={(e) => updateField("phone", e.target.value)}
+              />
+            </div>
+            {(errors.email || errors.phone) && (
+              <p className="-mt-3 text-sm text-red-600">{errors.email ?? errors.phone}</p>
+            )}
           </div>
 
-          {errors.contactName && <p className="-mt-3 text-sm text-red-600">{errors.contactName}</p>}
+          <div className="flex flex-col gap-5 border-t border-slate-100 pt-8">
+            <p className="text-sm font-semibold uppercase tracking-widest text-primary">프로젝트 정보</p>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Input
-              id="email"
-              type="email"
-              label="이메일 *"
-              value={form.email}
-              onChange={(e) => updateField("email", e.target.value)}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Select
+                id="siteType"
+                label="희망 사이트 유형"
+                value={form.siteType}
+                onChange={(e) => updateField("siteType", e.target.value)}
+              >
+                <option value="">선택 안 함</option>
+                {WEBSITE_TYPES.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.label}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                id="budget"
+                label="예산 (선택)"
+                placeholder="예: 300만원, 협의 가능"
+                value={form.budget}
+                onChange={(e) => updateField("budget", e.target.value)}
+              />
+            </div>
+
+            <Textarea
+              id="requirements"
+              label="문의 내용 *"
+              placeholder="원하시는 홈페이지의 목적, 필요한 기능, 참고 사이트 등을 자유롭게 남겨주세요."
+              rows={6}
+              value={form.requirements}
+              onChange={(e) => updateField("requirements", e.target.value)}
             />
-            <Input
-              id="phone"
-              label="연락처"
-              placeholder="010-1234-5678"
-              value={form.phone}
-              onChange={(e) => updateField("phone", e.target.value)}
-            />
+            {errors.requirements && <p className="-mt-3 text-sm text-red-600">{errors.requirements}</p>}
           </div>
-          {(errors.email || errors.phone) && (
-            <p className="-mt-3 text-sm text-red-600">{errors.email ?? errors.phone}</p>
-          )}
-
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Select
-              id="siteType"
-              label="희망 사이트 유형"
-              value={form.siteType}
-              onChange={(e) => updateField("siteType", e.target.value)}
-            >
-              <option value="">선택 안 함</option>
-              {WEBSITE_TYPES.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.label}
-                </option>
-              ))}
-            </Select>
-            <Input
-              id="budget"
-              label="예산 (선택)"
-              placeholder="예: 300만원, 협의 가능"
-              value={form.budget}
-              onChange={(e) => updateField("budget", e.target.value)}
-            />
-          </div>
-
-          <Textarea
-            id="requirements"
-            label="문의 내용 *"
-            placeholder="원하시는 홈페이지의 목적, 필요한 기능, 참고 사이트 등을 자유롭게 남겨주세요."
-            rows={6}
-            value={form.requirements}
-            onChange={(e) => updateField("requirements", e.target.value)}
-          />
-          {errors.requirements && <p className="-mt-3 text-sm text-red-600">{errors.requirements}</p>}
 
           {status === "error" && errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 
-          <Button type="submit" disabled={status === "submitting"} className="mt-2 self-start">
+          <Button type="submit" disabled={status === "submitting"} className="self-start">
             {status === "submitting" ? "제출 중..." : "문의 보내기"}
           </Button>
         </form>

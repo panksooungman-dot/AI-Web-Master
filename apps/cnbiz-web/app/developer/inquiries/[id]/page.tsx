@@ -692,6 +692,42 @@ export default function InquiryDetailPage() {
                 </ul>
               </div>
             )}
+
+            {inquiry.referenceUrls && inquiry.referenceUrls.length > 0 && (
+              <div>
+                <p className="text-gray-500 mb-1">참고 사이트</p>
+                <ul className="flex flex-col gap-1">
+                  {inquiry.referenceUrls.map((url) => (
+                    <li key={url}>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:underline break-all"
+                      >
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {inquiry.codeSnippets && inquiry.codeSnippets.length > 0 && (
+              <div>
+                <p className="text-gray-500 mb-1">첨부 코드 파일</p>
+                <ul className="flex flex-col gap-2">
+                  {inquiry.codeSnippets.map((snippet) => (
+                    <li key={snippet.filename} className="rounded border border-gray-800 bg-gray-950 px-3 py-2">
+                      <p className="text-xs text-gray-500 mb-1">{snippet.filename}</p>
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs text-gray-300">
+                        {snippet.content.slice(0, 2000)}
+                      </pre>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </Card>
       </div>

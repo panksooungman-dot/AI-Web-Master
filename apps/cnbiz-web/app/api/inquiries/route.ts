@@ -77,6 +77,8 @@ export async function POST(request: Request) {
       industry: input.industry,
       survey: input.survey,
       uploadedFiles: input.uploadedFiles,
+      referenceUrls: input.referenceUrls,
+      codeSnippets: input.codeSnippets,
     });
     await saveInquiryAnalysis(inquiry.id, analysisOutcome.result);
   } catch (error) {

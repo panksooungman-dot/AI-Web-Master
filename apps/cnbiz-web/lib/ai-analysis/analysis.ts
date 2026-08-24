@@ -3,6 +3,8 @@ import { extractJsonPayload } from "@/lib/ai/json";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 import { computeCompleteness } from "./score";
 import { AI_ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt } from "./prompts";
+import { describeUploadedImages } from "./vision";
+import { fetchReferenceSiteContext } from "./referenceSite";
 import type { AIAnalysisInput, AIAnalysisResult } from "./types";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -110,7 +112,17 @@ export async function generateAnalysis(
 ): Promise<GenerateAnalysisResult> {
   const { completeness, missingItems } = computeCompleteness(input);
 
-  const chatResult = await chatFn(buildAnalysisPrompt(input), { system: AI_ANALYSIS_SYSTEM_PROMPT });
+  // 비전 분석·참고 사이트 조회는 둘 다 네트워크 I/O라 실패할 수 있지만, 각 함수 내부에서
+  // 이미 모든 실패를 삼키고 null을 반환하므로(설정 없음·타임아웃·비-2xx 등) 여기서는 그냥
+  // 병렬로 기다리기만 하면 된다 — 이 Promise.all 자체가 reject할 일이 없다.
+  const [visionDescription, referenceSiteContext] = await Promise.all([
+    describeUploadedImages(input.uploadedFiles),
+    fetchReferenceSiteContext(input),
+  ]);
+
+  const chatResult = await chatFn(buildAnalysisPrompt(input, { visionDescription, referenceSiteContext }), {
+    system: AI_ANALYSIS_SYSTEM_PROMPT,
+  });
 
   let judgment = chatResult.success && chatResult.content ? parseAiJudgment(chatResult.content) : null;
   const simulated = judgment === null;

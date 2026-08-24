@@ -27,8 +27,14 @@ export interface InquiryInput {
   industry?: string;
   /** 챗봇 설문 응답 원본(질문-답변 구조는 챗봇 쪽에서 자유롭게 확장 가능하도록 구조화하지 않음). */
   survey?: Record<string, unknown>;
-  /** 상담 중 업로드된 첨부파일 URL 목록. */
+  /** 상담 중 업로드된 첨부파일(이미지 등) URL 목록. */
   uploadedFiles?: string[];
+  /** 고객이 명시적으로 지정한 참고 사이트 URL. 없으면 score.ts/referenceSite.ts가 survey
+   *  텍스트에서 URL 패턴으로 추정한다(하위 호환). */
+  referenceUrls?: string[];
+  /** 첨부된 코드 파일의 파일명·텍스트 내용(바이너리 업로드가 아닌 텍스트 그대로 보관 —
+   *  AI Analysis 프롬프트에 컨텍스트로 포함하기 위함). */
+  codeSnippets?: { filename: string; content: string }[];
   /** 챗봇이 보낸 원본 페이로드 전체(감사/디버깅용, 그대로 보관). */
   rawPayload?: Record<string, unknown>;
 }

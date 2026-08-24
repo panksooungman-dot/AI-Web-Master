@@ -40,4 +40,6 @@ export interface AIAnalysisInput {
   industry?: string;
   survey?: Record<string, unknown>;
   uploadedFiles?: string[];
+  referenceUrls?: string[];
+  codeSnippets?: { filename: string; content: string }[];
 }

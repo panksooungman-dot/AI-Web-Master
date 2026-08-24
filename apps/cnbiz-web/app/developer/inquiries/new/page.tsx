@@ -8,10 +8,16 @@ import { PageHeader } from "@/components/developer/PageHeader";
 import { StatusMessage } from "@/components/developer/StatusMessage";
 import { ToastStack, type ToastMessage, type ToastTone } from "@/components/developer/Toast";
 
-const ACCEPTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".webp"];
+const ACCEPTED_EXTENSIONS = [
+  ".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
+  // 코드 파일 — app/api/inquiries/upload/route.ts가 바이너리 저장 대신 텍스트로 읽어
+  // codeSnippets에 담고, lib/ai-analysis/prompts.ts가 AI Analysis 프롬프트에 포함한다.
+  ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".go", ".rb", ".php", ".css", ".scss",
+  ".html", ".json", ".md", ".yml", ".yaml", ".sql",
+];
 
-// 저장소 전체에 첨부파일 최대 크기 정책이 아직 없다(검색 결과 없음, 2026-07-21 확인) — Supabase
-// Storage 업로드가 실제로 구현되면 그때 정해지는 정책 값으로 교체한다. 그 전까지의 임시 기본값.
+// app/api/inquiries/upload/route.ts의 MAX_BINARY_BYTES와 동일 — 클라이언트에서 먼저 걸러
+// 불필요한 업로드 요청 자체를 막는다(서버가 최종 검증은 다시 한다).
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 const inputClass =
@@ -27,6 +33,8 @@ interface InquiryFormState {
   contactName: string;
   companyName: string;
   email: string;
+  /** 쉼표로 구분된 참고 사이트 URL 입력값 — 제출 시 referenceUrls(string[])로 분리된다. */
+  referenceUrls: string;
 }
 
 let toastSeq = 0;
@@ -40,7 +48,13 @@ function formatFileSize(bytes: number): string {
 export default function NewInquiryPage() {
   const router = useRouter();
 
-  const [form, setForm] = useState<InquiryFormState>({ title: "", contactName: "", companyName: "", email: "" });
+  const [form, setForm] = useState<InquiryFormState>({
+    title: "",
+    contactName: "",
+    companyName: "",
+    email: "",
+    referenceUrls: "",
+  });
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -155,14 +169,31 @@ export default function NewInquiryPage() {
     setLoading(null);
   }
 
+  type UploadResponse =
+    | { success: true; type: "image" | "file"; url: string; storage: "supabase" | "local" }
+    | { success: true; type: "code"; filename: string; content: string }
+    | { success: false; error: string };
+
+  /** 파일 하나를 /api/inquiries/upload로 업로드한다 — 이미지/일반 파일은 실제 URL을,
+   *  코드 파일은 텍스트 내용을 그대로 돌려받는다(lib/uploads/storage.ts·
+   *  app/api/inquiries/upload/route.ts 참고). */
+  async function uploadOne(file: File): Promise<UploadResponse> {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch("/api/inquiries/upload", { method: "POST", body });
+    return res.json();
+  }
+
   /**
    * AI Business OS Rewiring Phase 1 — POST /api/inquiries(내부, app/api/inquiries/route.ts)를
    * 호출해 createInquiry() 이하 기존 파이프라인(AI Analysis → Client → WebsiteOrder → AiJob)에
    * 합류시킨다. 이 라우트와 완전히 동일한 흐름을 cnbiz.kr의 공개 문의 폼(components/sections/
    * ContactForm.tsx)도 함께 사용한다 — "chatbot"이 아닌 "manual"을 source로 보내는 것만 다르다.
    *
-   * 남은 TODO(파일 업로드 스토리지·OCR)는 이번 범위가 아니다 — Supabase Storage 업로드 백엔드가
-   * 아직 없어 첨부파일은 실제 URL 없이 파일명만 rawPayload에 감사 목적으로 남긴다.
+   * 첨부파일은 먼저 /api/inquiries/upload로 하나씩 업로드해 실제 URL(이미지·일반 파일) 또는
+   * 텍스트 내용(코드 파일)을 확보한 뒤, uploadedFiles/codeSnippets로 Inquiry 생성 요청에
+   * 실어 보낸다 — lib/uploads/storage.ts가 있기 전(2026-08-24 이전)에는 파일명만 감사 목적으로
+   * rawPayload에 남겼었다.
    */
   async function handleAnalyze() {
     if (loading) return;
@@ -171,6 +202,32 @@ export default function NewInquiryPage() {
     setLoading("analyze");
 
     try {
+      const uploadedFiles: string[] = [];
+      const codeSnippets: { filename: string; content: string }[] = [];
+      const uploadFailures: string[] = [];
+
+      for (const staged of files) {
+        const result = await uploadOne(staged.file);
+        if (!result.success) {
+          uploadFailures.push(`${staged.file.name} (${result.error})`);
+          continue;
+        }
+        if (result.type === "code") {
+          codeSnippets.push({ filename: result.filename, content: result.content });
+        } else {
+          uploadedFiles.push(result.url);
+        }
+      }
+
+      if (uploadFailures.length > 0) {
+        pushToast("error", `일부 파일 업로드 실패: ${uploadFailures.join(", ")}`);
+      }
+
+      const referenceUrls = form.referenceUrls
+        .split(",")
+        .map((url) => url.trim())
+        .filter(Boolean);
+
       const res = await fetch("/api/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,12 +237,10 @@ export default function NewInquiryPage() {
           contactName: form.contactName,
           email: form.email,
           requirements: content,
-          rawPayload: {
-            title: form.title,
-            // TODO: 실제 업로드 URL이 아니라 파일명만 감사 목적으로 보관 — Supabase Storage
-            // 연동이 구현되면 lib/inquiries/types.ts의 uploadedFiles(URL 목록)로 옮긴다.
-            uploadedFileNames: files.map((f) => f.file.name),
-          },
+          uploadedFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+          codeSnippets: codeSnippets.length > 0 ? codeSnippets : undefined,
+          referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,
+          rawPayload: { title: form.title },
         }),
       });
       const data: { success: boolean; inquiryId?: string; error?: string; errors?: Record<string, string> } =
@@ -300,6 +355,20 @@ export default function NewInquiryPage() {
                 </StatusMessage>
               )}
             </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">참고 사이트 URL</label>
+              <input
+                type="text"
+                value={form.referenceUrls}
+                onChange={(e) => updateForm("referenceUrls", e.target.value)}
+                placeholder="https://example.com (여러 개는 쉼표로 구분)"
+                className={inputClass}
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                입력한 사이트를 AI 분석 시점에 실제로 조회해 톤·콘텐츠를 참고합니다.
+              </p>
+            </div>
           </div>
         </Card>
 
@@ -326,7 +395,9 @@ export default function NewInquiryPage() {
                 className="hidden"
               />
             </label>
-            <p className="text-xs text-gray-600 mt-3">PDF · DOC · DOCX · TXT · PNG · JPG · JPEG · WEBP</p>
+            <p className="text-xs text-gray-600 mt-3">
+              PDF · DOC · DOCX · TXT · 이미지(PNG·JPG·GIF·WEBP·SVG) · 코드 파일(JS·TS·PY 등)
+            </p>
           </div>
 
           {files.length > 0 && (

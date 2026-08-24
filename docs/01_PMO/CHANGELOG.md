@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-08-24
+
+### 추가 (Added)
+
+- **CNBIZ Website v2 — SEO 보강(OG 이미지·canonical·metadataBase·Organization JSON-LD) 이식**:
+  v1(`app/`, 레거시)에는 2026-07-01에 이미 구현되어 있었지만 모노레포 전환(v2, `apps/cnbiz-web`)
+  과정에서 옮겨지지 않았던 4개 항목을 v1 구현을 참고해 이식. 기본 메타 title·description·
+  sitemap.xml·robots.txt는 v2에 이미 있었음(변경 없음).
+  - `apps/cnbiz-web/lib/site-config.ts`(신규) — `SITE_URL`·`SITE_NAME`·`SITE_TITLE`·
+    `SITE_DESCRIPTION`·`OG_DEFAULTS` 공통 상수. v1은 도메인 미확정 상태의 임시값
+    (`cnbiz.co.kr`)을 썼으나, v2는 이미 확정·배포된 실제 프로덕션 도메인
+    `https://cnbiz.kr`(WBS.md 배포 섹션 기준)을 사용하도록 수정해 이식
+  - `apps/cnbiz-web/app/opengraph-image.tsx`(신규) — `next/og` 기반 동적 OG 이미지.
+    하드코딩된 색상 대신 `@cnbiz/design-system`의 `colors` 토큰(secondary·primaryLight)을
+    사용하도록 v1보다 개선(마침 두 값이 우연히 v1의 하드코딩 값과 동일해 결과물은 동일)
+  - `apps/cnbiz-web/app/layout.tsx` — `metadataBase`·`alternates.canonical`·`openGraph`·
+    `twitter`·`robots`·Organization JSON-LD(`<script type="application/ld+json">`) 추가
+  - `apps/cnbiz-web/app/{about,services,portfolio,contact}/page.tsx` — 페이지별
+    `alternates.canonical`·`openGraph`(title/description/url) 추가. 홈(`/`)은 별도
+    metadata export가 없어 루트 레이아웃 값을 그대로 상속(v1과 동일한 패턴)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run build`(정상 빌드, `/opengraph-image` 정적 라우트
+  생성 확인)
+- `next start`로 로컬 프로덕션 서버를 띄워 실제 HTML 응답을 curl로 직접 확인 — 홈에
+  `<title>`·`<link rel="canonical" href="https://cnbiz.kr"/>`·`og:title`·`og:description`·
+  `og:url`·`og:site_name`·`og:locale`·`og:image`(1200×630)·`og:type` 전부 정상 렌더링,
+  `/about`의 canonical·og:url이 `/about` 기준으로 정확히 달라짐을 확인, Organization
+  JSON-LD 스크립트가 실제 값(name/url/description)으로 채워져 렌더링됨을 확인,
+  `/opengraph-image` 요청이 200과 함께 `image/png`를 반환함을 확인
+- 검증에 사용한 로컬 프로덕션 서버·빌드 산출물(`apps/cnbiz-web/.next`)은 검증 후 종료·삭제
+- 이 작업과 무관하게 `npm install` 과정에서 발생한 `package-lock.json` 변경(154줄 삭제)과
+  `packages/cli/bin/ai.js`의 파일 모드 변경은 범위 밖으로 판단해 커밋 전 원복
+- WBS.md v2 SEO 섹션·남은 작업 목록 갱신(3개 항목 ✅ 완료로 전환)
+
+---
+
 ## 2026-08-09 (3)
 
 ### 수정 (Fixed)

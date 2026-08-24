@@ -14,8 +14,8 @@
 | 항목 | 내용 |
 |------|------|
 | **활성 프로젝트** | `apps/cnbiz-web` (v2 모노레포) — `cnbiz.kr` 프로덕션 |
-| **v2 현재 작업** | SEO 보강(OG 이미지·canonical·Organization 구조화 데이터) 및 10단계 테스트(반응형·접근성·Lighthouse) |
-| **v2 최근 완료** | Google Analytics 4 연동, Vercel 환경 변수 설정·재배포 후 프로덕션 반영 확인 (2026-07-05) |
+| **v2 현재 작업** | 10단계 테스트(반응형·접근성·Lighthouse) |
+| **v2 최근 완료** | SEO 보강(OG 이미지·canonical·metadataBase·Organization JSON-LD, v1 이식) (2026-08-24) |
 | **v2 다음 작업** | 반응형(390/768/1280) 전 페이지 확인, `/portfolio` 실 콘텐츠·`/about` 연혁·`/contact` 연락처 정보(자료 수령 후), GSC 연동 |
 | **v1(레거시) 상태** | 2026-07-01 기준 71%(55항목 중 39항목)에서 동결, 더 이상 갱신하지 않음 |
 
@@ -134,9 +134,9 @@ packages/
 | 페이지별 메타 title·description | ✅ 완료 | `app/layout.tsx`·각 페이지 Metadata |
 | sitemap.xml | ✅ 완료 | `app/sitemap.ts`, 프로덕션 배포·응답 검증 완료(2026-07-05) |
 | robots.txt | ✅ 완료 | `app/robots.ts`, sitemap 경로 포함 |
-| OG 태그·동적 OG 이미지 | 🔲 대기 | v1에는 있으나(`app/opengraph-image.tsx`) v2엔 미구현 |
-| canonical·metadataBase | 🔲 대기 | 미구현 |
-| Organization 구조화 데이터(JSON-LD) | 🔲 대기 | 미구현 |
+| OG 태그·동적 OG 이미지 | ✅ 완료 | `app/opengraph-image.tsx`(v1 이식), 실제 렌더링·200 응답 확인(2026-08-24) |
+| canonical·metadataBase | ✅ 완료 | `lib/site-config.ts`(`SITE_URL=https://cnbiz.kr`) + 루트·페이지별 `alternates.canonical` |
+| Organization 구조화 데이터(JSON-LD) | ✅ 완료 | 루트 레이아웃에 JSON-LD 삽입, 렌더링 확인(2026-08-24) |
 
 ### 테스트
 
@@ -162,9 +162,8 @@ packages/
 
 1. `/portfolio` 실제 사례 콘텐츠 (자료 수령 필요)
 2. `/about` 연혁·조직도, `/contact` 연락처 정보 (사실 정보 확인 필요)
-3. SEO 보강 — OG 이미지·canonical·Organization JSON-LD
-4. 반응형·접근성·Lighthouse 전수 테스트
-5. GSC 연동
+3. 반응형·접근성·Lighthouse 전수 테스트
+4. GSC 연동
 
 ---
 
@@ -338,6 +337,7 @@ packages/
 | 2026-07-05 | `apps/cnbiz-web`(v2 모노레포) 진행 현황 섹션 신설. sitemap.xml·robots.txt 구현 및 `cnbiz.kr` 프로덕션 배포 반영. 기존 1~11단계(v1, `app/`)는 레거시로 표시하고 2026-07-01 기준으로 동결 | Claude Code |
 | 2026-07-05 | Google Analytics 4 연동 완료 반영 (`@next/third-parties`, Vercel 환경 변수 설정 후 프로덕션 확인) | Claude Code |
 | 2026-07-05 | AI Business OS 문서 체계 구축 착수. `REQUEST.md` → `docs/01_PMO/` 재분류, `docs/00_COMPANY/`에 `ORGANIZATION.md`·`COMPANY_POLICY.md`·`DOCUMENT_INDEX.md` 신설, `docs/05_AI/`에 `AGENTS.md`·`TOKEN_POLICY.md`·`WORKFLOW.md`·`PROMPTS.md` 신설 | Claude Code |
+| 2026-08-24 | v2(`apps/cnbiz-web`) SEO 보강 완료 — v1의 OG 이미지·canonical·metadataBase·Organization JSON-LD를 이식(`lib/site-config.ts` 신설, `app/opengraph-image.tsx` 신설, 루트+4개 페이지 metadata 확장). 도메인은 v1의 임시값(`cnbiz.co.kr`) 대신 실제 프로덕션 도메인 `cnbiz.kr` 사용. SEO 9.1~9.5 v2 기준 전 항목 완료 | Claude Code |
 
 ---
 

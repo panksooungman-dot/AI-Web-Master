@@ -26,6 +26,20 @@ function asOptionalStringArray(value: unknown): string[] | undefined {
   return strings.length > 0 ? strings : undefined;
 }
 
+function asOptionalCodeSnippets(value: unknown): { filename: string; content: string }[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const snippets = value
+    .filter(
+      (item): item is { filename: unknown; content: unknown } => typeof item === "object" && item !== null,
+    )
+    .map((item) => ({
+      filename: asString((item as Record<string, unknown>).filename).trim(),
+      content: asString((item as Record<string, unknown>).content),
+    }))
+    .filter((item) => item.filename && item.content);
+  return snippets.length > 0 ? snippets : undefined;
+}
+
 /** 여러 후보 키 중 처음으로 값이 있는 것을 사용한다(필드명이 다른 호출자와의 호환용). */
 function pickString(record: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
@@ -53,6 +67,8 @@ export function parseInquiryInput(body: unknown): InquiryInput {
     industry: pickString(record, ["industry"]) || undefined,
     survey: asOptionalRecord(record.survey),
     uploadedFiles: asOptionalStringArray(record.uploadedFiles),
+    referenceUrls: asOptionalStringArray(record.referenceUrls),
+    codeSnippets: asOptionalCodeSnippets(record.codeSnippets),
     rawPayload: asOptionalRecord(record.rawPayload),
   };
 }

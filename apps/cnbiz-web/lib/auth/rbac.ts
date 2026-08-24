@@ -80,6 +80,11 @@ const UNGATED_API_PREFIXES = [
   "/api/terminal",
   "/api/projects",
   "/api/external",
+  // Inquiry 첨부파일 서빙(lib/uploads/storage.ts의 fs 폴백 경로). Supabase Storage를 쓰는
+  // 경우와 동일하게 "공개적으로 fetch 가능한 URL"이어야 하고, AI Analysis의 비전 분석
+  // (lib/ai-analysis/vision.ts)이 세션 쿠키 없이 서버-투-서버로 이 URL을 직접 fetch하므로
+  // 로그인 게이트를 걸면 그 경로가 항상 실패한다.
+  "/api/uploads",
 ];
 
 /**

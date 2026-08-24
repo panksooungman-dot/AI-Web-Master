@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-08-24 (3)
+
+### 추가 (Added)
+
+- **Inquiry 첨부 자료(이미지·참고 사이트·코드 파일)를 실제로 AI Analysis에 반영** — 기존에는
+  `uploadedFiles`(URL 목록)가 존재 여부만 완결성 점수에 반영되고 AI에게는 "몇 건 첨부됨"이라는
+  숫자만 전달됐으며(이미지 내용 자체는 전혀 분석되지 않음), 참고 사이트도 survey 텍스트에
+  URL이 있다는 사실만 인지될 뿐 실제로 방문한 적이 없었고, 코드 파일은 받는 필드조차
+  없었다(관리자 검토 요청으로 확인, 이번 변경 전 상태). 4개 항목을 전부 실제로 연결했다.
+  1. **이미지 실제 저장** — `lib/uploads/storage.ts`(신규). `SUPABASE_URL`·
+     `SUPABASE_SERVICE_ROLE_KEY`가 있으면 Supabase Storage(`inquiry-uploads` 버킷)에, 없으면
+     로컬 fs(`apps/cnbiz-web/lib/data/uploads/`, machine-local)에 저장하고 `GET
+     /api/uploads/[fileName]`(신규)로 서빙한다. lib/db/index.ts의 getDefaultStore()와 같은
+     "설정 있으면 Supabase, 없으면 fs 폴백" 원칙이지만, 첨부파일은 Inquiry 접수를 막을
+     이유가 없는 보조 기능이라 프로덕션에서도 미설정 시 예외를 던지지 않고 fs로 계속
+     동작한다.
+  2. **이미지 비전 분석** — `lib/ai-analysis/vision.ts`(신규). 업로드된 이미지(png/jpg/gif/webp,
+     최대 2장)를 실제로 base64 인코딩해 Anthropic Messages API에 보내 로고 색상·톤·사진
+     스타일을 2~3문장으로 설명받는다. 기존 `lib/ai/bridge.ts`의 `chatViaCli()`(packages/cli
+     서브프로세스 경유)는 이미지 content block을 지원하지 않고, CLI 인자 프로토콜까지
+     확장하는 건 이번 범위에 비해 과해서 별도 경로로 뺐다 — packages/cli의
+     `providers/anthropic.ts`와 동일하게 raw fetch로 직접 호출한다(이 모노레포 어디에도
+     `@anthropic-ai/sdk`가 설치돼 있지 않고 기존 provider들도 전부 raw fetch 컨벤션이라, 이
+     한 기능을 위해 새 의존성을 추가하지 않았다). `ANTHROPIC_API_KEY` 미설정 또는 어떤
+     단계든 실패 시 null을 반환해 AI Analysis 자체는 항상 정상 진행된다.
+  3. **참고 사이트 실제 분석** — `lib/ai-analysis/referenceSite.ts`(신규). 참고 사이트 URL을
+     실제로 fetch해 title·meta description·본문 발췌(최대 1500자)를 뽑아 프롬프트에 포함한다.
+     스크린샷 기반 시각 분석은 하지 않는다 — 헤드리스 브라우저를 Vercel 서버리스 함수에
+     넣는 건 번들 크기 관점에서 별도 인프라 작업(이 저장소는 `outputFileTracingIncludes`
+     관련 번들 크기 문제를 이미 여러 번 겪은 이력이 있다)이라 이번 범위를 벗어난다고
+     판단했다.
+  4. **코드 파일 첨부 지원** — `lib/inquiries/types.ts`의 `InquiryInput`에 `codeSnippets?:
+     { filename, content }[]` 신규 추가. `app/api/inquiries/upload/route.ts`(신규)가 확장자로
+     이미지/코드/일반 파일을 구분해, 코드 파일은 바이너리로 저장하지 않고 텍스트(최대
+     500KB)로 읽어 그대로 반환한다.
+  - `lib/inquiries/types.ts`에 `referenceUrls?: string[]` 신규 추가(명시적 참고 사이트 URL —
+    없으면 기존처럼 survey 텍스트에서 URL 패턴으로 추정하는 하위 호환 유지).
+    `lib/ai-analysis/score.ts`의 "참고 사이트" 완결성 체크가 이 새 필드도 함께 확인하도록
+    보강(기존엔 survey 패턴 매칭만 봐서, 관리자가 폼으로 직접 입력한 값은 인식하지 못했음).
+  - `/developer/inquiries/new`(관리자 새 문의 등록 폼) — 첨부파일을 실제로
+    `/api/inquiries/upload`에 업로드해 URL/코드 내용을 확보하도록 교체(기존엔 Storage
+    연동이 없어 파일명만 감사 목적으로 `rawPayload`에 남기고 실제로는 버렸음, 코드
+    주석에 TODO로 명시돼 있던 부분). "참고 사이트 URL" 입력 필드 신규 추가. 첨부 가능
+    확장자에 코드 파일(js/ts/py 등) 추가.
+  - `/developer/inquiries/[id]` — 참고 사이트·첨부 코드 파일(내용 미리보기 포함) 표시 섹션
+    신규 추가(기존 첨부파일 목록 표시와 동일한 패턴).
+  - `lib/auth/rbac.ts`의 `UNGATED_API_PREFIXES`에 `/api/uploads` 추가 — 비전 분석이
+    서버-투-서버로 이 URL을 세션 쿠키 없이 직접 fetch해야 하고, Supabase Storage를 쓰는
+    경우와 동일하게 "공개적으로 fetch 가능한 URL"이어야 하기 때문.
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run build`(정상 빌드, `/api/inquiries/upload`·
+  `/api/uploads/[fileName]` 라우트 생성 확인)
+- `npx vitest run`(742 tests, 신규 코드로 인한 회귀 0건) — 실패 9건은 전부 사전 존재하던
+  타이밍 플레이크(`tests/ai/bridge.test.ts` 5건은 `git stash`로 이번 변경을 제거한 상태에서도
+  동일하게 실패함을 확인해 무관함을 검증, 나머지 4건은 기존에 이미 문서화된
+  `updatedAt`/정렬 밀리초 동시성 플레이크와 동일 패턴) — 이번 변경으로 새로 깨진 테스트 없음
+- 이 실행 환경에 `ANTHROPIC_API_KEY`·`SUPABASE_URL` 등 실제 키가 전혀 없어(컨테이너
+  `.env.local` 부재 확인), 비전 분석·Supabase Storage 업로드·참고 사이트 실 fetch의 "성공
+  경로"는 실제 키로 검증하지 못했다 — 각 함수의 폴백 경로(키 없음 → null 반환, AI Analysis는
+  정상 진행)만 로직·타입 검증으로 확인. 실제 키가 채워진 프로덕션/스테이징에서 별도 확인
+  필요.
+
+---
+
 ## 2026-08-24 (2)
 
 ### 수정 (Fixed)

@@ -78,7 +78,10 @@ const CHECKLIST: ChecklistItem[] = [
     id: "reference_site",
     title: "참고 사이트",
     reason: "원하는 디자인 방향을 파악하기 위한 참고 사이트가 필요합니다.",
-    check: (input) => surveyMatches(input.survey, REFERENCE_PATTERN) || surveyMatches(input.survey, URL_PATTERN),
+    check: (input) =>
+      (input.referenceUrls ?? []).length > 0 ||
+      surveyMatches(input.survey, REFERENCE_PATTERN) ||
+      surveyMatches(input.survey, URL_PATTERN),
   },
   {
     id: "brand_color",

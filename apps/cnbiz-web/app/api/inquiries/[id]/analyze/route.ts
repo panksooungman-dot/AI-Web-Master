@@ -33,6 +33,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       industry: inquiry.industry,
       survey: inquiry.survey,
       uploadedFiles: inquiry.uploadedFiles,
+      referenceUrls: inquiry.referenceUrls,
+      codeSnippets: inquiry.codeSnippets,
     });
 
     const record = await saveInquiryAnalysis(id, outcome.result);

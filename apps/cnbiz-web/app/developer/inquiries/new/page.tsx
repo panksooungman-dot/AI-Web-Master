@@ -58,7 +58,7 @@ export default function NewInquiryPage() {
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
-  const [loading, setLoading] = useState<"draft" | "analyze" | null>(null);
+  const [loading, setLoading] = useState<"analyze" | null>(null);
   const [errors, setErrors] = useState<{ title?: string; content?: string; contactName?: string; email?: string }>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -126,11 +126,9 @@ export default function NewInquiryPage() {
   }
 
   /**
-   * 임시 저장은 초안이라 검증하지 않는다 — 검증은 실제 제출 개념인 AI 분석 시작에만 적용.
-   * contactName/email 체크는 AI Business OS Rewiring에서 추가됨 — POST /api/inquiries가
-   * 요구하는 lib/inquiries/validate.ts의 validateInquiryInput() 필수값(담당자명·이메일)과
-   * 동일한 기준을 제출 전에 미리 보여주기 위함(서버 검증 로직을 복제하지 않고 실패 사유만 미리
-   * 안내하는 용도 — 최종 검증은 여전히 서버가 수행한다).
+   * POST /api/inquiries가 요구하는 lib/inquiries/validate.ts의 validateInquiryInput()
+   * 필수값(담당자명·이메일)과 동일한 기준을 제출 전에 미리 보여준다(서버 검증 로직을
+   * 복제하지 않고 실패 사유만 미리 안내하는 용도 — 최종 검증은 여전히 서버가 수행한다).
    */
   function validateForAnalysis(): boolean {
     const nextErrors: { title?: string; content?: string; contactName?: string; email?: string } = {};
@@ -150,23 +148,6 @@ export default function NewInquiryPage() {
       return false;
     }
     return true;
-  }
-
-  function handleSaveDraft() {
-    if (loading) return;
-    setLoading("draft");
-
-    // TODO: Draft 저장소가 아직 없다 — lib/inquiries/registry.ts는 접수 완료된(source:
-    // "chatbot"|"manual") 레코드만 다루고, InquiryStatus에도 "Draft" 상태가 없다. Draft 개념이
-    // 확정되면 여기서 실제 저장 API를 호출하도록 교체한다.
-    console.log("[inquiries/new] 임시 저장", {
-      form,
-      content,
-      files: files.map((f) => f.file.name),
-    });
-
-    pushToast("success", "임시 저장되었습니다.");
-    setLoading(null);
   }
 
   type UploadResponse =
@@ -429,13 +410,6 @@ export default function NewInquiryPage() {
           className="rounded bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm font-semibold transition-colors"
         >
           취소
-        </button>
-        <button
-          onClick={handleSaveDraft}
-          disabled={loading !== null}
-          className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
-        >
-          {loading === "draft" ? "저장 중..." : "임시 저장"}
         </button>
         <button
           onClick={handleAnalyze}

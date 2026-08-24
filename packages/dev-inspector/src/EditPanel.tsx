@@ -10,6 +10,11 @@ import { useState, type CSSProperties } from "react";
  * "코드 에디터에서 열기"는 화면에는 감춘 파일 경로를 /api/dev-inspector/open-in-editor로
  * 절대 경로로 변환해 받아 vscode:// URI로 이동한다(레이블만으로는 코드를 찾기 어렵다는
  * 피드백에 대응 — VS Code가 로컬에 설치·URI 핸들러 등록돼 있어야 동작한다).
+ *
+ * "AI로 수정 요청"은 버튼·애니메이션처럼 색상/여백 편집으로는 안 되는 구조적 변경을
+ * 자연어로 요청하는 기능이다. 색상·여백과 달리 AI가 파일 전체를 다시 쓰는 것이라 실수로
+ * 파일이 깨질 위험이 있어, 응답을 즉시 저장하지 않고 "변경 전 / AI 제안" 미리보기를 먼저
+ * 보여준 뒤 사용자가 "적용"을 눌러야만 /api/dev-inspector/save-file로 실제 저장된다.
  */
 
 interface EditPanelProps {
@@ -66,6 +71,27 @@ function describeOpenEditorFailure(reason: string | undefined): string {
   }
 }
 
+function describeAiEditFailure(reason: string | undefined): string {
+  switch (reason) {
+    case "not-configured":
+      return "AI 수정 기능이 설정되지 않았습니다(ANTHROPIC_API_KEY 필요).";
+    case "invalid-file":
+      return "코드 파일을 찾지 못했습니다.";
+    case "provider-error":
+    case "empty-response":
+      return "AI가 응답하지 못했습니다. 다시 시도해주세요.";
+    case "network-error":
+      return "네트워크 오류로 요청이 실패했습니다.";
+    default:
+      return "AI 수정 요청이 실패했습니다.";
+  }
+}
+
+interface AiProposal {
+  originalContent: string;
+  proposedContent: string;
+}
+
 export function EditPanel({
   displayLabel,
   componentFile,
@@ -91,6 +117,64 @@ export function EditPanel({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [saving, setSaving] = useState(false);
   const [openingEditor, setOpeningEditor] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiRequesting, setAiRequesting] = useState(false);
+  const [aiProposal, setAiProposal] = useState<AiProposal | null>(null);
+  const [aiApplying, setAiApplying] = useState(false);
+
+  async function requestAiEdit() {
+    if (!aiInstruction.trim() || aiRequesting) return;
+    setAiRequesting(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/dev-inspector/ai-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file: componentFile, instruction: aiInstruction }),
+      });
+      const data = (await res.json()) as {
+        success: boolean;
+        originalContent?: string;
+        proposedContent?: string;
+        reason?: string;
+      };
+      if (data.success && data.proposedContent && data.originalContent) {
+        setAiProposal({ originalContent: data.originalContent, proposedContent: data.proposedContent });
+      } else {
+        setNotice({ tone: "error", text: describeAiEditFailure(data.reason) });
+      }
+    } catch {
+      setNotice({ tone: "error", text: "AI 수정 요청 중 오류가 발생했습니다." });
+    } finally {
+      setAiRequesting(false);
+    }
+  }
+
+  async function applyAiProposal() {
+    if (!aiProposal || aiApplying) return;
+    setAiApplying(true);
+    try {
+      const res = await fetch("/api/dev-inspector/save-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file: componentFile, content: aiProposal.proposedContent }),
+      });
+      const data = (await res.json()) as { success: boolean; reason?: string };
+      if (data.success) {
+        setAiProposal(null);
+        setAiInstruction("");
+        // 파일 전체가 바뀌었으므로 색상/여백 편집처럼 DOM을 직접 미리보기할 수 없다 —
+        // 새로고침해 Next.js가 새 파일 내용으로 다시 렌더링하도록 한다.
+        window.location.reload();
+      } else {
+        setNotice({ tone: "error", text: describeSaveFailure(data.reason) });
+      }
+    } catch {
+      setNotice({ tone: "error", text: "저장 중 오류가 발생했습니다." });
+    } finally {
+      setAiApplying(false);
+    }
+  }
 
   async function openInEditor() {
     setOpeningEditor(true);
@@ -136,7 +220,7 @@ export function EditPanel({
   }
 
   return (
-    <div style={panelStyle}>
+    <div style={aiProposal ? { ...panelStyle, width: 640 } : panelStyle}>
       <div style={headerStyle}>
         <div style={{ fontWeight: 700 }}>{displayLabel}</div>
         <button type="button" onClick={onClose} style={closeButtonStyle} aria-label="편집 패널 닫기">
@@ -164,6 +248,57 @@ export function EditPanel({
         >
           {openingEditor ? "여는 중..." : "💻 코드 에디터에서 열기"}
         </button>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={labelStyle}>🤖 AI로 수정 요청 (버튼·애니메이션 등)</label>
+          <textarea
+            value={aiInstruction}
+            onChange={(e) => setAiInstruction(e.target.value)}
+            placeholder="예: 이 버튼에 마우스 올렸을 때 살짝 커지는 애니메이션 추가해줘"
+            rows={3}
+            disabled={aiRequesting || Boolean(aiProposal)}
+            style={textareaStyle}
+          />
+          <button
+            type="button"
+            onClick={() => void requestAiEdit()}
+            disabled={aiRequesting || !aiInstruction.trim() || Boolean(aiProposal)}
+            style={{ ...openEditorButtonStyle, opacity: aiRequesting || !aiInstruction.trim() ? 0.6 : 1 }}
+          >
+            {aiRequesting ? "AI가 수정하는 중..." : "AI에게 요청"}
+          </button>
+        </div>
+
+        {aiProposal && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={labelStyle}>변경 전</label>
+              <pre style={codePreviewStyle}>{aiProposal.originalContent}</pre>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={labelStyle}>AI 제안 (변경 후)</label>
+              <pre style={{ ...codePreviewStyle, borderColor: "#2563eb" }}>{aiProposal.proposedContent}</pre>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => void applyAiProposal()}
+                disabled={aiApplying}
+                style={{ ...actionButtonStyle(true), opacity: aiApplying ? 0.6 : 1 }}
+              >
+                {aiApplying ? "적용 중..." : "적용"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAiProposal(null)}
+                disabled={aiApplying}
+                style={actionButtonStyle(false)}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={fieldRowStyle}>
           <label style={labelStyle}>텍스트 색상</label>
@@ -300,6 +435,33 @@ const numberInputStyle: CSSProperties = {
   border: "1px solid #374151",
   background: "#1f2937",
   color: "#e5e7eb",
+};
+
+const textareaStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "6px 8px",
+  borderRadius: 6,
+  border: "1px solid #374151",
+  background: "#1f2937",
+  color: "#e5e7eb",
+  fontFamily: "inherit",
+  fontSize: 12,
+  resize: "vertical",
+};
+
+const codePreviewStyle: CSSProperties = {
+  margin: 0,
+  maxHeight: 220,
+  overflow: "auto",
+  padding: 8,
+  borderRadius: 6,
+  border: "1px solid #374151",
+  background: "#0b1220",
+  color: "#d1d5db",
+  fontFamily: "monospace",
+  fontSize: 11,
+  whiteSpace: "pre",
 };
 
 const openEditorButtonStyle: CSSProperties = {

@@ -4,6 +4,74 @@
 
 ---
 
+## 2026-08-24 (12)
+
+### 추가 (Added)
+
+- **Visual Editor — "AI로 수정 요청" (버튼·애니메이션 등 구조적 변경)**: 색상·여백처럼
+  기계적인 값 변경으로는 안 되는 요청("이 버튼에 호버 애니메이션 추가해줘")을 자연어로
+  입력하면 Claude가 파일 전체를 다시 써서 제안한다. 색상/여백 편집과 달리 AI가 파일
+  구조 자체를 재작성하는 것이라 문법 오류·의도치 않은 변경으로 실제 코드가 깨질 위험이
+  있어, **응답을 바로 저장하지 않고 "변경 전 / AI 제안" 미리보기를 먼저 보여준 뒤 사용자가
+  "적용"을 눌러야만 실제 파일에 저장**된다("적용 전 미리보기" 방식을 선택 — 즉시 저장
+  방식과의 차이를 설명한 뒤 사용자가 이 방식으로 확정)
+  - `packages/dev-inspector/src/routes/ai-edit.ts`(신규) — `POST
+    /api/dev-inspector/ai-edit`. `resolveSafeSourcePath()`로 파일 검증 후, 이 모노레포의
+    다른 Anthropic 호출(`lib/ai-analysis/vision.ts`, `packages/cli/.../anthropic.ts`)과
+    동일하게 raw fetch로 Messages API를 직접 호출한다(SDK 미설치 상태 유지, 새 의존성
+    추가 없음). 코드를 다시 쓰는 작업이라 정확성이 중요해 모델은 `claude-opus-5`를
+    사용(다른 호출들의 `claude-sonnet-5`보다 상위 모델 — 코드 생성/수정은 판단 난이도가
+    더 높다고 보고 의도적으로 다르게 선택). 파일에는 쓰지 않고 `{originalContent,
+    proposedContent}`만 반환. `ANTHROPIC_API_KEY` 미설정 시 `not-configured`로 명확히 응답
+  - `packages/dev-inspector/src/routes/save-file.ts`(신규) — `POST
+    /api/dev-inspector/save-file`. 미리보기를 확인한 사용자가 "적용"을 눌렀을 때만
+    호출되는 적용 단계. `save-style`처럼 속성 일부만 바꾸는 게 아니라 파일 전체 내용을
+    그대로 덮어쓴다
+  - `packages/dev-inspector/src/server.ts`·`apps/cnbiz-web/app/api/dev-inspector/
+    {ai-edit,save-file}/route.ts` — 기존 save-* 라우트와 동일한 얇은 재노출 wiring
+  - `packages/dev-inspector/src/EditPanel.tsx` — "코드 에디터에서 열기" 아래에 "🤖 AI로
+    수정 요청" textarea + 버튼 추가. 요청 성공 시 패널이 640px로 넓어지며 "변경 전"/"AI
+    제안(변경 후)" 코드 블록을 스크롤 가능한 `<pre>`로 나란히 보여주고, "적용"/"취소"
+    버튼으로 이어진다. "적용"이 성공하면 파일 전체가 바뀌어 색상/여백처럼 DOM을 직접
+    미리보기할 수 없으므로 `window.location.reload()`로 새로고침해 Next.js가 새 파일
+    내용을 그대로 다시 렌더링하게 한다
+  - `apps/cnbiz-web/.env.example` — `ANTHROPIC_API_KEY` 설명에 이 기능도 재사용한다는 내용
+    추가(신규 변수 아님, 기존 vision.ts와 동일한 키 재사용)
+
+### 수정 (Fixed)
+
+- **ai-edit 핸들러의 검증 순서 버그**: 최초 구현은 `ANTHROPIC_API_KEY` 존재 여부를 요청
+  본문 파싱·파일 안전성 검증보다 먼저 확인하고 있어, 키가 없는 환경에서는 잘못된
+  파일 경로(`../../../etc/passwd` 등)나 빈 요청을 보내도 항상 `not-configured`만 반환하고
+  `resolveSafeSourcePath()`의 실제 검증 로직을 전혀 거치지 않는 것을 검증 중 발견. 키
+  설정 여부와 무관하게 입력 검증이 항상 먼저 실행되도록(defense in depth, 다른 save-*
+  핸들러와 동일한 순서) 재배치
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(dev-inspector 패키지·cnbiz-web 양쪽 0 errors), `npm run lint`(0
+  errors), `npm run build` 통과(`/api/dev-inspector/ai-edit`·`/api/dev-inspector/save-file`
+  라우트 정상 생성 확인)
+- `npx vitest run tests/auth/`(8 files, 116 tests 전부 통과, 회귀 없음)
+- **API 검증 순서**: curl로 `{file 없음}`·`{instruction 없음}` → `invalid-request`(400),
+  `../../../etc/passwd` → `invalid-file`(400), 유효한 파일+요청이지만 키 없음 →
+  `not-configured`(400) 순서로 정확히 분기됨을 확인(수정 전에는 전부 `not-configured`로만
+  응답하던 버그를 재현 후 수정 확인)
+  - 이 실행 환경에 `ANTHROPIC_API_KEY`가 없어 **실제 AI 응답을 받는 성공 경로는 검증하지
+    못했다** — `not-configured` 폴백 경로까지만 실제로 검증됨(정직하게 명시)
+- **UI 동작(Playwright)**: 편집 패널에 AI 요청 textarea·버튼이 정상 렌더링됨을 확인, 요청
+  전송 후 `ANTHROPIC_API_KEY` 미설정 오류 메시지가 패널에 정확히 표시됨을 확인
+- **적용 플로우(API 응답을 Playwright로 모킹해 검증)**: ai-edit·save-file 두 API를
+  가짜 응답으로 가로채(실제 파일은 전혀 건드리지 않음) "변경 전"/"AI 제안" 코드 블록과
+  적용/취소 버튼이 정확히 렌더링됨을 확인, "적용" 클릭 시 save-file이 정확한 파일 경로와
+  AI가 제안한 전체 내용으로 호출됨을 확인(요청 body를 가로채 실제 전송된
+  content에 제안된 변경사항이 포함돼 있음을 문자열 검사로 확인)
+  - 검증에 사용한 dev 서버·임시 Playwright 스크립트·`.next` 빌드 캐시는 검증 후 전부
+    종료·삭제. 실제 소스 파일은 이번 검증 과정에서 단 한 번도 수정되지 않았음을 `git
+    status`로 확인(모킹된 API만 사용, 실제 파일 write 없음)
+
+---
+
 ## 2026-08-24 (11)
 
 ### 추가 (Added)

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Container, Section } from "@cnbiz/layout-primitives";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const faqs = [
   {
@@ -35,7 +36,7 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <Section background="white" id="faq">
+    <Section {...componentMarker("FAQSection", "components/sections/FAQSection.tsx")} background="white" id="faq">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">FAQ</p>

@@ -1,5 +1,6 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { Card } from "@cnbiz/ui";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const overview = [
   { label: "회사명", value: "CNBIZ" },
@@ -12,7 +13,7 @@ const overview = [
 
 export function CompanyOverviewSection() {
   return (
-    <Section background="white" id="overview">
+    <Section {...componentMarker("CompanyOverviewSection", "components/sections/CompanyOverviewSection.tsx")} background="white" id="overview">
       <Container>
         <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
           <div>

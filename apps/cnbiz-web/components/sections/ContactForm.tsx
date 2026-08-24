@@ -5,6 +5,7 @@ import { Button, Input, Select, Textarea } from "@cnbiz/ui";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { parseInquiryInput, validateInquiryInput, type InquiryValidationErrors } from "@/lib/inquiries/validate";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 interface FormState {
   companyName: string;
@@ -83,7 +84,7 @@ export function ContactForm() {
 
   if (status === "success") {
     return (
-      <Section>
+      <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx")}>
         <Container className="max-w-2xl text-center">
           <h2 className="text-2xl font-bold text-slate-900">문의가 접수되었습니다</h2>
           <p className="mt-3 text-base text-slate-600">
@@ -98,7 +99,7 @@ export function ContactForm() {
   }
 
   return (
-    <Section>
+    <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx")}>
       <Container className="max-w-2xl">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

@@ -1,5 +1,6 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { Card } from "@cnbiz/ui";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const services = [
   {
@@ -30,7 +31,7 @@ const services = [
 
 export function ServicesDetailSection() {
   return (
-    <Section background="white">
+    <Section {...componentMarker("ServicesDetailSection", "components/sections/ServicesDetailSection.tsx")} background="white">
       <Container>
         <div className="space-y-8">
           {services.map((service) => (

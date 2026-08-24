@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-08-24 (9)
+
+### 추가 (Added)
+
+- **CNBIZ Website(cnbiz.kr) 공개 마케팅 페이지에 Visual Editor(`@cnbiz/dev-inspector`) 상시
+  연결**: `packages/dev-inspector`는 이미 구현돼 있었지만(화면 요소를 클릭해 텍스트·이미지·
+  색상·여백을 편집하면 실제 소스 파일에 저장되는 오버레이), `ai devmode` 실행 시에만
+  일회성으로 `app/layout.tsx`에 삽입되는 방식이라 평소에는 꺼져 있었고, 그마저도 이
+  오버레이가 요소를 찾는 데 쓰는 `data-component-id` 마커가 `components/sections/*`(Hero·
+  Values·서비스 소개 등 실제 홈페이지 콘텐츠)에는 하나도 없어 붙여도 아무것도 선택할 수
+  없는 상태였다("화면 보면서 편집 기능은 되어 있어?"라는 질문에 이 간극을 확인 후, "쉽게
+  사용할 수 있도록 만들어달라"는 요청으로 두 가지를 모두 해결)
+  - `apps/cnbiz-web/app/layout.tsx` — `<DevInspectorOverlay />`를 루트 레이아웃에 상시
+    추가. 이 컴포넌트 자체가 `process.env.NODE_ENV !== "development"`면 렌더링하지 않고
+    `null`을 반환하도록 이미 구현돼 있어(`packages/dev-inspector`), 별도의 조건부 렌더링
+    코드 없이 그대로 추가해도 프로덕션 빌드·배포된 cnbiz.kr에는 어떤 영향도 주지 않는다
+  - `apps/cnbiz-web/components/sections/*.tsx`(16개 파일 전부: Hero·Values·
+    CompanyOverview·MissionVision·AboutProcess·ServicesHero·ServicesOverview·
+    ServicesDetail·ServiceProcess·PortfolioHero·PortfolioPlaceholder·ContactHero·
+    ContactForm·CTA·FAQ) — 각 컴포넌트의 최상위 `<Section>` 요소에
+    `componentMarker(컴포넌트명, 파일경로)`를 추가. 기존에 이미 `components/developer/**`
+    26개 파일에 적용돼 있던 것과 동일한 수동 마킹 컨벤션(AGENTS.md "Component ID 작업
+    원칙")을 그대로 따랐고, Turbopack 환경에서 별도 `babel.config.js`(babel 플러그인 자동
+    주입 방식)를 새로 도입하는 대신 이미 검증된 기존 방식을 재사용해 빌드 도구 변경 리스크를
+    피했다. 각 섹션의 레이아웃·로직·Props는 한 글자도 바꾸지 않고 최상위 요소에 속성만 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors, `Section` 컴포넌트가 `data-*` 속성을 명시적으로 타입에
+  선언하지 않았음에도 TypeScript의 JSX `data-*` 예외 처리로 정상 통과 확인),
+  `npm run lint`(0 errors), `npm run build` 통과
+- **프로덕션 빌드에서 비활성 확인**: `next build` 후 `next start`로 실제 프로덕션 서버를
+  띄워 홈페이지(`curl`)의 서버 렌더링 HTML에 "편집 모드" 토글 버튼 텍스트가 전혀 포함되지
+  않음을 확인(오버레이가 서버 사이드에서부터 아예 렌더링되지 않음), 페이지 자체는 200과
+  함께 정상 콘텐츠를 반환함을 재확인
+- **개발 모드에서 실제 동작 확인**: dev 서버에서 Playwright로 실제 브라우저 조작 —
+  좌측 하단 "🎨 편집 모드" 토글 버튼이 보이고 클릭 시 "편집 모드 ON"으로 전환됨을 확인,
+  Hero 섹션에 마우스를 올리면 실제로 "HeroSection · components/sections/HeroSection.tsx"
+  라벨이 달린 파란 하이라이트 박스가 뜨는 것을 확인, 클릭하면 우측 하단에 편집 패널
+  (텍스트 수정·텍스트 색상·배경 색상·바깥/안쪽 여백)이 정확한 componentId·파일 경로와
+  함께 열리는 것을 확인. 실제 저장(텍스트/스타일 변경 후 blur)까지는 소스 파일이 실제로
+  수정되는 동작이라 검증 중 의도치 않은 콘텐츠 변경을 남기지 않기 위해 패널이 여는 것까지만
+  확인하고 실제 저장은 트리거하지 않음(저장 로직 자체는 기존에 이미 구현·존재하던 코드로,
+  이번 변경 대상이 아님)
+  - 검증에 사용한 dev/prod 서버·QA 전용 fs-fallback 계정·임시 Playwright 스크립트·`.next`
+    빌드 캐시는 검증 후 전부 종료·삭제. `git status`로 의도한 17개 파일(layout.tsx + 섹션
+    16개)만 변경됐고 실제 카피·콘텐츠는 전혀 바뀌지 않았음을 확인
+
+---
+
 ## 2026-08-24 (8)
 
 ### 추가 (Added)

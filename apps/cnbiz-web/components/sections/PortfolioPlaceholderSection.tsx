@@ -1,4 +1,5 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
+import { componentMarker } from "@/lib/dev/component-marker";
 
 const placeholders = [
   { case: "Case 01" },
@@ -8,7 +9,7 @@ const placeholders = [
 
 export function PortfolioPlaceholderSection() {
   return (
-    <Section background="white">
+    <Section {...componentMarker("PortfolioPlaceholderSection", "components/sections/PortfolioPlaceholderSection.tsx")} background="white">
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

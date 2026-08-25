@@ -1,8 +1,12 @@
+import Image from "next/image";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { IconBadge, LinkButton } from "@cnbiz/ui";
 import { AiIcon, CloudIcon, ConsultingIcon, DevelopmentIcon } from "@/components/icons/ServiceIcons";
 import { CNBIZ_AI_URL } from "@/lib/links";
 import { componentMarker } from "@/lib/dev/component-marker";
+
+const HERO_SHOWCASE_MASK =
+  "radial-gradient(ellipse 60% 60% at 65% 40%, black 0%, transparent 70%)";
 
 const services = [
   { icon: ConsultingIcon, label: "디지털 전환 컨설팅", tone: "indigo" as const },
@@ -15,6 +19,12 @@ export function HeroSection() {
   return (
     <Section {...componentMarker("HeroSection", "components/sections/HeroSection.tsx", "메인 히어로")} background="dark" className="relative overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute inset-0 hidden opacity-[0.14] lg:block"
+          style={{ maskImage: HERO_SHOWCASE_MASK, WebkitMaskImage: HERO_SHOWCASE_MASK }}
+        >
+          <Image src="/images/hero-showcase.jpg" alt="" fill className="object-cover" />
+        </div>
         <div className="absolute -top-48 -right-48 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute -bottom-48 -left-48 h-96 w-96 rounded-full bg-gradient-to-tr from-violet-500/10 to-primary-light/10 blur-3xl" />
         <svg

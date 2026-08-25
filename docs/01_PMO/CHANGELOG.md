@@ -42,6 +42,61 @@
   의도대로 일관되게 반영됐는지, 레이아웃이 깨지지 않았는지 육안으로 확인
 - 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
 
+## 2026-08-25 (2)
+
+### 추가 (Added)
+
+- **홈페이지(`/`) 및 회사소개(`/about`) 시각 아이덴티티 보강**: 사용자가 제공한 두 레퍼런스
+  디자인(IAM 보안 솔루션 업체의 다크 그라디언트 히어로·허브형 다이어그램·제품 카드 구성 +
+  K-뉴딜 아카데미의 밝고 부드러운 글로시 카드 톤)을 검토한 뒤, 실제 로고·사례·통계 등
+  보유하지 않은 콘텐츠(파트너사 로고, 지도, 영상, SNS 갤러리)는 지어내지 않고 제외하는
+  대신, CNBIZ의 기존 색상 팔레트(blue-600/slate-900)와 실제 서비스·메시지만으로 두
+  레퍼런스의 구조적 특징(그라디언트 리본 히어로, 허브-스포크 다이어그램, 아이콘 카드,
+  큰 그라디언트 텍스트 디바이더, 강조 테두리 CTA 카드)을 재구성
+  - `apps/cnbiz-web/components/icons/ServiceIcons.tsx`(신규) — 컨설팅·AI/ML·개발·클라우드
+    4개 서비스용 인라인 SVG 아이콘(외부 아이콘 라이브러리 미사용, `aria-hidden` 적용).
+    허브 다이어그램과 서비스 카드 두 곳에서 재사용해 시각적 언어를 통일
+  - `apps/cnbiz-web/components/sections/ApproachMapSection.tsx`(신규) — 4가지 실제 서비스가
+    "CNBIZ" 허브로 모여 "고객의 지속가능한 성장"으로 이어지는 허브-스포크 다이어그램.
+    데스크탑은 좌-허브-우 가로 배치 + 점선 커넥터, 모바일은 세로 스택 + 세로 점선으로
+    자연스럽게 축소(레이아웃 붕괴 없이 반응형 처리)
+  - `apps/cnbiz-web/components/sections/BrandStatementSection.tsx`(신규) — "Digital
+    Transformation Partner" 그라디언트 텍스트 디바이더(순수 CSS `bg-clip-text`, 이미지·폰트
+    추가 없음)
+  - `apps/cnbiz-web/components/sections/HeroSection.tsx` — 기존 블러 원형 장식 위에 대각선
+    그라디언트 "리본" SVG(선형 그라디언트 + Gaussian blur 필터, 순수 벡터로 구현해 이미지
+    에셋 추가 없음)를 레이어로 추가, `lg` 이상에서만 노출해 모바일 성능·가독성에 영향 없음
+  - `apps/cnbiz-web/components/sections/CTASection.tsx` — 다크 배경 위에 테두리·글로우가 있는
+    "떠 있는 카드" 형태로 교체(레퍼런스의 강조 CTA 박스 패턴). Home·About·Services·Portfolio
+    4개 페이지가 이 컴포넌트를 공유하므로 한 번의 수정으로 전체에 반영됨
+  - `apps/cnbiz-web/components/sections/{ValuesSection,MissionVisionSection}.tsx` — 각각
+    Home·About 페이지에서 동일한 4가지 핵심가치(전문성·신뢰성·혁신성·파트너십)를 표시하던
+    기존 중복 컴포넌트 두 곳 모두에 아이콘 배지(그라디언트 원형 배경)를 추가해 일관되게 보강.
+    두 컴포넌트가 원래 콘텐츠까지 중복 구현되어 있었음을 확인했으나, 공용 컴포넌트로의 병합은
+    이번 요청 범위를 벗어난 구조 변경이라 시각적 보강만 동일하게 적용
+  - `apps/cnbiz-web/components/sections/ServicesOverviewSection.tsx` — 서비스 카드에 허브
+    다이어그램과 동일한 아이콘 배지를 추가해 개념도(다이어그램)와 상세 카드가 같은 아이콘
+    언어로 이어지도록 함
+  - `apps/cnbiz-web/app/page.tsx` — 신규 섹션 반영해 Hero → ApproachMap → Values →
+    BrandStatement → ServicesOverview → FAQ → CTA 순으로 재구성. CNBIZ_RULES.md의
+    "섹션은 white/slate-50/slate-900 배경을 교차한다" 원칙에 맞춰 각 섹션 배경을
+    dark→white→alt→white→alt→white→dark로 조정(연속된 동일 배경 없음)
+  - 파트너사 로고·지도·통계·영상·SNS 갤러리 등 실제 자료가 필요한 섹션은 추가하지 않음
+    (WBS 기준 관련 자료 TODO 상태 유지, 지어내지 않음)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 5개 공개
+  페이지 전부 정적 라우트로 정상 생성
+- 프로덕션 빌드(`next start`)를 로컬에 띄워 5개 페이지 200 응답 확인, Playwright로
+  데스크탑(1440px)·모바일(390px) 스크린샷을 촬영해 허브 다이어그램의 데스크탑 가로
+  배치·모바일 세로 스택 전환, 그라디언트 텍스트, Hero 리본 그래픽, CTA 카드, 아이콘 배지가
+  의도대로 렌더링되는지 육안 확인
+- Home 페이지의 `ValuesSection`만 아이콘을 추가했다가 About 페이지가 별도의
+  `MissionVisionSection`(동일 콘텐츠의 중복 구현)을 쓰고 있어 아이콘이 반영되지 않은 것을
+  스크린샷 비교 중 발견, 동일하게 보강해 재검증
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
 ## 2026-08-24 (13)
 
 ### 추가 (Added)

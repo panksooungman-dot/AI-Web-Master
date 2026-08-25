@@ -9,6 +9,47 @@ export function HeroSection() {
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-48 -right-48 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute -bottom-48 -left-48 h-96 w-96 rounded-full bg-primary-light/10 blur-3xl" />
+        <svg
+          aria-hidden
+          className="absolute -right-16 top-0 hidden h-full w-[480px] lg:block"
+          viewBox="0 0 480 640"
+          fill="none"
+          preserveAspectRatio="xMidYMid slice"
+        >
+          <defs>
+            <linearGradient id="hero-ribbon-a" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4F9DE0" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#005BAC" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="hero-ribbon-b" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#4F9DE0" stopOpacity="0" />
+            </linearGradient>
+            <filter id="hero-ribbon-blur" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="18" />
+            </filter>
+          </defs>
+          <g filter="url(#hero-ribbon-blur)">
+            <rect
+              x="160"
+              y="-120"
+              width="90"
+              height="820"
+              rx="45"
+              fill="url(#hero-ribbon-a)"
+              transform="rotate(20 205 300)"
+            />
+            <rect
+              x="260"
+              y="-160"
+              width="46"
+              height="860"
+              rx="23"
+              fill="url(#hero-ribbon-b)"
+              transform="rotate(20 283 300)"
+            />
+          </g>
+        </svg>
       </div>
 
       <Container className="relative">

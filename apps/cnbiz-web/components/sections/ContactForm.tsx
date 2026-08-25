@@ -20,6 +20,9 @@ interface FormState {
   domain: string;
   /** 쉼표로 구분된 참고 사이트 URL 입력값 — 제출 시 referenceUrls(string[])로 분리된다. */
   referenceUrls: string;
+  /** "무엇을 만들고 싶으신가요?" 단계 — 기존 siteType(웹사이트 빌더 전용 11개 목록, 다른
+   *  화면에서도 재사용 중)과 별개의 상위 분류. survey에 담겨 전달된다. */
+  serviceCategory: string;
 }
 
 const INITIAL_STATE: FormState = {
@@ -34,6 +37,44 @@ const INITIAL_STATE: FormState = {
   brandColor: "",
   domain: "",
   referenceUrls: "",
+  serviceCategory: "",
+};
+
+const SERVICE_CATEGORIES = [
+  { id: "shopping", label: "쇼핑몰" },
+  { id: "website", label: "홈페이지" },
+  { id: "erp", label: "ERP" },
+  { id: "automation", label: "자동화프로그램" },
+  { id: "other", label: "기타" },
+];
+
+/** 쇼핑몰·홈페이지에 한해 먼저 제공하는 기능 체크리스트. ERP·자동화프로그램·기타는 실제
+ *  작업 방식이 사례마다 달라 항목을 임의로 만들지 않고, "문의 내용" 자유 텍스트로 받는다. */
+const FEATURE_CHECKLISTS: Record<string, { id: string; label: string }[]> = {
+  shopping: [
+    { id: "catalog", label: "상품 카테고리 관리" },
+    { id: "cart", label: "장바구니" },
+    { id: "payment", label: "결제(카드·간편결제·계좌이체)" },
+    { id: "shipping", label: "배송 조회" },
+    { id: "returns", label: "반품/교환 처리" },
+    { id: "membership", label: "회원가입/로그인" },
+    { id: "reviews", label: "리뷰·평점" },
+    { id: "coupons", label: "쿠폰/할인" },
+    { id: "inventory", label: "재고 관리" },
+    { id: "admin", label: "관리자 페이지" },
+  ],
+  website: [
+    { id: "about", label: "회사소개" },
+    { id: "services", label: "사업/서비스 소개" },
+    { id: "portfolio", label: "포트폴리오/사례" },
+    { id: "map", label: "오시는 길/지도" },
+    { id: "contact", label: "문의하기 폼" },
+    { id: "careers", label: "채용정보" },
+    { id: "i18n", label: "다국어 지원" },
+    { id: "news", label: "공지사항/뉴스" },
+    { id: "social", label: "SNS 연동" },
+    { id: "admin", label: "관리자 페이지(콘텐츠 수정)" },
+  ],
 };
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
@@ -68,75 +109,103 @@ function formatFileSize(bytes: number): string {
 /**
  * 한 화면에 질문 하나씩 물어보는 인터뷰형 단계 구성. 필드·검증 로직은 기존 단일 폼과
  * 동일하게 유지하고(lib/inquiries/validate.ts 재사용), 화면만 단계별로 나눈다.
+ *
+ * "featureChecklist" 단계는 serviceCategory가 "shopping"/"website"일 때만 포함된다 —
+ * 이 두 경우만 일반적인 웹 개발 지식으로 정확한 체크리스트를 만들 수 있어서다(ERP·
+ * 자동화프로그램·기타는 실제 작업 방식이 사례마다 달라 자유 텍스트로 받는다).
  */
-const STEPS: StepConfig[] = [
-  {
-    key: "contactName",
-    label: "담당자명",
-    question: "담당자님 성함을 알려주세요",
-    optional: false,
-    requiredField: "contactName",
-    tip: "성함만 알려주시면 담당자가 정확히 안내해드립니다.",
-  },
-  {
-    key: "companyName",
-    label: "회사명",
-    question: "어느 회사에서 문의 주시나요?",
-    optional: true,
-    tip: "개인이시거나 아직 정해지지 않았다면 비워두고 다음으로 넘어가셔도 됩니다.",
-  },
-  {
-    key: "email",
-    label: "이메일",
-    question: "회신받으실 이메일을 알려주세요",
-    optional: false,
-    requiredField: "email",
-    tip: "제출 확인과 답변은 이 이메일로 발송됩니다.",
-  },
-  {
-    key: "phone",
-    label: "연락처",
-    question: "편하게 연락드릴 번호가 있으신가요?",
-    optional: true,
-    tip: "빠른 연락을 원하시면 연락처를 함께 남겨주세요.",
-  },
-  {
-    key: "siteType",
-    label: "프로젝트 유형",
-    question: "어떤 유형의 프로젝트인가요?",
-    optional: true,
-    tip: "가장 가까운 유형을 선택해주시면 상담 준비에 도움이 됩니다.",
-  },
-  {
-    key: "budget",
-    label: "예산",
-    question: "예상하시는 예산 규모가 있으신가요?",
-    optional: true,
-    tip: "대략적인 범위만 적어주셔도 충분합니다.",
-  },
-  {
-    key: "companyInfo",
-    label: "회사 정보",
-    question: "회사에 대해 조금 더 알려주시겠어요?",
-    optional: true,
-    tip: "업종·브랜드 컬러·도메인을 미리 알려주시면 분석과 제안이 더 정확해집니다.",
-  },
-  {
-    key: "attachments",
-    label: "참고 자료",
-    question: "참고할 자료가 있으면 올려주세요",
-    optional: true,
-    tip: "로고·서비스 사진 등 파일을 여러 개 올리거나, 참고하고 싶은 사이트 주소를 남겨주세요.",
-  },
-  {
-    key: "requirements",
-    label: "문의 내용",
-    question: "프로젝트에 대해 자유롭게 설명해주세요",
-    optional: false,
-    requiredField: "requirements",
-    tip: "목적, 필요한 기능, 참고 사이트 등을 자유롭게 적어주시면 더 정확한 답변을 드릴 수 있어요.",
-  },
-];
+function buildSteps(serviceCategory: string): StepConfig[] {
+  const steps: StepConfig[] = [
+    {
+      key: "contactName",
+      label: "담당자명",
+      question: "담당자님 성함을 알려주세요",
+      optional: false,
+      requiredField: "contactName",
+      tip: "성함만 알려주시면 담당자가 정확히 안내해드립니다.",
+    },
+    {
+      key: "companyName",
+      label: "회사명",
+      question: "어느 회사에서 문의 주시나요?",
+      optional: true,
+      tip: "개인이시거나 아직 정해지지 않았다면 비워두고 다음으로 넘어가셔도 됩니다.",
+    },
+    {
+      key: "email",
+      label: "이메일",
+      question: "회신받으실 이메일을 알려주세요",
+      optional: false,
+      requiredField: "email",
+      tip: "제출 확인과 답변은 이 이메일로 발송됩니다.",
+    },
+    {
+      key: "phone",
+      label: "연락처",
+      question: "편하게 연락드릴 번호가 있으신가요?",
+      optional: true,
+      tip: "빠른 연락을 원하시면 연락처를 함께 남겨주세요.",
+    },
+    {
+      key: "serviceCategory",
+      label: "제작 항목",
+      question: "무엇을 만들고 싶으신가요?",
+      optional: true,
+      tip: "가장 가까운 항목을 선택해주시면 이후 질문이 그에 맞게 조정됩니다.",
+    },
+    {
+      key: "siteType",
+      label: "프로젝트 유형",
+      question: "어떤 유형의 프로젝트인가요?",
+      optional: true,
+      tip: "가장 가까운 유형을 선택해주시면 상담 준비에 도움이 됩니다.",
+    },
+  ];
+
+  if (serviceCategory === "shopping" || serviceCategory === "website") {
+    steps.push({
+      key: "featureChecklist",
+      label: "기능 체크리스트",
+      question: "필요한 기능을 선택해주세요",
+      optional: true,
+      tip: "해당하는 기능을 체크해주시면 견적과 제안이 더 정확해집니다. 목록에 없는 기능은 마지막 문의 내용에 적어주세요.",
+    });
+  }
+
+  steps.push(
+    {
+      key: "budget",
+      label: "예산",
+      question: "예상하시는 예산 규모가 있으신가요?",
+      optional: true,
+      tip: "대략적인 범위만 적어주셔도 충분합니다.",
+    },
+    {
+      key: "companyInfo",
+      label: "회사 정보",
+      question: "회사에 대해 조금 더 알려주시겠어요?",
+      optional: true,
+      tip: "업종·브랜드 컬러·도메인을 미리 알려주시면 분석과 제안이 더 정확해집니다.",
+    },
+    {
+      key: "attachments",
+      label: "참고 자료",
+      question: "참고할 자료가 있으면 올려주세요",
+      optional: true,
+      tip: "로고·서비스 사진 등 파일을 여러 개 올리거나, 참고하고 싶은 사이트 주소를 남겨주세요.",
+    },
+    {
+      key: "requirements",
+      label: "문의 내용",
+      question: "프로젝트에 대해 자유롭게 설명해주세요",
+      optional: false,
+      requiredField: "requirements",
+      tip: "목적, 필요한 기능, 참고 사이트 등을 자유롭게 적어주시면 더 정확한 답변을 드릴 수 있어요.",
+    },
+  );
+
+  return steps;
+}
 
 type UploadResponse =
   | { success: true; type: "image" | "file"; url: string; storage: "supabase" | "local" }
@@ -157,9 +226,16 @@ export function ContactForm() {
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [fileWarning, setFileWarning] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+
+  const steps = buildSteps(form.serviceCategory);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function toggleFeature(id: string) {
+    setSelectedFeatures((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
   }
 
   function goPrev() {
@@ -204,15 +280,15 @@ export function ContactForm() {
     return res.json();
   }
 
-  const step = STEPS[currentStep];
-  const isLastStep = currentStep === STEPS.length - 1;
+  const step = steps[currentStep];
+  const isLastStep = currentStep === steps.length - 1;
   const nextDisabled = Boolean(step.requiredField) && !form[step.requiredField!].trim();
 
   async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!isLastStep) {
-      setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1));
+      setCurrentStep((s) => Math.min(s + 1, steps.length - 1));
       return;
     }
 
@@ -224,6 +300,15 @@ export function ContactForm() {
     const survey: Record<string, string> = {};
     if (form.brandColor.trim()) survey["브랜드컬러"] = form.brandColor.trim();
     if (form.domain.trim()) survey["도메인"] = form.domain.trim();
+    const serviceCategoryLabel = SERVICE_CATEGORIES.find((c) => c.id === form.serviceCategory)?.label;
+    if (serviceCategoryLabel) survey["희망 제작물"] = serviceCategoryLabel;
+    if (selectedFeatures.length > 0) {
+      const checklist = FEATURE_CHECKLISTS[form.serviceCategory] ?? [];
+      const labels = selectedFeatures
+        .map((id) => checklist.find((item) => item.id === id)?.label)
+        .filter((label): label is string => Boolean(label));
+      if (labels.length > 0) survey["희망 기능"] = labels.join(", ");
+    }
 
     const input = parseInquiryInput({
       source: "manual",
@@ -235,7 +320,7 @@ export function ContactForm() {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      const erroredStepIndex = STEPS.findIndex((s) => s.key in validationErrors);
+      const erroredStepIndex = steps.findIndex((s) => s.key in validationErrors);
       if (erroredStepIndex !== -1) setCurrentStep(erroredStepIndex);
       return;
     }
@@ -267,7 +352,7 @@ export function ContactForm() {
 
       if (!data.success) {
         setErrors(data.errors ?? {});
-        const erroredStepIndex = STEPS.findIndex((s) => data.errors && s.key in data.errors);
+        const erroredStepIndex = steps.findIndex((s) => data.errors && s.key in data.errors);
         if (erroredStepIndex !== -1) setCurrentStep(erroredStepIndex);
         setErrorMessage(data.error ?? "문의 접수에 실패했습니다. 잠시 후 다시 시도해주세요.");
         setStatus("error");
@@ -277,6 +362,7 @@ export function ContactForm() {
       setForm(INITIAL_STATE);
       setStagedFiles([]);
       setFileWarning(null);
+      setSelectedFeatures([]);
       setCurrentStep(0);
       setStatus("success");
     } catch {
@@ -316,14 +402,14 @@ export function ContactForm() {
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-semibold text-primary">
-              {currentStep + 1} / {STEPS.length}
+              {currentStep + 1} / {steps.length}
             </span>
             <span className="text-slate-500">{step.label}</span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
             />
           </div>
         </div>
@@ -368,6 +454,28 @@ export function ContactForm() {
                   onChange={(e) => updateField("phone", e.target.value)}
                 />
               )}
+              {step.key === "serviceCategory" && (
+                <div className="flex flex-wrap gap-2">
+                  {SERVICE_CATEGORIES.map((category) => {
+                    const selected = form.serviceCategory === category.id;
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => updateField("serviceCategory", selected ? "" : category.id)}
+                        className={
+                          selected
+                            ? "rounded-full border-2 border-primary bg-primary/10 px-4 py-2 text-sm font-medium text-primary"
+                            : "rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                        }
+                      >
+                        {category.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {step.key === "siteType" && (
                 <div className="flex flex-wrap gap-2">
                   {WEBSITE_TYPES.map((type) => {
@@ -385,6 +493,33 @@ export function ContactForm() {
                         }
                       >
                         {type.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {step.key === "featureChecklist" && (
+                <div className="flex flex-wrap gap-2">
+                  {(FEATURE_CHECKLISTS[form.serviceCategory] ?? []).map((item) => {
+                    const checked = selectedFeatures.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={checked}
+                        onClick={() => toggleFeature(item.id)}
+                        className={
+                          checked
+                            ? "inline-flex items-center gap-1.5 rounded-full border-2 border-primary bg-primary/10 px-4 py-2 text-sm font-medium text-primary"
+                            : "inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                        }
+                      >
+                        {checked && (
+                          <svg aria-hidden className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                        {item.label}
                       </button>
                     );
                   })}

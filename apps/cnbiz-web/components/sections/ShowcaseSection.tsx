@@ -7,16 +7,19 @@ const showcases = [
     src: "/images/showcase-media.jpg",
     alt: "미디어·스트리밍 서비스 화면 예시",
     rotateClass: "sm:-rotate-2",
+    aspectClass: "aspect-[1200/758]",
   },
   {
     src: "/images/showcase-furniture.jpg",
     alt: "가구·인테리어 쇼핑몰 화면 예시",
     rotateClass: "sm:rotate-2",
+    aspectClass: "aspect-[1000/1022]",
   },
   {
     src: "/images/showcase-food.jpg",
     alt: "푸드·라이프스타일 브랜드 화면 예시",
     rotateClass: "sm:-rotate-1",
+    aspectClass: "aspect-[1000/1010]",
   },
 ];
 
@@ -48,11 +51,11 @@ export function ShowcaseSection() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-3">
+        <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-3">
           {showcases.map((item) => (
             <div
               key={item.src}
-              className={`relative aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-lg shadow-slate-900/10 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02] ${item.rotateClass}`}
+              className={`relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-lg shadow-slate-900/10 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02] ${item.aspectClass} ${item.rotateClass}`}
             >
               <Image
                 src={item.src}
@@ -65,7 +68,7 @@ export function ShowcaseSection() {
           ))}
         </div>
 
-        <div className="mx-auto mt-8 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto mt-8 grid max-w-5xl items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {galleryWall.map((item) => (
             <div
               key={item.src}

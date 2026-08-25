@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-08-25 (15)
+
+### 추가 (Added)
+
+- **`/contact` "기능 체크리스트"를 ERP까지 확대**: 쇼핑몰·홈페이지에만 있던 기능 체크리스트가
+  ERP에는 없어 궁금해하신 사용자에게 이유(CNBIZ의 실제 ERP 작업 방식을 모른 채 항목을 지어낼
+  수 없었음)를 설명. 사용자가 직접 재고관리·회계연동·전자결재 3개 항목을 확인해줘, 이 3개
+  + 업계에서 널리 쓰이는 일반적인 ERP 모듈 명칭(인사/급여·구매/발주·생산·거래처·매출/영업·
+  조직/권한관리, CNBIZ 고유 방식이 아닌 범용 용어)을 더해 쇼핑몰·홈페이지와 동일하게 10개
+  항목으로 구성(사용자 확인 후 진행)
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — `FEATURE_CHECKLISTS`에 `erp` 키
+    추가. 체크리스트 단계 표시 조건을 `serviceCategory === "shopping" || "website"`
+    하드코딩에서 `FEATURE_CHECKLISTS[serviceCategory]` 존재 여부로 일반화 — 앞으로 체크리스트
+    항목이 확정되는 카테고리가 늘어나도 조건문을 다시 손댈 필요 없이 이 레코드에만 추가하면
+    됨. 자동화프로그램·기타는 여전히 체크리스트 없이 자유 텍스트로만 받음(무변경)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(737/744 통과 — 실패 7건은 기존에 이미 문서화된 `tests/{requests,websites,
+  inquiries}/registry.test.ts`의 밀리초 타이밍 플레이크, 이번 변경과 무관)
+- Playwright로 ERP 선택 시 9→11단계로 체크리스트 단계가 정확히 나타나고 10개 항목(재고관리·
+  회계연동·전자결재·인사/급여관리·구매/발주관리·생산관리·거래처관리·매출/영업관리·조직/
+  권한관리·관리자 페이지)이 정상 렌더링됨을 실제 조작으로 확인. 검증에 사용한 dev 서버·
+  Playwright 임시 스크립트는 검증 후 전부 종료·삭제
+
 ## 2026-08-25 (14)
 
 ### 추가 (Added)

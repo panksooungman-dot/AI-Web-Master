@@ -48,8 +48,11 @@ const SERVICE_CATEGORIES = [
   { id: "other", label: "기타" },
 ];
 
-/** 쇼핑몰·홈페이지에 한해 먼저 제공하는 기능 체크리스트. ERP·자동화프로그램·기타는 실제
- *  작업 방식이 사례마다 달라 항목을 임의로 만들지 않고, "문의 내용" 자유 텍스트로 받는다. */
+/** 쇼핑몰·홈페이지·ERP에 한해 제공하는 기능 체크리스트. 자동화프로그램·기타는 실제
+ *  작업 방식이 사례마다 달라 항목을 임의로 만들지 않고, "문의 내용" 자유 텍스트로 받는다.
+ *  ERP 항목은 사용자가 직접 확인해준 재고관리·회계연동·전자결재 3개에, 업계에서 널리 쓰이는
+ *  일반적인 ERP 모듈 명칭(인사·구매·생산·거래처·매출 등)을 더해 구성했다(CNBIZ의 실제
+ *  구현 방식을 특정하는 항목이 아니라 범용 용어). */
 const FEATURE_CHECKLISTS: Record<string, { id: string; label: string }[]> = {
   shopping: [
     { id: "catalog", label: "상품 카테고리 관리" },
@@ -74,6 +77,18 @@ const FEATURE_CHECKLISTS: Record<string, { id: string; label: string }[]> = {
     { id: "news", label: "공지사항/뉴스" },
     { id: "social", label: "SNS 연동" },
     { id: "admin", label: "관리자 페이지(콘텐츠 수정)" },
+  ],
+  erp: [
+    { id: "inventory", label: "재고관리" },
+    { id: "accounting", label: "회계연동" },
+    { id: "approval", label: "전자결재" },
+    { id: "hr", label: "인사/급여관리" },
+    { id: "purchasing", label: "구매/발주관리" },
+    { id: "production", label: "생산관리" },
+    { id: "partners", label: "거래처관리" },
+    { id: "sales", label: "매출/영업관리" },
+    { id: "permissions", label: "조직/권한관리" },
+    { id: "admin", label: "관리자 페이지" },
   ],
 };
 
@@ -110,9 +125,9 @@ function formatFileSize(bytes: number): string {
  * 한 화면에 질문 하나씩 물어보는 인터뷰형 단계 구성. 필드·검증 로직은 기존 단일 폼과
  * 동일하게 유지하고(lib/inquiries/validate.ts 재사용), 화면만 단계별로 나눈다.
  *
- * "featureChecklist" 단계는 serviceCategory가 "shopping"/"website"일 때만 포함된다 —
- * 이 두 경우만 일반적인 웹 개발 지식으로 정확한 체크리스트를 만들 수 있어서다(ERP·
- * 자동화프로그램·기타는 실제 작업 방식이 사례마다 달라 자유 텍스트로 받는다).
+ * "featureChecklist" 단계는 FEATURE_CHECKLISTS에 항목이 정의된 serviceCategory
+ * (shopping/website/erp)일 때만 포함된다 — 자동화프로그램·기타는 실제 작업 방식이
+ * 사례마다 달라 항목을 임의로 만들지 않고 자유 텍스트로 받는다.
  */
 function buildSteps(serviceCategory: string): StepConfig[] {
   const steps: StepConfig[] = [
@@ -162,7 +177,7 @@ function buildSteps(serviceCategory: string): StepConfig[] {
     },
   ];
 
-  if (serviceCategory === "shopping" || serviceCategory === "website") {
+  if (FEATURE_CHECKLISTS[serviceCategory]) {
     steps.push({
       key: "featureChecklist",
       label: "기능 체크리스트",

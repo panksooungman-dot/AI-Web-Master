@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-08-25 (11)
+
+### 변경 (Changed)
+
+- **하단 CTA 배너("프로젝트 문의하기") 버튼을 cnbiz.ai.kr의 견적 문의 페이지로 연결**:
+  사용자가 스크린샷에 빨간펜으로 홈페이지 하단 "프로젝트를 상담해보세요" 배너의 주 버튼을
+  표시하고 "체크된 부분 https://cnbiz.ai.kr/quote 링크 연결해줘"라고 요청. 이 버튼은
+  Home·About·Services·Portfolio 4개 페이지가 공유하는 `CTASection` 컴포넌트 하나이므로,
+  한 번의 수정으로 4개 페이지 전부에 동일하게 반영됨
+  - `apps/cnbiz-web/lib/links.ts` — 기존 `CNBIZ_AI_URL`과 동일한 패턴으로
+    `CNBIZ_QUOTE_URL`(`NEXT_PUBLIC_CNBIZ_QUOTE_URL` env override, 기본값
+    `https://cnbiz.ai.kr/quote`) 신규 추가
+  - `apps/cnbiz-web/components/sections/CTASection.tsx` — 주 버튼("프로젝트 문의하기")의
+    `href`를 `/contact`에서 `CNBIZ_QUOTE_URL`로 교체. Header·Footer·MobileMenu의
+    "문의하기"/"프로젝트 문의하기" 링크와 CTASection 하단의 보조 텍스트 링크("AI 홈페이지
+    무료 제작 서비스")는 이번 요청 범위(체크 표시된 버튼 하나)에 해당하지 않아 그대로 `/contact`·
+    `CNBIZ_AI_URL` 유지
+  - `apps/cnbiz-web/.env.example` — 기존 `NEXT_PUBLIC_CNBIZ_AI_URL` 문서화와 동일한 형식으로
+    `NEXT_PUBLIC_CNBIZ_QUOTE_URL` 항목 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 렌더링된 HTML을 직접 확인 — `/`·`/about`·`/services`·
+  `/portfolio` 4개 페이지 전부 CTA 버튼이 `https://cnbiz.ai.kr/quote`로 연결됨을 확인,
+  Header·Footer의 "문의하기"/"프로젝트 문의하기"는 여전히 `/contact`로 남아 있어 이번
+  변경이 요청된 범위(하단 CTA 버튼 하나)로만 정확히 한정됨을 확인
+- 검증에 사용한 프로덕션 서버는 검증 후 종료(저장소에 포함되지 않음)
+
 ## 2026-08-25 (10)
 
 ### 추가 (Added)

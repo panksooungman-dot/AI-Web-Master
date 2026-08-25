@@ -1,6 +1,6 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
-import { CNBIZ_AI_URL } from "@/lib/links";
+import { CNBIZ_AI_URL, CNBIZ_QUOTE_URL } from "@/lib/links";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 interface CTASectionProps {
@@ -30,7 +30,7 @@ export function CTASection({ blendFrom }: CTASectionProps) {
               24시간 이내 답변드립니다.
             </p>
             <div className="mt-8 flex justify-center">
-              <LinkButton href="/contact">프로젝트 문의하기</LinkButton>
+              <LinkButton href={CNBIZ_QUOTE_URL}>프로젝트 문의하기</LinkButton>
             </div>
             <p className="mt-6 text-sm text-slate-400">
               간단한 홈페이지가 빠르게 필요하다면{" "}

@@ -4,6 +4,89 @@
 
 ---
 
+## 2026-08-25 (12)
+
+### 변경 (Changed)
+
+- **`/contact` 문의 폼을 cnbiz.ai.kr/quote 스타일의 단계별 인터뷰형 레이아웃으로 전환**:
+  사용자가 cnbiz.ai.kr/quote(진행 단계 표시·질문 하나씩·이전/다음 버튼이 있는 견적
+  설문 마법사) 스크린샷을 보내며 "문의 인터뷰지 레이아웃이 이렇게 되어 있어"라고 요청.
+  다만 그 페이지의 13개 질문(도메인·호스팅·로고 파일 업로드 등)은 "AI로 홈페이지를 빠르게
+  만들어주는" cnbiz.ai.kr 제품 전용 질문이라, 컨설팅·AI/ML·개발·클라우드까지 아우르는
+  cnbiz.kr /contact의 문의 성격과 다름을 짚고 방향을 확인 — 사용자가 "레이아웃(진행
+  단계·질문 하나씩·이전/다음)만 가져오고, 기존 문의 필드(담당자명·회사명·이메일·연락처·
+  희망 사이트 유형·예산·문의 내용)를 단계별로 재구성"하는 방향(추천안)을 선택
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — 단일 스크롤 폼을 7단계
+    (담당자명 → 회사명 → 이메일 → 연락처 → 프로젝트 유형 → 예산 → 문의 내용)로 재구성.
+    상단에 진행률 바(`N / 7` + 단계 라벨), 각 단계 카드(`@cnbiz/ui`의 `Card` 재사용)에
+    질문 헤딩·입력 필드·단계별 Tip 문구, 하단에 이전/다음(마지막 단계는 "문의 보내기")
+    버튼 배치. "희망 사이트 유형" 단계는 기존 `<Select>` 드롭다운을 `WEBSITE_TYPES`
+    기반 칩(토글 버튼) 선택 UI로 전환(단일 선택, 다시 클릭 시 선택 해제)
+  - **필드·검증·제출 로직은 전혀 변경하지 않음** — `parseInquiryInput`/
+    `validateInquiryInput`(`lib/inquiries/validate.ts`)과 `POST /api/inquiries` 호출을
+    그대로 재사용. 필수 필드(담당자명·이메일·문의 내용)는 해당 단계에서 값이 비어 있으면
+    "다음" 버튼이 비활성화되고, 최종 제출 시 서버와 동일한 검증에서 오류가 나면(예:
+    이메일 형식 오류) 오류가 발생한 필드의 단계로 자동 이동해 오류 메시지를 보여줌
+  - 접수 완료 화면(성공 메시지)은 기존과 동일하게 유지, "새 문의 작성하기" 클릭 시
+    1단계로 초기화되도록 보강
+
+### 수정 (Fixed)
+
+- **`<form>`에 기존에 있던 `noValidate` 속성이 재작성 과정에서 누락되어 있던 것을 실제
+  테스트 중 발견·수정**: 이메일 단계에서 유효하지 않은 값을 입력해도 "다음" 버튼이
+  브라우저 자체의 `type="email"` 기본 검증에 걸려 클릭이 아예 씹히는(자체 JS 로직에
+  도달하지 못하는) 현상을 Playwright로 재현. 원래 단일 폼도 `noValidate`로 브라우저
+  기본 검증을 끄고 `lib/inquiries/validate.ts`만 신뢰하던 것을 재작성 시 빠뜨린 것으로
+  확인, `<form onSubmit={handleFormSubmit} noValidate>`로 복원
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- Playwright로 프로덕션 빌드 기준 전 단계 실제 조작 확인 — 1단계(필수, 빈 값일 때 "다음"
+  비활성화 → 입력 후 활성화) → 2단계(선택 항목, 비워도 진행) → 3단계(이메일 필수) →
+  4단계(선택) → 5단계(프로젝트 유형 칩 선택, 클릭 시 강조 표시) → 6단계(선택) → 7단계
+  (문의 내용 필수, 빈 값일 때 "문의 보내기" 비활성화) → "이전" 버튼으로 되돌아가기 정상
+  동작 확인. 일부러 잘못된 이메일 형식으로 마지막 단계까지 진행 후 제출 → 서버 검증
+  오류로 3단계(이메일)로 자동 복귀하고 오류 메시지가 정확히 표시됨을 확인(이메일 단계가
+  아닌 다른 단계에서 발생한 검증 오류도 해당 단계로 정확히 이동하는 로직 확인)
+- 프로덕션 빌드(`next start`)로는 이 환경에 `SUPABASE_URL` 등이 설정되어 있지 않아
+  `/api/inquiries`가 항상 500(`getDefaultStore()`의 기존 production-misconfig 안전장치,
+  이번 변경과 무관)을 반환해 실제 접수 성공까지는 검증하지 못함 — 동일 코드를 `next dev`
+  (미설정 시 로컬 fs 폴백, 기존 동작)로 재기동해 처음부터 끝까지 실제 접수 성공 → "문의가
+  접수되었습니다" 성공 화면 전환까지 확인
+- 데스크탑(1440px)·모바일(390px) 스크린샷으로 진행률 바·질문 카드·칩 선택·Tip 박스 레이아웃
+  정상 렌더링 확인
+- 검증에 사용한 dev/prod 서버·Playwright 임시 스크립트는 검증 후 전부 종료·삭제
+
+## 2026-08-25 (11)
+
+### 변경 (Changed)
+
+- **하단 CTA 배너("프로젝트 문의하기") 버튼을 cnbiz.ai.kr의 견적 문의 페이지로 연결**:
+  사용자가 스크린샷에 빨간펜으로 홈페이지 하단 "프로젝트를 상담해보세요" 배너의 주 버튼을
+  표시하고 "체크된 부분 https://cnbiz.ai.kr/quote 링크 연결해줘"라고 요청. 이 버튼은
+  Home·About·Services·Portfolio 4개 페이지가 공유하는 `CTASection` 컴포넌트 하나이므로,
+  한 번의 수정으로 4개 페이지 전부에 동일하게 반영됨
+  - `apps/cnbiz-web/lib/links.ts` — 기존 `CNBIZ_AI_URL`과 동일한 패턴으로
+    `CNBIZ_QUOTE_URL`(`NEXT_PUBLIC_CNBIZ_QUOTE_URL` env override, 기본값
+    `https://cnbiz.ai.kr/quote`) 신규 추가
+  - `apps/cnbiz-web/components/sections/CTASection.tsx` — 주 버튼("프로젝트 문의하기")의
+    `href`를 `/contact`에서 `CNBIZ_QUOTE_URL`로 교체. Header·Footer·MobileMenu의
+    "문의하기"/"프로젝트 문의하기" 링크와 CTASection 하단의 보조 텍스트 링크("AI 홈페이지
+    무료 제작 서비스")는 이번 요청 범위(체크 표시된 버튼 하나)에 해당하지 않아 그대로 `/contact`·
+    `CNBIZ_AI_URL` 유지
+  - `apps/cnbiz-web/.env.example` — 기존 `NEXT_PUBLIC_CNBIZ_AI_URL` 문서화와 동일한 형식으로
+    `NEXT_PUBLIC_CNBIZ_QUOTE_URL` 항목 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 렌더링된 HTML을 직접 확인 — `/`·`/about`·`/services`·
+  `/portfolio` 4개 페이지 전부 CTA 버튼이 `https://cnbiz.ai.kr/quote`로 연결됨을 확인,
+  Header·Footer의 "문의하기"/"프로젝트 문의하기"는 여전히 `/contact`로 남아 있어 이번
+  변경이 요청된 범위(하단 CTA 버튼 하나)로만 정확히 한정됨을 확인
+- 검증에 사용한 프로덕션 서버는 검증 후 종료(저장소에 포함되지 않음)
+
 ## 2026-08-25 (10)
 
 ### 추가 (Added)

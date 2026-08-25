@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-08-25 (13)
+
+### 추가 (Added)
+
+- **`/contact` 문의 폼에 "회사 정보"·"참고 자료" 단계 추가 — AI 분석 완성도 개선**:
+  사용자가 "cnbiz.kr 자체 /contact 의뢰를 하면 더 자세한 정보가 필요하지 않아"라고 질문.
+  실제로 확인한 결과, AI 분석의 완성도 체크리스트(`lib/ai-analysis/score.ts`, 10개 항목)
+  중 기존 7단계 폼은 4개(회사명·담당자명·연락처·서비스 설명)만 채울 수 있고 나머지 6개
+  (업종·로고·서비스 사진·참고 사이트·브랜드 컬러·도메인)는 폼에 해당 필드 자체가 없어
+  자유 텍스트로 아무리 자세히 적어도 완성도가 40/100을 넘을 수 없는 구조였음을 확인.
+  전부(6개)를 각각 단계로 늘리면 이탈률이 오를 수 있어, "회사 정보"(업종·브랜드컬러·
+  도메인, 짧은 텍스트 3개를 한 화면에)와 "참고 자료"(로고·사진 파일 업로드 + 참고 사이트
+  URL, 한 화면에)로 묶어 2단계만 추가하는 방향으로 사용자와 합의 후 진행(관리자용
+  `/developer/inquiries/new`가 이미 지원하던 첨부 업로드 흐름을 공개 폼에도 연결한다는
+  것은 해당 라우트 주석에 원래 의도로 이미 명시되어 있던 내용)
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — 7단계 → 9단계로 확장.
+    "회사 정보"(선택, `industry` 필드 + `survey`에 담기는 `브랜드컬러`/`도메인`), "참고
+    자료"(선택, 참고 사이트 URL 쉼표 입력 → `referenceUrls`, 드래그&드롭 지원 다중 파일
+    업로드 → 제출 시 `/api/inquiries/upload`로 하나씩 업로드 후 `uploadedFiles`) 신규.
+    `StepConfig.key`를 `keyof FormState`에서 `string`으로 완화하고 `requiredField`를
+    별도로 분리해, 여러 필드를 한 단계에 묶는 그룹 단계도 기존 필수 필드 검증·에러
+    단계 이동 로직을 그대로 재사용하도록 함(로직 중복 없음)
+  - `apps/cnbiz-web/app/api/inquiries/upload/route.ts` — 관리자 전용이던 첨부 업로드
+    API를 공개 문의 폼과 공유하도록 확장. `POST /api/inquiries`와 동일한 IP 기준
+    rate limit(`lib/inquiries/spam.ts` 재사용) 추가 — 로그인 없는 익명 호출자도 받게
+    되므로 남용 방지
+  - `apps/cnbiz-web/lib/auth/rbac.ts` — `UNGATED_EXACT_ROUTES`에 `POST
+    /api/inquiries/upload` 추가(기존 `POST /api/inquiries`와 동일한 패턴). GET 등 다른
+    메서드·`/api/inquiries/upload/[id]` 같은 다른 경로는 그대로 developer 게이팅 유지
+  - `apps/cnbiz-web/tests/auth/rbac.test.ts` — 위 게이팅 변경을 검증하는 테스트 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(신규 rbac 테스트 포함 735/744 통과 — 실패 9건은 전부
+  `tests/{requests,websites,inquiries}/registry.test.ts`의 "newest first" 정렬 테스트가
+  같은 밀리초에 생성된 두 레코드의 `createdAt`/`updatedAt`을 비교하다 발생하는 기존
+  타이밍 플레이크로, `git stash`로 이번 변경을 제거한 상태에서도 동일하게 재현됨을 확인해
+  무관함을 검증)
+- Playwright로 `next dev`(fs 폴백) 기준 신규 2단계 실제 조작 확인 — "회사 정보" 단계에서
+  업종·브랜드컬러·도메인 입력, "참고 자료" 단계에서 참고 사이트 URL 입력 + 실제 이미지
+  파일을 드래그&드롭 input으로 업로드(스테이징 목록에 파일명·용량 표시, 삭제 버튼 동작)
+  확인. 최종 제출 시 네트워크 요청을 가로채 실제 `POST /api/inquiries` payload를 검사 —
+  `industry`·`survey.{브랜드컬러,도메인}`·`uploadedFiles`(실제 업로드된 URL)·
+  `referenceUrls`(배열로 정상 분리)가 모두 정확한 형태로 전달됨을 확인, 이어서 "문의가
+  접수되었습니다" 성공 화면까지 정상 도달 확인
+- 신규 게이팅 테스트(`POST /api/inquiries/upload`는 비로그인 허용, 다른 메서드/경로는
+  developer 게이팅 유지) `npx vitest run tests/auth/rbac.test.ts` 37/37 통과
+- 검증에 사용한 dev 서버·Playwright 임시 스크립트·테스트 이미지 파일은 검증 후 전부 종료·삭제
+
 ## 2026-08-25 (12)
 
 ### 변경 (Changed)

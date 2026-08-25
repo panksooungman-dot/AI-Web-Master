@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { Button, Card, Input, Textarea } from "@cnbiz/ui";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { parseInquiryInput, validateInquiryInput, type InquiryValidationErrors } from "@/lib/inquiries/validate";
@@ -15,6 +15,11 @@ interface FormState {
   siteType: string;
   requirements: string;
   budget: string;
+  industry: string;
+  brandColor: string;
+  domain: string;
+  /** 쉼표로 구분된 참고 사이트 URL 입력값 — 제출 시 referenceUrls(string[])로 분리된다. */
+  referenceUrls: string;
 }
 
 const INITIAL_STATE: FormState = {
@@ -25,16 +30,39 @@ const INITIAL_STATE: FormState = {
   siteType: "",
   requirements: "",
   budget: "",
+  industry: "",
+  brandColor: "",
+  domain: "",
+  referenceUrls: "",
 };
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
 interface StepConfig {
-  key: keyof FormState;
+  /** InquiryInput 필드명과 일치하는 값이면 에러 매핑에 사용된다. 그룹 단계는 실제 필드가
+   *  아닌 임의 문자열(예: "attachments")이라 검증 오류가 매핑되지 않는다(정상). */
+  key: string;
   label: string;
   question: string;
   optional: boolean;
   tip: string;
+  /** 값이 있으면 이 필드가 비어 있을 때 "다음"을 막는다. */
+  requiredField?: keyof FormState;
+}
+
+// app/api/inquiries/upload/route.ts의 MAX_BINARY_BYTES와 동일 — 클라이언트에서 먼저 걸러
+// 불필요한 업로드 요청을 막는다(서버가 최종 검증은 다시 한다).
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
+interface StagedFile {
+  id: string;
+  file: File;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 /**
@@ -47,6 +75,7 @@ const STEPS: StepConfig[] = [
     label: "담당자명",
     question: "담당자님 성함을 알려주세요",
     optional: false,
+    requiredField: "contactName",
     tip: "성함만 알려주시면 담당자가 정확히 안내해드립니다.",
   },
   {
@@ -61,6 +90,7 @@ const STEPS: StepConfig[] = [
     label: "이메일",
     question: "회신받으실 이메일을 알려주세요",
     optional: false,
+    requiredField: "email",
     tip: "제출 확인과 답변은 이 이메일로 발송됩니다.",
   },
   {
@@ -85,13 +115,33 @@ const STEPS: StepConfig[] = [
     tip: "대략적인 범위만 적어주셔도 충분합니다.",
   },
   {
+    key: "companyInfo",
+    label: "회사 정보",
+    question: "회사에 대해 조금 더 알려주시겠어요?",
+    optional: true,
+    tip: "업종·브랜드 컬러·도메인을 미리 알려주시면 분석과 제안이 더 정확해집니다.",
+  },
+  {
+    key: "attachments",
+    label: "참고 자료",
+    question: "참고할 자료가 있으면 올려주세요",
+    optional: true,
+    tip: "로고·서비스 사진 등 파일을 여러 개 올리거나, 참고하고 싶은 사이트 주소를 남겨주세요.",
+  },
+  {
     key: "requirements",
     label: "문의 내용",
     question: "프로젝트에 대해 자유롭게 설명해주세요",
     optional: false,
+    requiredField: "requirements",
     tip: "목적, 필요한 기능, 참고 사이트 등을 자유롭게 적어주시면 더 정확한 답변을 드릴 수 있어요.",
   },
 ];
+
+type UploadResponse =
+  | { success: true; type: "image" | "file"; url: string; storage: "supabase" | "local" }
+  | { success: true; type: "code"; filename: string; content: string }
+  | { success: false; error: string };
 
 /**
  * AI Business OS Rewiring Phase 1 — cnbiz.kr의 직접 문의 폼. POST /api/inquiries(내부,
@@ -104,6 +154,9 @@ export function ContactForm() {
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+  const [fileWarning, setFileWarning] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -113,9 +166,47 @@ export function ContactForm() {
     setCurrentStep((s) => Math.max(0, s - 1));
   }
 
+  function addFiles(fileList: FileList) {
+    const accepted: StagedFile[] = [];
+    const rejected: string[] = [];
+
+    for (const file of Array.from(fileList)) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        rejected.push(`${file.name} (파일 크기 초과)`);
+        continue;
+      }
+      accepted.push({ id: `${file.name}-${file.lastModified}-${file.size}`, file });
+    }
+
+    if (accepted.length > 0) setStagedFiles((prev) => [...prev, ...accepted]);
+    setFileWarning(rejected.length > 0 ? `업로드할 수 없는 파일: ${rejected.join(", ")}` : null);
+  }
+
+  function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.files && event.target.files.length > 0) addFiles(event.target.files);
+    event.target.value = "";
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragOver(false);
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) addFiles(event.dataTransfer.files);
+  }
+
+  function removeFile(id: string) {
+    setStagedFiles((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  async function uploadOne(file: File): Promise<UploadResponse> {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch("/api/inquiries/upload", { method: "POST", body });
+    return res.json();
+  }
+
   const step = STEPS[currentStep];
   const isLastStep = currentStep === STEPS.length - 1;
-  const nextDisabled = !step.optional && !form[step.key].trim();
+  const nextDisabled = Boolean(step.requiredField) && !form[step.requiredField!].trim();
 
   async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,7 +216,21 @@ export function ContactForm() {
       return;
     }
 
-    const input = parseInquiryInput({ source: "manual", ...form });
+    const referenceUrls = form.referenceUrls
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean);
+
+    const survey: Record<string, string> = {};
+    if (form.brandColor.trim()) survey["브랜드컬러"] = form.brandColor.trim();
+    if (form.domain.trim()) survey["도메인"] = form.domain.trim();
+
+    const input = parseInquiryInput({
+      source: "manual",
+      ...form,
+      referenceUrls,
+      survey: Object.keys(survey).length > 0 ? survey : undefined,
+    });
     const validationErrors = validateInquiryInput(input);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -140,6 +245,19 @@ export function ContactForm() {
     setErrorMessage(null);
 
     try {
+      const uploadedFiles: string[] = [];
+      const uploadFailures: string[] = [];
+      for (const staged of stagedFiles) {
+        const result = await uploadOne(staged.file);
+        if (!result.success) {
+          uploadFailures.push(`${staged.file.name} (${result.error})`);
+        } else if (result.type !== "code") {
+          uploadedFiles.push(result.url);
+        }
+      }
+      setFileWarning(uploadFailures.length > 0 ? `일부 파일 업로드 실패: ${uploadFailures.join(", ")}` : null);
+      input.uploadedFiles = uploadedFiles.length > 0 ? uploadedFiles : undefined;
+
       const res = await fetch("/api/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -157,6 +275,8 @@ export function ContactForm() {
       }
 
       setForm(INITIAL_STATE);
+      setStagedFiles([]);
+      setFileWarning(null);
       setCurrentStep(0);
       setStatus("success");
     } catch {
@@ -279,6 +399,101 @@ export function ContactForm() {
                   onChange={(e) => updateField("budget", e.target.value)}
                 />
               )}
+              {step.key === "companyInfo" && (
+                <div className="flex flex-col gap-5">
+                  <Input
+                    id="industry"
+                    label="업종"
+                    placeholder="예: 요식업, 의료, 교육 등"
+                    value={form.industry}
+                    onChange={(e) => updateField("industry", e.target.value)}
+                  />
+                  <Input
+                    id="brandColor"
+                    label="브랜드 컬러"
+                    placeholder="예: #005BAC, 블루 계열 등"
+                    value={form.brandColor}
+                    onChange={(e) => updateField("brandColor", e.target.value)}
+                  />
+                  <Input
+                    id="domain"
+                    label="도메인"
+                    placeholder="예: mycompany.co.kr"
+                    value={form.domain}
+                    onChange={(e) => updateField("domain", e.target.value)}
+                  />
+                </div>
+              )}
+              {step.key === "attachments" && (
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-900">
+                      참고 사이트 URL(쉼표로 구분)
+                    </label>
+                    <input
+                      id="referenceUrls"
+                      value={form.referenceUrls}
+                      onChange={(e) => updateField("referenceUrls", e.target.value)}
+                      placeholder="https://example.com, https://example2.com"
+                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-900">
+                      로고·서비스 사진 등 파일
+                    </label>
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver(true);
+                      }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      className={`rounded-lg border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
+                        dragOver ? "border-primary bg-primary/5" : "border-slate-200 bg-slate-50"
+                      }`}
+                    >
+                      <p className="text-slate-500">파일을 여기로 끌어놓거나</p>
+                      <label className="mt-2 inline-block cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50">
+                        파일 선택
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.doc,.docx"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {stagedFiles.length > 0 && (
+                      <ul className="mt-3 flex flex-col gap-2">
+                        {stagedFiles.map((staged) => (
+                          <li
+                            key={staged.id}
+                            className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                          >
+                            <span className="truncate">
+                              {staged.file.name} · {formatFileSize(staged.file.size)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(staged.id)}
+                              className="ml-3 shrink-0 text-slate-400 hover:text-red-600"
+                              aria-label={`${staged.file.name} 제거`}
+                            >
+                              삭제
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {fileWarning && <p className="mt-2 text-sm text-red-600">{fileWarning}</p>}
+                  </div>
+                </div>
+              )}
               {step.key === "requirements" && (
                 <Textarea
                   id="requirements"
@@ -291,7 +506,9 @@ export function ContactForm() {
               )}
             </div>
 
-            {errors[step.key] && <p className="mt-3 text-sm text-red-600">{errors[step.key]}</p>}
+            {errors[step.key as keyof InquiryValidationErrors] && (
+              <p className="mt-3 text-sm text-red-600">{errors[step.key as keyof InquiryValidationErrors]}</p>
+            )}
 
             <div className={`mt-8 flex items-center ${currentStep > 0 ? "justify-between" : "justify-end"}`}>
               {currentStep > 0 && (

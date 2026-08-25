@@ -1,7 +1,15 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
+import { AiIcon, CloudIcon, ConsultingIcon, DevelopmentIcon } from "@/components/icons/ServiceIcons";
 import { CNBIZ_AI_URL } from "@/lib/links";
 import { componentMarker } from "@/lib/dev/component-marker";
+
+const services = [
+  { icon: ConsultingIcon, label: "디지털 전환 컨설팅" },
+  { icon: AiIcon, label: "AI / ML 솔루션" },
+  { icon: DevelopmentIcon, label: "엔터프라이즈 개발" },
+  { icon: CloudIcon, label: "클라우드 인프라" },
+];
 
 export function HeroSection() {
   return (
@@ -53,27 +61,58 @@ export function HeroSection() {
       </div>
 
       <Container className="relative">
-        <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold uppercase tracking-widest text-primary-light">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary-light" />
-          Digital Transformation Partner
-        </p>
+        <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold uppercase tracking-widest text-primary-light">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary-light" />
+              Digital Transformation Partner
+            </p>
 
-        <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-          디지털 혁신으로
-          <br />
-          <span className="text-primary-light">비즈니스의 미래</span>를 열다
-        </h1>
+            <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              디지털 혁신으로
+              <br />
+              <span className="text-primary-light">비즈니스의 미래</span>를 열다
+            </h1>
 
-        <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg lg:text-xl">
-          CNBIZ는 기업의 디지털 전환을 이끄는 IT 전문 기업입니다. 최신 기술과 깊은 산업
-          이해를 바탕으로 고객의 성장을 함께 설계합니다.
-        </p>
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg lg:text-xl">
+              CNBIZ는 기업의 디지털 전환을 이끄는 IT 전문 기업입니다. 최신 기술과 깊은 산업
+              이해를 바탕으로 고객의 성장을 함께 설계합니다.
+            </p>
 
-        <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-          <LinkButton href="/services">서비스 알아보기</LinkButton>
-          <LinkButton href={CNBIZ_AI_URL} variant="secondary">
-            AI 홈페이지 무료 제작
-          </LinkButton>
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+              <LinkButton href="/services">서비스 알아보기</LinkButton>
+              <LinkButton href={CNBIZ_AI_URL} variant="secondary">
+                AI 홈페이지 무료 제작
+              </LinkButton>
+            </div>
+          </div>
+
+          <div className="hidden lg:block">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/20 backdrop-blur-sm">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-primary-light">
+                Core Services
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {services.map((service) => (
+                  <div
+                    key={service.label}
+                    className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-primary-light/40"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-light/15 text-primary-light">
+                      <service.icon className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold text-white">{service.label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-5 text-sm text-slate-300">
+                <svg aria-hidden className="h-4 w-4 shrink-0 text-primary-light" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                영업일 기준 24시간 이내 답변드립니다
+              </div>
+            </div>
+          </div>
         </div>
       </Container>
     </Section>

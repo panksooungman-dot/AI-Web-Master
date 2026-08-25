@@ -1,7 +1,7 @@
 /**
- * CNBIZ.KR is the brand/company site only — it does not take website-creation
- * requests directly (that lives on cnbiz.ai.kr, the AI website builder /
- * consultation / customer product). Every "start a project" CTA across this
- * site points here so the destination is defined in exactly one place.
+ * cnbiz.ai.kr is CNBIZ's separate AI website builder product. cnbiz.kr (this
+ * site) leads with its own consulting/development inquiry flow (/contact) —
+ * this URL is only surfaced as a secondary, opt-in link for visitors who
+ * specifically want a fast AI-generated site, not as the site's primary CTA.
  */
 export const CNBIZ_AI_URL = process.env.NEXT_PUBLIC_CNBIZ_AI_URL || "https://cnbiz.ai.kr";

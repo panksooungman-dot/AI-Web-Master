@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { LinkButton } from "@cnbiz/ui";
-import { CNBIZ_AI_URL } from "@/lib/links";
 import { MobileMenu } from "./MobileMenu";
 
 const navLinks = [
   { label: "회사소개", href: "/about" },
   { label: "사업소개", href: "/services" },
   { label: "포트폴리오", href: "/portfolio" },
+  { label: "문의하기", href: "/contact" },
 ];
 
 export function Header() {
@@ -32,7 +32,7 @@ export function Header() {
         </nav>
 
         <div className="hidden lg:block">
-          <LinkButton href={CNBIZ_AI_URL}>AI 홈페이지 무료 제작</LinkButton>
+          <LinkButton href="/contact">프로젝트 문의하기</LinkButton>
         </div>
 
         <MobileMenu navLinks={navLinks} />

@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { MobileDrawer } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
-import { CNBIZ_AI_URL } from "@/lib/links";
 
 interface NavLink {
   label: string;
@@ -61,8 +60,8 @@ export function MobileMenu({ navLinks }: MobileMenuProps) {
             </Link>
           ))}
 
-          <LinkButton href={CNBIZ_AI_URL} onClick={() => setOpen(false)}>
-            AI 홈페이지 무료 제작
+          <LinkButton href="/contact" onClick={() => setOpen(false)}>
+            프로젝트 문의하기
           </LinkButton>
         </nav>
       </MobileDrawer>

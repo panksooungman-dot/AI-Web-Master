@@ -4,6 +4,66 @@
 
 ---
 
+## 2026-08-25 (5)
+
+### 변경 (Changed)
+
+- **CNBIZ Website — 사이트 전체 CTA를 "AI 툴 판매" 느낌에서 "개발/컨설팅 업체 문의"로 재정렬**:
+  사용자가 하단 CTA 배너를 가리키며 "AI툴을 도입하는 문의 같아 개발업체가 아니구"라고 지적.
+  실제로 확인해보니 문제가 배너 하나가 아니라 구조적이었음 — 헤더의 유일한 버튼, 모바일
+  메뉴 버튼, 4개 페이지 하단 CTA 배너가 전부 외부 AI 홈페이지 제작 툴(cnbiz.ai.kr)로만
+  연결되어 있었고, 정작 실제 문의 폼이 있는 `/contact`는 헤더·푸터 어디에도 링크되어 있지
+  않았음. `lib/links.ts`에는 "모든 'start a project' CTA는 의도적으로 cnbiz.ai.kr로
+  보낸다"는 기존 설계 의도가 문서화돼 있어, 이를 뒤집는 결정이라 사용자에게 방향(문의하기를
+  주 CTA로, AI 홈페이지 제작은 보조 링크로 / 기존 유지 / 링크만 추가)을 확인 후 진행
+  - `apps/cnbiz-web/components/layout/Header.tsx` — nav에 "문의하기"(`/contact`) 추가,
+    유일한 버튼을 "AI 홈페이지 무료 제작"(외부)에서 "프로젝트 문의하기"(`/contact`)로 교체
+  - `apps/cnbiz-web/components/layout/MobileMenu.tsx` — 하단 버튼도 동일하게 `/contact`로 교체
+  - `apps/cnbiz-web/components/layout/Footer.tsx` — 고객지원 목록에 "문의하기" 추가
+  - `apps/cnbiz-web/components/sections/CTASection.tsx`(Home·About·Services·Portfolio 4개
+    페이지 공유) — 배지·제목·본문을 "AI가 홈페이지를 자동으로 제작해드립니다"에서 "프로젝트를
+    상담해보세요"로 교체, 주 버튼을 `/contact`로 변경. AI 홈페이지 제작 서비스는 버튼이 아닌
+    하단의 작은 텍스트 링크("간단한 홈페이지가 빠르게 필요하다면 ... 이용해보세요")로 축소해
+    여전히 안내하되 주 메시지를 가리지 않도록 함
+  - `apps/cnbiz-web/lib/links.ts` — "모든 CTA가 여기로 향한다"던 기존 주석을 "보조·opt-in
+    링크로만 노출한다"는 새 의도로 갱신(코드 동작을 설명하는 주석을 실제 동작과 다시 일치시킴)
+  - `HeroSection.tsx`의 2번째 버튼(AI 홈페이지 무료 제작, 보조 버튼)은 변경하지 않음 — 이미
+    "서비스 알아보기"가 주 버튼이라 문제 없는 것으로 판단, 요청 범위(하단 CTA 배너) 밖
+
+### 수정 (Fixed)
+
+- **모바일 메뉴 드로어가 뷰포트 전체가 아니라 헤더 높이(64px)로 잘려 사실상 열리지 않던
+  실제 버그 발견·수정**: 위 Header 변경을 모바일 뷰포트에서 스크린샷으로 검증하던 중,
+  햄버거 버튼을 눌러도 메뉴가 전혀 나타나지 않는 것을 재현. `getBoundingClientRect()`로
+  직접 측정한 결과 드로어의 `position: fixed; inset: 0` 요소가 실제로는 `{width:390,
+  height:64}`로만 렌더링되고 있었음 — 원인은 Header의 `backdrop-blur-sm`(backdrop-filter)이
+  CSS 스펙상 `position: fixed` 후손 요소의 containing block이 되어, 뷰포트 전체가 아니라
+  **Header 자신의 박스 크기**로 드로어를 가둬버리는 것이었다(잘 알려진 CSS 함정). Header의
+  `backdrop-blur-sm`·`MobileDrawer`의 `fixed inset-0` 둘 다 이번 세션 이전부터 있던 코드라,
+  **실제 서비스에서 지금까지 모바일 메뉴가 정상적으로 열린 적이 없었을 가능성이 높음**
+  - `packages/layout-primitives/src/MobileDrawer.tsx` — `createPortal`로 드로어를
+    `document.body`에 직접 마운트하도록 변경, Header(또는 앞으로 filter 계열 스타일을 가질
+    수 있는 다른 조상 요소)의 containing block 영향을 원천적으로 받지 않도록 함. SSR
+    안전성을 위해 `mounted` state로 클라이언트 마운트 이후에만 포탈 렌더링
+
+### 검증 (Verified)
+
+- 수정 전 실제 재현: Playwright로 모바일(390px) 뷰포트에서 햄버거 버튼 클릭 →
+  `[role="dialog"]`의 `getBoundingClientRect()`가 `{width:390, height:64}`로 헤더 높이에
+  갇혀 있음을 직접 측정해 확인(스크린샷에서도 드로어 없이 원래 페이지만 보임)
+  - `packages/layout-primitives`의 `react`만 있던 `peerDependencies`에 `react-dom`을 함께
+    추가하려 했으나, `package.json` 수정은 AGENTS.md 승인 필요 항목이라 되돌림 — npm
+    workspaces 호이스팅으로 `react-dom`은 선언 없이도 정상 resolve됨을 확인
+- 수정 후 재검증: 동일 시나리오에서 `getBoundingClientRect()`가 `{width:390, height:844}`
+  (전체 뷰포트)로 정상 확인, 스크린샷으로 4개 nav 링크 + "프로젝트 문의하기" 버튼이 흰
+  드로어 패널에 정상 표시됨을 확인
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 5개 공개 페이지 200 확인, 데스크탑 스크린샷으로 헤더
+  버튼("프로젝트 문의하기")·CTA 배너 새 문구·푸터 "문의하기" 링크가 의도대로 반영됐는지
+  확인, 콘솔 에러는 기존에 이미 문서화된 401(`/api/auth/me`, 비로그인 방문자 정상 동작)·
+  404(파비콘 미수령) 외 신규 발생 없음을 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
 ## 2026-08-25
 
 ### 변경 (Changed)

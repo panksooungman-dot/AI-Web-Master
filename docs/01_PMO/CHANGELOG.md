@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-08-25 (6)
+
+### 추가 (Added)
+
+- **홈페이지에 화면 쇼케이스 섹션 신규 추가**: 사용자가 업로드한 3장의 이미지(미디어/스트리밍
+  사이트·가구 쇼핑몰·푸드 브랜드 화면을 보여주는 노트북·태블릿·폰 목업 사진)를 추가해달라는
+  요청. 이미지 속 텍스트가 의미 없는 더미 텍스트로 채워져 있어 실제 CNBIZ 프로젝트 스크린샷이
+  아닌 디자인 목업/스톡 이미지로 판단, "실제 사례 없이 지어내지 않는다"는 기존 원칙에 따라
+  사용자에게 용도를 확인 — 포트폴리오 사례로 넣지 않고, 순수 장식/배경 이미지로만 쓰기로 확정
+  - `sharp`로 원본 이미지를 리사이즈·JPEG 압축(품질 78, mozjpeg) 후
+    `apps/cnbiz-web/public/images/showcase-{media,furniture,food}.jpg`에 저장(각 50~68KB,
+    CNBIZ_RULES.md 5.4 "최적화된 이미지만 포함" 준수)
+  - `apps/cnbiz-web/components/sections/ShowcaseSection.tsx`(신규) — `next/image`로 3장을
+    살짝 기울어진 카드 콜라주로 배치(호버 시 정렬), 특정 고객사·프로젝트를 지칭하지 않는
+    일반적인 카피("산업별로 다른 디지털 경험을 설계합니다")만 사용해 실제 포트폴리오 사례로
+    오인되지 않도록 함
+  - `apps/cnbiz-web/app/page.tsx` — FAQSection과 CTASection 사이에 배치, 배경 교차 순서에
+    맞춰 CTASection의 `blendFrom`을 Home 한정으로 `white`→`alt`로 조정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 데스크탑(1440px) 스크린샷으로 3장 콜라주 레이아웃·섹션 전환
+  블렌드 확인. 모바일(390px) 풀페이지 스크린샷에서 이미지 영역이 비어 보이는 현상을 발견해
+  조사한 결과, 실제 렌더링 결함이 아니라 `next/image`의 기본 지연 로딩(below-the-fold lazy
+  load)으로 인해 스크린샷 캡처 시점에 아직 로드되지 않은 것이었음을
+  `naturalWidth`(0 → 스크롤 후 390) 비교로 확인, 실제 스크롤 시 정상 로드됨을 재확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+---
+
 ## 2026-08-25 (5)
 
 ### 변경 (Changed)

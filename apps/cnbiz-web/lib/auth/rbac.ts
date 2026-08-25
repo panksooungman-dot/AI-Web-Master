@@ -103,6 +103,10 @@ const UNGATED_API_PREFIXES = [
  */
 const UNGATED_EXACT_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/api/inquiries" },
+  // 공개 문의 폼(components/sections/ContactForm.tsx)의 "참고 자료" 단계가 Inquiry 생성
+  // 전에 첨부파일을 먼저 업로드하는 데 사용한다 — POST /api/inquiries와 동일한 공개 제출
+  // 흐름의 일부이므로 같은 방식으로 게이팅을 푼다(rate limit은 route.ts 자체에서 적용).
+  { method: "POST", path: "/api/inquiries/upload" },
 ];
 
 /**

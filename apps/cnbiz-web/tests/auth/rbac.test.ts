@@ -160,6 +160,13 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/inquiries/abc123", "POST")).toBe("developer");
       expect(resolveProtectedArea("/api/inquiries/abc123", "PATCH")).toBe("developer");
     });
+
+    it("ungates exactly POST /api/inquiries/upload (components/sections/ContactForm.tsx's 참고 자료 step uploads attachments before Inquiry creation), while other methods/paths stay developer-gated", () => {
+      expect(resolveProtectedArea("/api/inquiries/upload", "POST")).toBeNull();
+      expect(resolveProtectedArea("/api/inquiries/upload", "GET")).toBe("developer");
+      expect(resolveProtectedArea("/api/inquiries/upload")).toBe("developer");
+      expect(resolveProtectedArea("/api/inquiries/upload/abc123", "POST")).toBe("developer");
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

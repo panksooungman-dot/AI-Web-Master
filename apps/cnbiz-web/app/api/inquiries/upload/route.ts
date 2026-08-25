@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import path from "node:path";
 import { saveUploadedFile } from "@/lib/uploads/storage";
+import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
 
 /**
- * `/developer/inquiries/new`의 첨부파일 업로드 백엔드. `POST /api/inquiries`(Inquiry 생성) 전에
- * 파일 하나당 한 번씩 호출해 실제 URL(이미지 등)이나 텍스트 내용(코드 파일)을 먼저 확보한
- * 다음, 그 결과를 lib/inquiries/types.ts의 uploadedFiles/codeSnippets로 Inquiry 생성 요청에
- * 실어 보낸다 — 기본적으로 "developer" 역할 게이팅(이 경로가 UNGATED_API_PREFIXES에 없으므로
- * lib/auth/rbac.ts 기본 규칙 적용)이라 관리자 세션이 있어야 호출 가능하다.
+ * `/developer/inquiries/new`(관리자)와 공개 문의 폼(components/sections/ContactForm.tsx)이
+ * 공유하는 첨부파일 업로드 백엔드. `POST /api/inquiries`(Inquiry 생성) 전에 파일 하나당 한 번씩
+ * 호출해 실제 URL(이미지 등)이나 텍스트 내용(코드 파일)을 먼저 확보한 다음, 그 결과를
+ * lib/inquiries/types.ts의 uploadedFiles/codeSnippets로 Inquiry 생성 요청에 실어 보낸다.
+ * `POST /api/inquiries`와 동일하게 UNGATED_EXACT_ROUTES(lib/auth/rbac.ts)로 로그인 없이 호출
+ * 가능하며, 익명 호출자도 받게 되므로 동일한 IP 기준 rate limit을 적용한다.
  */
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
@@ -20,6 +22,13 @@ const MAX_BINARY_BYTES = 20 * 1024 * 1024; // 20MB — 관리자 폼(ACCEPTED_EX
 const MAX_CODE_BYTES = 500 * 1024; // 500KB — AI 프롬프트에 그대로 포함되므로 훨씬 작게 제한
 
 export async function POST(request: Request) {
+  if (isRateLimited(getClientIp(request))) {
+    return NextResponse.json(
+      { success: false, error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+      { status: 429 },
+    );
+  }
+
   let formData: FormData;
   try {
     formData = await request.formData();

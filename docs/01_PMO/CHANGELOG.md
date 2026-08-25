@@ -4,6 +4,98 @@
 
 ---
 
+## 2026-08-25 (14)
+
+### 추가 (Added)
+
+- **`/contact`에 "무엇을 만들고 싶으신가요?"(제작 항목) + 쇼핑몰/홈페이지 전용 기능
+  체크리스트 단계 추가**: "AI 대화 상담" 아이디어는 프로덕션 AI 키·비용·지연·남용 방지가
+  새로 필요해 범위가 크다고 안내한 뒤, 대안으로 "AI가 체크리스트를 작성해주고 의뢰자는
+  체크만 하면 어떨까"라는 제안을 받음. AI 호출 없이도 안전하게 구현 가능한 정적
+  체크리스트(웹 개발 상식 수준)로 우선 시작하고, 어떤 유형에 보여줄지는 별도 질문(사용자
+  확인: "새 질문으로 추가" — 기존 "프로젝트 유형" 11개 목록은 다른 화면(웹사이트 생성기)에서도
+  쓰여 손대지 않음) + "쇼핑몰·홈페이지 먼저"(ERP·자동화프로그램은 CNBIZ의 실제 작업 방식을
+  모르는 상태에서 항목을 지어내지 않기 위해 이번 범위에서 제외)로 확정
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — `STEPS`(고정 배열)를
+    `buildSteps(serviceCategory)`(현재 선택에 따라 달라지는 함수)로 전환. "연락처"와
+    "프로젝트 유형" 사이에 신규 "제작 항목" 단계(쇼핑몰/홈페이지/ERP/자동화프로그램/기타
+    칩 선택, `serviceCategory` 필드, survey에 "희망 제작물"로 담김) 추가. 선택값이
+    "shopping"/"website"일 때만 그 바로 뒤에 "기능 체크리스트" 단계(다중 선택 칩 —
+    쇼핑몰: 상품 카테고리·장바구니·결제·배송조회·반품교환·회원가입·리뷰·쿠폰·재고관리·
+    관리자페이지 / 홈페이지: 회사소개·서비스소개·포트폴리오·오시는길·문의폼·채용정보·
+    다국어·공지사항·SNS연동·관리자페이지, `survey`에 "희망 기능"으로 담김)를 조건부로
+    끼워 넣음 — 이 두 단계 모두 없어도(ERP·자동화프로그램·기타 선택 시) 나머지 흐름은
+    그대로 이어짐
+  - 단계 수가 선택에 따라 동적으로 변하므로(9~11단계) `currentStep`은 항상 그 시점의
+    `steps` 배열에 대한 단순 인덱스로만 취급 — "제작 항목" 단계 자체보다 앞쪽 단계 구조는
+    선택과 무관하게 고정이라 별도 보정 로직 없이도 안전함을 실제 왕복 시나리오(선택→진행→
+    되돌아가서 다른 항목으로 변경→다시 진행)로 확인
+  - 필드·검증·업로드·제출 로직은 무변경 — `survey`에 담기는 값만 늘었을 뿐 기존 필수
+    필드(담당자명·이메일·문의 내용) 검증과 에러 단계 자동 이동 로직을 그대로 재사용
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(734/744 통과 — 실패 10건은 기존에 이미 문서화된 `tests/{requests,
+  websites,inquiries}/registry.test.ts`의 밀리초 타이밍 플레이크, 이번 변경과 무관, 회귀 없음)
+- Playwright로 프로덕션 동작(`next dev`) 실제 조작 확인 — 쇼핑몰 선택 시 10→11단계로
+  체크리스트 단계가 정확한 위치에 나타남, ERP 선택 시 체크리스트 단계 자체가 없이 바로
+  "예산" 단계로 넘어감, "이전"으로 되돌아가 쇼핑몰↔자동화프로그램을 여러 차례 바꿔도
+  크래시나 잘못된 단계 이동 없이 정확히 반영됨을 확인. 최종 제출 네트워크 요청을 가로채
+  `survey["희망 제작물"]`·`survey["희망 기능"]`(선택한 체크리스트 항목의 한글 라벨,
+  쉼표로 결합)이 정확한 값으로 전달됨을 확인
+- 검증에 사용한 dev 서버·Playwright 임시 스크립트는 검증 후 전부 종료·삭제
+
+## 2026-08-25 (13)
+
+### 추가 (Added)
+
+- **`/contact` 문의 폼에 "회사 정보"·"참고 자료" 단계 추가 — AI 분석 완성도 개선**:
+  사용자가 "cnbiz.kr 자체 /contact 의뢰를 하면 더 자세한 정보가 필요하지 않아"라고 질문.
+  실제로 확인한 결과, AI 분석의 완성도 체크리스트(`lib/ai-analysis/score.ts`, 10개 항목)
+  중 기존 7단계 폼은 4개(회사명·담당자명·연락처·서비스 설명)만 채울 수 있고 나머지 6개
+  (업종·로고·서비스 사진·참고 사이트·브랜드 컬러·도메인)는 폼에 해당 필드 자체가 없어
+  자유 텍스트로 아무리 자세히 적어도 완성도가 40/100을 넘을 수 없는 구조였음을 확인.
+  전부(6개)를 각각 단계로 늘리면 이탈률이 오를 수 있어, "회사 정보"(업종·브랜드컬러·
+  도메인, 짧은 텍스트 3개를 한 화면에)와 "참고 자료"(로고·사진 파일 업로드 + 참고 사이트
+  URL, 한 화면에)로 묶어 2단계만 추가하는 방향으로 사용자와 합의 후 진행(관리자용
+  `/developer/inquiries/new`가 이미 지원하던 첨부 업로드 흐름을 공개 폼에도 연결한다는
+  것은 해당 라우트 주석에 원래 의도로 이미 명시되어 있던 내용)
+  - `apps/cnbiz-web/components/sections/ContactForm.tsx` — 7단계 → 9단계로 확장.
+    "회사 정보"(선택, `industry` 필드 + `survey`에 담기는 `브랜드컬러`/`도메인`), "참고
+    자료"(선택, 참고 사이트 URL 쉼표 입력 → `referenceUrls`, 드래그&드롭 지원 다중 파일
+    업로드 → 제출 시 `/api/inquiries/upload`로 하나씩 업로드 후 `uploadedFiles`) 신규.
+    `StepConfig.key`를 `keyof FormState`에서 `string`으로 완화하고 `requiredField`를
+    별도로 분리해, 여러 필드를 한 단계에 묶는 그룹 단계도 기존 필수 필드 검증·에러
+    단계 이동 로직을 그대로 재사용하도록 함(로직 중복 없음)
+  - `apps/cnbiz-web/app/api/inquiries/upload/route.ts` — 관리자 전용이던 첨부 업로드
+    API를 공개 문의 폼과 공유하도록 확장. `POST /api/inquiries`와 동일한 IP 기준
+    rate limit(`lib/inquiries/spam.ts` 재사용) 추가 — 로그인 없는 익명 호출자도 받게
+    되므로 남용 방지
+  - `apps/cnbiz-web/lib/auth/rbac.ts` — `UNGATED_EXACT_ROUTES`에 `POST
+    /api/inquiries/upload` 추가(기존 `POST /api/inquiries`와 동일한 패턴). GET 등 다른
+    메서드·`/api/inquiries/upload/[id]` 같은 다른 경로는 그대로 developer 게이팅 유지
+  - `apps/cnbiz-web/tests/auth/rbac.test.ts` — 위 게이팅 변경을 검증하는 테스트 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(신규 rbac 테스트 포함 735/744 통과 — 실패 9건은 전부
+  `tests/{requests,websites,inquiries}/registry.test.ts`의 "newest first" 정렬 테스트가
+  같은 밀리초에 생성된 두 레코드의 `createdAt`/`updatedAt`을 비교하다 발생하는 기존
+  타이밍 플레이크로, `git stash`로 이번 변경을 제거한 상태에서도 동일하게 재현됨을 확인해
+  무관함을 검증)
+- Playwright로 `next dev`(fs 폴백) 기준 신규 2단계 실제 조작 확인 — "회사 정보" 단계에서
+  업종·브랜드컬러·도메인 입력, "참고 자료" 단계에서 참고 사이트 URL 입력 + 실제 이미지
+  파일을 드래그&드롭 input으로 업로드(스테이징 목록에 파일명·용량 표시, 삭제 버튼 동작)
+  확인. 최종 제출 시 네트워크 요청을 가로채 실제 `POST /api/inquiries` payload를 검사 —
+  `industry`·`survey.{브랜드컬러,도메인}`·`uploadedFiles`(실제 업로드된 URL)·
+  `referenceUrls`(배열로 정상 분리)가 모두 정확한 형태로 전달됨을 확인, 이어서 "문의가
+  접수되었습니다" 성공 화면까지 정상 도달 확인
+- 신규 게이팅 테스트(`POST /api/inquiries/upload`는 비로그인 허용, 다른 메서드/경로는
+  developer 게이팅 유지) `npx vitest run tests/auth/rbac.test.ts` 37/37 통과
+- 검증에 사용한 dev 서버·Playwright 임시 스크립트·테스트 이미지 파일은 검증 후 전부 종료·삭제
+
 ## 2026-08-25 (12)
 
 ### 변경 (Changed)

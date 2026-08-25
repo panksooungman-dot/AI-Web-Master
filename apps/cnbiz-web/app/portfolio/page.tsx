@@ -27,7 +27,7 @@ export default function PortfolioPage() {
     <>
       <PortfolioHeroSection />
       <PortfolioPlaceholderSection />
-      <CTASection />
+      <CTASection blendFrom="white" />
     </>
   );
 }

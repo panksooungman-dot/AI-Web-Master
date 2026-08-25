@@ -31,7 +31,7 @@ export default function AboutPage() {
       <CompanyOverviewSection />
       <MissionVisionSection />
       <AboutProcessSection />
-      <CTASection />
+      <CTASection blendFrom="white" />
     </>
   );
 }

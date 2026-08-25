@@ -17,6 +17,7 @@ export function ContactProcessSection() {
     <Section
       {...componentMarker("ContactProcessSection", "components/sections/ContactProcessSection.tsx", "문의 절차 안내")}
       background="alt"
+      blendFrom="dark"
       className="py-12"
     >
       <Container>

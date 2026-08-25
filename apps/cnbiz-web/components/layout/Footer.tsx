@@ -12,7 +12,10 @@ const footerLinks = {
     { label: "엔터프라이즈 개발", href: "/services#development" },
     { label: "클라우드 인프라", href: "/services#cloud" },
   ],
-  고객지원: [{ label: "포트폴리오", href: "/portfolio" }],
+  고객지원: [
+    { label: "포트폴리오", href: "/portfolio" },
+    { label: "문의하기", href: "/contact" },
+  ],
 };
 
 export function Footer() {

@@ -4,6 +4,293 @@
 
 ---
 
+## 2026-08-25 (7)
+
+### 추가 (Added)
+
+- **홈페이지 화면 쇼케이스 섹션에 이미지 5장 추가**: 사용자가 추가로 업로드한 5장은 앞서 넣은
+  3장(더미 텍스트 목업)과 달리 삼성·배달앱·"Tingle"·"LaserPecker"·"KMAC" 등 **실제로 식별
+  가능한 다른 회사의 브랜드/제품 화면**이 그대로 담겨 있어, 그대로 쓰면 "CNBIZ가 이 회사들
+  작업을 했다"는 오해를 살 수 있음을 먼저 안내. 사용자가 위험을 인지한 상태에서 "그대로
+  선명하게 장식으로 추가"를 명시적으로 선택해 진행
+  - `sharp`로 원본(800×600 PNG) 리사이즈·JPEG 압축(품질 82) 후
+    `apps/cnbiz-web/public/images/showcase-wall-{1..5}.jpg`에 저장(각 106~135KB)
+  - `apps/cnbiz-web/components/sections/ShowcaseSection.tsx` — 기존 3장(기울어진 콜라주) 아래
+    두 번째 그리드(3+2열, 회전 없이 카드형)로 5장 추가. 특정 브랜드명을 언급하는 캡션 없이
+    기존과 동일하게 일반적인 alt 텍스트만 사용(포트폴리오 사례로 표기하지 않음)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 Playwright로 8장 전체(기존 3장 + 신규 5장)가 데스크탑·
+  모바일 양쪽에서 깨짐 없이 정상 렌더링되는지 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+## 2026-08-25 (6)
+
+### 추가 (Added)
+
+- **홈페이지에 화면 쇼케이스 섹션 신규 추가**: 사용자가 업로드한 3장의 이미지(미디어/스트리밍
+  사이트·가구 쇼핑몰·푸드 브랜드 화면을 보여주는 노트북·태블릿·폰 목업 사진)를 추가해달라는
+  요청. 이미지 속 텍스트가 의미 없는 더미 텍스트로 채워져 있어 실제 CNBIZ 프로젝트 스크린샷이
+  아닌 디자인 목업/스톡 이미지로 판단, "실제 사례 없이 지어내지 않는다"는 기존 원칙에 따라
+  사용자에게 용도를 확인 — 포트폴리오 사례로 넣지 않고, 순수 장식/배경 이미지로만 쓰기로 확정
+  - `sharp`로 원본 이미지를 리사이즈·JPEG 압축(품질 78, mozjpeg) 후
+    `apps/cnbiz-web/public/images/showcase-{media,furniture,food}.jpg`에 저장(각 50~68KB,
+    CNBIZ_RULES.md 5.4 "최적화된 이미지만 포함" 준수)
+  - `apps/cnbiz-web/components/sections/ShowcaseSection.tsx`(신규) — `next/image`로 3장을
+    살짝 기울어진 카드 콜라주로 배치(호버 시 정렬), 특정 고객사·프로젝트를 지칭하지 않는
+    일반적인 카피("산업별로 다른 디지털 경험을 설계합니다")만 사용해 실제 포트폴리오 사례로
+    오인되지 않도록 함
+  - `apps/cnbiz-web/app/page.tsx` — FAQSection과 CTASection 사이에 배치, 배경 교차 순서에
+    맞춰 CTASection의 `blendFrom`을 Home 한정으로 `white`→`alt`로 조정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 데스크탑(1440px) 스크린샷으로 3장 콜라주 레이아웃·섹션 전환
+  블렌드 확인. 모바일(390px) 풀페이지 스크린샷에서 이미지 영역이 비어 보이는 현상을 발견해
+  조사한 결과, 실제 렌더링 결함이 아니라 `next/image`의 기본 지연 로딩(below-the-fold lazy
+  load)으로 인해 스크린샷 캡처 시점에 아직 로드되지 않은 것이었음을
+  `naturalWidth`(0 → 스크롤 후 390) 비교로 확인, 실제 스크롤 시 정상 로드됨을 재확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+---
+
+## 2026-08-25 (5)
+
+### 변경 (Changed)
+
+- **CNBIZ Website — 사이트 전체 CTA를 "AI 툴 판매" 느낌에서 "개발/컨설팅 업체 문의"로 재정렬**:
+  사용자가 하단 CTA 배너를 가리키며 "AI툴을 도입하는 문의 같아 개발업체가 아니구"라고 지적.
+  실제로 확인해보니 문제가 배너 하나가 아니라 구조적이었음 — 헤더의 유일한 버튼, 모바일
+  메뉴 버튼, 4개 페이지 하단 CTA 배너가 전부 외부 AI 홈페이지 제작 툴(cnbiz.ai.kr)로만
+  연결되어 있었고, 정작 실제 문의 폼이 있는 `/contact`는 헤더·푸터 어디에도 링크되어 있지
+  않았음. `lib/links.ts`에는 "모든 'start a project' CTA는 의도적으로 cnbiz.ai.kr로
+  보낸다"는 기존 설계 의도가 문서화돼 있어, 이를 뒤집는 결정이라 사용자에게 방향(문의하기를
+  주 CTA로, AI 홈페이지 제작은 보조 링크로 / 기존 유지 / 링크만 추가)을 확인 후 진행
+  - `apps/cnbiz-web/components/layout/Header.tsx` — nav에 "문의하기"(`/contact`) 추가,
+    유일한 버튼을 "AI 홈페이지 무료 제작"(외부)에서 "프로젝트 문의하기"(`/contact`)로 교체
+  - `apps/cnbiz-web/components/layout/MobileMenu.tsx` — 하단 버튼도 동일하게 `/contact`로 교체
+  - `apps/cnbiz-web/components/layout/Footer.tsx` — 고객지원 목록에 "문의하기" 추가
+  - `apps/cnbiz-web/components/sections/CTASection.tsx`(Home·About·Services·Portfolio 4개
+    페이지 공유) — 배지·제목·본문을 "AI가 홈페이지를 자동으로 제작해드립니다"에서 "프로젝트를
+    상담해보세요"로 교체, 주 버튼을 `/contact`로 변경. AI 홈페이지 제작 서비스는 버튼이 아닌
+    하단의 작은 텍스트 링크("간단한 홈페이지가 빠르게 필요하다면 ... 이용해보세요")로 축소해
+    여전히 안내하되 주 메시지를 가리지 않도록 함
+  - `apps/cnbiz-web/lib/links.ts` — "모든 CTA가 여기로 향한다"던 기존 주석을 "보조·opt-in
+    링크로만 노출한다"는 새 의도로 갱신(코드 동작을 설명하는 주석을 실제 동작과 다시 일치시킴)
+  - `HeroSection.tsx`의 2번째 버튼(AI 홈페이지 무료 제작, 보조 버튼)은 변경하지 않음 — 이미
+    "서비스 알아보기"가 주 버튼이라 문제 없는 것으로 판단, 요청 범위(하단 CTA 배너) 밖
+
+### 수정 (Fixed)
+
+- **모바일 메뉴 드로어가 뷰포트 전체가 아니라 헤더 높이(64px)로 잘려 사실상 열리지 않던
+  실제 버그 발견·수정**: 위 Header 변경을 모바일 뷰포트에서 스크린샷으로 검증하던 중,
+  햄버거 버튼을 눌러도 메뉴가 전혀 나타나지 않는 것을 재현. `getBoundingClientRect()`로
+  직접 측정한 결과 드로어의 `position: fixed; inset: 0` 요소가 실제로는 `{width:390,
+  height:64}`로만 렌더링되고 있었음 — 원인은 Header의 `backdrop-blur-sm`(backdrop-filter)이
+  CSS 스펙상 `position: fixed` 후손 요소의 containing block이 되어, 뷰포트 전체가 아니라
+  **Header 자신의 박스 크기**로 드로어를 가둬버리는 것이었다(잘 알려진 CSS 함정). Header의
+  `backdrop-blur-sm`·`MobileDrawer`의 `fixed inset-0` 둘 다 이번 세션 이전부터 있던 코드라,
+  **실제 서비스에서 지금까지 모바일 메뉴가 정상적으로 열린 적이 없었을 가능성이 높음**
+  - `packages/layout-primitives/src/MobileDrawer.tsx` — `createPortal`로 드로어를
+    `document.body`에 직접 마운트하도록 변경, Header(또는 앞으로 filter 계열 스타일을 가질
+    수 있는 다른 조상 요소)의 containing block 영향을 원천적으로 받지 않도록 함. SSR
+    안전성을 위해 `mounted` state로 클라이언트 마운트 이후에만 포탈 렌더링
+
+### 검증 (Verified)
+
+- 수정 전 실제 재현: Playwright로 모바일(390px) 뷰포트에서 햄버거 버튼 클릭 →
+  `[role="dialog"]`의 `getBoundingClientRect()`가 `{width:390, height:64}`로 헤더 높이에
+  갇혀 있음을 직접 측정해 확인(스크린샷에서도 드로어 없이 원래 페이지만 보임)
+  - `packages/layout-primitives`의 `react`만 있던 `peerDependencies`에 `react-dom`을 함께
+    추가하려 했으나, `package.json` 수정은 AGENTS.md 승인 필요 항목이라 되돌림 — npm
+    workspaces 호이스팅으로 `react-dom`은 선언 없이도 정상 resolve됨을 확인
+- 수정 후 재검증: 동일 시나리오에서 `getBoundingClientRect()`가 `{width:390, height:844}`
+  (전체 뷰포트)로 정상 확인, 스크린샷으로 4개 nav 링크 + "프로젝트 문의하기" 버튼이 흰
+  드로어 패널에 정상 표시됨을 확인
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 5개 공개 페이지 200 확인, 데스크탑 스크린샷으로 헤더
+  버튼("프로젝트 문의하기")·CTA 배너 새 문구·푸터 "문의하기" 링크가 의도대로 반영됐는지
+  확인, 콘솔 에러는 기존에 이미 문서화된 401(`/api/auth/me`, 비로그인 방문자 정상 동작)·
+  404(파비콘 미수령) 외 신규 발생 없음을 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+## 2026-08-25
+
+### 변경 (Changed)
+
+- **CNBIZ Website(cnbiz.kr) 전체 디자인 톤을 심플하고 세련되게 정리**: 페이지별 개별 수정이 아니라
+  전 페이지가 공유하는 공용 컴포넌트(`packages/ui`·`packages/layout-primitives`)를 다듬어
+  5개 공개 페이지(홈·회사소개·사업소개·포트폴리오·문의) 전체에 일관되게 반영. 색상 팔레트·
+  타이포그래피 스케일·레이아웃 그리드는 `DESIGN_SYSTEM.md`/`CNBIZ_RULES.md` 기준을 그대로
+  유지하고, 카드·버튼·프로세스 스텝의 시각적 무게감만 정제
+  - `packages/ui/src/Card.tsx` — 모든 카드에 반복되던 무거운 `shadow-md`를 옅은 틴트 섀도우
+    (`shadow-sm shadow-slate-900/5`)와 더 은은한 보더(`border-slate-200/70`)로 교체해 플랫하고
+    절제된 인상으로 정리. `transition-shadow` 추가로 호버 인터랙션이 부드럽게 이어지도록 함
+  - `packages/ui/src/Button.tsx` — Primary 버튼에 은은한 컬러 섀도우(`shadow-primary/25`)와
+    호버 시 미세한 상승감을 추가하고, 클릭 시 `active:scale-[0.98]`로 눌림 피드백을 더해 평면적으로
+    보이던 버튼에 입체감을 보강. Secondary 버튼은 호버 시 보더 색상도 함께 진해지도록 보강
+  - `apps/cnbiz-web/components/sections/{AboutProcessSection,ServiceProcessSection}.tsx` —
+    공용 `Card`를 쓰지 않고 각자 중복 마크업으로 카드를 직접 그리고 있었고, 큼직하게 흐려진
+    숫자(`text-2xl font-bold text-primary/40`)가 다소 템플릿처럼 보이던 것을 공용 `Card` 재사용 +
+    작은 원형 배지(primary 배경·흰 숫자)로 교체. `ContactProcessSection`의 기존 원형 배지
+    스타일과 통일되어 서비스 도입 프로세스·회사소개 협업 방식·문의 절차 3곳의 스텝 표기가
+    시각적으로 하나의 언어로 정리됨
+  - `apps/cnbiz-web/components/sections/ServicesOverviewSection.tsx` — 클릭 가능한 서비스 카드에
+    호버 시 미세한 상승(`-translate-y-0.5`)과 섀도우 강조를 추가해 클릭 가능함을 더 명확히 전달
+  - `apps/cnbiz-web/components/sections/FAQSection.tsx` — 아코디언 컨테이너 섀도우를 Card와
+    동일한 톤으로 맞추고, 각 질문 행에 호버 배경(`hover:bg-slate-50`)을 추가해 인터랙션 피드백
+    보강. `overflow-hidden`으로 호버 배경이 둥근 모서리 밖으로 새지 않도록 처리
+  - 색상 토큰·섹션 패딩·그리드 구조·문구는 전혀 변경하지 않음(순수 시각적 정제, 콘텐츠·정보
+    구조 무변경)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 5개 공개
+  페이지(`/`·`/about`·`/services`·`/portfolio`·`/contact`) 전부 정적 라우트로 정상 생성
+- 프로덕션 빌드(`next start`)를 로컬에 띄워 5개 페이지 전체 200 응답 확인, Playwright로
+  데스크탑(1440px)·모바일(390px) 스크린샷을 촬영해 카드 섀도우·버튼·프로세스 스텝 배지가
+  의도대로 일관되게 반영됐는지, 레이아웃이 깨지지 않았는지 육안으로 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+## 2026-08-25 (2)
+
+### 추가 (Added)
+
+- **홈페이지(`/`) 및 회사소개(`/about`) 시각 아이덴티티 보강**: 사용자가 제공한 두 레퍼런스
+  디자인(IAM 보안 솔루션 업체의 다크 그라디언트 히어로·허브형 다이어그램·제품 카드 구성 +
+  K-뉴딜 아카데미의 밝고 부드러운 글로시 카드 톤)을 검토한 뒤, 실제 로고·사례·통계 등
+  보유하지 않은 콘텐츠(파트너사 로고, 지도, 영상, SNS 갤러리)는 지어내지 않고 제외하는
+  대신, CNBIZ의 기존 색상 팔레트(blue-600/slate-900)와 실제 서비스·메시지만으로 두
+  레퍼런스의 구조적 특징(그라디언트 리본 히어로, 허브-스포크 다이어그램, 아이콘 카드,
+  큰 그라디언트 텍스트 디바이더, 강조 테두리 CTA 카드)을 재구성
+  - `apps/cnbiz-web/components/icons/ServiceIcons.tsx`(신규) — 컨설팅·AI/ML·개발·클라우드
+    4개 서비스용 인라인 SVG 아이콘(외부 아이콘 라이브러리 미사용, `aria-hidden` 적용).
+    허브 다이어그램과 서비스 카드 두 곳에서 재사용해 시각적 언어를 통일
+  - `apps/cnbiz-web/components/sections/ApproachMapSection.tsx`(신규) — 4가지 실제 서비스가
+    "CNBIZ" 허브로 모여 "고객의 지속가능한 성장"으로 이어지는 허브-스포크 다이어그램.
+    데스크탑은 좌-허브-우 가로 배치 + 점선 커넥터, 모바일은 세로 스택 + 세로 점선으로
+    자연스럽게 축소(레이아웃 붕괴 없이 반응형 처리)
+  - `apps/cnbiz-web/components/sections/BrandStatementSection.tsx`(신규) — "Digital
+    Transformation Partner" 그라디언트 텍스트 디바이더(순수 CSS `bg-clip-text`, 이미지·폰트
+    추가 없음)
+  - `apps/cnbiz-web/components/sections/HeroSection.tsx` — 기존 블러 원형 장식 위에 대각선
+    그라디언트 "리본" SVG(선형 그라디언트 + Gaussian blur 필터, 순수 벡터로 구현해 이미지
+    에셋 추가 없음)를 레이어로 추가, `lg` 이상에서만 노출해 모바일 성능·가독성에 영향 없음
+  - `apps/cnbiz-web/components/sections/CTASection.tsx` — 다크 배경 위에 테두리·글로우가 있는
+    "떠 있는 카드" 형태로 교체(레퍼런스의 강조 CTA 박스 패턴). Home·About·Services·Portfolio
+    4개 페이지가 이 컴포넌트를 공유하므로 한 번의 수정으로 전체에 반영됨
+  - `apps/cnbiz-web/components/sections/{ValuesSection,MissionVisionSection}.tsx` — 각각
+    Home·About 페이지에서 동일한 4가지 핵심가치(전문성·신뢰성·혁신성·파트너십)를 표시하던
+    기존 중복 컴포넌트 두 곳 모두에 아이콘 배지(그라디언트 원형 배경)를 추가해 일관되게 보강.
+    두 컴포넌트가 원래 콘텐츠까지 중복 구현되어 있었음을 확인했으나, 공용 컴포넌트로의 병합은
+    이번 요청 범위를 벗어난 구조 변경이라 시각적 보강만 동일하게 적용
+  - `apps/cnbiz-web/components/sections/ServicesOverviewSection.tsx` — 서비스 카드에 허브
+    다이어그램과 동일한 아이콘 배지를 추가해 개념도(다이어그램)와 상세 카드가 같은 아이콘
+    언어로 이어지도록 함
+  - `apps/cnbiz-web/app/page.tsx` — 신규 섹션 반영해 Hero → ApproachMap → Values →
+    BrandStatement → ServicesOverview → FAQ → CTA 순으로 재구성. CNBIZ_RULES.md의
+    "섹션은 white/slate-50/slate-900 배경을 교차한다" 원칙에 맞춰 각 섹션 배경을
+    dark→white→alt→white→alt→white→dark로 조정(연속된 동일 배경 없음)
+  - 파트너사 로고·지도·통계·영상·SNS 갤러리 등 실제 자료가 필요한 섹션은 추가하지 않음
+    (WBS 기준 관련 자료 TODO 상태 유지, 지어내지 않음)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 5개 공개
+  페이지 전부 정적 라우트로 정상 생성
+- 프로덕션 빌드(`next start`)를 로컬에 띄워 5개 페이지 200 응답 확인, Playwright로
+  데스크탑(1440px)·모바일(390px) 스크린샷을 촬영해 허브 다이어그램의 데스크탑 가로
+  배치·모바일 세로 스택 전환, 그라디언트 텍스트, Hero 리본 그래픽, CTA 카드, 아이콘 배지가
+  의도대로 렌더링되는지 육안 확인
+- Home 페이지의 `ValuesSection`만 아이콘을 추가했다가 About 페이지가 별도의
+  `MissionVisionSection`(동일 콘텐츠의 중복 구현)을 쓰고 있어 아이콘이 반영되지 않은 것을
+  스크린샷 비교 중 발견, 동일하게 보강해 재검증
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+## 2026-08-25 (4)
+
+### 추가 (Added)
+
+- **CNBIZ Website — 색감·전환 조화 보강 + Tailwind 스캔 범위 누락 버그 수정**: 사용자가 제공한
+  IAM 레퍼런스를 다시 언급하며 "조화롭고 이쁘다"고 평가, 어느 요소를 개선할지 3가지(섹션 간
+  그라디언트 전환·아이콘 파스텔 일러스트화·전반적 화사한 색감)를 모두 반영
+  - `packages/layout-primitives/src/Section.tsx` — `blendFrom` prop(신규) 추가. 값이 있으면
+    섹션 상단에 이전 섹션 색상에서 투명으로 옅어지는 그라디언트 오버레이를 렌더링해, 지금까지
+    white/slate-50/slate-900이 섹션마다 뚝 끊기던 경계를 부드럽게 이어지도록 함(교차 배경
+    자체는 CNBIZ_RULES.md 원칙 그대로 유지, 경계 처리만 보강). 5개 공개 페이지의 섹션
+    컴포넌트 전부(`ApproachMapSection`·`ValuesSection`·`MissionVisionSection`·
+    `BrandStatementSection`·`FAQSection`·`CompanyOverviewSection`·`AboutProcessSection`·
+    `ServicesDetailSection`·`ServiceProcessSection`·`PortfolioPlaceholderSection`·
+    `ContactProcessSection`·`ContactForm`)에 실제 앞뒤 섹션 배경에 맞는 `blendFrom` 값 적용.
+    여러 페이지에서 재사용되는 `ServicesOverviewSection`·`CTASection`은 `blendFrom`을 prop으로
+    받아 각 페이지(`app/*/page.tsx`)가 실제 이전 섹션 색상에 맞는 값을 전달하도록 배선
+  - `packages/ui/src/IconBadge.tsx`(신규) — blue/indigo/violet/cyan 4가지 파스텔 그라디언트
+    톤을 지원하는 공용 아이콘 배지 컴포넌트(다크 배경용 `onDark` variant 포함). 기존에
+    8곳 넘게 반복되던 "단색 블루 그라디언트 원형 아이콘 배경" 마크업을 대체
+  - 4대 서비스(컨설팅·AI/ML·개발·클라우드)·4대 핵심가치(전문성·신뢰성·혁신성·파트너십)에
+    각각 고유한 파스텔 톤(indigo/violet/blue/cyan)을 부여하고, `HeroSection`(Core Services
+    패널)·`ApproachMapSection`(허브 다이어그램)·`ServicesOverviewSection`(서비스 카드)·
+    `ValuesSection`/`MissionVisionSection`(핵심가치 카드) 전체에서 동일하게 재사용 — 같은
+    서비스는 사이트 어디서 보여도 항상 같은 색으로 나타나 "색으로 구분되는 하나의 체계"가 됨
+  - `BrandStatementSection`의 그라디언트 텍스트에 `indigo-500` 중간 색상 추가, `CTASection`·
+    `HeroSection`의 배경 블러 장식에 인디고 톤을 살짝 섞어 다크 섹션에도 같은 색 언어가
+    이어지도록 보강
+
+### 수정 (Fixed)
+
+- **`packages/ui`·`packages/layout-primitives` 소스가 Tailwind 스캔 대상에서 완전히
+  빠져 있던 버그 발견·수정**: 이번 작업 중 섹션 전환 그라디언트가 브라우저에 전혀 렌더링되지
+  않는 것을 실제로 재현(DOM에 클래스는 붙어 있는데 `getComputedStyle().background`가
+  빈 값)해 원인을 추적한 결과, `apps/cnbiz-web/app/globals.css`가 Tailwind v4 콘텐츠 스캔
+  경로에 워크스페이스 패키지(`packages/ui`, `packages/layout-primitives`)를 전혀 포함하고
+  있지 않았음을 확인 — **해당 패키지에서만 쓰이고 `apps/cnbiz-web` 소스에 동일 문자열이
+  우연히 존재하지 않는 모든 Tailwind 클래스는 이번 세션 첫 커밋(`Button.tsx`의
+  `active:scale-[0.98]` 등)부터 지금까지 단 한 번도 실제 CSS로 생성된 적이 없었다**(빌드는
+  통과하지만 스타일이 조용히 무시되는 종류의 결함이라 `tsc`/`lint`/`build` 어느 것으로도
+  잡히지 않고, 이전 스크린샷 검증에서도 다른 유틸리티 클래스(`shadow-sm` 등 앱 소스에도
+  이미 존재하는 흔한 클래스)가 우연히 정상 렌더링되어 눈에 띄지 않았던 것으로 확인)
+  - `apps/cnbiz-web/app/globals.css` — `@source "../../../packages/**/*.{ts,tsx}";` 추가해
+    워크스페이스 패키지 전체를 Tailwind 콘텐츠 스캔 대상에 명시적으로 포함
+
+### 검증 (Verified)
+
+- 수정 전 실제 재현: `active:scale-[0.98]`(`Button.tsx`, 이번 세션 첫 커밋에서 추가)·
+  `from-slate-900`(신규 blend 오버레이)·`indigo-300`(신규 `IconBadge`) 등 패키지 전용
+  클래스가 빌드된 CSS 번들(`.next/static/chunks/*.css`)에 단 하나도 존재하지 않음을
+  `grep`으로 직접 확인
+- `@source` 추가 후 `.next` 삭제 → 클린 재빌드 → 동일 클래스들이 CSS 번들에 정상 생성됨을
+  재확인(`from-slate-900`·`from-white`·`indigo-300`·`active\:scale-\[0\.98\]` 전부 발견)
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 5개 공개 페이지 전부 200 확인, Playwright로 데스크탑(1440px)·
+  모바일(390px) 스크린샷 촬영 — 섹션 경계가 실제로 부드럽게 블렌드되는지, 4대 서비스·4대
+  핵심가치 아이콘이 페이지 전체에서 일관된 색으로 나타나는지, 레이아웃 깨짐이 없는지 육안 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
+## 2026-08-25 (3)
+
+### 수정 (Fixed)
+
+- **홈페이지 메인 배너(Hero) 우측이 허전해 보인다는 사용자 피드백 반영**: 텍스트 블록이
+  왼쪽에만 있고 데스크탑 화면의 오른쪽 절반이 배경 장식(블러·리본)만 있어 비어 보이던 것을,
+  실제 콘텐츠로 채운 우측 글래스 패널로 보강. 새 사실이나 수치를 지어내지 않고 이미 확정된
+  정보만 재사용(4대 핵심 서비스는 `ServicesOverviewSection`과 동일한 목록·아이콘, "영업일
+  기준 24시간 이내 답변"은 `ContactHeroSection`에 이미 있던 문구를 그대로 재사용)
+  - `apps/cnbiz-web/components/sections/HeroSection.tsx` — 좌측 텍스트 + 우측 "Core
+    Services" 글래스 카드(반투명 배경·블러·테두리, 4개 서비스 아이콘 타일 2×2 + 하단 응답
+    시간 안내)로 구성된 2단 그리드로 재구성. 우측 패널은 `lg` 이상에서만 노출(`hidden
+    lg:block`)해 모바일 레이아웃은 기존과 동일하게 유지
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 Playwright로 데스크탑(1440px)·모바일(390px) 스크린샷 확인 —
+  데스크탑은 우측 패널이 정상 렌더링되어 여백이 채워짐을 확인, 모바일은 패널이 숨겨지고
+  기존 레이아웃이 그대로 유지됨을 확인(회귀 없음)
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
 ## 2026-08-24 (13)
 
 ### 추가 (Added)

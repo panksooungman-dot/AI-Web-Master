@@ -28,10 +28,10 @@ export default function ServicesPage() {
   return (
     <>
       <ServicesHeroSection />
-      <ServicesOverviewSection />
+      <ServicesOverviewSection blendFrom="dark" />
       <ServicesDetailSection />
       <ServiceProcessSection />
-      <CTASection />
+      <CTASection blendFrom="alt" />
     </>
   );
 }

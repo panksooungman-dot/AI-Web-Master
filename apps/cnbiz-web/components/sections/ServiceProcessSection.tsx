@@ -1,4 +1,5 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
+import { Card } from "@cnbiz/ui";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 const steps = [
@@ -11,7 +12,11 @@ const steps = [
 
 export function ServiceProcessSection() {
   return (
-    <Section {...componentMarker("ServiceProcessSection", "components/sections/ServiceProcessSection.tsx", "도입 프로세스")} background="alt">
+    <Section
+      {...componentMarker("ServiceProcessSection", "components/sections/ServiceProcessSection.tsx", "도입 프로세스")}
+      background="alt"
+      blendFrom="white"
+    >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">
@@ -24,11 +29,13 @@ export function ServiceProcessSection() {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
           {steps.map((item) => (
-            <div key={item.step} className="rounded-xl border border-slate-100 bg-white p-6 shadow-md">
-              <p className="text-2xl font-bold text-primary/40">{item.step}</p>
-              <h3 className="mt-3 font-bold text-slate-900">{item.title}</h3>
+            <Card key={item.step}>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+                {item.step}
+              </div>
+              <h3 className="mt-4 font-bold text-slate-900">{item.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.desc}</p>
-            </div>
+            </Card>
           ))}
         </div>
       </Container>

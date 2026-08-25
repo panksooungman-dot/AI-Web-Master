@@ -36,7 +36,12 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <Section {...componentMarker("FAQSection", "components/sections/FAQSection.tsx", "자주 묻는 질문")} background="white" id="faq">
+    <Section
+      {...componentMarker("FAQSection", "components/sections/FAQSection.tsx", "자주 묻는 질문")}
+      background="white"
+      blendFrom="alt"
+      id="faq"
+    >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">FAQ</p>
@@ -45,7 +50,7 @@ export function FAQSection() {
           </h2>
         </div>
 
-        <div className="mx-auto max-w-3xl divide-y divide-slate-100 rounded-xl border border-slate-100 shadow-md">
+        <div className="mx-auto max-w-3xl divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-sm shadow-slate-900/5">
           {faqs.map((faq, index) => {
             const isOpen = openIndex === index;
             return (
@@ -55,7 +60,7 @@ export function FAQSection() {
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${index}`}
-                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
+                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-slate-50"
                 >
                   <span className="font-semibold text-slate-900">{faq.question}</span>
                   <svg

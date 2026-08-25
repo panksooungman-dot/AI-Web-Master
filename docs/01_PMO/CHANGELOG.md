@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-08-25
+
+### 변경 (Changed)
+
+- **CNBIZ Website(cnbiz.kr) 전체 디자인 톤을 심플하고 세련되게 정리**: 페이지별 개별 수정이 아니라
+  전 페이지가 공유하는 공용 컴포넌트(`packages/ui`·`packages/layout-primitives`)를 다듬어
+  5개 공개 페이지(홈·회사소개·사업소개·포트폴리오·문의) 전체에 일관되게 반영. 색상 팔레트·
+  타이포그래피 스케일·레이아웃 그리드는 `DESIGN_SYSTEM.md`/`CNBIZ_RULES.md` 기준을 그대로
+  유지하고, 카드·버튼·프로세스 스텝의 시각적 무게감만 정제
+  - `packages/ui/src/Card.tsx` — 모든 카드에 반복되던 무거운 `shadow-md`를 옅은 틴트 섀도우
+    (`shadow-sm shadow-slate-900/5`)와 더 은은한 보더(`border-slate-200/70`)로 교체해 플랫하고
+    절제된 인상으로 정리. `transition-shadow` 추가로 호버 인터랙션이 부드럽게 이어지도록 함
+  - `packages/ui/src/Button.tsx` — Primary 버튼에 은은한 컬러 섀도우(`shadow-primary/25`)와
+    호버 시 미세한 상승감을 추가하고, 클릭 시 `active:scale-[0.98]`로 눌림 피드백을 더해 평면적으로
+    보이던 버튼에 입체감을 보강. Secondary 버튼은 호버 시 보더 색상도 함께 진해지도록 보강
+  - `apps/cnbiz-web/components/sections/{AboutProcessSection,ServiceProcessSection}.tsx` —
+    공용 `Card`를 쓰지 않고 각자 중복 마크업으로 카드를 직접 그리고 있었고, 큼직하게 흐려진
+    숫자(`text-2xl font-bold text-primary/40`)가 다소 템플릿처럼 보이던 것을 공용 `Card` 재사용 +
+    작은 원형 배지(primary 배경·흰 숫자)로 교체. `ContactProcessSection`의 기존 원형 배지
+    스타일과 통일되어 서비스 도입 프로세스·회사소개 협업 방식·문의 절차 3곳의 스텝 표기가
+    시각적으로 하나의 언어로 정리됨
+  - `apps/cnbiz-web/components/sections/ServicesOverviewSection.tsx` — 클릭 가능한 서비스 카드에
+    호버 시 미세한 상승(`-translate-y-0.5`)과 섀도우 강조를 추가해 클릭 가능함을 더 명확히 전달
+  - `apps/cnbiz-web/components/sections/FAQSection.tsx` — 아코디언 컨테이너 섀도우를 Card와
+    동일한 톤으로 맞추고, 각 질문 행에 호버 배경(`hover:bg-slate-50`)을 추가해 인터랙션 피드백
+    보강. `overflow-hidden`으로 호버 배경이 둥근 모서리 밖으로 새지 않도록 처리
+  - 색상 토큰·섹션 패딩·그리드 구조·문구는 전혀 변경하지 않음(순수 시각적 정제, 콘텐츠·정보
+    구조 무변경)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 5개 공개
+  페이지(`/`·`/about`·`/services`·`/portfolio`·`/contact`) 전부 정적 라우트로 정상 생성
+- 프로덕션 빌드(`next start`)를 로컬에 띄워 5개 페이지 전체 200 응답 확인, Playwright로
+  데스크탑(1440px)·모바일(390px) 스크린샷을 촬영해 카드 섀도우·버튼·프로세스 스텝 배지가
+  의도대로 일관되게 반영됐는지, 레이아웃이 깨지지 않았는지 육안으로 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
 ## 2026-08-24 (13)
 
 ### 추가 (Added)

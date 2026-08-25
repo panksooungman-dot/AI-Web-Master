@@ -38,7 +38,7 @@ export function ServicesOverviewSection() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {services.map((service) => (
             <Link key={service.href} href={service.href} className="group block">
-              <Card className="flex h-full flex-col transition-colors group-hover:border-primary/30">
+              <Card className="flex h-full flex-col transition-all group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-md">
                 <h3 className="mb-2 text-lg font-bold text-slate-900">{service.title}</h3>
                 <p className="flex-1 text-sm leading-relaxed text-slate-600">{service.desc}</p>
                 <p className="mt-5 flex items-center gap-1 text-sm font-semibold text-primary transition-all group-hover:gap-2">

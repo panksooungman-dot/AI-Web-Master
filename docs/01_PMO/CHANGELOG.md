@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-08-25 (10)
+
+### 추가 (Added)
+
+- **메인 히어로 배경에 랩탑 목업 이미지를 아주 옅게 텍스처로 추가**: 사용자가 방금 화면
+  쇼케이스에서 제외한 랩탑("Concert") 목업 이미지를 다시 업로드하며 "이 이미지를 메인
+  배너 이미지로 하면 어때?"라고 질문. 이미지를 전면에 크게 내세우면 실제 서비스 정보를
+  담은 "Core Services" 패널(빈 배너 지적을 해결하려 넣은 실콘텐츠)을 밀어내거나 가릴
+  위험이 있다고 판단해, 전면 배치 대신 "배경에 아주 옅게 깔아 서비스 패널과 함께 쓰는"
+  절충안을 제안했고 사용자가 "만들어줘"로 승인
+  - `sharp`로 원본을 1400×885px·89KB로 리사이즈·압축(품질 80, mozjpeg) 후
+    `apps/cnbiz-web/public/images/hero-showcase.jpg`에 저장
+  - `apps/cnbiz-web/components/sections/HeroSection.tsx` — 기존 장식용
+    `pointer-events-none absolute inset-0` 레이어 안에 `next/image`로 이미지를 추가,
+    `opacity-[0.14]`로 아주 옅게 처리하고 `radial-gradient` 기반 CSS `mask-image`로
+    가장자리를 부드럽게 페이드아웃시켜 다크 배경(`slate-900`)과 각진 경계 없이 자연스럽게
+    섞이도록 함(복잡한 콤마 포함 그라디언트라 Tailwind 임의 클래스 대신 인라인
+    `style={{ maskImage, WebkitMaskImage }}`로 직접 지정 — 이번 세션 초반에 발견된
+    Tailwind 패키지 스캔 누락 버그를 겪은 뒤 위험을 줄이기 위한 선택). 기존 다른 장식
+    요소와 동일하게 `lg:block`으로 데스크탑에서만 노출, 텍스트·Core Services 패널·CTA
+    버튼은 전혀 변경하지 않음
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 Playwright로 데스크탑(1440px) 스크린샷 확인 — 이미지가
+  우측 상단에 은은한 텍스처로만 보이고 텍스트·Core Services 패널 가독성에 영향 없음을
+  확인, 모바일(390px)에서는 `lg:block`으로 정상 숨겨져 레이아웃 영향이 없음을 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
 ## 2026-08-25 (9)
 
 ### 변경 (Changed)

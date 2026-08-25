@@ -84,7 +84,7 @@ export function ContactForm() {
 
   if (status === "success") {
     return (
-      <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx", "문의 폼")}>
+      <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx", "문의 폼")} blendFrom="alt">
         <Container className="max-w-2xl text-center">
           <h2 className="text-2xl font-bold text-slate-900">문의가 접수되었습니다</h2>
           <p className="mt-3 text-base text-slate-600">
@@ -100,7 +100,7 @@ export function ContactForm() {
   }
 
   return (
-    <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx", "문의 폼")}>
+    <Section {...componentMarker("ContactForm", "components/sections/ContactForm.tsx", "문의 폼")} blendFrom="alt">
       <Container className="max-w-2xl">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-8">
           <div className="flex flex-col gap-5">

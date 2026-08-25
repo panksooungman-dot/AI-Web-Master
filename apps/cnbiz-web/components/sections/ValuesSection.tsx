@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 import { Container, Section } from "@cnbiz/layout-primitives";
-import { Card } from "@cnbiz/ui";
+import { Card, IconBadge } from "@cnbiz/ui";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 function StarIcon(props: SVGProps<SVGSVGElement>) {
@@ -45,15 +45,20 @@ function PartnershipIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 const values = [
-  { icon: StarIcon, title: "전문성", desc: "각 분야 최고 전문가들이 검증된 방법론으로 문제를 해결합니다." },
-  { icon: ShieldCheckIcon, title: "신뢰성", desc: "엄격한 품질 기준과 검증된 프로세스로 약속한 결과를 반드시 전달합니다." },
-  { icon: BoltIcon, title: "혁신성", desc: "최신 기술을 선제적으로 도입해 고객의 경쟁력을 한 단계 높입니다." },
-  { icon: PartnershipIcon, title: "파트너십", desc: "단기 프로젝트를 넘어 고객과 함께 성장하는 관계를 지향합니다." },
+  { icon: StarIcon, tone: "violet" as const, title: "전문성", desc: "각 분야 최고 전문가들이 검증된 방법론으로 문제를 해결합니다." },
+  { icon: ShieldCheckIcon, tone: "blue" as const, title: "신뢰성", desc: "엄격한 품질 기준과 검증된 프로세스로 약속한 결과를 반드시 전달합니다." },
+  { icon: BoltIcon, tone: "cyan" as const, title: "혁신성", desc: "최신 기술을 선제적으로 도입해 고객의 경쟁력을 한 단계 높입니다." },
+  { icon: PartnershipIcon, tone: "indigo" as const, title: "파트너십", desc: "단기 프로젝트를 넘어 고객과 함께 성장하는 관계를 지향합니다." },
 ];
 
 export function ValuesSection() {
   return (
-    <Section {...componentMarker("ValuesSection", "components/sections/ValuesSection.tsx", "핵심 가치")} background="alt" id="values">
+    <Section
+      {...componentMarker("ValuesSection", "components/sections/ValuesSection.tsx", "핵심 가치")}
+      background="alt"
+      blendFrom="white"
+      id="values"
+    >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">
@@ -87,9 +92,9 @@ export function ValuesSection() {
               key={item.title}
               className="flex flex-col items-center rounded-xl border border-primary/10 bg-gradient-to-b from-primary-light/10 via-white to-white p-6 text-center shadow-sm shadow-slate-900/5"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary-light/30 to-primary/15 text-primary">
+              <IconBadge tone={item.tone} size="lg">
                 <item.icon className="h-6 w-6" />
-              </div>
+              </IconBadge>
               <h3 className="mt-4 font-semibold text-slate-900">{item.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.desc}</p>
             </div>

@@ -13,7 +13,12 @@ const overview = [
 
 export function CompanyOverviewSection() {
   return (
-    <Section {...componentMarker("CompanyOverviewSection", "components/sections/CompanyOverviewSection.tsx", "회사 개요")} background="white" id="overview">
+    <Section
+      {...componentMarker("CompanyOverviewSection", "components/sections/CompanyOverviewSection.tsx", "회사 개요")}
+      background="white"
+      blendFrom="dark"
+      id="overview"
+    >
       <Container>
         <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
           <div>

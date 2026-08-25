@@ -1,12 +1,13 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
+import { IconBadge } from "@cnbiz/ui";
 import { AiIcon, CloudIcon, ConsultingIcon, DevelopmentIcon, TrendingUpIcon } from "@/components/icons/ServiceIcons";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 const inputs = [
-  { icon: ConsultingIcon, label: "디지털 전환 컨설팅" },
-  { icon: AiIcon, label: "AI / ML 솔루션" },
-  { icon: DevelopmentIcon, label: "엔터프라이즈 개발" },
-  { icon: CloudIcon, label: "클라우드 인프라" },
+  { icon: ConsultingIcon, label: "디지털 전환 컨설팅", tone: "indigo" as const },
+  { icon: AiIcon, label: "AI / ML 솔루션", tone: "violet" as const },
+  { icon: DevelopmentIcon, label: "엔터프라이즈 개발", tone: "blue" as const },
+  { icon: CloudIcon, label: "클라우드 인프라", tone: "cyan" as const },
 ];
 
 export function ApproachMapSection() {
@@ -14,6 +15,7 @@ export function ApproachMapSection() {
     <Section
       {...componentMarker("ApproachMapSection", "components/sections/ApproachMapSection.tsx", "접근 방식 다이어그램")}
       background="white"
+      blendFrom="dark"
     >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
@@ -32,9 +34,9 @@ export function ApproachMapSection() {
                 key={item.label}
                 className="flex flex-col items-center gap-3 rounded-xl border border-slate-200/70 bg-white p-5 text-center shadow-sm shadow-slate-900/5"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-primary-light/25 to-primary/15 text-primary">
+                <IconBadge tone={item.tone}>
                   <item.icon className="h-5 w-5" />
-                </div>
+                </IconBadge>
                 <p className="text-sm font-semibold text-slate-900">{item.label}</p>
               </div>
             ))}
@@ -48,7 +50,7 @@ export function ApproachMapSection() {
           </div>
 
           <div className="flex shrink-0 flex-col items-center justify-center gap-3">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-lg font-bold text-white shadow-md shadow-primary/25">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-primary via-indigo-500 to-primary-dark text-lg font-bold text-white shadow-md shadow-primary/25">
               CNBIZ
             </div>
           </div>

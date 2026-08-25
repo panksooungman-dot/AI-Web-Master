@@ -97,6 +97,65 @@
   스크린샷 비교 중 발견, 동일하게 보강해 재검증
 - 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
 
+## 2026-08-25 (4)
+
+### 추가 (Added)
+
+- **CNBIZ Website — 색감·전환 조화 보강 + Tailwind 스캔 범위 누락 버그 수정**: 사용자가 제공한
+  IAM 레퍼런스를 다시 언급하며 "조화롭고 이쁘다"고 평가, 어느 요소를 개선할지 3가지(섹션 간
+  그라디언트 전환·아이콘 파스텔 일러스트화·전반적 화사한 색감)를 모두 반영
+  - `packages/layout-primitives/src/Section.tsx` — `blendFrom` prop(신규) 추가. 값이 있으면
+    섹션 상단에 이전 섹션 색상에서 투명으로 옅어지는 그라디언트 오버레이를 렌더링해, 지금까지
+    white/slate-50/slate-900이 섹션마다 뚝 끊기던 경계를 부드럽게 이어지도록 함(교차 배경
+    자체는 CNBIZ_RULES.md 원칙 그대로 유지, 경계 처리만 보강). 5개 공개 페이지의 섹션
+    컴포넌트 전부(`ApproachMapSection`·`ValuesSection`·`MissionVisionSection`·
+    `BrandStatementSection`·`FAQSection`·`CompanyOverviewSection`·`AboutProcessSection`·
+    `ServicesDetailSection`·`ServiceProcessSection`·`PortfolioPlaceholderSection`·
+    `ContactProcessSection`·`ContactForm`)에 실제 앞뒤 섹션 배경에 맞는 `blendFrom` 값 적용.
+    여러 페이지에서 재사용되는 `ServicesOverviewSection`·`CTASection`은 `blendFrom`을 prop으로
+    받아 각 페이지(`app/*/page.tsx`)가 실제 이전 섹션 색상에 맞는 값을 전달하도록 배선
+  - `packages/ui/src/IconBadge.tsx`(신규) — blue/indigo/violet/cyan 4가지 파스텔 그라디언트
+    톤을 지원하는 공용 아이콘 배지 컴포넌트(다크 배경용 `onDark` variant 포함). 기존에
+    8곳 넘게 반복되던 "단색 블루 그라디언트 원형 아이콘 배경" 마크업을 대체
+  - 4대 서비스(컨설팅·AI/ML·개발·클라우드)·4대 핵심가치(전문성·신뢰성·혁신성·파트너십)에
+    각각 고유한 파스텔 톤(indigo/violet/blue/cyan)을 부여하고, `HeroSection`(Core Services
+    패널)·`ApproachMapSection`(허브 다이어그램)·`ServicesOverviewSection`(서비스 카드)·
+    `ValuesSection`/`MissionVisionSection`(핵심가치 카드) 전체에서 동일하게 재사용 — 같은
+    서비스는 사이트 어디서 보여도 항상 같은 색으로 나타나 "색으로 구분되는 하나의 체계"가 됨
+  - `BrandStatementSection`의 그라디언트 텍스트에 `indigo-500` 중간 색상 추가, `CTASection`·
+    `HeroSection`의 배경 블러 장식에 인디고 톤을 살짝 섞어 다크 섹션에도 같은 색 언어가
+    이어지도록 보강
+
+### 수정 (Fixed)
+
+- **`packages/ui`·`packages/layout-primitives` 소스가 Tailwind 스캔 대상에서 완전히
+  빠져 있던 버그 발견·수정**: 이번 작업 중 섹션 전환 그라디언트가 브라우저에 전혀 렌더링되지
+  않는 것을 실제로 재현(DOM에 클래스는 붙어 있는데 `getComputedStyle().background`가
+  빈 값)해 원인을 추적한 결과, `apps/cnbiz-web/app/globals.css`가 Tailwind v4 콘텐츠 스캔
+  경로에 워크스페이스 패키지(`packages/ui`, `packages/layout-primitives`)를 전혀 포함하고
+  있지 않았음을 확인 — **해당 패키지에서만 쓰이고 `apps/cnbiz-web` 소스에 동일 문자열이
+  우연히 존재하지 않는 모든 Tailwind 클래스는 이번 세션 첫 커밋(`Button.tsx`의
+  `active:scale-[0.98]` 등)부터 지금까지 단 한 번도 실제 CSS로 생성된 적이 없었다**(빌드는
+  통과하지만 스타일이 조용히 무시되는 종류의 결함이라 `tsc`/`lint`/`build` 어느 것으로도
+  잡히지 않고, 이전 스크린샷 검증에서도 다른 유틸리티 클래스(`shadow-sm` 등 앱 소스에도
+  이미 존재하는 흔한 클래스)가 우연히 정상 렌더링되어 눈에 띄지 않았던 것으로 확인)
+  - `apps/cnbiz-web/app/globals.css` — `@source "../../../packages/**/*.{ts,tsx}";` 추가해
+    워크스페이스 패키지 전체를 Tailwind 콘텐츠 스캔 대상에 명시적으로 포함
+
+### 검증 (Verified)
+
+- 수정 전 실제 재현: `active:scale-[0.98]`(`Button.tsx`, 이번 세션 첫 커밋에서 추가)·
+  `from-slate-900`(신규 blend 오버레이)·`indigo-300`(신규 `IconBadge`) 등 패키지 전용
+  클래스가 빌드된 CSS 번들(`.next/static/chunks/*.css`)에 단 하나도 존재하지 않음을
+  `grep`으로 직접 확인
+- `@source` 추가 후 `.next` 삭제 → 클린 재빌드 → 동일 클래스들이 CSS 번들에 정상 생성됨을
+  재확인(`from-slate-900`·`from-white`·`indigo-300`·`active\:scale-\[0\.98\]` 전부 발견)
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- 프로덕션 빌드를 로컬에 띄워 5개 공개 페이지 전부 200 확인, Playwright로 데스크탑(1440px)·
+  모바일(390px) 스크린샷 촬영 — 섹션 경계가 실제로 부드럽게 블렌드되는지, 4대 서비스·4대
+  핵심가치 아이콘이 페이지 전체에서 일관된 색으로 나타나는지, 레이아웃 깨짐이 없는지 육안 확인
+- 검증에 사용한 프로덕션 서버·스크린샷 파일은 검증 후 정리(저장소에 포함되지 않음)
+
 ## 2026-08-25 (3)
 
 ### 수정 (Fixed)

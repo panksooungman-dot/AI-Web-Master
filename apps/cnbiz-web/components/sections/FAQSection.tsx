@@ -36,7 +36,12 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <Section {...componentMarker("FAQSection", "components/sections/FAQSection.tsx", "자주 묻는 질문")} background="white" id="faq">
+    <Section
+      {...componentMarker("FAQSection", "components/sections/FAQSection.tsx", "자주 묻는 질문")}
+      background="white"
+      blendFrom="alt"
+      id="faq"
+    >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">FAQ</p>

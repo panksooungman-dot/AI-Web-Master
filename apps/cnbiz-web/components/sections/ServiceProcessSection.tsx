@@ -12,7 +12,11 @@ const steps = [
 
 export function ServiceProcessSection() {
   return (
-    <Section {...componentMarker("ServiceProcessSection", "components/sections/ServiceProcessSection.tsx", "도입 프로세스")} background="alt">
+    <Section
+      {...componentMarker("ServiceProcessSection", "components/sections/ServiceProcessSection.tsx", "도입 프로세스")}
+      background="alt"
+      blendFrom="white"
+    >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

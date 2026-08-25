@@ -13,9 +13,9 @@ export default function Home() {
       <ApproachMapSection />
       <ValuesSection />
       <BrandStatementSection />
-      <ServicesOverviewSection />
+      <ServicesOverviewSection blendFrom="white" />
       <FAQSection />
-      <CTASection />
+      <CTASection blendFrom="white" />
     </>
   );
 }

@@ -31,7 +31,11 @@ const services = [
 
 export function ServicesDetailSection() {
   return (
-    <Section {...componentMarker("ServicesDetailSection", "components/sections/ServicesDetailSection.tsx", "서비스 상세")} background="white">
+    <Section
+      {...componentMarker("ServicesDetailSection", "components/sections/ServicesDetailSection.tsx", "서비스 상세")}
+      background="white"
+      blendFrom="alt"
+    >
       <Container>
         <div className="space-y-8">
           {services.map((service) => (

@@ -4,3 +4,5 @@ export { Input } from "./Input";
 export { Textarea } from "./Textarea";
 export { Select } from "./Select";
 export { Card } from "./Card";
+export { IconBadge } from "./IconBadge";
+export type { IconBadgeTone, IconBadgeSize } from "./IconBadge";

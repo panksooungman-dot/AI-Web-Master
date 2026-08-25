@@ -6,10 +6,11 @@ export function BrandStatementSection() {
     <Section
       {...componentMarker("BrandStatementSection", "components/sections/BrandStatementSection.tsx", "브랜드 스테이트먼트")}
       background="white"
+      blendFrom="alt"
       className="py-16 sm:py-20"
     >
       <Container className="text-center">
-        <p className="mx-auto max-w-3xl bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-3xl font-bold leading-tight tracking-tight text-transparent sm:text-4xl lg:text-5xl">
+        <p className="mx-auto max-w-3xl bg-gradient-to-r from-primary via-indigo-500 to-primary-light bg-clip-text text-3xl font-bold leading-tight tracking-tight text-transparent sm:text-4xl lg:text-5xl">
           Digital Transformation Partner
         </p>
         <p className="mx-auto mt-4 max-w-xl text-sm text-slate-500">

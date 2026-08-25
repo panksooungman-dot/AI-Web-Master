@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@cnbiz/design-system/theme.css";
+@source "../../../packages/**/*.{ts,tsx}";
 
 body {
   background: var(--background);

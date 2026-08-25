@@ -9,7 +9,11 @@ const placeholders = [
 
 export function PortfolioPlaceholderSection() {
   return (
-    <Section {...componentMarker("PortfolioPlaceholderSection", "components/sections/PortfolioPlaceholderSection.tsx", "포트폴리오 준비중")} background="white">
+    <Section
+      {...componentMarker("PortfolioPlaceholderSection", "components/sections/PortfolioPlaceholderSection.tsx", "포트폴리오 준비중")}
+      background="white"
+      blendFrom="dark"
+    >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">

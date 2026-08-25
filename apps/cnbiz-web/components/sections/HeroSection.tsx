@@ -1,14 +1,14 @@
 import { Container, Section } from "@cnbiz/layout-primitives";
-import { LinkButton } from "@cnbiz/ui";
+import { IconBadge, LinkButton } from "@cnbiz/ui";
 import { AiIcon, CloudIcon, ConsultingIcon, DevelopmentIcon } from "@/components/icons/ServiceIcons";
 import { CNBIZ_AI_URL } from "@/lib/links";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 const services = [
-  { icon: ConsultingIcon, label: "디지털 전환 컨설팅" },
-  { icon: AiIcon, label: "AI / ML 솔루션" },
-  { icon: DevelopmentIcon, label: "엔터프라이즈 개발" },
-  { icon: CloudIcon, label: "클라우드 인프라" },
+  { icon: ConsultingIcon, label: "디지털 전환 컨설팅", tone: "indigo" as const },
+  { icon: AiIcon, label: "AI / ML 솔루션", tone: "violet" as const },
+  { icon: DevelopmentIcon, label: "엔터프라이즈 개발", tone: "blue" as const },
+  { icon: CloudIcon, label: "클라우드 인프라", tone: "cyan" as const },
 ];
 
 export function HeroSection() {
@@ -16,7 +16,7 @@ export function HeroSection() {
     <Section {...componentMarker("HeroSection", "components/sections/HeroSection.tsx", "메인 히어로")} background="dark" className="relative overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-48 -right-48 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -bottom-48 -left-48 h-96 w-96 rounded-full bg-primary-light/10 blur-3xl" />
+        <div className="absolute -bottom-48 -left-48 h-96 w-96 rounded-full bg-gradient-to-tr from-violet-500/10 to-primary-light/10 blur-3xl" />
         <svg
           aria-hidden
           className="absolute -right-16 top-0 hidden h-full w-[480px] lg:block"
@@ -98,9 +98,9 @@ export function HeroSection() {
                     key={service.label}
                     className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-primary-light/40"
                   >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-light/15 text-primary-light">
+                    <IconBadge tone={service.tone} size="sm" onDark>
                       <service.icon className="h-5 w-5" />
-                    </div>
+                    </IconBadge>
                     <p className="text-sm font-semibold text-white">{service.label}</p>
                   </div>
                 ))}

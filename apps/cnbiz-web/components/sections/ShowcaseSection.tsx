@@ -20,6 +20,14 @@ const showcases = [
   },
 ];
 
+const galleryWall = [
+  { src: "/images/showcase-wall-1.jpg", alt: "다양한 앱·이커머스 화면 모음 1" },
+  { src: "/images/showcase-wall-2.jpg", alt: "다양한 앱·이커머스 화면 모음 2" },
+  { src: "/images/showcase-wall-3.jpg", alt: "다양한 브랜드 화면 모음" },
+  { src: "/images/showcase-wall-4.jpg", alt: "다양한 웹사이트 화면 모음 1" },
+  { src: "/images/showcase-wall-5.jpg", alt: "다양한 웹사이트 화면 모음 2" },
+];
+
 export function ShowcaseSection() {
   return (
     <Section
@@ -52,6 +60,23 @@ export function ShowcaseSection() {
                 fill
                 className="object-cover"
                 sizes="(min-width: 640px) 33vw, 100vw"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mx-auto mt-8 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {galleryWall.map((item) => (
+            <div
+              key={item.src}
+              className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-sm shadow-slate-900/5 transition-transform duration-300 hover:scale-[1.02]"
+            >
+              <Image
+                src={item.src}
+                alt={item.alt}
+                fill
+                className="object-cover"
+                sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               />
             </div>
           ))}

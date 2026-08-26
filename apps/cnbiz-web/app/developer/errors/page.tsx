@@ -115,18 +115,18 @@ export default function ErrorsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {entries.map((entry) => (
-            <Card key={entry.id} className="flex flex-col sm:flex-row sm:items-start gap-3">
-              <span className="font-mono text-xs text-gray-500 w-44 shrink-0">
-                {new Date(entry.timestamp).toLocaleString()}
-              </span>
+            <Card key={entry.id} className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-xs text-gray-500">
+                  {new Date(entry.timestamp).toLocaleString()}
+                </span>
 
-              <Badge tone="danger" className="w-40 text-center shrink-0">
-                {ACTION_LABELS[entry.action]}
-              </Badge>
+                <Badge tone="danger">{ACTION_LABELS[entry.action]}</Badge>
 
-              <span className="text-xs text-gray-400 w-48 shrink-0 truncate">{entry.actor ?? "-"}</span>
+                <span className="text-xs text-gray-400 truncate max-w-[12rem]">{entry.actor ?? "-"}</span>
+              </div>
 
-              <p className="flex-1 text-sm text-red-300 break-all">{entry.detail}</p>
+              <p className="text-sm text-red-300 break-words">{entry.detail}</p>
             </Card>
           ))}
         </div>

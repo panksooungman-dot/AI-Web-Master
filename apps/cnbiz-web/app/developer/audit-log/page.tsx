@@ -115,45 +115,11 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "inquiry.analyze": "purple",
 };
 
-const FILTERS: ("All" | AuditAction)[] = [
-  "All",
-  "auth.login",
-  "auth.logout",
-  "marketplace.publish",
-  "marketplace.install",
-  "marketplace.remove",
-  "website.generate",
-  "ai.task",
-  "build.run",
-  "design.generate",
-  "design.storyboard.generate",
-  "design.wireframe.generate",
-  "design.prototype.generate",
-  "design.claude.generate",
-  "design.review.create",
-  "design.review.comment",
-  "design.review.approve",
-  "design.review.reject",
-  "design.review.revision",
-  "design.figma.import",
-  "design.figma.export",
-  "design.sync.start",
-  "design.sync.complete",
-  "design.sync.rollback",
-  "design.sync.conflict",
-  "design.website.build",
-  "deployment.github.create_repo",
-  "deployment.git.commit_push",
-  "deployment.vercel.create_project",
-  "deployment.vercel.link_repo",
-  "deployment.vercel.deploy",
-  "deployment.pipeline.success",
-  "deployment.pipeline.failed",
-  "deployment.pipeline.rollback",
-  "inquiry.update",
-  "inquiry.delete",
-  "inquiry.analyze",
-];
+// ACTION_LABELS에 새 AuditAction이 추가될 때마다 이 목록을 별도로 손으로 갱신해야 했던 것이
+// 여러 세션에 걸쳐 누락되어(정보 요청서·의뢰 접수 알림 이메일/Slack/SOLAPI 등 13개 액션이 필터
+// 칩에 아예 없었음), 실사용에서 특정 액션으로 필터링할 방법이 없는 문제로 이어졌다. ACTION_LABELS의
+// 키에서 자동으로 생성해 더 이상 두 목록이 어긋날 수 없도록 한다.
+const FILTERS: ("All" | AuditAction)[] = ["All", ...(Object.keys(ACTION_LABELS) as AuditAction[])];
 
 export default function AuditLogPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
@@ -222,20 +188,20 @@ export default function AuditLogPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {filteredEntries.map((entry) => (
-            <Card key={entry.id} className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <span className="font-mono text-xs text-gray-500 w-44 shrink-0">
-                {new Date(entry.timestamp).toLocaleString()}
-              </span>
+            <Card key={entry.id} className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-xs text-gray-500">
+                  {new Date(entry.timestamp).toLocaleString()}
+                </span>
 
-              <Badge tone={ACTION_TONES[entry.action]} className="w-40 text-center">
-                {ACTION_LABELS[entry.action]}
-              </Badge>
+                <Badge tone={ACTION_TONES[entry.action]}>{ACTION_LABELS[entry.action]}</Badge>
 
-              <span className="text-xs text-gray-400 w-48 shrink-0 truncate">{entry.actor ?? "-"}</span>
+                <span className="text-xs text-gray-400 truncate max-w-[12rem]">{entry.actor ?? "-"}</span>
 
-              <p className="flex-1 text-sm text-gray-200 break-all">{entry.detail}</p>
+                <Badge tone={entry.success ? "success" : "danger"}>{entry.success ? "Success" : "Failed"}</Badge>
+              </div>
 
-              <Badge tone={entry.success ? "success" : "danger"}>{entry.success ? "Success" : "Failed"}</Badge>
+              <p className="text-sm text-gray-200 break-words">{entry.detail}</p>
             </Card>
           ))}
         </div>

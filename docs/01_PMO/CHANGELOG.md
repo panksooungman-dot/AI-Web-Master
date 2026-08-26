@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-08-26 (2)
+
+### 추가 (Added)
+
+- **정보 요청서(Launch Request) — 사이트 유형 기반 항목 자동 추천**: 사용자가 "사이트 개발마다
+  정보 요청서 내용이 다르잖아?"라고 확인 질문 후 "siteType에 따라 기본 항목 자동 추천되게
+  해줘"라고 요청. 앞선 세션에서 AskUserQuestion으로 "관리자가 직접 체크박스로 선택"을 택했던
+  것과 배치되지 않도록 — 자동 추천은 체크박스를 미리 채워주는 시작점일 뿐, 관리자가 그 자리에서
+  자유롭게 추가·해제한 뒤 생성하는 기존 흐름은 그대로 유지
+  - `lib/launchRequests/catalog.ts` — `getRecommendedServiceIds(siteType)` 신규 추가.
+    `RECOMMENDED_SERVICES_BY_SITE_TYPE` 매핑은 지어내지 않는다는 원칙에 따라 최소한만 구성 —
+    모든 유형 공통으로 `domain`(예외 없이 필요), `shopping`에 `payment`(온라인 결제가 핵심
+    기능), `education`에 `payment`·`mediaStreaming`(강의 결제·영상 재생이 핵심 기능) 추가.
+    나머지 유형(landing/portfolio/corporate/agency/dental/hospital/restaurant/blog/website)은
+    결제·스트리밍이 필수라고 단정할 근거가 없어 `domain`만 추천 — siteType이 비어있거나
+    알 수 없는 값(관리자가 직접 등록한 의뢰 등, `/developer/inquiries/new`에는 siteType 입력
+    필드 자체가 없음을 확인)이어도 `domain`으로 안전하게 폴백
+  - `app/developer/inquiries/[id]/page.tsx` — 의뢰 로드 시 `inquiry.siteType`으로
+    `selectedServiceIds`를 미리 채움. "정보 요청서" 카드에 어떤 유형 기준으로 추천됐는지
+    안내 문구 표시 + "추천 항목으로 초기화" 버튼(관리자가 이것저것 눌러보다 처음 추천값으로
+    되돌리고 싶을 때) 추가. 카탈로그 항목 자체나 생성 API(`POST /api/launch-requests`)는
+    무변경 — 여전히 관리자가 실제로 체크한 항목만 저장됨
+  - 테스트(신규 6개): `tests/launchRequests/catalog.test.ts` —
+    `getLaunchRequestCatalogItem()` 기존 동작 확인 + `getRecommendedServiceIds()`의 유형별
+    매핑·빈 값 폴백·카탈로그 존재 항목만 참조하는지(stale id 방지) 검증
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(752 tests, 신규 6개 포함 — 신규 실패 0건. 실패 8건은 매 실행마다 항목이
+  바뀌는 기존 밀리초 타이밍 플레이크(`tests/{requests,websites,inquiries,design/
+  review-registry}/registry*.test.ts`)와 `tests/ai/bridge.test.ts`로, 이전 세션에서 이미
+  이번 기능과 무관함을 `git stash`로 확인한 것과 동일한 계열)
+- Playwright로 dev 서버 기준 실제 확인: siteType="shopping"으로 의뢰 생성 → 의뢰 상세 화면
+  진입 시 도메인·결제 서비스 연동이 자동으로 체크되어 있고 소셜 로그인은 체크되지 않음을 확인,
+  안내 문구에 "쇼핑몰" 유형이 정확히 표시됨을 확인 → siteType="portfolio"로 별도 의뢰 생성 →
+  도메인만 체크됨을 확인(결제는 미체크) → 결제를 수동으로 체크 → "추천 항목으로 초기화" 클릭 →
+  다시 도메인만 체크된 상태로 정확히 복원됨을 확인
+- 검증에 사용한 dev 서버·developer 테스트 계정·Playwright 임시 스크립트는 검증 후 전부 종료·삭제
+
 ## 2026-08-26
 
 ### 추가 (Added)

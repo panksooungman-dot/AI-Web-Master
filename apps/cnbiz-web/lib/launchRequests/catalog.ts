@@ -146,3 +146,30 @@ export const LAUNCH_REQUEST_CATALOG: LaunchRequestCatalogItem[] = [
 export function getLaunchRequestCatalogItem(id: string): LaunchRequestCatalogItem | undefined {
   return LAUNCH_REQUEST_CATALOG.find((item) => item.id === id);
 }
+
+/**
+ * 사이트 유형(`lib/websites/types.ts`의 `WebsiteTypeId`, `InquiryRecord.siteType`에 저장되는 값)별
+ * 추천 항목 — 관리자가 매번 전부 직접 고르지 않아도 되도록 시작점만 제공한다. 항목을 미리
+ * 체크해줄 뿐 확정하지 않는다 — 관리자가 /developer/inquiries/[id]에서 자유롭게 추가·해제 가능
+ * (실제 필요 여부는 프로젝트마다 달라 추천이 틀릴 수 있음을 전제로 한 보조 기능).
+ *
+ * 매핑 근거 — 지어내지 않는다는 원칙에 따라 각 사이트 유형의 통상적인 성격만 반영:
+ * - 모든 유형: domain(모든 사이트는 예외 없이 주소가 필요)
+ * - shopping/education: payment(온라인 결제가 핵심 기능인 유형)
+ * - education: mediaStreaming(강의 영상 재생이 핵심 기능인 유형)
+ * - 그 외 유형(landing/portfolio/corporate/agency/dental/hospital/restaurant/blog/website)은
+ *   결제·스트리밍이 필수라고 단정할 근거가 없어 domain 외에는 추천하지 않는다 — 필요하면
+ *   관리자가 직접 추가한다.
+ */
+const RECOMMENDED_SERVICES_BY_SITE_TYPE: Record<string, string[]> = {
+  shopping: ["domain", "payment"],
+  education: ["domain", "payment", "mediaStreaming"],
+};
+
+const DEFAULT_RECOMMENDED_SERVICES = ["domain"];
+
+/** siteType이 카탈로그가 아는 값이 아니거나 비어 있으면 domain만 추천한다(안전한 기본값). */
+export function getRecommendedServiceIds(siteType: string | undefined): string[] {
+  if (!siteType) return DEFAULT_RECOMMENDED_SERVICES;
+  return RECOMMENDED_SERVICES_BY_SITE_TYPE[siteType] ?? DEFAULT_RECOMMENDED_SERVICES;
+}

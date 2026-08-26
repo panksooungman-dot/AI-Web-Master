@@ -19,7 +19,8 @@ import type { TimelineRecord } from "@/lib/timeline/types";
 import type { ContractRecord } from "@/lib/contracts/types";
 import type { ProposalRecord } from "@/lib/proposals/types";
 import type { LaunchRequestRecord } from "@/lib/launchRequests/types";
-import { LAUNCH_REQUEST_CATALOG } from "@/lib/launchRequests/catalog";
+import { LAUNCH_REQUEST_CATALOG, getRecommendedServiceIds } from "@/lib/launchRequests/catalog";
+import { WEBSITE_TYPES } from "@/lib/websites/types";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -117,6 +118,7 @@ export default function InquiryDetailPage() {
           return;
         }
         setInquiry(data.inquiry);
+        setSelectedServiceIds(getRecommendedServiceIds(data.inquiry.siteType));
 
         const [
           clientResult,
@@ -1116,6 +1118,19 @@ export default function InquiryDetailPage() {
           개발 착수 후 의뢰자에게 계정 생성·API 키 발급을 요청해야 할 항목을 선택하세요. 선택한
           항목만 정보 요청서에 포함되며, 실제 키 값은 의뢰자가 아래에서 생성되는 공개 링크에서
           직접 입력하고 이 시스템에는 저장되지 않습니다.
+        </p>
+        <p className="text-xs text-gray-600 mb-3">
+          {inquiry.siteType
+            ? `"${WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType}" 유형에 맞춰 아래 항목이 미리 체크되어 있습니다 —`
+            : "아래 항목은 기본값(도메인)만 미리 체크되어 있습니다 —"}{" "}
+          실제 필요 여부는 프로젝트마다 다르므로 자유롭게 추가·해제 후 생성하세요.{" "}
+          <button
+            type="button"
+            onClick={() => setSelectedServiceIds(getRecommendedServiceIds(inquiry.siteType))}
+            className="text-purple-400 hover:underline"
+          >
+            추천 항목으로 초기화
+          </button>
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           {LAUNCH_REQUEST_CATALOG.map((item) => (

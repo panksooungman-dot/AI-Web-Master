@@ -4,6 +4,75 @@
 
 ---
 
+## 2026-08-26 (6)
+
+### 추가 (Added)
+
+- **의뢰 접수 관리자 알림 — SOLAPI(문자 SMS) 채널 추가(이메일·Slack과 병행, 3채널 체제)**:
+  사용자가 이미 SOLAPI를 사용 중이라며 "솔라피 사용할수 있어"라고 요청. 앞서 검토했던
+  플로우(Flow, flow.team)는 Open API가 유료 플랜 전용임이 확인되어 이번 범위에서 보류하고,
+  대신 실제 사용 중인 SOLAPI를 세 번째 독립 채널로 추가 — 이메일(2026-08-26 (3))·
+  Slack(2026-08-26 (5))과 동일하게 서로 완전히 독립적으로 동작하며 한 채널의 실패가 다른
+  채널에 영향을 주지 않는다
+  - **API 스펙 확인 경위**: 이 실행 환경에서 SOLAPI 공식 문서 도메인(`docs.solapi.com`,
+    `developers.solapi.dev`)이 전부 네트워크 egress 차단(DNS 실패/차단 응답)으로 접근 불가.
+    추측 대신 SOLAPI가 공식 배포하는 오픈소스 Node.js SDK(`github.com/solapi/solapi-nodejs`,
+    npm `solapi` 패키지)를 GitHub에서 직접 clone해 실제 소스코드(`authenticator.ts`·
+    `messageService.ts`·`defaultFetcher.ts`·`sendMessage.ts` 등)를 읽어 확인 — Base URL
+    `https://api.solapi.com`, 발송 엔드포인트 `POST /messages/v4/send-many/detail`, 인증은
+    `Authorization: HMAC-SHA256 apiKey=..., date=<ISO8601>, salt=<32자 영숫자>,
+    signature=<hex>` 헤더(signature = `HMAC-SHA256(key=apiSecret, message=date+salt)`의 hex
+    digest)임을 실제 1차 소스(공식 SDK)로 확정
+  - `apps/cnbiz-web/lib/inquiries/solapi.ts`(신규) — `SolapiNotifier` 인터페이스 +
+    `createSolapiNotifier(apiKey, apiSecret, to, from)`. `lib/inquiries/slack.ts`·
+    `lib/contact/email/providers/resend.ts`와 동일하게 SDK 전체(effect 라이브러리 기반)를
+    새 의존성으로 추가하지 않고 `fetch` 하나로 직접 호출하는 최소 구현으로 작성.
+    Node 내장 `crypto`(`createHmac`·`randomBytes`)만 사용, 신규 npm 패키지 없음. 2xx 응답이어도
+    배치 발송 전체가 실패로 집계된 경우(`failedMessageList.length > 0 && count.total ===
+    count.registeredFailed`)는 오류로 처리 — 공식 SDK의 `MessageNotReceivedError` 판정 규칙과
+    동일
+  - `apps/cnbiz-web/lib/inquiries/notify.ts` — `notifyAdminOfNewInquirySolapi()` 신규 추가.
+    이메일·Slack과 완전히 동일한 3갈래(환경 변수 미설정으로 건너뜀/발송 성공/발송 실패) 패턴으로
+    Audit Log(`inquiry.notify_admin_solapi`, 이메일의 `inquiry.notify_admin`·Slack의
+    `inquiry.notify_admin_slack`과 별도 액션)에 기록
+  - `apps/cnbiz-web/app/api/inquiries/route.ts` — 이메일·Slack·SOLAPI 세 알림을
+    `Promise.all()`로 동시 실행, 각 함수가 이미 자체 try/catch로 실패를 흡수하므로 한쪽이
+    실패해도 나머지·Inquiry 접수 자체에는 영향 없음(기존 이메일+Slack과 동일한 격리 원칙 유지)
+  - `apps/cnbiz-web/lib/audit/log.ts` — `AuditAction`에 `"inquiry.notify_admin_solapi"` 추가
+  - `apps/cnbiz-web/app/developer/{audit-log,errors}/page.tsx` — 새 액션 라벨(`"의뢰 접수 알림
+    SOLAPI"`)·톤 추가
+  - `apps/cnbiz-web/.env.example` — `SOLAPI_API_KEY`·`SOLAPI_API_SECRET`·`SOLAPI_TO`·
+    `SOLAPI_FROM` 4개 항목 문서화. `SOLAPI_FROM`은 SOLAPI 콘솔에 발신번호로 사전 등록·인증된
+    번호여야 함을 명시(이 코드가 검증할 수 없는 SMS 게이트웨이 공통 요건 — 미등록 시 발송
+    실패가 그대로 Audit Log에 남음)
+  - 테스트(신규 8개): `tests/inquiries/solapi.test.ts`(4개) — 실제 `fetch` 호출을 가로채
+    Authorization 헤더가 `HMAC-SHA256 apiKey=..., date=..., salt=<32자>,
+    signature=<64자리 hex>` 형식으로 정확히 구성되는지, 요청 본문(`messages: [{to, from,
+    text}]`) 형태가 맞는지, HTTP 오류·전체 실패(failedAll) 판정이 올바른지 검증.
+    `tests/inquiries/notify.test.ts`에 Slack `describe` 블록과 동일한 패턴으로 SOLAPI
+    발송 성공/환경 변수 일부 누락으로 건너뜀/notifier 예외/이메일·Slack·SOLAPI 3채널
+    독립성 검증 4개 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(767 tests, 신규 8개 포함 — 신규 실패 0건. 실패 11건은 `tests/ai/bridge.test.ts`
+  5건과 밀리초 타이밍에 좌우되는 기존 registry "newest first"/`updatedAt` 비교 플레이크
+  6건으로, 전부 이전 세션들에서 이미 이번 변경과 무관함이 반복 확인된 것과 동일한 계열)
+- **실제 SOLAPI 계정 자격증명이 이 환경에 없어(사용자의 실제 API Key/Secret을 받지 않음),
+  실제 문자 발송 성공 경로는 End-to-End로 검증하지 못했다** — Slack 채널(2026-08-26 (5))
+  때처럼 로컬 mock 서버로 실제 HTTP 요청까지 확인하는 대신, `createSolapiNotifier()`가
+  실제로 구성하는 HTTP 요청(URL·메서드·Authorization 헤더의 정확한 서명 포맷·요청 본문)을
+  `fetch`를 가로채 직접 검증하는 방식으로 대체했다 — 서명 알고리즘 자체는 SOLAPI 공식 SDK의
+  실제 소스코드에서 그대로 가져온 것이므로, 이 코드가 SOLAPI 서버가 기대하는 것과 동일한
+  형식의 요청을 만든다는 점은 높은 확신을 갖고 검증했으나, 실제 서버가 그 요청을 최종
+  수락하는지(API Key/Secret 유효성, 발신번호 사전 등록 여부 등 계정별 사실)는 사용자가
+  실제 값으로 배포 후 직접 확인 필요
+  - Flow(플로우) 연동은 이번 범위에서 보류됨(사용자 확인: "api사용 할려면 유료로 사용
+    해야해") — 코드 변경 없음
+
+---
+
 ## 2026-08-26 (5)
 
 ### 추가 (Added)

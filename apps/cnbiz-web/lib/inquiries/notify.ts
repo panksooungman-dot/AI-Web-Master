@@ -1,6 +1,7 @@
 import { getEmailProvider } from "@/lib/contact/email";
 import type { EmailProvider } from "@/lib/contact/email/types";
 import { createSlackWebhookNotifier, type SlackNotifier } from "./slack";
+import { createSolapiNotifier, type SolapiNotifier } from "./solapi";
 import type { InquiryRecord } from "./types";
 import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
@@ -162,6 +163,92 @@ export async function notifyAdminOfNewInquirySlack(
         actor: null,
         success: false,
         detail: `관리자 알림 Slack 발송 실패: ${message}`,
+        metadata: { inquiryId: inquiry.id, websiteOrderId: order.id },
+      },
+      store
+    );
+  }
+}
+
+/**
+ * 관리자 알림 이메일/Slack과 병행하는 세 번째 채널 — SOLAPI(문자 SMS) 발송. 사용자가 이미
+ * SOLAPI를 사용 중이라고 확인해 추가. 나머지 두 채널과 동일한 3갈래(env 미설정으로 건너뜀/발송
+ * 성공/발송 실패) 패턴으로 Audit Log(`inquiry.notify_admin_solapi`)에 기록하며, 다른 채널의
+ * 성공/실패와 무관하게 독립 실행된다(app/api/inquiries/route.ts에서 별도 호출).
+ *
+ * SOLAPI_FROM은 SOLAPI 콘솔에 발신번호로 사전 등록·인증된 번호여야 한다(일반적인 SMS 게이트웨이
+ * 공통 요건 — 이 코드가 검증할 수 있는 부분이 아니므로 발송 실패 시 그 응답 메시지가 그대로
+ * Audit Log에 남는다).
+ */
+export async function notifyAdminOfNewInquirySolapi(
+  inquiry: InquiryRecord,
+  client: ClientRecord,
+  order: WebsiteOrderRecord,
+  notifier: SolapiNotifier = createSolapiNotifier(
+    process.env.SOLAPI_API_KEY ?? "",
+    process.env.SOLAPI_API_SECRET ?? "",
+    process.env.SOLAPI_TO ?? "",
+    process.env.SOLAPI_FROM ?? ""
+  ),
+  store: CollectionStore = getDefaultStore()
+): Promise<void> {
+  const apiKey = process.env.SOLAPI_API_KEY;
+  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const to = process.env.SOLAPI_TO;
+  const from = process.env.SOLAPI_FROM;
+
+  if (!apiKey || !apiSecret || !to || !from) {
+    const missing = [
+      !apiKey && "SOLAPI_API_KEY",
+      !apiSecret && "SOLAPI_API_SECRET",
+      !to && "SOLAPI_TO",
+      !from && "SOLAPI_FROM",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    console.warn("[inquiry-solapi] SOLAPI env vars not set, skipping admin SOLAPI notification");
+    await recordAuditEvent(
+      {
+        action: "inquiry.notify_admin_solapi",
+        actor: null,
+        success: false,
+        detail: `관리자 알림 SOLAPI 건너뜀 — 환경 변수 미설정: ${missing}`,
+        metadata: { inquiryId: inquiry.id, websiteOrderId: order.id },
+      },
+      store
+    );
+    return;
+  }
+
+  try {
+    await notifier.send(
+      [
+        `[CNBIZ] 새 제작 의뢰 — ${client.companyName || client.contactName}`,
+        `담당자: ${client.contactName} (${client.phone || client.email})`,
+        `홈페이지 종류: ${order.siteType || "(미기재)"}`,
+        `Inquiry ID: ${inquiry.id}`,
+      ].join("\n")
+    );
+    console.log(`[inquiry-solapi] admin notification sent for inquiry ${inquiry.id}`);
+    await recordAuditEvent(
+      {
+        action: "inquiry.notify_admin_solapi",
+        actor: null,
+        success: true,
+        detail: `관리자 알림 SOLAPI 발송: "${client.companyName || client.contactName}" → ${to}`,
+        metadata: { inquiryId: inquiry.id, websiteOrderId: order.id },
+      },
+      store
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[inquiry-solapi] failed to send admin notification for inquiry ${inquiry.id}`, error);
+    await recordAuditEvent(
+      {
+        action: "inquiry.notify_admin_solapi",
+        actor: null,
+        success: false,
+        detail: `관리자 알림 SOLAPI 발송 실패: ${message}`,
         metadata: { inquiryId: inquiry.id, websiteOrderId: order.id },
       },
       store

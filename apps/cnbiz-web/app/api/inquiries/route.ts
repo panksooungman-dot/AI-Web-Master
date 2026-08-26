@@ -7,7 +7,7 @@ import {
   saveInquiryAnalysis,
 } from "@/lib/inquiries/registry";
 import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
-import { notifyAdminOfNewInquiry } from "@/lib/inquiries/notify";
+import { notifyAdminOfNewInquiry, notifyAdminOfNewInquirySlack } from "@/lib/inquiries/notify";
 import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClientByEmail } from "@/lib/clients/registry";
 import { addAiJobToWebsiteOrder, createWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { createAiJob } from "@/lib/aiJobs/registry";
@@ -118,9 +118,16 @@ export async function POST(request: Request) {
 
   const linkedInquiry = await linkInquiryToClientAndOrder(inquiry.id, client.id, websiteOrder.id);
 
-  await notifyAdminOfNewInquiry(inquiry, client, websiteOrder).catch((error) => {
-    console.error("[api/inquiries] admin notification failed", error);
-  });
+  // 이메일·Slack 두 채널 모두 시도한다 — 서로 독립적이며 한쪽이 실패해도 다른 쪽에 영향을
+  // 주지 않는다(각 함수 내부에서 이미 자체 try/catch로 Audit Log에 결과를 기록함).
+  await Promise.all([
+    notifyAdminOfNewInquiry(inquiry, client, websiteOrder).catch((error) => {
+      console.error("[api/inquiries] admin email notification failed", error);
+    }),
+    notifyAdminOfNewInquirySlack(inquiry, client, websiteOrder).catch((error) => {
+      console.error("[api/inquiries] admin slack notification failed", error);
+    }),
+  ]);
 
   return NextResponse.json(
     {

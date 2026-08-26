@@ -1,7 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
 import { listAuditEvents, recordAuditEvent } from "../../lib/audit/log";
 
@@ -41,6 +41,25 @@ describe("Audit Log — lib/audit/log.ts", () => {
     await recordAuditEvent({ action: "auth.login", actor: "b@example.com", success: true, detail: "second" }, store);
 
     const entries = await listAuditEvents({}, store);
+    expect(entries.map((e) => e.detail)).toEqual(["second", "first"]);
+  });
+
+  it("listAuditEvents() still orders by insertion when two entries share the exact same millisecond timestamp", async () => {
+    // recordAuditEvent()가 정렬 기준으로 쓰는 timestamp는 1ms 해상도라, 같은 밀리초에 연속
+    // 기록되면 문자열 비교만으로는 둘을 구분할 수 없다(SOLAPI Audit Log 기록이 유실되던 원인을
+    // 고치며 timestamp 정렬로 바꾼 뒤 실제로 이 경합 상황에서 순서가 뒤집히는 회귀를 발견해
+    // 고정한 케이스 — 시각을 고정해 우연한 타이밍에 기대지 않고 항상 재현되도록 함).
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      await recordAuditEvent({ action: "auth.login", actor: "a@example.com", success: true, detail: "first" }, store);
+      await recordAuditEvent({ action: "auth.login", actor: "b@example.com", success: true, detail: "second" }, store);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const entries = await listAuditEvents({}, store);
+    expect(entries.map((e) => e.timestamp)).toEqual([entries[0].timestamp, entries[0].timestamp]);
     expect(entries.map((e) => e.detail)).toEqual(["second", "first"]);
   });
 

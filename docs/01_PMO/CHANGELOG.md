@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-08-26 (8)
+
+### 수정 (Fixed)
+
+- **Audit Log 화면 — 상세(detail) 텍스트가 한 글자씩 세로로 쪼개져 렌더링되던 레이아웃 버그
+  수정**: `/developer/audit-log`·`/developer/errors` 두 화면 모두, 카드 한 줄에 타임스탬프
+  (`w-44`)·액션 배지(`w-40`)·담당자(`w-48`) 등 고정 폭 칸 여러 개를 나열하고 남는 공간만
+  `flex-1 break-all`로 detail 텍스트에 배정하는 구조였다. 뷰포트 폭이 `sm`(640px) 브레이크
+  포인트를 살짝 넘는 실사용 환경(사용자가 실제로 겪은 케이스)에서는 고정 폭 칸들만으로 이미
+  대부분의 폭을 다 써버려 detail에 남는 공간이 몇 픽셀뿐이었고, `break-all`이 그 좁은 폭에
+  맞춰 글자 하나마다 줄바꿈을 강제해 텍스트가 세로로 한 글자씩 늘어서 보였다(사용자가 여러 화면
+  캡처로 실제 재현 확인)
+  - `apps/cnbiz-web/app/developer/audit-log/page.tsx`·`apps/cnbiz-web/app/developer/errors/page.tsx`
+    — 카드 레이아웃을 "메타데이터(타임스탬프·액션 배지·담당자·성공배지)는 `flex-wrap`으로 위
+    한 줄, detail 텍스트는 항상 카드 전체 폭을 쓰는 별도 줄"로 재구성. 고정 폭(`w-44`/`w-40`/
+    `w-48`) 대신 각 항목이 자기 내용만큼만 차지하도록 하고, `break-all`(모든 글자 경계에서
+    강제 줄바꿈)은 꼭 필요한 경우(URL처럼 공백 없는 긴 문자열)에만 개입하는 `break-words`로
+    교체
+- **Audit Log 화면 — 필터 칩 목록이 오래전부터 최근 추가된 액션 13개를 누락하고 있던 버그
+  수정**: `FILTERS` 배열이 `ACTION_LABELS`와 별도로 손으로 유지되는 하드코딩 목록이었는데,
+  지난 여러 세션에 걸쳐 `ACTION_LABELS`에는 새 액션(`launchRequest.generate`·
+  `inquiry.notify_admin`·`inquiry.notify_admin_slack`·`inquiry.notify_admin_solapi`·
+  `customer.login` 등 13개)이 추가될 때마다 `FILTERS`는 갱신되지 않아, 정작 사용자가 오늘
+  추가한 이메일/Slack/SOLAPI 알림 액션들을 필터로 찾을 방법이 없었다(사용자가 SOLAPI 알림
+  발송 여부를 확인하려다 겪은 문제)
+  - `apps/cnbiz-web/app/developer/audit-log/page.tsx` — `FILTERS`를 `Object.keys(ACTION_LABELS)`에서
+    자동으로 생성하도록 변경해, 앞으로 `ACTION_LABELS`에 액션을 추가하기만 하면 필터 칩도
+    항상 함께 생긴다(두 목록이 다시 어긋날 수 없음)
+- **Audit Log 조회 순서가 실제 시간순과 다르게 뒤죽박죽으로 보이던 버그 수정**: `listAuditEvents()`가
+  `store.list()`가 반환하는 배열 순서를 그대로 뒤집어(`reverse()`) "최신순"으로 취급하고
+  있었는데, 프로덕션이 쓰는 `lib/db/supabaseStore.ts`의 `list()`는 `ORDER BY` 없이
+  `SELECT`만 하므로 Postgres가 실제로 어떤 순서로 행을 반환할지 보장되지 않는다 — 삽입 순서와
+  무관한 순서가 나올 수 있어, 사용자가 화면에서 본 것처럼 오래된 로그인 기록과 방금 생긴 알림
+  기록이 뒤섞여 표시될 수 있었다
+  - `apps/cnbiz-web/lib/audit/log.ts` — `listAuditEvents()`가 `store.list()`의 반환 순서에
+    기대지 않고 매번 `timestamp` 문자열(ISO 8601이라 사전순 정렬이 곧 시간순) 기준으로
+    명시적으로 정렬하도록 수정. `timestamp`는 1ms 해상도라 같은 밀리초에 연속 기록된 두 항목은
+    정렬 기준만으로 구분되지 않는데(Array.sort는 안정 정렬이라 비교 함수가 0을 반환하면 원래
+    순서 유지), 배열을 먼저 뒤집은 뒤 안정 정렬하면 그런 동시 항목도 "나중에 기록된 것이
+    앞"이라는 올바른 최신순으로 남는다 — 이 순서를 바꾸지 않고 단순히 timestamp만으로
+    정렬했을 때 실제로 기존 "newest first" 테스트가 간헐적으로 실패하는 회귀를 발견해(같은
+    밀리초 충돌) 이 방식으로 고정
+  - `apps/cnbiz-web/lib/audit/log.ts`의 `recordAuditEvent()`도 오래된 항목을 잘라내는(trim)
+    로직이 동일하게 `store.list()` 반환 순서를 오래된순으로 가정하고 있어 같은 방식(timestamp
+    기준 정렬)으로 수정 — Supabase에서 순서가 뒤바뀐 상태로 반환되면 실제로는 오래되지 않은
+    항목이 잘려나갈 수 있었음
+  - 테스트(신규 1개): `tests/audit/log.test.ts`에 `vi.useFakeTimers()`로 두 기록의 시각을
+    완전히 고정해 같은 밀리초 충돌을 우연이 아니라 항상 재현하는 케이스 추가, 최신순 정렬이
+    그 상황에서도 올바른지 검증
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run tests/audit/log.test.ts`(8개, 신규 1개 포함) — 같은 밀리초 충돌 재현 테스트를
+  포함해 8회 연속 단독 실행 전부 통과, 수정 전에는 5회 중 3회 간헐적으로 실패함을 재현 후
+  확인(우연한 타이밍이 아니라 실제 회귀였음을 검증)
+- `npx vitest run`(전체, 3회 반복 실행) — 매번 770 tests 중 7~9건만 실패, 전부 기존에 이미
+  문서화된 무관한 밀리초 타이밍 플레이크(`tests/ai/bridge.test.ts` 5건 + 다른 registry의
+  "newest first"/`updatedAt` 비교)이고 `tests/audit/log.test.ts`는 3회 모두 실패 0건 확인
+- 실제 원인이 된 사용자 리포트(Audit Log 상세 텍스트가 세로 한 글자씩 렌더링, SOLAPI 알림
+  발송 기록을 필터로 못 찾음, 로그인 기록과 최신 알림 기록이 뒤섞여 보임)는 전부 이 3가지
+  버그로 설명되며, 배포 후 화면에서 직접 재확인 필요(이 세션에서는 실제 프로덕션 데이터로
+  재현했던 화면 캡처를 기준으로 코드 레벨 수정만 진행)
+
+---
+
 ## 2026-08-26 (7)
 
 ### 수정 (Fixed)

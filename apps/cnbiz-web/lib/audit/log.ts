@@ -50,6 +50,7 @@ export type AuditAction =
   | "contract.generate"
   | "proposal.generate"
   | "launchRequest.generate"
+  | "inquiry.notify_admin"
   | "customer.login"
   | "customer.view_document"
   | "inquiry.update"

@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-08-26 (3)
+
+### 수정 (Fixed)
+
+- **의뢰 접수 시 관리자 알림 이메일이 안 온다는 실 배포 환경 반복 보고 — 원인을 직접 확인할 수
+  있도록 실패 사유를 Audit Log/Error Report에 기록**: 사용자가 "관리자 알림 이메일 않옴" →
+  "의뢰자 문의 접수 내용이 관리자 알림이 않옴"이라고 반복 보고. 코드를 확인한 결과
+  `lib/inquiries/notify.ts`의 `notifyAdminOfNewInquiry()`가 `CONTACT_EMAIL_TO`/
+  `CONTACT_EMAIL_FROM` 환경 변수 미설정·발송 실패 어느 경우든 `console.warn`/`console.error`만
+  남기고 조용히 끝나는 구조였음을 확인 — 서버 로그 접근 권한이 없는 관리자는 "건너뛴 것인지,
+  실제 발송에 실패한 것인지"조차 구분할 방법이 없었다(이번 세션의 다른 변경과는 무관한 기존
+  코드, `git log` 확인 결과 최근 변경 이력 없음). 프로덕션 환경(Vercel/Resend) 자체는 이 세션
+  환경에서 직접 접근할 수 없어(egress 차단) 실제 환경 변수 설정 여부까지는 확인하지 못했다 —
+  이번 수정은 "원인이 무엇이든 관리자가 `/developer/errors`에서 직접 확인 가능하게" 만드는
+  진단 가시성 개선이며, 근본 원인(환경 변수 누락인지 Resend 발신 도메인 미인증인지)은 사용자가
+  Vercel/Resend 대시보드를 직접 확인해야 확정 가능
+  - `lib/audit/log.ts` — `AuditAction`에 `"inquiry.notify_admin"` 추가(기존 27개 값 무변경)
+  - `lib/inquiries/notify.ts` — 세 갈래(환경 변수 미설정으로 건너뜀 / 발송 성공 / 발송 실패)
+    전부 `recordAuditEvent()`로 기록하도록 수정. `lib/websites/notify.ts`의
+    `notifyCustomerOfDeployment(client, order, website, provider, store)`와 완전히 동일한
+    패턴으로 `provider`·`store` 파라미터를 주입 가능하게 만들어(기존엔 함수 내부에서
+    `getEmailProvider()`를 직접 호출) 유닛 테스트가 실제 이메일 발송 없이 검증 가능하도록 함.
+    실패 사유는 어떤 환경 변수가 비어있는지(`CONTACT_EMAIL_TO`/`CONTACT_EMAIL_FROM`)까지
+    구체적으로 detail에 남김
+  - `app/developer/{audit-log,errors}/page.tsx` — 새 액션 라벨(`"의뢰 접수 알림 이메일"`)·톤
+    추가(기존 문서 생성 체인 추가 시와 동일한 갱신 패턴)
+  - 테스트(신규 3개): `tests/inquiries/notify.test.ts` — 발송 성공/환경 변수 누락으로 건너뜀/
+    Provider 예외 세 경로 모두 Audit Log에 정확한 success 여부·detail이 기록되는지 검증
+    (`tests/websites/notify.test.ts`와 동일한 fs 임시 디렉터리 격리 패턴)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(755 tests, 신규 3개 포함 — 신규 실패 0건. 실패 9건은 매 실행마다 항목이
+  바뀌는 기존 밀리초 타이밍 플레이크(`tests/{requests,websites,inquiries,design/
+  review-registry}/registry*.test.ts`)와 `tests/ai/bridge.test.ts`로, 전부 이 세션의 이전
+  변경들에서 이미 `git stash`로 무관함을 확인한 것과 동일한 계열)
+- 이 실행 환경에는 실제 Resend API 키·프로덕션 Vercel 환경 변수가 없어(egress 차단으로
+  cnbiz.kr/Vercel 대시보드 접근 불가), 실제 프로덕션에서 이 진단 정보가 정확한 원인을 가리키는지
+  실제 이메일 발송으로는 검증하지 못했다 — 로직 자체(세 갈래 분기와 Audit Log 기록)는 유닛
+  테스트로 전부 확인
+
 ## 2026-08-26 (2)
 
 ### 추가 (Added)

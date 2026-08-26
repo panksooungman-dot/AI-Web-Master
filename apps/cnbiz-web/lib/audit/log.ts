@@ -49,6 +49,7 @@ export type AuditAction =
   | "timeline.generate"
   | "contract.generate"
   | "proposal.generate"
+  | "launchRequest.generate"
   | "customer.login"
   | "customer.view_document"
   | "inquiry.update"

@@ -47,6 +47,8 @@ export interface MetricsCounters {
   proposalGenerationCount: number;
   /** Customer Portal V1(lib/customerPortal) 신규 — 기존 22개 필드는 무변경. */
   customerPortalVisitCount: number;
+  /** 정보 요청서 자동 생성(lib/launchRequests) 신규 — 기존 23개 필드는 무변경. */
+  launchRequestGenerationCount: number;
 }
 
 const COLLECTION = "metrics";
@@ -75,6 +77,7 @@ const DEFAULT_COUNTERS: MetricsCounters = {
   contractGenerationCount: 0,
   proposalGenerationCount: 0,
   customerPortalVisitCount: 0,
+  launchRequestGenerationCount: 0,
 };
 
 export async function readMetrics(store: CollectionStore = getDefaultStore()): Promise<MetricsCounters> {

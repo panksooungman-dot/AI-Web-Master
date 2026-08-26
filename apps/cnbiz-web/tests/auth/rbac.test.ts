@@ -167,6 +167,14 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/inquiries/upload")).toBe("developer");
       expect(resolveProtectedArea("/api/inquiries/upload/abc123", "POST")).toBe("developer");
     });
+
+    it("leaves /api/launch-requests/public/** ungated (app/launch-request/[id]/page.tsx — 의뢰자가 로그인 없이 여는 정보 요청서 공개 조회), while creation (POST /api/launch-requests) and the admin detail route stay developer-gated", () => {
+      expect(resolveProtectedArea("/api/launch-requests/public/abc123")).toBeNull();
+      expect(resolveProtectedArea("/api/launch-requests/public/abc123", "GET")).toBeNull();
+      expect(resolveProtectedArea("/api/launch-requests")).toBe("developer");
+      expect(resolveProtectedArea("/api/launch-requests", "POST")).toBe("developer");
+      expect(resolveProtectedArea("/api/launch-requests/abc123")).toBe("developer");
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

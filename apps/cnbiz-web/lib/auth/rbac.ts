@@ -92,6 +92,11 @@ const UNGATED_API_PREFIXES = [
   // 노출 위험은 없고, 로컬 dev 서버에 접근 가능하다는 것 자체가 이미 그 프로젝트 파일시스템
   // 전체에 접근 가능하다는 뜻이라 RBAC로 추가 보호할 실익도 없다.
   "/api/dev-inspector",
+  // 정보 요청서(Launch Request) 공개 조회 전용 경로 — 의뢰자가 로그인 없이 여는
+  // app/launch-request/[id]/page.tsx가 사용한다. 이 prefix에는 GET 핸들러만 존재하므로(POST 없음)
+  // 생성(app/api/launch-requests POST, developer 게이팅 유지)에는 영향이 없다. 응답에는
+  // companyName·선택된 서비스 id/필수여부만 담기며 API 키 등 민감정보는 서버에 저장하지 않는다.
+  "/api/launch-requests/public",
 ];
 
 /**

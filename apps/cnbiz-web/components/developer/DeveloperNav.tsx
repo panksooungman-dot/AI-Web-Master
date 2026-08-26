@@ -95,7 +95,7 @@ export function DeveloperNav() {
 
   return (
     <nav
-      className="flex w-full shrink-0 flex-col gap-6 border-b border-gray-800 pb-6 lg:w-56 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4"
+      className="flex w-full shrink-0 flex-col gap-6 border-b border-gray-800 pb-6 md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-4"
       {...componentMarker("DeveloperNav", "components/developer/DeveloperNav.tsx")}
     >
       <Link

@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-08-26 (4)
+
+### 수정 (Fixed)
+
+- **`/developer` 사이드바가 일반적인 데스크탑 창 너비에서도 모바일처럼 세로로 쌓여 보이던 문제
+  수정**: 사용자가 관리자 페이지 스크린샷을 보내며 "레이아웃이 이상해 정렬이 안 되어 있어"라고
+  보고. 확인 결과 `app/developer/layout.tsx`·`components/developer/DeveloperNav.tsx`가 사이드바
+  ↔ 본문 2단 레이아웃 전환 기준을 `lg:`(1024px)로 잡고 있어, 그보다 좁은(예: 창을 최대화하지
+  않은 노트북, 분할 화면 등 640~1023px 범위— 실제로 흔한 실사용 창 너비) 화면에서는 27개 메뉴
+  링크 전체가 본문 위에 세로로 길게 쌓인 뒤에야 대시보드 콘텐츠가 나오는 구조였음. CSS 자체가
+  깨진 것은 아니고 반응형 분기점이 실사용 창 너비 대비 너무 높게 잡혀 있던 것
+  - `app/developer/layout.tsx` — 사이드바+본문 컨테이너의 `lg:flex-row lg:items-start`를
+    `md:flex-row md:items-start`(768px)로 하향
+  - `components/developer/DeveloperNav.tsx` — 동일한 이유로 `lg:w-56 lg:border-b-0 lg:border-r
+    lg:pb-0 lg:pr-4`를 `md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-4`로 하향(두 파일의
+    분기점이 항상 일치해야 레이아웃이 어긋나지 않으므로 함께 변경)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(755 tests, 신규 실패 0건 — 실패 9건은 기존에 이미 문서화된 밀리초 타이밍
+  플레이크와 `tests/ai/bridge.test.ts`로 이번 CSS 변경과 무관, 순수 클래스명 변경이라 로직
+  테스트 영향 없음)
+- Playwright로 실제 로그인 세션 기준 `/developer` 렌더링을 800/900/1023/1024/1440/390px
+  6개 너비에서 확인 — 수정 전 800~1023px에서 사이드바(`nav[data-component-id=DeveloperNav]`)가
+  풀폭으로 렌더링되던 것을, 수정 후 800px부터 이미 고정폭(224px) 2단 레이아웃으로 정상 전환됨을
+  실측 확인(`boundingBox().width`). 1024px·1440px는 기존과 동일하게 2단 유지, 390px(모바일)는
+  기존과 동일하게 세로 스택 유지되어 회귀 없음을 확인
+- 검증에 사용한 dev 서버·developer 테스트 계정·Playwright 임시 스크립트는 검증 후 전부 종료·삭제
+
 ## 2026-08-26 (3)
 
 ### 수정 (Fixed)

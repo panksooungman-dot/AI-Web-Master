@@ -52,6 +52,7 @@ export type AuditAction =
   | "launchRequest.generate"
   | "inquiry.notify_admin"
   | "inquiry.notify_admin_slack"
+  | "inquiry.notify_admin_solapi"
   | "customer.login"
   | "customer.view_document"
   | "inquiry.update"

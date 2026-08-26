@@ -3,13 +3,18 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
-import { notifyAdminOfNewInquiry, notifyAdminOfNewInquirySlack } from "../../lib/inquiries/notify";
+import {
+  notifyAdminOfNewInquiry,
+  notifyAdminOfNewInquirySlack,
+  notifyAdminOfNewInquirySolapi,
+} from "../../lib/inquiries/notify";
 import { listAuditEvents } from "../../lib/audit/log";
 import type { InquiryRecord } from "../../lib/inquiries/types";
 import type { ClientRecord } from "../../lib/clients/types";
 import type { WebsiteOrderRecord } from "../../lib/websiteOrders/types";
 import type { ContactEmailPayload, EmailProvider } from "../../lib/contact/email/types";
 import type { SlackNotifier } from "../../lib/inquiries/slack";
+import type { SolapiNotifier } from "../../lib/inquiries/solapi";
 
 const INQUIRY: InquiryRecord = {
   id: "inquiry-1",
@@ -224,5 +229,122 @@ describe("Admin Inquiry Slack Notification — lib/inquiries/notify.ts (병행 �
 
     delete process.env.CONTACT_EMAIL_TO;
     delete process.env.CONTACT_EMAIL_FROM;
+  });
+});
+
+describe("Admin Inquiry SOLAPI Notification — lib/inquiries/notify.ts (병행 채널, 이메일/Slack과 독립)", () => {
+  let baseDir: string;
+  let store: ReturnType<typeof createFsStore>;
+  let originalApiKey: string | undefined;
+  let originalApiSecret: string | undefined;
+  let originalTo: string | undefined;
+  let originalFrom: string | undefined;
+
+  beforeEach(() => {
+    baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "inquiry-solapi-notify-test-"));
+    store = createFsStore(baseDir);
+    originalApiKey = process.env.SOLAPI_API_KEY;
+    originalApiSecret = process.env.SOLAPI_API_SECRET;
+    originalTo = process.env.SOLAPI_TO;
+    originalFrom = process.env.SOLAPI_FROM;
+    process.env.SOLAPI_API_KEY = "test-api-key";
+    process.env.SOLAPI_API_SECRET = "test-api-secret";
+    process.env.SOLAPI_TO = "01012345678";
+    process.env.SOLAPI_FROM = "01087654321";
+  });
+
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+    if (originalApiKey === undefined) delete process.env.SOLAPI_API_KEY;
+    else process.env.SOLAPI_API_KEY = originalApiKey;
+    if (originalApiSecret === undefined) delete process.env.SOLAPI_API_SECRET;
+    else process.env.SOLAPI_API_SECRET = originalApiSecret;
+    if (originalTo === undefined) delete process.env.SOLAPI_TO;
+    else process.env.SOLAPI_TO = originalTo;
+    if (originalFrom === undefined) delete process.env.SOLAPI_FROM;
+    else process.env.SOLAPI_FROM = originalFrom;
+  });
+
+  it("sends the SOLAPI notification and records a success audit event", async () => {
+    const sent: string[] = [];
+    const fakeNotifier: SolapiNotifier = {
+      async send(text) {
+        sent.push(text);
+      },
+    };
+
+    await notifyAdminOfNewInquirySolapi(INQUIRY, CLIENT, ORDER, fakeNotifier, store);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain("테스트회사");
+    expect(sent[0]).toContain(INQUIRY.id);
+
+    const events = await listAuditEvents({ action: "inquiry.notify_admin_solapi" }, store);
+    expect(events).toHaveLength(1);
+    expect(events[0].success).toBe(true);
+  });
+
+  it("skips sending and records a failure audit event naming the missing env vars when SOLAPI env vars are not fully set", async () => {
+    delete process.env.SOLAPI_API_SECRET;
+    delete process.env.SOLAPI_FROM;
+    const sent: string[] = [];
+    const fakeNotifier: SolapiNotifier = {
+      async send(text) {
+        sent.push(text);
+      },
+    };
+
+    await notifyAdminOfNewInquirySolapi(INQUIRY, CLIENT, ORDER, fakeNotifier, store);
+
+    expect(sent).toHaveLength(0);
+    const events = await listAuditEvents({ action: "inquiry.notify_admin_solapi" }, store);
+    expect(events).toHaveLength(1);
+    expect(events[0].success).toBe(false);
+    expect(events[0].detail).toContain("SOLAPI_API_SECRET");
+    expect(events[0].detail).toContain("SOLAPI_FROM");
+  });
+
+  it("records a failure audit event (and does not throw) when the notifier rejects", async () => {
+    const fakeNotifier: SolapiNotifier = {
+      async send() {
+        throw new Error("SOLAPI error (401): Unauthorized");
+      },
+    };
+
+    await expect(
+      notifyAdminOfNewInquirySolapi(INQUIRY, CLIENT, ORDER, fakeNotifier, store)
+    ).resolves.toBeUndefined();
+
+    const events = await listAuditEvents({ action: "inquiry.notify_admin_solapi" }, store);
+    expect(events).toHaveLength(1);
+    expect(events[0].success).toBe(false);
+    expect(events[0].detail).toContain("Unauthorized");
+  });
+
+  it("email, Slack, and SOLAPI audit events stay independent of each other", async () => {
+    process.env.CONTACT_EMAIL_TO = "admin@cnbiz.kr";
+    process.env.CONTACT_EMAIL_FROM = "noreply@cnbiz.kr";
+    process.env.SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/T000/B000/XXXX";
+    const fakeEmailProvider: EmailProvider = { async send() {} };
+    const fakeSlackNotifier: SlackNotifier = { async send() {} };
+    const fakeSolapiNotifier: SolapiNotifier = { async send() {} };
+
+    await notifyAdminOfNewInquiry(INQUIRY, CLIENT, ORDER, fakeEmailProvider, store);
+    await notifyAdminOfNewInquirySlack(INQUIRY, CLIENT, ORDER, fakeSlackNotifier, store);
+    await notifyAdminOfNewInquirySolapi(INQUIRY, CLIENT, ORDER, fakeSolapiNotifier, store);
+
+    const emailEvents = await listAuditEvents({ action: "inquiry.notify_admin" }, store);
+    const slackEvents = await listAuditEvents({ action: "inquiry.notify_admin_slack" }, store);
+    const solapiEvents = await listAuditEvents({ action: "inquiry.notify_admin_solapi" }, store);
+    expect(emailEvents).toHaveLength(1);
+    expect(slackEvents).toHaveLength(1);
+    expect(solapiEvents).toHaveLength(1);
+    expect(emailEvents[0].success).toBe(true);
+    expect(slackEvents[0].success).toBe(true);
+    expect(solapiEvents[0].success).toBe(true);
+
+    delete process.env.CONTACT_EMAIL_TO;
+    delete process.env.CONTACT_EMAIL_FROM;
+    delete process.env.SLACK_WEBHOOK_URL;
   });
 });

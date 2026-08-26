@@ -39,6 +39,7 @@ export function MetricsWidget() {
           contractGenerationCount: 0,
           proposalGenerationCount: 0,
           customerPortalVisitCount: 0,
+          launchRequestGenerationCount: 0,
         })
       );
   }, []);
@@ -148,6 +149,10 @@ export function MetricsWidget() {
           <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Customer Portal Visits</span>
             <span className="text-gray-200">{counters.customerPortalVisitCount}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Launch Requests Generated</span>
+            <span className="text-gray-200">{counters.launchRequestGenerationCount}</span>
           </li>
         </ul>
       )}

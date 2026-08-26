@@ -40,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/developer/timeline", label: "프로젝트 일정" },
       { href: "/developer/contracts", label: "계약서" },
       { href: "/developer/proposals", label: "제안서" },
+      { href: "/developer/launch-requests", label: "정보 요청서" },
     ],
   },
   {

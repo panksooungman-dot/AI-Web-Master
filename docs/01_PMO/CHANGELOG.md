@@ -4,6 +4,80 @@
 
 ---
 
+## 2026-08-26
+
+### 추가 (Added)
+
+- **`/contact` 이후 단계 — "정보 요청서"(Launch Request) 신규 추가**: 사용자가 다른 서비스
+  (EnglishPro)의 "서비스 런칭 정보 요청서" 스크린샷을 예시로 보여주며, 개발 착수 후 의뢰자에게
+  도메인·결제·소셜로그인 등 계정 생성과 API 키 발급을 요청하는 문서가 지금 시스템에는 없다는
+  점을 확인. 새로 만들기 전 두 가지가 프로젝트마다 달라질 수 있는 부분이라 AskUserQuestion으로
+  확인 — ① 항목 결정 방식은 "관리자가 직접 체크박스로 선택"(추천, siteType 기반 자동 추천은
+  실제와 다를 위험이 있어 배제), ② 의뢰자가 입력하는 API 키 등 민감정보는 "서버 저장 안 함 —
+  입력→복사/이메일 텍스트 생성까지만"(추천, 평문 시크릿을 시스템 DB에 남기지 않음)으로 확정
+  - `lib/launchRequests/catalog.ts`(신규) — 도메인·결제 서비스 연동(토스페이먼츠)·소셜
+    로그인(카카오/네이버)·이메일 발송(Resend)·웹 분석(Google Analytics)·동영상 스트리밍 6종의
+    고정 카탈로그. 각 항목은 이 저장소가 실제로 이미 연동한 서비스(Resend·GA4)이거나 국내
+    시장에서 널리 쓰이는 범용 서비스(토스페이먼츠·카카오/네이버·도메인 등록)만 채택 — CNBIZ
+    고유 정책이나 프로젝트별 실제 사실을 지어내지 않음(지어낼 수 없는 부분은 관리자가 체크박스로
+    직접 골라 확정)
+  - `lib/launchRequests/{types,registry}.ts`(신규) — `lib/proposals`와 완전히 동일한
+    `CollectionStore` 기반 registry 패턴. `estimate.generate` 등 기존 문서 생성 체인과 달리 AI를
+    호출하지 않는 순수 메타데이터 레코드(선택된 서비스 id + 필수/선택 여부만 저장, 실제 API 키
+    값은 레코드에 포함되지 않음)
+  - `POST /api/launch-requests`(생성, developer 로그인 필요)·`GET /api/launch-requests`(목록)·
+    `GET /api/launch-requests/[id]`(admin 단건 조회) — `lib/audit/log.ts`에
+    `"launchRequest.generate"` 액션 추가, `lib/metrics/registry.ts`에
+    `launchRequestGenerationCount` 카운터 추가(기존 estimate/specification/.../proposal 카운터와
+    완전히 동일한 패턴)
+  - `GET /api/launch-requests/public/[id]`(신규, 비로그인 공개 조회 전용) — 의뢰자가 로그인 없이
+    여는 링크가 사용한다. `lib/auth/rbac.ts`의 `UNGATED_API_PREFIXES`에
+    `"/api/launch-requests/public"` 추가 — 이 prefix에는 GET 핸들러만 존재해(POST 없음) 생성
+    라우트(`POST /api/launch-requests`, developer 게이팅 유지)에는 영향이 없음을 확인. 응답에는
+    companyName·선택된 서비스 id/필수여부만 담고, 카탈로그의 안내 문구는 클라이언트가
+    `catalog.ts`를 직접 import해 렌더링(민감정보 아니므로 중복 전송하지 않음)
+  - `app/developer/inquiries/[id]/page.tsx` — "정보 요청서" 카드 신규 추가. 카탈로그 6개 항목을
+    체크박스로 표시(필수/선택 배지는 카탈로그 기본값), 선택 후 "정보 요청서 생성" 버튼으로
+    `LaunchRequestRecord` 생성, 생성된 레코드는 `/developer/launch-requests/[id]`로 링크
+  - `app/developer/launch-requests/{page,[id]/page}.tsx`(신규) — 목록(기존 `/developer/proposals`
+    목록과 동일한 패턴)·상세(선택된 항목 목록 + 의뢰자에게 보낼 공개 링크를 클립보드로 복사하는
+    버튼). `DeveloperNav`의 "기획" 그룹에 "정보 요청서" 링크 추가
+  - `app/launch-request/[id]/page.tsx`(신규, 공개 페이지, 로그인 불필요) — `@cnbiz/ui`·
+    `@cnbiz/layout-primitives`(공개 마케팅 페이지와 동일한 컴포넌트)로 EnglishPro 예시와 유사한
+    레이아웃 구성: 필수/선택 항목 수 요약 → 서비스별 카드(설명·비용·입력 필드·가입 및 설정
+    방법·주의사항) → "입력 내용 복사"(`navigator.clipboard`)·"이메일로 전송"(`mailto:` 링크,
+    백엔드를 거치지 않음) 버튼. 입력한 API 키 값은 이 컴포넌트의 React state에만 존재하고 어떤
+    API에도 전송되지 않음(AskUserQuestion에서 확정한 "서버 저장 안 함" 원칙을 코드 구조로 보장)
+  - `app/developer/{audit-log,errors}/page.tsx`·`app/developer/metrics/page.tsx`·
+    `components/developer/dashboard/MetricsWidget.tsx` — 새 액션 라벨/톤, 새 카운터 표시 추가
+    (기존 문서 생성 체인과 완전히 동일한 갱신 패턴)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 신규 라우트
+  6개(`/api/launch-requests`·`/api/launch-requests/[id]`·`/api/launch-requests/public/[id]`·
+  `/developer/launch-requests`·`/developer/launch-requests/[id]`·`/launch-request/[id]`) 정상 생성
+- `npx vitest run`(746 tests, 신규 rbac/metrics 테스트 포함 — 신규 실패 0건. 실패 6~8건은 매 실행
+  마다 항목이 바뀌는 기존 밀리초 타이밍 플레이크(`tests/{requests,websites,inquiries,design/
+  review-registry}/registry*.test.ts`의 "newest first" 정렬 비교)와 `tests/ai/bridge.test.ts`
+  5건(전부 이번 변경분을 `git stash`로 제거한 상태에서 동일하게 재현됨을 확인해 무관함을 검증)
+- Playwright로 dev 서버 기준 전체 플로우 실제 실행: `POST /api/inquiries`로 의뢰 생성 →
+  developer 계정으로 로그인 → 의뢰 상세에서 "도메인"·"결제 서비스 연동" 체크 → 정보 요청서 생성
+  → 관리자 상세 화면에 두 항목 정상 표시 확인 → 쿠키를 모두 지운(비로그인) 상태로 공개 링크
+  (`/launch-request/{id}`) 접속 → 필수 항목 2개 배지·두 서비스 카드·입력 필드·설정 안내·주의사항
+  정상 렌더링 확인 → 도메인 필드에 실제 값 입력 → 클립보드 권한을 부여한 상태에서 "입력 내용
+  복사" 클릭 → 클립보드에 입력한 값과 회사명이 포함된 텍스트가 정확히 담김을 확인(백엔드로 전송
+  없이 로컬에서만 조립됨을 실증) → 데스크탑(1440px)·모바일(390px) 스크린샷으로 레이아웃 확인,
+  콘솔 에러는 기존에 이미 문서화된 파비콘 404 1건 외 없음 확인
+- RBAC 변경 검증: `resolveProtectedArea("/api/launch-requests/public/abc123")`가 `null`(비로그인
+  허용)이면서 `resolveProtectedArea("/api/launch-requests", "POST")`·`GET /api/launch-requests/
+  [id]`는 여전히 `"developer"`로 게이팅됨을 유닛 테스트로 확인, `POST /api/launch-requests`를
+  익명으로 호출하는 경로가 새로 열리지 않았음을 재확인
+- 검증에 사용한 dev 서버·developer 테스트 계정(`qa-verify@example.com`)·Playwright 임시
+  스크립트는 검증 후 전부 종료·삭제. 테스트 중 생성된 Inquiry/Client/WebsiteOrder/AiJob/
+  LaunchRequest 레코드는 로컬 fs 폴백 데이터(`lib/data/*.json`, git 미추적)에만 남아있고
+  저장소에는 포함되지 않음
+
 ## 2026-08-25 (15)
 
 ### 추가 (Added)

@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-08-26 (7)
+
+### 수정 (Fixed)
+
+- **Audit Log 동시 쓰기 경합으로 SOLAPI 알림 기록이 매번 사라지던 버그 수정**: SOLAPI 채널
+  추가((6)번) 후 실제 배포 환경에서 문의 접수 테스트를 했을 때, 이메일·Slack 알림의 Audit Log
+  기록은 정상 남는데 SOLAPI 기록만 매번 사라지는 것을 사용자가 직접 재현·보고. 원인 확인 결과
+  `lib/inquiries/notify.ts`가 `Promise.all()`로 세 채널의 `recordAuditEvent()`를 동시에
+  호출하는데, `recordAuditEvent()`는 "list()로 전체 읽기 → push → replaceAll()로 통째로 다시
+  쓰기" 패턴이고, 프로덕션이 쓰는 `lib/db/supabaseStore.ts`의 `replaceAll()`은 "upsert(내
+  스냅샷) → 내 스냅샷에 없는 행은 삭제"하는 방식이었다 — 이메일·Slack은 환경변수 미설정으로
+  즉시 실패해 빠르게 쓰는데, SOLAPI는 실제 `fetch()` 네트워크 요청까지 가서 완료가 늦어지고,
+  그 사이 이메일/Slack이 각자 오래된 스냅샷 기준으로 delete를 실행하면서 상대방이 이미 upsert한
+  행(또는 나중에 SOLAPI가 쓴 행)을 지워버릴 수 있는 구조였다. `lib/db/fsStore.ts`(로컬
+  전용)에는 이미 이 문제(Release Readiness Audit — Major #3)를 막는 collection 단위 Promise
+  락이 구현돼 있었으나, 프로덕션이 실제로 쓰는 `supabaseStore.ts`에는 적용된 적이 없었다 — 이번
+  SOLAPI 3채널 동시 호출이 처음으로 그 간극(fsStore만 보호되고 supabaseStore는 그대로 취약한
+  상태)을 실사용에서 드러낸 것
+  - `lib/db/collectionLock.ts`(신규) — `fsStore.ts`에 있던 락 구현(`createLockTable()`)을
+    공용 모듈로 추출. list()/getDoc()는 읽은 뒤 자동 해제를 예약해두고, 곧바로 이어지는
+    replaceAll()/setDoc()가 그 예약을 취소하고 잠금을 이어받아 쓰기까지 마친 뒤 해제하는 동일한
+    메커니즘
+  - `lib/db/supabaseStore.ts` — `list`/`replaceAll`/`getDoc`/`setDoc` 4개 메서드 전부
+    `createLockTable()`의 락으로 감쌈. `getDefaultStore()`(`lib/db/index.ts`)가 store
+    인스턴스를 프로세스당 1회만 생성해 캐시하므로, 한 요청 안에서 `Promise.all()`로 여러
+    `recordAuditEvent()`가 동시에 호출돼도 전부 이 락 테이블을 공유해 직렬화된다(같은 프로세스
+    내 동시 쓰기만 방지 — 서로 다른 서버리스 인스턴스 간 동시 쓰기까지는 막지 못하는 한계는
+    fsStore.ts와 동일)
+  - `lib/db/fsStore.ts` — 자체 락 구현을 제거하고 `collectionLock.ts`를 import해서 재사용하도록
+    리팩터링(로직 중복 제거, 동작 변경 없음)
+  - 테스트(신규 2개, `tests/db/supabaseStore.test.ts`): 실제 Supabase REST 응답 지연을 흉내 낸
+    가짜 클라이언트(테이블 상태를 진짜로 보관·반영)로, (1) email/Slack처럼 빠르게 끝나는 호출과
+    SOLAPI처럼 20ms 늦게 끝나는 호출 3개를 동시 실행해도 락 적용 후에는 0건도 유실되지 않음을
+    확인, (2) 락 없이 raw upsert-then-delete-stale 시맨틱만으로 같은 시나리오를 재현해 실제로
+    유실이 재현됨을 확인(수정 검증 테스트의 전제 자체가 깨지지 않았는지 회귀 감지용)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(769 tests, 신규 2개 포함 — 신규 실패 0건. 실패 10건은 기존에 이미
+  문서화된 무관한 타이밍 플레이크(`tests/ai/bridge.test.ts`·여러 registry의 "newest first"
+  밀리초 비교)로, `lib/db/`·`lib/inquiries/notify.ts`·`lib/inquiries/solapi.ts` 관련 테스트는
+  전부 통과)
+- `tests/db/fsStore.test.ts`(기존 7개, `collectionLock.ts` 추출 후에도 전부 통과 — 리팩터링이
+  fsStore 동작에 회귀를 일으키지 않았음을 확인)
+- 실제 프로덕션 환경(cnbiz.kr)에서 SOLAPI 자체 API가 실제로 호출된 적이 없다는 것도 사용자가
+  SOLAPI 콘솔의 실제 메시지 로그(전송요청내역)로 직접 확인함 — 이는 이번 Audit Log 경합
+  수정과는 별개 원인(SOLAPI 환경 변수가 재배포에 아직 반영되지 않았을 가능성)으로, 환경 변수
+  재확인·재배포가 별도로 필요함을 사용자에게 안내
+
+---
+
 ## 2026-08-26 (6)
 
 ### 추가 (Added)

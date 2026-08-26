@@ -54,6 +54,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "proposal.generate": "제안서 생성",
   "launchRequest.generate": "정보 요청서 생성",
   "inquiry.notify_admin": "의뢰 접수 알림 이메일",
+  "inquiry.notify_admin_slack": "의뢰 접수 알림 Slack",
   "customer.login": "고객 포털 로그인",
   "customer.view_document": "고객 포털 문서 조회",
   "inquiry.update": "의뢰 정보 수정",

@@ -51,6 +51,7 @@ export type AuditAction =
   | "proposal.generate"
   | "launchRequest.generate"
   | "inquiry.notify_admin"
+  | "inquiry.notify_admin_slack"
   | "customer.login"
   | "customer.view_document"
   | "inquiry.update"

@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-08-26 (5)
+
+### 추가 (Added)
+
+- **의뢰 접수 관리자 알림 — Slack 채널 병행 추가**: 관리자 알림 이메일 미수신 문제를 계속
+  겪던 중, 사용자가 "관리자 알림을 slack으로 하면 어때?"라고 제안. 이메일을 대체하는 대신
+  병행하기로 확정("이메일 병행") — Slack Incoming Webhook은 Resend와 달리 발신 도메인 인증이
+  필요 없어 설정이 더 간단하고, 두 채널 중 하나가 막혀도 다른 채널로는 알림이 가도록 함
+  - `lib/inquiries/slack.ts`(신규) — `lib/contact/email/providers/resend.ts`와 동일한 fetch
+    패턴으로 `SLACK_WEBHOOK_URL`에 JSON POST(`{text}`)하는 `SlackNotifier` 추상화
+  - `lib/inquiries/notify.ts` — `notifyAdminOfNewInquirySlack()` 신규 추가.
+    `notifyAdminOfNewInquiry()`(이메일)와 완전히 동일한 3갈래 패턴(환경 변수 미설정으로
+    건너뜀/발송 성공/발송 실패)으로 Audit Log(`inquiry.notify_admin_slack`, 이메일의
+    `inquiry.notify_admin`과 별도 액션)에 기록
+  - `app/api/inquiries/route.ts` — 이메일·Slack 두 알림을 `Promise.all()`로 동시 실행. 각
+    함수가 이미 자체 try/catch로 실패를 흡수하므로 한쪽이 실패해도 다른 쪽·Inquiry 접수
+    자체에는 영향 없음(기존 이메일 단독 호출과 동일한 격리 원칙 유지)
+  - `app/developer/{audit-log,errors}/page.tsx` — 새 액션 라벨(`"의뢰 접수 알림 Slack"`)·톤
+    추가(기존 문서 생성 체인 추가 시와 동일한 갱신 패턴)
+  - `.env.example` — `SLACK_WEBHOOK_URL` 항목 문서화(Slack Incoming Webhook 발급 안내 링크 포함)
+  - 테스트(신규 4개, 기존 3개와 같은 파일): `tests/inquiries/notify.test.ts`에 Slack 발송
+    성공/환경 변수 누락으로 건너뜀/webhook 예외/이메일·Slack 독립성 검증 4개 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과
+- `npx vitest run`(759 tests, 신규 4개 포함 — 신규 실패 0건. 실패 11건은 매 실행마다 항목이
+  바뀌는 기존 밀리초 타이밍 플레이크와 `tests/ai/bridge.test.ts`로, 이번 변경과 무관함을
+  실패 목록에서 재확인)
+- **실제 로컬 mock Slack webhook 서버(포트 4176)로 End-to-End 실증**: dev 서버에
+  `SLACK_WEBHOOK_URL`을 mock 서버 주소로 설정 → `POST /api/inquiries`로 실제 의뢰 생성 →
+  mock 서버가 실제로 JSON payload(회사명·담당자·연락처·요구사항·Inquiry ID가 정확히 포함된
+  Slack 메시지 텍스트)를 수신함을 확인 → `/api/audit?action=inquiry.notify_admin_slack`에
+  `success:true` 기록 확인, 동시에 `CONTACT_EMAIL_TO/FROM`은 이 환경에 없어
+  `inquiry.notify_admin`(이메일)은 예상대로 독립적으로 `success:false`(건너뜀)로 기록됨을
+  확인 — 두 채널이 서로 영향을 주지 않고 독립적으로 동작함을 실제 요청으로 검증
+- Playwright로 실제 로그인 세션에서 `/developer/errors`·`/developer/audit-log`에 새 라벨
+  ("의뢰 접수 알림 Slack")과 실패 상세가 정상 렌더링됨을 확인
+- 검증에 사용한 dev 서버·mock Slack 서버·developer 테스트 계정·Playwright/mock 임시 스크립트는
+  검증 후 전부 종료·삭제
+
 ## 2026-08-26 (4)
 
 ### 수정 (Fixed)

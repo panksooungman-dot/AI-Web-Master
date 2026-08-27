@@ -193,16 +193,6 @@ export default function EstimateDetailPage() {
       >
         원본 의뢰 보기 →
       </Link>
-      {siblingSpecificationId && (
-        <Link href={`/developer/specifications/${siblingSpecificationId}`} className="ml-4 text-sm text-blue-400 hover:underline">
-          기능 명세서 보기 →
-        </Link>
-      )}
-      {siblingTimelineId && (
-        <Link href={`/developer/timeline/${siblingTimelineId}`} className="ml-4 text-sm text-blue-400 hover:underline">
-          프로젝트 일정 보기 →
-        </Link>
-      )}
 
       <PageHeader
         title="기술 견적서"
@@ -239,6 +229,22 @@ export default function EstimateDetailPage() {
         >
           {isSharing ? "발송 중..." : "문자로 공유"}
         </button>
+        {siblingSpecificationId && (
+          <Link
+            href={`/developer/specifications/${siblingSpecificationId}`}
+            className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
+          >
+            기능 명세서 →
+          </Link>
+        )}
+        {siblingTimelineId && (
+          <Link
+            href={`/developer/timeline/${siblingTimelineId}`}
+            className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
+          >
+            프로젝트 일정 →
+          </Link>
+        )}
         {saveMessage && <StatusMessage tone={saveMessage.tone}>{saveMessage.text}</StatusMessage>}
         {shareMessage && <StatusMessage tone={shareMessage.tone}>{shareMessage.text}</StatusMessage>}
       </div>

@@ -143,16 +143,6 @@ export default function SpecificationDetailPage() {
       >
         원본 의뢰 보기 →
       </Link>
-      {siblingEstimateId && (
-        <Link href={`/developer/estimates/${siblingEstimateId}`} className="ml-4 text-sm text-blue-400 hover:underline">
-          기술 견적서 보기 →
-        </Link>
-      )}
-      {siblingTimelineId && (
-        <Link href={`/developer/timeline/${siblingTimelineId}`} className="ml-4 text-sm text-blue-400 hover:underline">
-          프로젝트 일정 보기 →
-        </Link>
-      )}
 
       <PageHeader
         title={`기능 명세서 — ${input.companyName}`}
@@ -175,6 +165,22 @@ export default function SpecificationDetailPage() {
         >
           Export Markdown
         </button>
+        {siblingEstimateId && (
+          <Link
+            href={`/developer/estimates/${siblingEstimateId}`}
+            className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
+          >
+            기술 견적서 →
+          </Link>
+        )}
+        {siblingTimelineId && (
+          <Link
+            href={`/developer/timeline/${siblingTimelineId}`}
+            className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
+          >
+            프로젝트 일정 →
+          </Link>
+        )}
       </div>
 
       <Card title="프로젝트 개요" className="mb-6">

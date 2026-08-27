@@ -102,12 +102,6 @@ export default function TimelineDetailPage() {
       <Link href={`/developer/inquiries/${timeline.inquiryId}`} className="ml-4 text-sm text-blue-400 hover:underline">
         원본 의뢰 보기 →
       </Link>
-      <Link href={`/developer/estimates/${timeline.estimateId}`} className="ml-4 text-sm text-blue-400 hover:underline">
-        기술 견적서 보기 →
-      </Link>
-      <Link href={`/developer/specifications/${timeline.specificationId}`} className="ml-4 text-sm text-blue-400 hover:underline">
-        기능 명세서 보기 →
-      </Link>
 
       <PageHeader
         title={`프로젝트 일정 — ${input.companyName}`}
@@ -128,6 +122,18 @@ export default function TimelineDetailPage() {
         >
           Export Markdown
         </button>
+        <Link
+          href={`/developer/estimates/${timeline.estimateId}`}
+          className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
+        >
+          기술 견적서 →
+        </Link>
+        <Link
+          href={`/developer/specifications/${timeline.specificationId}`}
+          className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
+        >
+          기능 명세서 →
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

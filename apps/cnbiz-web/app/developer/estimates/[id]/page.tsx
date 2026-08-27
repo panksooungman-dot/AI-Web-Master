@@ -7,12 +7,26 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
-import type { EstimateRecord } from "@/lib/estimates/types";
+import type { EstimateDocumentDetails, EstimateRecord, EstimateSupplierInfo } from "@/lib/estimates/types";
+import { toKoreanAmountPhrase } from "@/lib/estimates/koreanNumber";
 
 interface EstimateResponse {
   estimate?: EstimateRecord;
   error?: string;
 }
+
+const DEFAULT_NOTES = [
+  "1. 상기 견적금액은 부가가치세가 포함된 금액입니다.",
+  "2. 본 견적서는 제안요청서를 기준으로 작성되었습니다.",
+  "3. 개발 범위 변경 시 금액이 조정될 수 있습니다.",
+].join("\n");
+
+const DEFAULT_PAYMENT_TERMS = ["계약금 30% : 계약 체결 시", "중도금 40% : 개발 완료 후", "잔금 30% : 최종 검수 완료 후"].join(
+  "\n"
+);
+
+const inputClass =
+  "w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-blue-500";
 
 function downloadBlob(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
@@ -24,34 +38,77 @@ function downloadBlob(content: string, filename: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
-function toMarkdown(estimate: EstimateRecord): string {
+function toMarkdown(estimate: EstimateRecord, doc: Required<EstimateDocumentDetails>): string {
   const { input, result } = estimate;
   const lines = [
     `# 기술 견적서 — ${input.companyName}`,
     "",
-    `- 업종: ${input.detectedBusinessType}`,
-    `- 예상 가격 범위: ${result.priceRangeMin.toLocaleString()} ~ ${result.priceRangeMax.toLocaleString()} ${result.currency}`,
-    `- 예상 소요 기간: ${result.timelineWeeks}주`,
+    `- 건명: ${doc.projectTitle}`,
+    `- 개발기간: ${doc.developmentPeriod}`,
+    `- 유효기간: ${doc.validityPeriod}`,
+    `- 납기일: ${doc.dueDate || "(미정)"}`,
+    `- 유지보수기간: ${doc.maintenancePeriod}`,
+    `- 제안금액: ${doc.finalAmount.toLocaleString()}원 (${toKoreanAmountPhrase(doc.finalAmount)})`,
     `- 생성일: ${new Date(estimate.createdAt).toLocaleString()}`,
     "",
     "## 요약",
     result.summary,
     "",
-    "## 항목별 산정",
+    "## 산출내역",
     ...result.lineItems.map((item) => `- **${item.name}**(${item.estimatedHours}h) — ${item.description}`),
     "",
-    "## 가정 사항",
-    ...result.assumptions.map((a) => `- ${a}`),
+    "## 참고사항",
+    doc.notes,
+    "",
+    "## 대금지불방법",
+    doc.paymentTerms,
+    "",
+    "## 공급자",
+    `- 회사명: ${doc.supplier.companyName || "(미기재)"}`,
+    `- 사업자번호: ${doc.supplier.businessNumber || "(미기재)"}`,
+    `- 대표자: ${doc.supplier.ceoName || "(미기재)"}`,
+    `- 담당자: ${doc.supplier.contactName || "(미기재)"}`,
+    `- 전화: ${doc.supplier.phone || "(미기재)"}`,
+    `- 주소: ${doc.supplier.address || "(미기재)"}`,
   ];
   return lines.join("\n");
+}
+
+/** result·createdAt로부터 견적서 문서 필드의 기본값을 계산한다 — estimate.document에 저장된 값이 있으면 그 값이 우선한다. */
+function buildDefaultDocument(estimate: EstimateRecord): Required<EstimateDocumentDetails> {
+  const { input, result } = estimate;
+  const saved = estimate.document ?? {};
+  const supplier: EstimateSupplierInfo = saved.supplier ?? {};
+
+  return {
+    projectTitle: saved.projectTitle ?? `${input.companyName} 홈페이지 제작`,
+    developmentPeriod: saved.developmentPeriod ?? `${Math.max(1, Math.round(result.timelineWeeks / 4))}개월`,
+    validityPeriod: saved.validityPeriod ?? "30일",
+    dueDate: saved.dueDate ?? "",
+    maintenancePeriod: saved.maintenancePeriod ?? "6개월",
+    finalAmount: saved.finalAmount ?? result.priceRangeMax,
+    notes: saved.notes ?? DEFAULT_NOTES,
+    paymentTerms: saved.paymentTerms ?? DEFAULT_PAYMENT_TERMS,
+    supplier: {
+      companyName: supplier.companyName ?? "",
+      businessNumber: supplier.businessNumber ?? "",
+      ceoName: supplier.ceoName ?? "",
+      contactName: supplier.contactName ?? "",
+      phone: supplier.phone ?? "",
+      address: supplier.address ?? "",
+    },
+  };
 }
 
 export default function EstimateDetailPage() {
   const params = useParams<{ id: string }>();
 
   const [estimate, setEstimate] = useState<EstimateRecord | null>(null);
+  const [doc, setDoc] = useState<Required<EstimateDocumentDetails> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -67,14 +124,41 @@ export default function EstimateDetailPage() {
           return;
         }
         setEstimate(data.estimate);
+        setDoc(buildDefaultDocument(data.estimate));
       })
       .catch(() => setLoadError("견적서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
   }, [params.id]);
 
+  async function handleSave() {
+    if (!estimate || !doc) return;
+    setIsSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document: doc }),
+      });
+      const data: { success: boolean; estimate?: EstimateRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.estimate) {
+        setSaveMessage({ tone: "error", text: data.error ?? "저장에 실패했습니다." });
+        return;
+      }
+      setEstimate(data.estimate);
+      setSaveMessage({ tone: "success", text: "저장되었습니다." });
+    } catch {
+      setSaveMessage({ tone: "error", text: "저장 중 오류가 발생했습니다." });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (isLoading) return <LoadingText />;
 
-  if (loadError || !estimate) {
+  if (loadError || !estimate || !doc) {
     return (
       <div>
         <StatusMessage tone="error">{loadError ?? "견적서를 찾을 수 없습니다."}</StatusMessage>
@@ -100,68 +184,230 @@ export default function EstimateDetailPage() {
       </Link>
 
       <PageHeader
-        title={`기술 견적서 — ${input.companyName}`}
-        description={`${input.detectedBusinessType} · ${new Date(estimate.createdAt).toLocaleString()}`}
+        title="기술 견적서"
+        description={`${input.companyName} · ${input.detectedBusinessType} · ${new Date(estimate.createdAt).toLocaleString()}`}
         actions={estimate.simulated ? <Badge tone="warning">Simulated</Badge> : <Badge tone="success">AI 생성</Badge>}
       />
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <button
-          onClick={() => downloadBlob(JSON.stringify(estimate, null, 2), `estimate-${estimate.id}.json`, "application/json")}
+          onClick={handleSave}
+          disabled={isSaving}
+          className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+        >
+          {isSaving ? "저장 중..." : "변경사항 저장"}
+        </button>
+        <button
+          onClick={() =>
+            downloadBlob(JSON.stringify(estimate, null, 2), `estimate-${estimate.id}.json`, "application/json")
+          }
           className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors"
         >
           Export JSON
         </button>
         <button
-          onClick={() => downloadBlob(toMarkdown(estimate), `estimate-${estimate.id}.md`, "text/markdown")}
+          onClick={() => downloadBlob(toMarkdown(estimate, doc), `estimate-${estimate.id}.md`, "text/markdown")}
           className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors"
         >
           Export Markdown
         </button>
+        {saveMessage && <StatusMessage tone={saveMessage.tone}>{saveMessage.text}</StatusMessage>}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card title="예상 가격">
-          <p className="text-2xl font-bold text-gray-100">
-            {result.priceRangeMin.toLocaleString()} ~ {result.priceRangeMax.toLocaleString()}
-          </p>
-          <p className="text-sm text-gray-500">{result.currency}</p>
-        </Card>
-        <Card title="예상 소요 기간">
-          <p className="text-2xl font-bold text-gray-100">{result.timelineWeeks}주</p>
-        </Card>
-        <Card title="총 산정 시간">
-          <p className="text-2xl font-bold text-gray-100">
-            {result.lineItems.reduce((sum, item) => sum + item.estimatedHours, 0)}h
-          </p>
-        </Card>
-      </div>
+      {/* 견적서 문서 본문 */}
+      <Card className="mb-6">
+        <div className="border-b border-gray-800 pb-4 mb-4">
+          <h2 className="text-2xl font-bold text-white text-center">기 술 견 적 서</h2>
+        </div>
 
-      <Card title="요약" className="mb-6">
-        <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{result.summary}</p>
-      </Card>
+        <p className="text-sm text-gray-300 mb-1">{input.companyName} 귀중</p>
+        <p className="text-sm text-gray-400 mb-4">홈페이지 제작에 대한 견적을 다음과 같이 청구합니다.</p>
 
-      <Card title="항목별 산정" className="mb-6">
-        <div className="flex flex-col gap-2">
-          {result.lineItems.map((item, i) => (
-            <div
-              key={i}
-              className="flex flex-col sm:flex-row sm:items-center gap-2 rounded border border-gray-800 bg-gray-950 px-3 py-2"
-            >
-              <span className="font-semibold text-gray-200 sm:w-40 shrink-0">{item.name}</span>
-              <span className="text-xs text-gray-400 flex-1">{item.description}</span>
-              <Badge tone="accent">{item.estimatedHours}h</Badge>
-            </div>
-          ))}
+        <div className="rounded border-l-4 border-blue-500 bg-blue-950/40 px-4 py-3 mb-6">
+          <p className="text-xl font-bold text-white">
+            ₩{doc.finalAmount.toLocaleString()}{" "}
+            <span className="text-base font-normal text-gray-300">({toKoreanAmountPhrase(doc.finalAmount)})</span>
+          </p>
+        </div>
+
+        <div className="overflow-x-auto mb-6">
+          <table className="w-full text-sm border border-gray-800">
+            <tbody>
+              <tr className="border-b border-gray-800">
+                <th className="w-32 bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">건명</th>
+                <td className="px-3 py-2" colSpan={3}>
+                  <input
+                    type="text"
+                    value={doc.projectTitle}
+                    onChange={(e) => setDoc({ ...doc, projectTitle: e.target.value })}
+                    className={inputClass}
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-gray-800">
+                <th className="bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">개발기간</th>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={doc.developmentPeriod}
+                    onChange={(e) => setDoc({ ...doc, developmentPeriod: e.target.value })}
+                    className={inputClass}
+                  />
+                </td>
+                <th className="w-28 bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">유효기간</th>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={doc.validityPeriod}
+                    onChange={(e) => setDoc({ ...doc, validityPeriod: e.target.value })}
+                    className={inputClass}
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-gray-800">
+                <th className="bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">납기일</th>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    placeholder="예: 2026-12-31"
+                    value={doc.dueDate}
+                    onChange={(e) => setDoc({ ...doc, dueDate: e.target.value })}
+                    className={inputClass}
+                  />
+                </td>
+                <th className="bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">작성일</th>
+                <td className="px-3 py-2 text-gray-300">{new Date(estimate.createdAt).toLocaleDateString()}</td>
+              </tr>
+              <tr>
+                <th className="bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">유지보수기간</th>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={doc.maintenancePeriod}
+                    onChange={(e) => setDoc({ ...doc, maintenancePeriod: e.target.value })}
+                    className={inputClass}
+                  />
+                </td>
+                <th className="bg-gray-900 text-gray-400 text-left px-3 py-2 font-semibold">제안금액</th>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={doc.finalAmount}
+                    onChange={(e) => setDoc({ ...doc, finalAmount: Number(e.target.value) })}
+                    className={inputClass}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="overflow-x-auto mb-6">
+          <table className="w-full text-sm border border-gray-800">
+            <thead>
+              <tr className="bg-gray-900 text-gray-300">
+                <th className="px-3 py-2 text-left border-b border-gray-800">구성</th>
+                <th className="px-3 py-2 text-left border-b border-gray-800">세부항목</th>
+                <th className="px-3 py-2 text-right border-b border-gray-800 w-28">예상 소요시간</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.lineItems.map((item, i) => (
+                <tr key={i} className="border-b border-gray-800 last:border-0">
+                  <td className="px-3 py-2 font-semibold text-gray-200 whitespace-nowrap">{item.name}</td>
+                  <td className="px-3 py-2 text-gray-400">{item.description}</td>
+                  <td className="px-3 py-2 text-right text-gray-300">{item.estimatedHours}h</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <p className="text-sm font-semibold text-gray-300 mb-2">참고사항</p>
+            <textarea
+              value={doc.notes}
+              onChange={(e) => setDoc({ ...doc, notes: e.target.value })}
+              rows={4}
+              className={`${inputClass} resize-none font-normal`}
+            />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-300 mb-2">대금지불방법</p>
+            <textarea
+              value={doc.paymentTerms}
+              onChange={(e) => setDoc({ ...doc, paymentTerms: e.target.value })}
+              rows={4}
+              className={`${inputClass} resize-none font-normal`}
+            />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold text-gray-300 mb-2">공급자 정보</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="w-20 shrink-0">회사명</span>
+              <input
+                type="text"
+                value={doc.supplier.companyName}
+                onChange={(e) => setDoc({ ...doc, supplier: { ...doc.supplier, companyName: e.target.value } })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="w-20 shrink-0">사업자번호</span>
+              <input
+                type="text"
+                value={doc.supplier.businessNumber}
+                onChange={(e) => setDoc({ ...doc, supplier: { ...doc.supplier, businessNumber: e.target.value } })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="w-20 shrink-0">대표자</span>
+              <input
+                type="text"
+                value={doc.supplier.ceoName}
+                onChange={(e) => setDoc({ ...doc, supplier: { ...doc.supplier, ceoName: e.target.value } })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="w-20 shrink-0">담당자</span>
+              <input
+                type="text"
+                value={doc.supplier.contactName}
+                onChange={(e) => setDoc({ ...doc, supplier: { ...doc.supplier, contactName: e.target.value } })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="w-20 shrink-0">전화</span>
+              <input
+                type="text"
+                value={doc.supplier.phone}
+                onChange={(e) => setDoc({ ...doc, supplier: { ...doc.supplier, phone: e.target.value } })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="w-20 shrink-0">주소</span>
+              <input
+                type="text"
+                value={doc.supplier.address}
+                onChange={(e) => setDoc({ ...doc, supplier: { ...doc.supplier, address: e.target.value } })}
+                className={inputClass}
+              />
+            </label>
+          </div>
         </div>
       </Card>
 
-      <Card title="가정 사항">
-        <ul className="list-disc list-inside text-sm text-gray-300 flex flex-col gap-1">
-          {result.assumptions.map((assumption, i) => (
-            <li key={i}>{assumption}</li>
-          ))}
-        </ul>
+      <Card title="요약">
+        <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{result.summary}</p>
       </Card>
     </div>
   );

@@ -113,6 +113,22 @@ export default function InquiriesPage() {
     return displayStatusFor(inquiry, aiJobs).label === filter;
   });
 
+  // 요청 — 목록 상단에 처리 현황을 한눈에 보는 요약 카드. 새 상태 체계를 만들지 않고
+  // displayStatusFor()가 이미 계산하는 라벨을 3개 버킷(처리 중/완료/반려·실패)으로 묶는다.
+  // "총 예상 금액"은 budget이 자유 텍스트("협의" 등)라 숫자 합산이 불가능해 포함하지 않는다.
+  const IN_PROGRESS_LABELS = new Set(["신규 접수", "AI 분석 대기", "AI 분석·생성 중"]);
+  const REJECTED_LABELS = new Set(["반려", "생성 실패", "취소됨"]);
+  const statusCounts = inquiries.reduce(
+    (acc, inquiry) => {
+      const label = displayStatusFor(inquiry, aiJobs).label;
+      if (label === "생성 완료") acc.completed += 1;
+      else if (REJECTED_LABELS.has(label)) acc.rejected += 1;
+      else if (IN_PROGRESS_LABELS.has(label)) acc.inProgress += 1;
+      return acc;
+    },
+    { inProgress: 0, completed: 0, rejected: 0 }
+  );
+
   return (
     <div>
       <PageHeader
@@ -147,6 +163,37 @@ export default function InquiriesPage() {
           </>
         }
       />
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400">전체 요청</p>
+            <p className="text-2xl font-bold text-white">{inquiries.length}</p>
+          </div>
+          <span className="text-2xl">📋</span>
+        </Card>
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400">처리 중</p>
+            <p className="text-2xl font-bold text-yellow-400">{statusCounts.inProgress}</p>
+          </div>
+          <span className="text-2xl">⏳</span>
+        </Card>
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400">생성 완료</p>
+            <p className="text-2xl font-bold text-green-400">{statusCounts.completed}</p>
+          </div>
+          <span className="text-2xl">✅</span>
+        </Card>
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400">반려·실패</p>
+            <p className="text-2xl font-bold text-red-400">{statusCounts.rejected}</p>
+          </div>
+          <span className="text-2xl">⛔</span>
+        </Card>
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {FILTERS.map((option) => (

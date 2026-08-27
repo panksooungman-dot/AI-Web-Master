@@ -3,7 +3,13 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
-import { createEstimate, getEstimate, listEstimates, listEstimatesByInquiry } from "../../lib/estimates/registry";
+import {
+  createEstimate,
+  getEstimate,
+  listEstimates,
+  listEstimatesByInquiry,
+  updateEstimateDocument,
+} from "../../lib/estimates/registry";
 import type { EstimateInput, EstimateResult } from "../../lib/estimates/types";
 
 const INPUT: EstimateInput = {
@@ -86,5 +92,24 @@ describe("Estimate Registry — lib/estimates/registry.ts", () => {
 
     const results = await listEstimatesByInquiry("inquiry-2", store);
     expect(results.map((r) => r.id)).toEqual([own.id]);
+  });
+
+  it("updateEstimateDocument() persists the editable document fields, undefined for unknown id", async () => {
+    const record = await createEstimate(
+      { inquiryId: "inquiry-1", websiteOrderId: "order-1", input: INPUT, result: RESULT, simulated: true },
+      store
+    );
+
+    const updated = await updateEstimateDocument(
+      record.id,
+      { projectTitle: "브라이트 카페 홈페이지 제작", finalAmount: 1_200_000, supplier: { companyName: "씨엔비즈" } },
+      store
+    );
+
+    expect(updated?.document?.projectTitle).toBe("브라이트 카페 홈페이지 제작");
+    expect(updated?.document?.finalAmount).toBe(1_200_000);
+    expect(updated?.document?.supplier?.companyName).toBe("씨엔비즈");
+    expect((await getEstimate(record.id, store))?.document?.finalAmount).toBe(1_200_000);
+    expect(await updateEstimateDocument("does-not-exist", { projectTitle: "x" }, store)).toBeUndefined();
   });
 });

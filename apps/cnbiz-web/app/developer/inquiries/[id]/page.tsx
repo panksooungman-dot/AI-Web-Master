@@ -1045,30 +1045,21 @@ export default function InquiryDetailPage() {
         actions={
           <button
             onClick={handleShareWithCustomer}
-            disabled={
-              !websiteOrder ||
-              !client?.phone ||
-              estimates.length === 0 ||
-              specifications.length === 0 ||
-              timelines.length === 0 ||
-              isSharing
-            }
+            disabled={!websiteOrder || !client?.phone || estimates.length === 0 || isSharing}
             className="rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
           >
             {isSharing ? "발송 중..." : "문자로 공유"}
           </button>
         }
       >
-        {estimates.length === 0 || specifications.length === 0 || timelines.length === 0 ? (
-          <p className="text-gray-500 text-sm">
-            기술 견적서·기능 명세서·프로젝트 일정을 모두 생성하면 의뢰자에게 문자로 공유할 수 있습니다.
-          </p>
+        {estimates.length === 0 ? (
+          <p className="text-gray-500 text-sm">기술 견적서를 먼저 생성하면 의뢰자에게 문자로 공유할 수 있습니다.</p>
         ) : !client?.phone ? (
           <p className="text-gray-500 text-sm">고객사 연락처(전화번호)가 없어 문자를 보낼 수 없습니다.</p>
         ) : (
           <p className="text-gray-500 text-sm">
             {client.companyName || client.contactName}님({client.phone})에게 로그인 없이 열람 가능한 문서 링크를
-            문자로 발송합니다. 견적서·기능 명세서·프로젝트 일정이 한 페이지에 표시됩니다.
+            문자로 발송합니다. 견적서·기능 명세서·프로젝트 일정 중 생성된 것만 한 페이지에 표시됩니다.
           </p>
         )}
         {shareMessage && (

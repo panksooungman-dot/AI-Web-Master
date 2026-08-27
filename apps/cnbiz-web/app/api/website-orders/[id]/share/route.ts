@@ -66,7 +66,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const notifier = createSolapiNotifier(apiKey, apiSecret, client.phone, from);
     await notifier.send(
       [
-        `[CNBIZ] ${client.companyName || client.contactName}님, 견적서·기능명세서·프로젝트 일정이 준비되었습니다.`,
+        `[CNBIZ] ${client.companyName || client.contactName}님, 프로젝트 문서(견적서 등)가 준비되었습니다.`,
         `아래 링크에서 확인해주세요.`,
         shareUrl,
       ].join("\n")

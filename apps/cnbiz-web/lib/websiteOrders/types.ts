@@ -41,6 +41,12 @@ export interface WebsiteOrderRecord extends WebsiteOrderInput {
    * 이후 추가된 옵셔널 필드 — 기존 레코드에는 없을 수 있음).
    */
   projectId?: string | null;
+  /**
+   * 의뢰자에게 견적서·기능명세서·프로젝트 일정을 로그인 없이 공유하는 공개 링크(`/quote/[token]`)의
+   * 토큰. 최초 공유 시 `ensureWebsiteOrderShareToken()`이 생성해 영구 저장하며, 이후 재공유(문자
+   * 재발송 등)에도 같은 링크를 재사용한다.
+   */
+  shareToken?: string | null;
   createdAt: string;
   updatedAt: string;
 }

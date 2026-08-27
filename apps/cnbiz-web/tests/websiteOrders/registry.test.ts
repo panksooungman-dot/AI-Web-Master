@@ -7,6 +7,8 @@ import {
   addAiJobToWebsiteOrder,
   addWebsiteToOrder,
   createWebsiteOrder,
+  ensureWebsiteOrderShareToken,
+  getWebsiteOrderByShareToken,
   listWebsiteOrdersByClient,
   updateWebsiteOrderStatus,
 } from "../../lib/websiteOrders/registry";
@@ -66,5 +68,25 @@ describe("Website Order Registry — lib/websiteOrders/registry.ts", () => {
     await addWebsiteToOrder(created.id, "website-1", store);
     const again = await addWebsiteToOrder(created.id, "website-1", store);
     expect(again?.websiteIds).toEqual(["website-1"]);
+  });
+
+  it("ensureWebsiteOrderShareToken() generates a token once and reuses it on repeat calls, undefined for unknown id", async () => {
+    const created = await createWebsiteOrder(INPUT, store);
+    expect(created.shareToken).toBeUndefined();
+
+    const first = await ensureWebsiteOrderShareToken(created.id, store);
+    const second = await ensureWebsiteOrderShareToken(created.id, store);
+
+    expect(first).toBeTruthy();
+    expect(second).toBe(first);
+    expect(await ensureWebsiteOrderShareToken("does-not-exist", store)).toBeUndefined();
+  });
+
+  it("getWebsiteOrderByShareToken() finds the order that owns the token, undefined when no order has it", async () => {
+    const created = await createWebsiteOrder(INPUT, store);
+    const token = await ensureWebsiteOrderShareToken(created.id, store);
+
+    expect((await getWebsiteOrderByShareToken(token!, store))?.id).toBe(created.id);
+    expect(await getWebsiteOrderByShareToken("does-not-exist", store)).toBeUndefined();
   });
 });

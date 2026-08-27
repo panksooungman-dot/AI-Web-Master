@@ -102,6 +102,38 @@ export async function setWebsiteOrderProject(
   return records[index];
 }
 
+/**
+ * 의뢰자 공유 링크(`/quote/[token]`)용 토큰을 반환한다 — 이미 있으면 그대로 재사용하고(재공유
+ * 시 같은 링크 유지), 없으면 새로 생성해 저장한다. `shareToken`이 아니라 항상 이 함수를 통해서만
+ * 발급해야 링크가 재발급될 때마다 달라지는 문제를 막을 수 있다.
+ */
+export async function ensureWebsiteOrderShareToken(
+  id: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<string | undefined> {
+  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
+  const index = records.findIndex((order) => order.id === id);
+  if (index === -1) return undefined;
+
+  if (records[index].shareToken) {
+    return records[index].shareToken as string;
+  }
+
+  const shareToken = generateId("quote");
+  records[index] = { ...records[index], shareToken, updatedAt: new Date().toISOString() };
+  await store.replaceAll(COLLECTION, records);
+
+  return shareToken;
+}
+
+export async function getWebsiteOrderByShareToken(
+  token: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteOrderRecord | undefined> {
+  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
+  return records.find((order) => order.shareToken === token);
+}
+
 export async function addWebsiteToOrder(
   orderId: string,
   websiteId: string,

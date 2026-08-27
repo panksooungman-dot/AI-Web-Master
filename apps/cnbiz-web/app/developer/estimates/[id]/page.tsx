@@ -75,6 +75,8 @@ export default function EstimateDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -119,6 +121,29 @@ export default function EstimateDetailPage() {
       setSaveMessage({ tone: "error", text: "저장 중 오류가 발생했습니다." });
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  // /developer/inquiries/[id]의 "고객 공유" 카드와 동일한 API(POST /api/website-orders/[id]/share)를
+  // 이 페이지에서도 바로 호출한다 — 기능명세서·프로젝트 일정이 아직 없어도 견적서만으로 공유 가능.
+  async function handleShare() {
+    if (!estimate) return;
+    setIsSharing(true);
+    setShareMessage(null);
+
+    try {
+      const res = await fetch(`/api/website-orders/${estimate.websiteOrderId}/share`, { method: "POST" });
+      const data: { success: boolean; shareUrl?: string; error?: string } = await res.json();
+
+      if (!data.success) {
+        setShareMessage({ tone: "error", text: data.error ?? "문자 발송에 실패했습니다." });
+        return;
+      }
+      setShareMessage({ tone: "success", text: `문자를 발송했습니다. (${data.shareUrl})` });
+    } catch {
+      setShareMessage({ tone: "error", text: "문자 발송 중 오류가 발생했습니다." });
+    } finally {
+      setIsSharing(false);
     }
   }
 
@@ -177,7 +202,15 @@ export default function EstimateDetailPage() {
         >
           Export Markdown
         </button>
+        <button
+          onClick={handleShare}
+          disabled={isSharing}
+          className="rounded bg-purple-600 hover:bg-purple-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+        >
+          {isSharing ? "발송 중..." : "문자로 공유"}
+        </button>
         {saveMessage && <StatusMessage tone={saveMessage.tone}>{saveMessage.text}</StatusMessage>}
+        {shareMessage && <StatusMessage tone={shareMessage.tone}>{shareMessage.text}</StatusMessage>}
       </div>
 
       {/* 견적서 문서 본문 */}

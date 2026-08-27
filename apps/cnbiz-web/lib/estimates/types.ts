@@ -37,6 +37,40 @@ export interface EstimateInput {
   budget?: string;
 }
 
+/**
+ * 견적서를 정식 문서(귀중/제안금액/공급자 정보가 있는 견적서 양식)로 표시하기 위한 편집 가능
+ * 필드 — 전부 선택값이며, 없으면 페이지에서 result 기반 기본값으로 채운다. 공급자 정보는
+ * 실제 사업자 정보를 지어내지 않기 위해 빈 값을 기본으로 하고 관리자가 직접 입력·저장한다.
+ */
+export interface EstimateSupplierInfo {
+  companyName?: string;
+  businessNumber?: string;
+  ceoName?: string;
+  contactName?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface EstimateDocumentDetails {
+  /** 건명 */
+  projectTitle?: string;
+  /** 개발기간(자유 텍스트, 예: "3개월") */
+  developmentPeriod?: string;
+  /** 유효기간(자유 텍스트, 기본 "30일") */
+  validityPeriod?: string;
+  /** 납기일(자유 텍스트 날짜) */
+  dueDate?: string;
+  /** 유지보수기간(자유 텍스트, 기본 "6개월") */
+  maintenancePeriod?: string;
+  /** 제안금액 — 없으면 result.priceRangeMax를 기본값으로 사용 */
+  finalAmount?: number;
+  /** 참고사항(줄바꿈으로 구분되는 자유 텍스트) */
+  notes?: string;
+  /** 대금지불방법(줄바꿈으로 구분되는 자유 텍스트) */
+  paymentTerms?: string;
+  supplier?: EstimateSupplierInfo;
+}
+
 export interface EstimateRecord {
   id: string;
   inquiryId: string;
@@ -47,4 +81,5 @@ export interface EstimateRecord {
   provider?: string;
   model?: string;
   createdAt: string;
+  document?: EstimateDocumentDetails;
 }

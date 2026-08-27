@@ -1,7 +1,7 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
 import { generateId } from "@/lib/id";
-import type { EstimateRecord } from "./types";
+import type { EstimateDocumentDetails, EstimateRecord } from "./types";
 
 const COLLECTION = "estimates";
 
@@ -42,4 +42,19 @@ export async function createEstimate(
   await store.replaceAll(COLLECTION, records);
 
   return record;
+}
+
+export async function updateEstimateDocument(
+  id: string,
+  document: EstimateDocumentDetails,
+  store: CollectionStore = getDefaultStore()
+): Promise<EstimateRecord | undefined> {
+  const records = await store.list<EstimateRecord>(COLLECTION);
+  const index = records.findIndex((record) => record.id === id);
+  if (index === -1) return undefined;
+
+  records[index] = { ...records[index], document };
+  await store.replaceAll(COLLECTION, records);
+
+  return records[index];
 }

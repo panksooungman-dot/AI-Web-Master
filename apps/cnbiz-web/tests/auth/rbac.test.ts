@@ -175,6 +175,13 @@ describe("RBAC — lib/auth/rbac.ts (release hardening, v1.0)", () => {
       expect(resolveProtectedArea("/api/launch-requests", "POST")).toBe("developer");
       expect(resolveProtectedArea("/api/launch-requests/abc123")).toBe("developer");
     });
+
+    it("leaves /api/quote/public/** ungated (app/quote/[token]/page.tsx — 의뢰자가 문자로 받은 링크로 로그인 없이 여는 견적서·기능명세서·프로젝트 일정 공개 조회), while share-link 발급(POST /api/website-orders/[id]/share)은 developer-gated로 유지", () => {
+      expect(resolveProtectedArea("/api/quote/public/abc123")).toBeNull();
+      expect(resolveProtectedArea("/api/quote/public/abc123", "GET")).toBeNull();
+      expect(resolveProtectedArea("/api/website-orders/abc123/share")).toBe("developer");
+      expect(resolveProtectedArea("/api/website-orders/abc123/share", "POST")).toBe("developer");
+    });
   });
 
   describe("defaultLandingPathForRole()", () => {

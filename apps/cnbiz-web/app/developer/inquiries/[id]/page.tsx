@@ -105,6 +105,8 @@ export default function InquiryDetailPage() {
   const [contractError, setContractError] = useState<string | null>(null);
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [proposalError, setProposalError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -437,6 +439,31 @@ export default function InquiryDetailPage() {
       setTimelineError("프로젝트 일정 생성 중 오류가 발생했습니다.");
     } finally {
       setIsGeneratingTimeline(false);
+    }
+  }
+
+  // 견적서·기능명세서·프로젝트 일정을 의뢰자에게 SOLAPI 문자로 공유 — /api/website-orders/[id]/share가
+  // 공개 링크(/quote/[token])를 발급/재사용하고 client.phone으로 발송한다.
+  async function handleShareWithCustomer() {
+    if (!websiteOrder) return;
+
+    setIsSharing(true);
+    setShareMessage(null);
+
+    try {
+      const res = await fetch(`/api/website-orders/${websiteOrder.id}/share`, { method: "POST" });
+      const data: { success: boolean; shareUrl?: string; error?: string } = await res.json();
+
+      if (!data.success) {
+        setShareMessage({ tone: "error", text: data.error ?? "문자 발송에 실패했습니다." });
+        return;
+      }
+
+      setShareMessage({ tone: "success", text: `문자를 발송했습니다. (${data.shareUrl})` });
+    } catch {
+      setShareMessage({ tone: "error", text: "문자 발송 중 오류가 발생했습니다." });
+    } finally {
+      setIsSharing(false);
     }
   }
 
@@ -1010,6 +1037,45 @@ export default function InquiryDetailPage() {
           </div>
         )}
         {timelineError && <StatusMessage tone="error" className="mt-3">{timelineError}</StatusMessage>}
+      </Card>
+
+      <Card
+        title="고객 공유"
+        className="mb-6"
+        actions={
+          <button
+            onClick={handleShareWithCustomer}
+            disabled={
+              !websiteOrder ||
+              !client?.phone ||
+              estimates.length === 0 ||
+              specifications.length === 0 ||
+              timelines.length === 0 ||
+              isSharing
+            }
+            className="rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {isSharing ? "발송 중..." : "문자로 공유"}
+          </button>
+        }
+      >
+        {estimates.length === 0 || specifications.length === 0 || timelines.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            기술 견적서·기능 명세서·프로젝트 일정을 모두 생성하면 의뢰자에게 문자로 공유할 수 있습니다.
+          </p>
+        ) : !client?.phone ? (
+          <p className="text-gray-500 text-sm">고객사 연락처(전화번호)가 없어 문자를 보낼 수 없습니다.</p>
+        ) : (
+          <p className="text-gray-500 text-sm">
+            {client.companyName || client.contactName}님({client.phone})에게 로그인 없이 열람 가능한 문서 링크를
+            문자로 발송합니다. 견적서·기능 명세서·프로젝트 일정이 한 페이지에 표시됩니다.
+          </p>
+        )}
+        {shareMessage && (
+          <StatusMessage tone={shareMessage.tone} className="mt-3">
+            {shareMessage.text}
+          </StatusMessage>
+        )}
       </Card>
 
       <Card

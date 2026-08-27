@@ -8,6 +8,8 @@ import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { EstimateDocumentDetails, EstimateRecord } from "@/lib/estimates/types";
+import type { SpecificationRecord } from "@/lib/specifications/types";
+import type { TimelineRecord } from "@/lib/timeline/types";
 import { toKoreanAmountPhrase } from "@/lib/estimates/koreanNumber";
 import { buildDefaultEstimateDocument } from "@/lib/estimates/document";
 
@@ -77,6 +79,8 @@ export default function EstimateDetailPage() {
   const [saveMessage, setSaveMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [siblingSpecificationId, setSiblingSpecificationId] = useState<string | null>(null);
+  const [siblingTimelineId, setSiblingTimelineId] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -97,6 +101,22 @@ export default function EstimateDetailPage() {
       .catch(() => setLoadError("견적서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
   }, [params.id]);
+
+  // 견적서에는 기능명세서/프로젝트 일정 id가 직접 저장되어 있지 않아(생성 순서상 나중에 만들어짐),
+  // 같은 inquiryId를 가진 최신 문서를 찾아 상단 탭 링크로 연결한다. 없으면 탭을 표시하지 않는다.
+  useEffect(() => {
+    if (!estimate) return;
+
+    Promise.all([
+      fetch("/api/specifications").then((res) => res.json()),
+      fetch("/api/timeline").then((res) => res.json()),
+    ]).then(([specJson, timelineJson]: [{ specifications?: SpecificationRecord[] }, { timelines?: TimelineRecord[] }]) => {
+      const spec = (specJson.specifications ?? []).find((s) => s.inquiryId === estimate.inquiryId);
+      const timeline = (timelineJson.timelines ?? []).find((t) => t.inquiryId === estimate.inquiryId);
+      setSiblingSpecificationId(spec?.id ?? null);
+      setSiblingTimelineId(timeline?.id ?? null);
+    });
+  }, [estimate]);
 
   async function handleSave() {
     if (!estimate || !doc) return;
@@ -173,6 +193,16 @@ export default function EstimateDetailPage() {
       >
         원본 의뢰 보기 →
       </Link>
+      {siblingSpecificationId && (
+        <Link href={`/developer/specifications/${siblingSpecificationId}`} className="ml-4 text-sm text-blue-400 hover:underline">
+          기능 명세서 보기 →
+        </Link>
+      )}
+      {siblingTimelineId && (
+        <Link href={`/developer/timeline/${siblingTimelineId}`} className="ml-4 text-sm text-blue-400 hover:underline">
+          프로젝트 일정 보기 →
+        </Link>
+      )}
 
       <PageHeader
         title="기술 견적서"

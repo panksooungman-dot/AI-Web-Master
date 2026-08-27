@@ -8,6 +8,8 @@ import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { SpecificationRecord } from "@/lib/specifications/types";
+import type { EstimateRecord } from "@/lib/estimates/types";
+import type { TimelineRecord } from "@/lib/timeline/types";
 
 interface SpecificationResponse {
   specification?: SpecificationRecord;
@@ -77,6 +79,8 @@ export default function SpecificationDetailPage() {
   const [specification, setSpecification] = useState<SpecificationRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [siblingEstimateId, setSiblingEstimateId] = useState<string | null>(null);
+  const [siblingTimelineId, setSiblingTimelineId] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -96,6 +100,22 @@ export default function SpecificationDetailPage() {
       .catch(() => setLoadError("기능 명세서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
   }, [params.id]);
+
+  // 기능명세서에는 견적서/프로젝트 일정 id가 직접 저장되어 있지 않아, 같은 inquiryId를 가진
+  // 최신 문서를 찾아 상단 탭 링크로 연결한다(견적서 페이지의 동일 패턴 참고). 없으면 표시하지 않는다.
+  useEffect(() => {
+    if (!specification) return;
+
+    Promise.all([
+      fetch("/api/estimates").then((res) => res.json()),
+      fetch("/api/timeline").then((res) => res.json()),
+    ]).then(([estimateJson, timelineJson]: [{ estimates?: EstimateRecord[] }, { timelines?: TimelineRecord[] }]) => {
+      const estimate = (estimateJson.estimates ?? []).find((e) => e.inquiryId === specification.inquiryId);
+      const timeline = (timelineJson.timelines ?? []).find((t) => t.inquiryId === specification.inquiryId);
+      setSiblingEstimateId(estimate?.id ?? null);
+      setSiblingTimelineId(timeline?.id ?? null);
+    });
+  }, [specification]);
 
   if (isLoading) return <LoadingText />;
 
@@ -123,6 +143,16 @@ export default function SpecificationDetailPage() {
       >
         원본 의뢰 보기 →
       </Link>
+      {siblingEstimateId && (
+        <Link href={`/developer/estimates/${siblingEstimateId}`} className="ml-4 text-sm text-blue-400 hover:underline">
+          기술 견적서 보기 →
+        </Link>
+      )}
+      {siblingTimelineId && (
+        <Link href={`/developer/timeline/${siblingTimelineId}`} className="ml-4 text-sm text-blue-400 hover:underline">
+          프로젝트 일정 보기 →
+        </Link>
+      )}
 
       <PageHeader
         title={`기능 명세서 — ${input.companyName}`}

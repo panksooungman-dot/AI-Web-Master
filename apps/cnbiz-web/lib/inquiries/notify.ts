@@ -8,6 +8,12 @@ import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 import { recordAuditEvent } from "@/lib/audit/log";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
+import { SITE_URL } from "@/lib/site-config";
+
+/** 알림 메시지에 넣는 관리자 상세 페이지 링크 — 로그인 세션이 있는 브라우저에서 누르면 바로 해당 의뢰로 이동한다. */
+function buildAdminInquiryUrl(inquiryId: string): string {
+  return `${SITE_URL}/developer/inquiries/${inquiryId}`;
+}
 
 /**
  * AI Business OS Rewiring(REWIRING_REPORT.md) — 이전에는 "CNBIZ.AI.KR이 아직 구축되지 않아
@@ -227,6 +233,7 @@ export async function notifyAdminOfNewInquirySolapi(
         `담당자: ${client.contactName} (${client.phone || client.email})`,
         `홈페이지 종류: ${order.siteType || "(미기재)"}`,
         `Inquiry ID: ${inquiry.id}`,
+        buildAdminInquiryUrl(inquiry.id),
       ].join("\n")
     );
     console.log(`[inquiry-solapi] admin notification sent for inquiry ${inquiry.id}`);

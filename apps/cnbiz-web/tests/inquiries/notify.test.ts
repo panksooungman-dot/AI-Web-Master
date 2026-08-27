@@ -278,6 +278,7 @@ describe("Admin Inquiry SOLAPI Notification — lib/inquiries/notify.ts (병행 
     expect(sent).toHaveLength(1);
     expect(sent[0]).toContain("테스트회사");
     expect(sent[0]).toContain(INQUIRY.id);
+    expect(sent[0]).toContain(`https://cnbiz.kr/developer/inquiries/${INQUIRY.id}`);
 
     const events = await listAuditEvents({ action: "inquiry.notify_admin_solapi" }, store);
     expect(events).toHaveLength(1);

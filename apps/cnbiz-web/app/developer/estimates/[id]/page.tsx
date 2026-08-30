@@ -81,6 +81,10 @@ export default function EstimateDetailPage() {
   const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [siblingSpecificationId, setSiblingSpecificationId] = useState<string | null>(null);
   const [siblingTimelineId, setSiblingTimelineId] = useState<string | null>(null);
+  const [isGeneratingSpecification, setIsGeneratingSpecification] = useState(false);
+  const [specificationGenError, setSpecificationGenError] = useState<string | null>(null);
+  const [isGeneratingTimeline, setIsGeneratingTimeline] = useState(false);
+  const [timelineGenError, setTimelineGenError] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -167,6 +171,60 @@ export default function EstimateDetailPage() {
     }
   }
 
+  // /developer/inquiries/[id]의 handleGenerateSpecification()과 완전히 동일한 API 호출 —
+  // 견적서 페이지를 벗어나지 않고 바로 기능 명세서를 생성할 수 있도록 이 페이지에도 배선한다.
+  async function handleGenerateSpecification() {
+    if (!estimate) return;
+    setIsGeneratingSpecification(true);
+    setSpecificationGenError(null);
+
+    try {
+      const res = await fetch("/api/specifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: estimate.inquiryId }),
+      });
+      const data: { success: boolean; specification?: SpecificationRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.specification) {
+        setSpecificationGenError(data.error ?? "기능 명세서 생성에 실패했습니다.");
+        return;
+      }
+      setSiblingSpecificationId(data.specification.id);
+    } catch {
+      setSpecificationGenError("기능 명세서 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingSpecification(false);
+    }
+  }
+
+  // /developer/inquiries/[id]의 handleGenerateTimeline()과 완전히 동일한 API 호출. 프로젝트 일정은
+  // 기능 명세서를 입력으로 사용하므로(POST /api/timeline), 기능 명세서가 먼저 있어야 활성화된다.
+  async function handleGenerateTimeline() {
+    if (!estimate || !siblingSpecificationId) return;
+    setIsGeneratingTimeline(true);
+    setTimelineGenError(null);
+
+    try {
+      const res = await fetch("/api/timeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiryId: estimate.inquiryId }),
+      });
+      const data: { success: boolean; timeline?: TimelineRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.timeline) {
+        setTimelineGenError(data.error ?? "프로젝트 일정 생성에 실패했습니다.");
+        return;
+      }
+      setSiblingTimelineId(data.timeline.id);
+    } catch {
+      setTimelineGenError("프로젝트 일정 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeneratingTimeline(false);
+    }
+  }
+
   if (isLoading) return <LoadingText />;
 
   if (loadError || !estimate || !doc) {
@@ -229,24 +287,43 @@ export default function EstimateDetailPage() {
         >
           {isSharing ? "발송 중..." : "문자로 공유"}
         </button>
-        {siblingSpecificationId && (
+        {siblingSpecificationId ? (
           <Link
             href={`/developer/specifications/${siblingSpecificationId}`}
             className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
           >
             기능 명세서 →
           </Link>
+        ) : (
+          <button
+            onClick={handleGenerateSpecification}
+            disabled={isGeneratingSpecification}
+            className="rounded border border-indigo-700 bg-indigo-900/40 hover:bg-indigo-900/60 px-4 py-2 text-sm transition-colors disabled:opacity-50"
+          >
+            {isGeneratingSpecification ? "생성 중..." : "기능 명세서 생성"}
+          </button>
         )}
-        {siblingTimelineId && (
+        {siblingTimelineId ? (
           <Link
             href={`/developer/timeline/${siblingTimelineId}`}
             className="rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm transition-colors"
           >
             프로젝트 일정 →
           </Link>
+        ) : (
+          <button
+            onClick={handleGenerateTimeline}
+            disabled={!siblingSpecificationId || isGeneratingTimeline}
+            title={!siblingSpecificationId ? "기능 명세서를 먼저 생성하세요" : undefined}
+            className="rounded border border-indigo-700 bg-indigo-900/40 hover:bg-indigo-900/60 px-4 py-2 text-sm transition-colors disabled:opacity-50"
+          >
+            {isGeneratingTimeline ? "생성 중..." : "프로젝트 일정 생성"}
+          </button>
         )}
         {saveMessage && <StatusMessage tone={saveMessage.tone}>{saveMessage.text}</StatusMessage>}
         {shareMessage && <StatusMessage tone={shareMessage.tone}>{shareMessage.text}</StatusMessage>}
+        {specificationGenError && <StatusMessage tone="error">{specificationGenError}</StatusMessage>}
+        {timelineGenError && <StatusMessage tone="error">{timelineGenError}</StatusMessage>}
       </div>
 
       {/* 견적서 문서 본문 */}

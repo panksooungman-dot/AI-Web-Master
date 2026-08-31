@@ -10,12 +10,16 @@ const inputs = [
   { icon: CloudIcon, label: "클라우드 인프라", tone: "cyan" as const },
 ];
 
-export function ApproachMapSection() {
+interface ApproachMapSectionProps {
+  blendFrom?: "white" | "alt" | "dark";
+}
+
+export function ApproachMapSection({ blendFrom = "dark" }: ApproachMapSectionProps) {
   return (
     <Section
       {...componentMarker("ApproachMapSection", "components/sections/ApproachMapSection.tsx", "접근 방식 다이어그램")}
       background="white"
-      blendFrom="dark"
+      blendFrom={blendFrom}
     >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">

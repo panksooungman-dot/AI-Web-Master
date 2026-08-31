@@ -5,7 +5,6 @@ import { MobileMenu } from "./MobileMenu";
 const navLinks = [
   { label: "회사소개", href: "/about" },
   { label: "사업소개", href: "/services" },
-  { label: "포트폴리오", href: "/portfolio" },
   { label: "문의하기", href: "/contact" },
 ];
 

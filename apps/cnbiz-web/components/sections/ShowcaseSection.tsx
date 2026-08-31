@@ -3,16 +3,6 @@ import { Container, Section } from "@cnbiz/layout-primitives";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 const showcases = [
-  {
-    src: "/images/showcase-furniture.jpg",
-    alt: "가구·인테리어 쇼핑몰 화면 예시",
-    aspectClass: "aspect-[1000/1022]",
-  },
-  {
-    src: "/images/showcase-food.jpg",
-    alt: "푸드·라이프스타일 브랜드 화면 예시",
-    aspectClass: "aspect-[1000/1010]",
-  },
   { src: "/images/showcase-wall-1.jpg", alt: "다양한 앱·이커머스 화면 모음 1", aspectClass: "aspect-[4/3]" },
   { src: "/images/showcase-wall-2.jpg", alt: "다양한 앱·이커머스 화면 모음 2", aspectClass: "aspect-[4/3]" },
   { src: "/images/showcase-wall-3.jpg", alt: "다양한 브랜드 화면 모음", aspectClass: "aspect-[4/3]" },

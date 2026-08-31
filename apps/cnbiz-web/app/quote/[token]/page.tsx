@@ -11,6 +11,7 @@ import { buildDefaultEstimateDocument } from "@/lib/estimates/document";
 import { toKoreanAmountPhrase } from "@/lib/estimates/koreanNumber";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
+import { QuoteDocumentTabs } from "@/components/quote/QuoteDocumentTabs";
 
 interface PublicQuoteResponse {
   companyName?: string;
@@ -19,8 +20,6 @@ interface PublicQuoteResponse {
   timeline?: TimelineRecord | null;
   error?: string;
 }
-
-const PRIORITY_LABEL: Record<string, string> = { High: "필수", Medium: "권장", Low: "선택" };
 
 /**
  * 의뢰자 공개 문서 페이지 — 관리자가 SOLAPI 문자로 보낸 링크(`/quote/{token}`)를 로그인 없이
@@ -132,6 +131,13 @@ export default function PublicQuotePage() {
         <p className="mt-4 text-base leading-relaxed text-slate-600">
           견적서·기능 명세서·프로젝트 일정을 확인하실 수 있습니다. 궁금하신 점은 담당자에게 문의해주세요.
         </p>
+
+        <QuoteDocumentTabs
+          token={params.token}
+          hasEstimate={Boolean(estimate)}
+          hasSpecification={Boolean(specification)}
+          hasTimeline={Boolean(timeline)}
+        />
 
         {!estimate && !specification && !timeline && (
           <Card className="mt-8 text-center text-slate-500">아직 준비된 문서가 없습니다.</Card>
@@ -299,67 +305,6 @@ export default function PublicQuotePage() {
               {messageError && <p className="mt-2 text-sm text-red-600">{messageError}</p>}
             </div>
           </div>
-        )}
-
-        {specification && (
-          <Card className="relative isolate mt-8 overflow-hidden">
-            <DocumentWatermark />
-            <h2 className="text-xl font-bold text-slate-900 mb-2">기능 명세서</h2>
-            <p className="text-sm text-slate-600 mb-4">{specification.result.overview}</p>
-
-            <p className="text-sm font-semibold text-slate-700 mb-2">페이지 구성</p>
-            <ul className="mb-4 flex flex-col gap-1">
-              {specification.result.pages.map((page, i) => (
-                <li key={i} className="text-sm text-slate-600">
-                  <span className="font-semibold text-slate-800">{page.name}</span> — {page.description}
-                </li>
-              ))}
-            </ul>
-
-            <p className="text-sm font-semibold text-slate-700 mb-2">주요 기능</p>
-            <ul className="flex flex-col gap-1">
-              {specification.result.features.map((feature, i) => (
-                <li key={i} className="text-sm text-slate-600 flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      feature.priority === "High"
-                        ? "bg-amber-50 text-amber-700"
-                        : feature.priority === "Medium"
-                          ? "bg-blue-50 text-blue-700"
-                          : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {PRIORITY_LABEL[feature.priority] ?? feature.priority}
-                  </span>
-                  <span className="font-semibold text-slate-800">{feature.name}</span>
-                  <span className="text-slate-500">— {feature.description}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
-        {timeline && (
-          <Card className="relative isolate mt-8 overflow-hidden">
-            <DocumentWatermark />
-            <h2 className="text-xl font-bold text-slate-900 mb-2">프로젝트 일정</h2>
-            <p className="text-sm text-slate-600 mb-4">{timeline.result.overview}</p>
-            <p className="text-sm text-slate-500 mb-4">
-              총 소요기간: <span className="font-semibold text-slate-800">{timeline.result.totalDurationWeeks}주</span>
-            </p>
-
-            <div className="flex flex-col gap-2">
-              {timeline.result.phases.map((phase, i) => (
-                <div key={i} className="rounded border border-slate-200 px-3 py-2">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {i + 1}. {phase.name}
-                    <span className="ml-2 text-xs font-normal text-slate-400">{phase.durationDays}일</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">{phase.description}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
         )}
       </Container>
     </Section>

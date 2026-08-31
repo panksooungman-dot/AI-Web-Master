@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { WorkspaceStoreProvider } from "@/lib/store/workspace-store";
 import { OG_DEFAULTS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site-config";
@@ -59,13 +58,13 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
-        <Header />
-        <main className="flex-1">
-          <AuthProvider>
-            <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
-          </AuthProvider>
-        </main>
-        <Footer />
+        <SiteChrome>
+          <main className="flex-1">
+            <AuthProvider>
+              <WorkspaceStoreProvider>{children}</WorkspaceStoreProvider>
+            </AuthProvider>
+          </main>
+        </SiteChrome>
         <DevInspectorOverlay />
       </body>
       {isProduction && gaMeasurementId ? (

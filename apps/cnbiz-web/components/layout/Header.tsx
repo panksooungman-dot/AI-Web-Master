@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { LinkButton } from "@cnbiz/ui";
 import { MobileMenu } from "./MobileMenu";
@@ -7,7 +8,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:h-20 lg:px-8">
-        <Link href="/" className="shrink-0">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <Image src="/images/logo.png" alt="CNBIZ 로고" width={36} height={36} priority className="h-8 w-8 lg:h-9 lg:w-9" />
           <span className="text-2xl font-bold tracking-tight text-slate-900">
             CN<span className="text-primary">BIZ</span>
           </span>

@@ -1,18 +1,19 @@
 import Image from "next/image";
 import { Container, Section } from "@cnbiz/layout-primitives";
-import { IconBadge, LinkButton } from "@cnbiz/ui";
-import { AiIcon, CloudIcon, ConsultingIcon, DevelopmentIcon } from "@/components/icons/ServiceIcons";
+import { LinkButton } from "@cnbiz/ui";
 import { CNBIZ_AI_URL } from "@/lib/links";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 const HERO_SHOWCASE_MASK =
   "radial-gradient(ellipse 60% 60% at 65% 40%, black 0%, transparent 70%)";
 
-const services = [
-  { icon: ConsultingIcon, label: "디지털 전환 컨설팅", tone: "indigo" as const },
-  { icon: AiIcon, label: "AI / ML 솔루션", tone: "violet" as const },
-  { icon: DevelopmentIcon, label: "엔터프라이즈 개발", tone: "blue" as const },
-  { icon: CloudIcon, label: "클라우드 인프라", tone: "cyan" as const },
+// PricingSection(components/sections/PricingSection.tsx)과 동일한 실제 요금 — 광고 배너
+// 효과를 위해 히어로에도 요약해 노출한다. 두 곳의 금액이 어긋나지 않도록 항상 함께 갱신한다.
+const pricingHighlights = [
+  { label: "랜딩형", price: "25", top: "top-0", right: "right-16", width: "w-40" },
+  { label: "기업형", price: "40", top: "top-16", right: "right-8", width: "w-44" },
+  { label: "프리미엄", price: "70", top: "top-32", right: "right-2", width: "w-48" },
+  { label: "쇼핑몰", price: "100", top: "top-48", right: "right-0", width: "w-52" },
 ];
 
 export function HeroSection() {
@@ -98,29 +99,20 @@ export function HeroSection() {
           </div>
 
           <div className="hidden lg:block">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/20 backdrop-blur-sm">
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-primary-light">
-                Core Services
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {services.map((service) => (
-                  <div
-                    key={service.label}
-                    className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-primary-light/40"
-                  >
-                    <IconBadge tone={service.tone} size="sm" onDark>
-                      <service.icon className="h-5 w-5" />
-                    </IconBadge>
-                    <p className="text-sm font-semibold text-white">{service.label}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-5 text-sm text-slate-300">
-                <svg aria-hidden className="h-4 w-4 shrink-0 text-primary-light" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                영업일 기준 24시간 이내 답변드립니다
-              </div>
+            <div className="relative h-72">
+              {pricingHighlights.map((plan, index) => (
+                <div
+                  key={plan.label}
+                  className={`absolute ${plan.top} ${plan.right} ${plan.width} rounded-xl bg-white p-4 shadow-xl shadow-black/25`}
+                  style={{ zIndex: index + 1 }}
+                >
+                  <p className="text-xs font-semibold text-slate-400">{plan.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-primary">
+                    {plan.price}
+                    <span className="ml-1 text-sm font-semibold text-slate-400">만원~</span>
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

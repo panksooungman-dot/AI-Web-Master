@@ -58,7 +58,9 @@ export type AuditAction =
   | "customer.view_document"
   | "inquiry.update"
   | "inquiry.delete"
-  | "inquiry.analyze";
+  | "inquiry.analyze"
+  | "estimate.client_decision"
+  | "estimate.client_message";
 
 export interface AuditEntry {
   id: string;

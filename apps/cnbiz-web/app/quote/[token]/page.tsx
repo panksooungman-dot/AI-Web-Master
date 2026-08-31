@@ -10,6 +10,7 @@ import type { TimelineRecord } from "@/lib/timeline/types";
 import { buildDefaultEstimateDocument } from "@/lib/estimates/document";
 import { toKoreanAmountPhrase } from "@/lib/estimates/koreanNumber";
 import { componentMarker } from "@/lib/dev/component-marker";
+import { DocumentWatermark } from "@/components/DocumentWatermark";
 
 interface PublicQuoteResponse {
   companyName?: string;
@@ -83,7 +84,8 @@ export default function PublicQuotePage() {
         )}
 
         {estimate && doc && (
-          <Card className="mt-8">
+          <Card className="relative isolate mt-8 overflow-hidden">
+            <DocumentWatermark />
             <h2 className="text-xl font-bold text-slate-900 text-center border-b border-slate-200 pb-4 mb-4">
               기 술 견 적 서
             </h2>
@@ -159,7 +161,8 @@ export default function PublicQuotePage() {
         )}
 
         {specification && (
-          <Card className="mt-8">
+          <Card className="relative isolate mt-8 overflow-hidden">
+            <DocumentWatermark />
             <h2 className="text-xl font-bold text-slate-900 mb-2">기능 명세서</h2>
             <p className="text-sm text-slate-600 mb-4">{specification.result.overview}</p>
 
@@ -196,7 +199,8 @@ export default function PublicQuotePage() {
         )}
 
         {timeline && (
-          <Card className="mt-8">
+          <Card className="relative isolate mt-8 overflow-hidden">
+            <DocumentWatermark />
             <h2 className="text-xl font-bold text-slate-900 mb-2">프로젝트 일정</h2>
             <p className="text-sm text-slate-600 mb-4">{timeline.result.overview}</p>
             <p className="text-sm text-slate-500 mb-4">

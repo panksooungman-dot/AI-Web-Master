@@ -52,9 +52,16 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-3 py-6 text-xs text-slate-400 sm:flex-row">
+        <div className="flex flex-col gap-2 py-6 text-xs text-slate-400">
+          <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+            <span>회사명: 씨엔비즈</span>
+            <span className="hidden sm:inline">|</span>
+            <span>대표: 박성만</span>
+            <span className="hidden sm:inline">|</span>
+            <span>사업자등록번호: 812-08-00355</span>
+          </div>
+          <p>주소: 서울특별시 금천구 두산로70길 현대지식산업센터 A동 1210/1702호</p>
           <p>© 2026 CNBIZ. All rights reserved.</p>
-          <p>사업자 정보·주소는 확인 후 게시 예정입니다.</p>
         </div>
       </div>
     </footer>

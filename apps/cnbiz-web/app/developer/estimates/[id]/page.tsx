@@ -12,6 +12,7 @@ import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
 import { toKoreanAmountPhrase } from "@/lib/estimates/koreanNumber";
 import { buildDefaultEstimateDocument } from "@/lib/estimates/document";
+import { DocumentWatermark } from "@/components/DocumentWatermark";
 
 interface EstimateResponse {
   estimate?: EstimateRecord;
@@ -327,7 +328,8 @@ export default function EstimateDetailPage() {
       </div>
 
       {/* 견적서 문서 본문 */}
-      <Card className="mb-6">
+      <Card className="relative isolate mb-6 overflow-hidden">
+        <DocumentWatermark opacity={0.12} />
         <div className="border-b border-gray-800 pb-4 mb-4">
           <h2 className="text-2xl font-bold text-white text-center">기 술 견 적 서</h2>
         </div>

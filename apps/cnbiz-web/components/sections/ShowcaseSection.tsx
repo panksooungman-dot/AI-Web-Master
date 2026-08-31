@@ -14,8 +14,8 @@ export function ShowcaseSection() {
   return (
     <Section
       {...componentMarker("ShowcaseSection", "components/sections/ShowcaseSection.tsx", "화면 쇼케이스")}
-      background="alt"
-      blendFrom="white"
+      background="white"
+      blendFrom="alt"
     >
       <Container>
         <div className="mx-auto mb-16 max-w-2xl text-center">

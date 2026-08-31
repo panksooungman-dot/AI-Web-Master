@@ -1,21 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { MobileDrawer } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
 import { CNBIZ_AI_URL } from "@/lib/links";
 
-interface NavLink {
-  label: string;
-  href: string;
-}
-
-interface MobileMenuProps {
-  navLinks: NavLink[];
-}
-
-export function MobileMenu({ navLinks }: MobileMenuProps) {
+export function MobileMenu() {
   const [open, setOpen] = useState(false);
 
   return (
@@ -49,17 +39,6 @@ export function MobileMenu({ navLinks }: MobileMenuProps) {
               </svg>
             </button>
           </div>
-
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-base font-medium text-slate-700"
-              onClick={() => setOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
 
           <div className="flex flex-col gap-3">
             <LinkButton

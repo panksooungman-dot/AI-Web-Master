@@ -3,12 +3,6 @@ import { LinkButton } from "@cnbiz/ui";
 import { MobileMenu } from "./MobileMenu";
 import { CNBIZ_AI_URL } from "@/lib/links";
 
-const navLinks = [
-  { label: "회사소개", href: "/about" },
-  { label: "사업소개", href: "/services" },
-  { label: "문의하기", href: "/contact" },
-];
-
 export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
@@ -19,18 +13,6 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 lg:flex" aria-label="주요 메뉴">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
         <div className="hidden items-center gap-3 lg:flex">
           <LinkButton href={CNBIZ_AI_URL} target="_blank" rel="noopener noreferrer" variant="secondary">
             포트폴리오 보기
@@ -38,7 +20,7 @@ export function Header() {
           <LinkButton href="/contact">프로젝트 문의하기</LinkButton>
         </div>
 
-        <MobileMenu navLinks={navLinks} />
+        <MobileMenu />
       </div>
     </header>
   );

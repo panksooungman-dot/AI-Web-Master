@@ -5,7 +5,6 @@ import { BrandStatementSection } from "@/components/sections/BrandStatementSecti
 import { ServicesOverviewSection } from "@/components/sections/ServicesOverviewSection";
 import { ShowcaseSection } from "@/components/sections/ShowcaseSection";
 import { PricingSection } from "@/components/sections/PricingSection";
-import { FAQSection } from "@/components/sections/FAQSection";
 import { CTASection } from "@/components/sections/CTASection";
 
 export default function Home() {
@@ -17,9 +16,8 @@ export default function Home() {
       <ValuesSection />
       <BrandStatementSection />
       <ServicesOverviewSection blendFrom="white" />
-      <FAQSection />
       <ShowcaseSection />
-      <CTASection blendFrom="alt" />
+      <CTASection blendFrom="white" />
     </>
   );
 }

@@ -35,6 +35,12 @@ export default function PublicQuotePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+
   useEffect(() => {
     fetch(`/api/quote/public/${params.token}`)
       .then((res) => res.json())
@@ -48,6 +54,54 @@ export default function PublicQuotePage() {
       .catch(() => setLoadError("문서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
   }, [params.token]);
+
+  async function handleDecision(decision: "accepted" | "rejected") {
+    setIsSubmittingDecision(true);
+    setDecisionError(null);
+    try {
+      const res = await fetch(`/api/quote/public/${params.token}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setDecisionError(json.error ?? "처리하지 못했습니다.");
+        return;
+      }
+      setData((prev) => (prev ? { ...prev, estimate: json.estimate } : prev));
+    } catch {
+      setDecisionError("처리하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSubmittingDecision(false);
+    }
+  }
+
+  async function handleSendMessage() {
+    const trimmed = messageInput.trim();
+    if (!trimmed) return;
+
+    setIsSubmittingMessage(true);
+    setMessageError(null);
+    try {
+      const res = await fetch(`/api/quote/public/${params.token}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: trimmed }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setMessageError(json.error ?? "전송하지 못했습니다.");
+        return;
+      }
+      setData((prev) => (prev ? { ...prev, estimate: json.estimate } : prev));
+      setMessageInput("");
+    } catch {
+      setMessageError("전송하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSubmittingMessage(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -158,6 +212,93 @@ export default function PublicQuotePage() {
               </div>
             </div>
           </Card>
+        )}
+
+        {estimate && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-6">
+            <p className="text-center text-sm font-semibold text-slate-700">견적서를 검토하셨나요?</p>
+
+            {estimate.clientDecision ? (
+              <div
+                className={`mt-4 rounded-lg px-4 py-3 text-center text-sm font-semibold ${
+                  estimate.clientDecision === "accepted"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {estimate.clientDecision === "accepted"
+                  ? "견적서를 수락하셨습니다. 담당자가 곧 연락드리겠습니다."
+                  : "견적서를 거절하셨습니다. 담당자가 확인 후 연락드리겠습니다."}
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <button
+                  type="button"
+                  disabled={isSubmittingDecision}
+                  onClick={() => handleDecision("accepted")}
+                  className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+                >
+                  견적서 수락
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingDecision}
+                  onClick={() => handleDecision("rejected")}
+                  className="rounded-lg border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  견적서 거절
+                </button>
+              </div>
+            )}
+            {decisionError && <p className="mt-2 text-center text-sm text-red-600">{decisionError}</p>}
+
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              {estimate.messages && estimate.messages.length > 0 && (
+                <div className="mb-4 flex flex-col gap-3">
+                  {estimate.messages.map((message) => (
+                    <div key={message.id} className={`flex ${message.from === "client" ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                          message.from === "client" ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {message.from === "admin" && <p className="mb-1 text-xs font-semibold text-slate-400">담당자</p>}
+                        <p className="whitespace-pre-wrap">{message.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleSendMessage();
+                }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={messageInput}
+                  onChange={(event) => setMessageInput(event.target.value)}
+                  placeholder="메시지를 남겨주세요. (Enter로 전송)"
+                  disabled={isSubmittingMessage}
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmittingMessage || !messageInput.trim()}
+                  aria-label="메시지 전송"
+                  className="flex shrink-0 items-center justify-center rounded-lg bg-primary p-2.5 text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+                >
+                  <svg className="h-4 w-4" aria-hidden fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.769 59.769 0 0121.485 12 59.768 59.768 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              </form>
+              {messageError && <p className="mt-2 text-sm text-red-600">{messageError}</p>}
+            </div>
+          </div>
         )}
 
         {specification && (

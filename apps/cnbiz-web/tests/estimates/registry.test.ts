@@ -4,10 +4,12 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
 import {
+  addEstimateMessage,
   createEstimate,
   getEstimate,
   listEstimates,
   listEstimatesByInquiry,
+  recordEstimateClientDecision,
   updateEstimateDocument,
 } from "../../lib/estimates/registry";
 import type { EstimateInput, EstimateResult } from "../../lib/estimates/types";
@@ -111,5 +113,41 @@ describe("Estimate Registry — lib/estimates/registry.ts", () => {
     expect(updated?.document?.supplier?.companyName).toBe("씨엔비즈");
     expect((await getEstimate(record.id, store))?.document?.finalAmount).toBe(1_200_000);
     expect(await updateEstimateDocument("does-not-exist", { projectTitle: "x" }, store)).toBeUndefined();
+  });
+
+  it("recordEstimateClientDecision() persists decision + timestamp, undefined for unknown id", async () => {
+    const record = await createEstimate(
+      { inquiryId: "inquiry-1", websiteOrderId: "order-1", input: INPUT, result: RESULT, simulated: true },
+      store
+    );
+
+    const updated = await recordEstimateClientDecision(record.id, "accepted", store);
+    expect(updated?.clientDecision).toBe("accepted");
+    expect(updated?.clientDecisionAt).toBeTruthy();
+    expect((await getEstimate(record.id, store))?.clientDecision).toBe("accepted");
+
+    const revised = await recordEstimateClientDecision(record.id, "rejected", store);
+    expect(revised?.clientDecision).toBe("rejected");
+
+    expect(await recordEstimateClientDecision("does-not-exist", "accepted", store)).toBeUndefined();
+  });
+
+  it("addEstimateMessage() appends to the thread in order, undefined for unknown id", async () => {
+    const record = await createEstimate(
+      { inquiryId: "inquiry-1", websiteOrderId: "order-1", input: INPUT, result: RESULT, simulated: true },
+      store
+    );
+    expect(record.messages).toBeUndefined();
+
+    const afterClient = await addEstimateMessage(record.id, "client", "가격을 조금 낮출 수 있을까요?", store);
+    expect(afterClient?.messages).toHaveLength(1);
+    expect(afterClient?.messages?.[0]).toMatchObject({ from: "client", body: "가격을 조금 낮출 수 있을까요?" });
+
+    const afterAdmin = await addEstimateMessage(record.id, "admin", "확인 후 다시 안내드리겠습니다.", store);
+    expect(afterAdmin?.messages).toHaveLength(2);
+    expect(afterAdmin?.messages?.[1]).toMatchObject({ from: "admin", body: "확인 후 다시 안내드리겠습니다." });
+    expect((await getEstimate(record.id, store))?.messages).toHaveLength(2);
+
+    expect(await addEstimateMessage("does-not-exist", "client", "x", store)).toBeUndefined();
   });
 });

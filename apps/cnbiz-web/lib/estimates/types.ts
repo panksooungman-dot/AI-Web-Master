@@ -71,6 +71,21 @@ export interface EstimateDocumentDetails {
   supplier?: EstimateSupplierInfo;
 }
 
+/** 의뢰자가 견적서를 검토한 뒤 내리는 결정. 미정(아직 결정하지 않음)이면 필드 자체가 없다. */
+export type EstimateClientDecision = "accepted" | "rejected";
+
+/**
+ * 의뢰자·관리자가 견적서 위에서 주고받는 메시지. `/quote/[token]` 공개 문서 페이지에서
+ * 의뢰자가 남기고, 관리자는 `/developer/estimates/[id]`에서 직접 답장한다("AI 담당자"는
+ * 명칭일 뿐 실제 자동 응답은 아니다 — 사람이 답장을 입력해야 화면에 나타난다).
+ */
+export interface EstimateMessage {
+  id: string;
+  from: "client" | "admin";
+  body: string;
+  createdAt: string;
+}
+
 export interface EstimateRecord {
   id: string;
   inquiryId: string;
@@ -82,4 +97,7 @@ export interface EstimateRecord {
   model?: string;
   createdAt: string;
   document?: EstimateDocumentDetails;
+  clientDecision?: EstimateClientDecision;
+  clientDecisionAt?: string;
+  messages?: EstimateMessage[];
 }

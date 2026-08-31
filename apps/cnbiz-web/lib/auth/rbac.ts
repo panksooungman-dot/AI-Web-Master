@@ -98,8 +98,10 @@ const UNGATED_API_PREFIXES = [
   // companyName·선택된 서비스 id/필수여부만 담기며 API 키 등 민감정보는 서버에 저장하지 않는다.
   "/api/launch-requests/public",
   // 견적서·기능명세서·프로젝트 일정 공개 조회 전용 경로 — 의뢰자가 SMS로 받은 링크로 로그인 없이
-  // 여는 app/quote/[token]/page.tsx가 사용한다. 토큰(shareToken)으로만 조회하며 GET만 존재한다
-  // (문서 생성·공유 링크 발급은 여전히 developer 게이팅된 관리자 API를 통해서만 이뤄진다).
+  // 여는 app/quote/[token]/page.tsx가 사용한다. 토큰(shareToken)으로만 동작하며, GET(문서 조회) 외에
+  // 의뢰자가 견적서를 수락/거절하거나(POST .../decision) 메시지를 남기는(POST .../message) 것도
+  // 같은 이유로 로그인 없이 허용한다(문서 생성·공유 링크 발급은 여전히 developer 게이팅된
+  // 관리자 API를 통해서만 이뤄진다).
   "/api/quote/public",
 ];
 

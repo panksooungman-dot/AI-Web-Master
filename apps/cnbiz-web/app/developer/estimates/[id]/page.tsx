@@ -86,6 +86,9 @@ export default function EstimateDetailPage() {
   const [specificationGenError, setSpecificationGenError] = useState<string | null>(null);
   const [isGeneratingTimeline, setIsGeneratingTimeline] = useState(false);
   const [timelineGenError, setTimelineGenError] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -223,6 +226,36 @@ export default function EstimateDetailPage() {
       setTimelineGenError("프로젝트 일정 생성 중 오류가 발생했습니다.");
     } finally {
       setIsGeneratingTimeline(false);
+    }
+  }
+
+  // 의뢰자가 /quote/[token]에 남긴 메시지에 관리자가 직접 답장한다("AI 담당자"는 화면 표시용
+  // 이름일 뿐, 실제 자동 응답은 없다 — 여기서 사람이 입력해야 의뢰자 화면에 나타난다).
+  async function handleSendReply() {
+    if (!estimate) return;
+    const trimmed = replyInput.trim();
+    if (!trimmed) return;
+
+    setIsSendingReply(true);
+    setReplyError(null);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: trimmed }),
+      });
+      const data: { success: boolean; estimate?: EstimateRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.estimate) {
+        setReplyError(data.error ?? "답장 전송에 실패했습니다.");
+        return;
+      }
+      setEstimate(data.estimate);
+      setReplyInput("");
+    } catch {
+      setReplyError("답장 전송 중 오류가 발생했습니다.");
+    } finally {
+      setIsSendingReply(false);
     }
   }
 
@@ -520,8 +553,71 @@ export default function EstimateDetailPage() {
         </div>
       </Card>
 
-      <Card title="요약">
+      <Card title="요약" className="mb-6">
         <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{result.summary}</p>
+      </Card>
+
+      <Card title="고객 반응">
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-gray-400">수락/거절 여부:</span>
+          {estimate.clientDecision === "accepted" ? (
+            <Badge tone="success">수락함</Badge>
+          ) : estimate.clientDecision === "rejected" ? (
+            <Badge tone="danger">거절함</Badge>
+          ) : (
+            <Badge tone="neutral">대기 중</Badge>
+          )}
+          {estimate.clientDecisionAt && (
+            <span className="text-xs text-gray-500">{new Date(estimate.clientDecisionAt).toLocaleString()}</span>
+          )}
+        </div>
+
+        <div className="mb-4 flex max-h-96 flex-col gap-3 overflow-y-auto rounded border border-gray-800 bg-gray-950/40 p-4">
+          {!estimate.messages || estimate.messages.length === 0 ? (
+            <p className="text-sm text-gray-500">아직 메시지가 없습니다.</p>
+          ) : (
+            estimate.messages.map((message) => (
+              <div key={message.id} className={`flex ${message.from === "admin" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                    message.from === "admin" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-200"
+                  }`}
+                >
+                  <p className="mb-1 text-xs font-semibold opacity-70">
+                    {message.from === "admin" ? "담당자" : input.companyName}
+                    <span className="ml-2 font-normal">{new Date(message.createdAt).toLocaleString()}</span>
+                  </p>
+                  <p className="whitespace-pre-wrap">{message.body}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSendReply();
+          }}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={replyInput}
+            onChange={(event) => setReplyInput(event.target.value)}
+            placeholder="고객에게 보낼 답변을 입력하세요. (Enter로 전송)"
+            disabled={isSendingReply}
+            className={`${inputClass} disabled:opacity-50`}
+          />
+          <button
+            type="submit"
+            disabled={isSendingReply || !replyInput.trim()}
+            className="shrink-0 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+          >
+            {isSendingReply ? "전송 중..." : "전송"}
+          </button>
+        </form>
+        {replyError && <StatusMessage tone="error">{replyError}</StatusMessage>}
       </Card>
     </div>
   );

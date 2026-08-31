@@ -62,6 +62,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "inquiry.update": "의뢰 정보 수정",
   "inquiry.delete": "의뢰 삭제",
   "inquiry.analyze": "AI 재분석",
+  "estimate.client_decision": "견적서 수락/거절",
+  "estimate.client_message": "견적서 메시지",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -115,6 +117,8 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "inquiry.update": "info",
   "inquiry.delete": "danger",
   "inquiry.analyze": "purple",
+  "estimate.client_decision": "success",
+  "estimate.client_message": "info",
 };
 
 // ACTION_LABELS에 새 AuditAction이 추가될 때마다 이 목록을 별도로 손으로 갱신해야 했던 것이

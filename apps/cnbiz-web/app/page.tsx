@@ -5,6 +5,7 @@ import { BrandStatementSection } from "@/components/sections/BrandStatementSecti
 import { ServicesOverviewSection } from "@/components/sections/ServicesOverviewSection";
 import { ShowcaseSection } from "@/components/sections/ShowcaseSection";
 import { PricingSection } from "@/components/sections/PricingSection";
+import { PortfolioTypesSection } from "@/components/sections/PortfolioTypesSection";
 import { FAQSection } from "@/components/sections/FAQSection";
 import { CTASection } from "@/components/sections/CTASection";
 
@@ -19,7 +20,8 @@ export default function Home() {
       <FAQSection />
       <ShowcaseSection />
       <PricingSection blendFrom="alt" />
-      <CTASection blendFrom="white" />
+      <PortfolioTypesSection blendFrom="white" />
+      <CTASection blendFrom="alt" />
     </>
   );
 }

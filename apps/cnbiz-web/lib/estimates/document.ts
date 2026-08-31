@@ -28,12 +28,12 @@ export function buildDefaultEstimateDocument(estimate: EstimateRecord): Required
       saved.paymentTerms ??
       ["계약금 30% : 계약 체결 시", "중도금 40% : 개발 완료 후", "잔금 30% : 최종 검수 완료 후"].join("\n"),
     supplier: {
-      companyName: supplier.companyName ?? "",
-      businessNumber: supplier.businessNumber ?? "",
-      ceoName: supplier.ceoName ?? "",
-      contactName: supplier.contactName ?? "",
-      phone: supplier.phone ?? "",
-      address: supplier.address ?? "",
+      companyName: supplier.companyName ?? "씨엔비즈",
+      businessNumber: supplier.businessNumber ?? "812-08-00355",
+      ceoName: supplier.ceoName ?? "박성만",
+      contactName: supplier.contactName ?? "PM 김은미",
+      phone: supplier.phone ?? "010-5853-8013",
+      address: supplier.address ?? "서울특별시 금천구 두산로70길 현대지식산업센터 A동 1210/1702호",
     },
   };
 }

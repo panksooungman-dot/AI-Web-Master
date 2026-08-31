@@ -13,15 +13,15 @@ export default function Home() {
   return (
     <>
       <HeroSection />
-      <ApproachMapSection />
+      <PricingSection blendFrom="dark" />
+      <ApproachMapSection blendFrom="alt" />
       <ValuesSection />
       <BrandStatementSection />
       <ServicesOverviewSection blendFrom="white" />
       <FAQSection />
       <ShowcaseSection />
-      <PricingSection blendFrom="alt" />
-      <PortfolioTypesSection blendFrom="white" />
-      <CTASection blendFrom="alt" />
+      <PortfolioTypesSection blendFrom="alt" />
+      <CTASection blendFrom="white" />
     </>
   );
 }

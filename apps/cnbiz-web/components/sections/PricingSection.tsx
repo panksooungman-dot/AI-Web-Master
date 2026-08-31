@@ -52,7 +52,7 @@ export function PricingSection({ blendFrom }: PricingSectionProps) {
   return (
     <Section
       {...componentMarker("PricingSection", "components/sections/PricingSection.tsx", "가격표")}
-      background="white"
+      background="alt"
       blendFrom={blendFrom}
     >
       <Container>

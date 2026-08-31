@@ -50,7 +50,7 @@ export function PortfolioTypesSection({ blendFrom }: PortfolioTypesSectionProps)
   return (
     <Section
       {...componentMarker("PortfolioTypesSection", "components/sections/PortfolioTypesSection.tsx", "제작 가능한 프로젝트 유형")}
-      background="alt"
+      background="white"
       blendFrom={blendFrom}
     >
       <Container>

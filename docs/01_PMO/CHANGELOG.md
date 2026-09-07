@@ -4,6 +4,60 @@
 
 ---
 
+## 2026-09-07
+
+### 추가 (Added)
+
+- **`apps/lecture-auto-editor` 신규 — 영어 지문 강의 촬영본 자동 컷편집·줌인 CLI 도구**:
+  촬영 원본 영상 하나를 넣으면 컷편집(침묵 제거 + "다시 할게요" 류 재촬영 문구 감지 후
+  이전 시도 제거) + 설명 구간 줌인(구간 길이에 비례한 punch-in, `--follow-face` 시 얼굴
+  위치로 중심 보정) + 자연어 지시 기반 재수정까지 지원. 영어 지문 수백 개를 동일한 흐름으로
+  반복 처리해야 하는 실사용 요구에 맞춰 `batch` 명령으로 폴더 전체를 일괄 처리하도록 구현.
+  CNBIZ 홈페이지(`apps/cnbiz-web`)와는 완전히 독립된 별도 앱이며, 웹사이트 코드를 참조하지
+  않고 Python으로 동작하는 로컬 CLI 도구다(리포지토리 규칙에 따라 `apps/<project-name>/`
+  아래 신규 생성, `apps/cnbiz-web/lib` 등 기존 프로젝트를 import하지 않음)
+  - `src/lecture_editor/transcribe.py` — faster-whisper로 단어 단위 타임스탬프 추출
+  - `src/lecture_editor/cutdetect.py` — 발화 구간 사이 침묵을 자동 제거(별도 로직 없이
+    keep 구간만 이어붙이는 방식), 재촬영 트리거 문구를 단어 시퀀스 단위로 정확히 찾아
+    해당 발화 구간에 다른 정상 설명이 이어 붙어 있어도 트리거 부분만 골라 잘라내도록 구현
+  - `src/lecture_editor/zoom.py`·`facetrack.py` — 구간 길이 기반 줌 강도 자동 배정,
+    OpenCV Haar Cascade로 얼굴 위치 감지(얼굴 못 찾으면 화면 중앙으로 안전 폴백)
+  - `src/lecture_editor/render.py` — ffmpeg로 실제 렌더링. 시간에 따라 배율이 바뀌는 줌은
+    `crop` 필터의 `w`/`h`가 최초 1회만 평가되어(프레임별 재계산 불가) 쓸 수 없음을 실제
+    렌더링 테스트로 확인 후, 원래 정지 이미지용인 `zoompan` 필터를 `d=1`(입력 프레임 1개당
+    출력 1개)로 동영상에 적용하는 방식으로 구현
+  - `src/lecture_editor/revise.py` — 자연어 지시를 Claude에게 EDL 전체 재작성이 아닌 작은
+    operation 목록(`set_action`/`set_zoom`/`extend`/`note`)으로만 받아 코드가 직접 적용 —
+    모델이 타임스탬프를 잘못 옮겨 적어 구간이 누락될 위험을 구조적으로 차단
+  - `src/lecture_editor/cli.py` — `analyze`/`render`/`revise`/`full`/`batch` 5개 명령
+  - 테스트(신규 21개): `tests/test_{cutdetect,edl,zoom,revise,cli_revise}.py`
+
+### 검증 (Verified)
+
+- `python -m pytest tests`(21/21 통과) — 컷 판정 로직 검증 중 재촬영 문구와 그 뒤 정상
+  설명이 발화 간격 없이 바로 이어지면 트리거 감지가 문구 뒤 좋은 내용까지 통째로 잘라내는
+  실제 버그를 재현해 발견, 트리거 단어 구간 경계에서 강제로 발화를 분리하도록 수정 후
+  재검증(수정 전 테스트 실패 → 수정 후 통과 확인)
+- 실제 ffmpeg(6.1.1)로 합성 테스트 영상(`testsrc`+`sine`)을 만들어 컷+줌+합치기 렌더링을
+  직접 실행해 확인 — 이 과정에서 `crop` 필터의 `eval` 옵션이 이 버전에 존재하지 않음, `w`/`h`
+  표현식이 `t`를 지원하지 않아 시간에 따른 줌이 불가능함을 실제 실행 오류로 발견해 `zoompan`
+  필터로 교체 후 재검증. 얼굴 추적 경로도 렌더링까지 정상 동작함을 확인(합성 영상이라 실제
+  얼굴은 없어 "찾지 못함 → 중앙 폴백" 경로로 확인)
+- `opencv-python-headless` 5.0.0에서 얼굴 추적에 쓰는 `CascadeClassifier`가 아예 빠져 있음을
+  실제 설치·재현으로 발견, `requirements.txt`/`pyproject.toml`을 `<5.0.0`으로 고정 후 4.x로
+  재설치해 정상 동작 확인
+  - `faster-whisper`의 `WhisperModel.transcribe()` 실제 시그니처·`Word`/`TranscriptionInfo`
+    필드명을 설치된 라이브러리 소스와 직접 대조해 `word_timestamps`/`vad_filter`/
+    `vad_parameters` 인자와 `w.word`/`w.start`/`w.end`/`w.probability` 필드 사용이 일치함을
+    확인 — 다만 실제 Whisper 모델 다운로드·음성 인식 실행 자체는 이 세션 환경의 네트워크
+    정책이 huggingface.co를 차단하고 있어(egress allowlist) 여기서는 실행하지 못했고, 인터넷이
+    되는 사용자 환경에서 별도 확인이 필요함을 정직하게 남김
+  - CLI의 `render`/`revise` 명령이 실제로 EDL 파일을 읽고, 백업(.bak) 생성 후 저장하고,
+    검토용 텍스트(review.txt)를 재생성하는지까지 `click.testing.CliRunner`로 확인
+    (`revise`는 `_call_claude`만 가짜 응답으로 대체해 네트워크 없이 검증)
+
+---
+
 ## 2026-08-26 (8)
 
 ### 수정 (Fixed)

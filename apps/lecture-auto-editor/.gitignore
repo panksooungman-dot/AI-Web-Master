@@ -1,0 +1,18 @@
+# 원본/결과 영상 및 대용량 미디어는 저장소에 커밋하지 않는다
+raw/
+output/
+*.mp4
+*.mov
+*.mkv
+*.wav
+!samples/**/*.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Whisper 모델 캐시
+.cache/

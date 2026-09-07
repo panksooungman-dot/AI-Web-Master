@@ -1,0 +1,6 @@
+faster-whisper>=1.0.0
+# 5.x부터 CascadeClassifier(얼굴 추적에 사용)가 빠져 있어 4.x로 고정한다.
+opencv-python-headless>=4.9.0,<5.0.0
+click>=8.1.0
+numpy>=1.26.0
+pytest>=8.0.0

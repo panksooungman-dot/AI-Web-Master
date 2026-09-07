@@ -1,0 +1,10 @@
+{
+  "name": "@ai-business-os/lecture-auto-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "영어 지문 강의 촬영본을 자동으로 컷편집 + 줌인 편집하는 Python CLI 도구 (Node/npm 워크스페이스 호환을 위한 placeholder package.json이며 실제 실행은 Python으로 합니다)",
+  "scripts": {
+    "setup": "python3 -m pip install -r requirements.txt",
+    "test": "python3 -m pytest tests -q"
+  }
+}

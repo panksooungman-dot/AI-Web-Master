@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lecture-auto-editor"
+version = "0.1.0"
+description = "촬영 원본 영어 강의 영상을 자동으로 컷편집 + 줌인 편집하는 CLI 도구"
+requires-python = ">=3.10"
+dependencies = [
+    "faster-whisper>=1.0.0",
+    "opencv-python-headless>=4.9.0,<5.0.0",  # 5.x는 CascadeClassifier(얼굴 추적)를 제공하지 않음
+    "click>=8.1.0",
+    "numpy>=1.26.0",
+]
+
+[project.scripts]
+lecture-editor = "lecture_editor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

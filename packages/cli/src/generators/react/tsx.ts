@@ -195,50 +195,91 @@ function dataSourceTypeAttr(node: ReactComponentNode): string {
   return isNonEmptyString(node.props.sourceType) ? ` data-source-type=${jsxString(node.props.sourceType)}` : "";
 }
 
-function renderWireframeHeader(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+interface WireframeNavItem {
+  label: string;
+  href: string;
+}
+
+/** `design-content-enrichment.ts` sets this from the DesignDocument's own page list when the
+ *  landmark came from a real Wireframe (real screens, not invented) — absent for anything else
+ *  (hand-authored documents, or a landmark rendered without going through that enrichment step). */
+function navItemsProp(node: ReactComponentNode): WireframeNavItem[] | null {
+  const value = node.props.navItems;
+  if (!Array.isArray(value)) return null;
+  const items = value.filter(
+    (item): item is WireframeNavItem => isRecord(item) && isNonEmptyString(item.label) && isNonEmptyString(item.href)
+  );
+  return items.length > 0 ? items : null;
+}
+
+function renderNavItems(items: WireframeNavItem[], context: RenderContext, indent: string): string {
+  return items
+    .map((item) => {
+      context.imports.add("Link");
+      return `${indent}<Link href=${jsxString(item.href)}>${jsxString(item.label)}</Link>`;
+    })
+    .join("\n");
+}
+
+const PLACEHOLDER_NAV_MARKUP = (indent: string) =>
+  [`${indent}<span>메뉴 1</span>`, `${indent}<span>메뉴 2</span>`, `${indent}<span>메뉴 3</span>`].join("\n");
+
+function renderWireframeHeader(node: ReactComponentNode, context: RenderContext, indent: string): string {
   const cls = mergeClass("flex flex-wrap items-center justify-between gap-4 py-4", node.className);
+  const logo = isNonEmptyString(node.props.logo) ? node.props.logo : "로고";
+  const items = navItemsProp(node);
+  const navMarkup = items ? renderNavItems(items, context, `${indent}    `) : PLACEHOLDER_NAV_MARKUP(`${indent}    `);
   return `${indent}<header${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <span className="text-lg font-bold text-slate-900">로고</span>
+${indent}  <span className="text-lg font-bold text-slate-900">${jsxString(logo)}</span>
 ${indent}  <nav className="flex gap-6 text-sm text-slate-600">
-${indent}    <span>메뉴 1</span>
-${indent}    <span>메뉴 2</span>
-${indent}    <span>메뉴 3</span>
+${navMarkup}
 ${indent}  </nav>
 ${indent}</header>`;
 }
 
-function renderWireframeNavigation(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+function renderWireframeNavigation(node: ReactComponentNode, context: RenderContext, indent: string): string {
   const cls = mergeClass("flex flex-wrap gap-6 text-sm text-slate-600", node.className);
+  const items = navItemsProp(node);
+  const navMarkup = items ? renderNavItems(items, context, `${indent}  `) : PLACEHOLDER_NAV_MARKUP(`${indent}  `);
   return `${indent}<nav${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <span>메뉴 1</span>
-${indent}  <span>메뉴 2</span>
-${indent}  <span>메뉴 3</span>
+${navMarkup}
 ${indent}</nav>`;
 }
 
-function renderWireframeSidebar(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+function renderWireframeSidebar(node: ReactComponentNode, context: RenderContext, indent: string): string {
   const cls = mergeClass("flex w-full flex-col gap-2 text-sm text-slate-600 sm:w-56", node.className);
+  const items = navItemsProp(node);
+  const navMarkup = items ? renderNavItems(items, context, `${indent}  `) : PLACEHOLDER_NAV_MARKUP(`${indent}  `);
   return `${indent}<aside${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <span>메뉴 1</span>
-${indent}  <span>메뉴 2</span>
-${indent}  <span>메뉴 3</span>
+${navMarkup}
 ${indent}</aside>`;
 }
 
 function renderWireframeHero(node: ReactComponentNode, _context: RenderContext, indent: string): string {
   const cls = mergeClass("flex flex-col items-center gap-4 py-12 text-center", node.className);
+  const headline = isNonEmptyString(node.props.headline) ? node.props.headline : "핵심 메시지를 입력하세요";
+  const subheadline = isNonEmptyString(node.props.subheadline)
+    ? node.props.subheadline
+    : "방문자에게 전달하고 싶은 한 문장을 여기에 작성합니다.";
+  const ctaLabel = isNonEmptyString(node.props.ctaLabel) ? node.props.ctaLabel : "자세히 보기";
   return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">핵심 메시지를 입력하세요</h1>
-${indent}  <p className="max-w-xl text-slate-600">방문자에게 전달하고 싶은 한 문장을 여기에 작성합니다.</p>
-${indent}  <button className="rounded bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">자세히 보기</button>
+${indent}  <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">${jsxString(headline)}</h1>
+${indent}  <p className="max-w-xl text-slate-600">${jsxString(subheadline)}</p>
+${indent}  <button className="rounded bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">${jsxString(ctaLabel)}</button>
 ${indent}</div>`;
 }
 
 function renderWireframeCard(node: ReactComponentNode, _context: RenderContext, indent: string): string {
   const cls = mergeClass("rounded-lg border border-slate-200 p-6", node.className);
+  const title = isNonEmptyString(node.props.title) ? node.props.title : "카드 제목";
+  const description = isNonEmptyString(node.props.description) ? node.props.description : "카드 설명 텍스트가 들어갑니다.";
   return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <h3 className="text-lg font-bold text-slate-900">카드 제목</h3>
-${indent}  <p className="mt-2 text-sm text-slate-600">카드 설명 텍스트가 들어갑니다.</p>
+${indent}  <h3 className="text-lg font-bold text-slate-900">${jsxString(title)}</h3>
+${indent}  <p className="mt-2 text-sm text-slate-600">${jsxString(description)}</p>
 ${indent}</div>`;
 }
 
@@ -278,8 +319,9 @@ ${indent}</div>`;
 
 function renderWireframeFooter(node: ReactComponentNode, _context: RenderContext, indent: string): string {
   const cls = mergeClass("flex flex-col items-center gap-2 py-8 text-sm text-slate-500", node.className);
+  const text = isNonEmptyString(node.props.text) ? node.props.text : "© 2026 Company Name. All rights reserved.";
   return `${indent}<footer${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <span>© 2026 Company Name. All rights reserved.</span>
+${indent}  <span>${jsxString(text)}</span>
 ${indent}</footer>`;
 }
 

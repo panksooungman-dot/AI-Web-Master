@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-09-08 (5)
+
+### 추가 (Added)
+
+- **Website Builder v2 — Wireframe/Prototype 체인의 구조와 Content Engine의 실제 카피를 병합**:
+  `DESIGN_AUTOMATION_MASTER.md` 12.4에서 문서화했던 간극("카피는 이 체인 어디에도 없다")을
+  해소. 지금까지는 Wireframe Board에서 레이아웃(어떤 컴포넌트가 어디에 있는지)을 실제로
+  편집해도, DesignDocument로 생성된 Hero·Card·Header·Footer에는 항상 동일한 하드코딩된
+  한국어 placeholder 텍스트만 렌더링되고 있었다 — 업종·타겟 고객층과 무관하게 문구가 고정돼
+  있어 실사용 가치가 제한적이었다
+  - `packages/cli/src/website/design-content-enrichment.ts`(신규) — 순수 함수
+    `enrichDesignDocumentWithContent(document, content, brand)`. `builder.ts`가 스캐폴딩
+    과정에서 이미 생성해 둔 `SiteContent`(페이지별 실제 카피, 별도 AI 호출 없음)를 재사용해,
+    DesignDocument의 각 `Component.props.sourceType`(Wireframe landmark 타입)을 기준으로
+    Hero(headline/subheadline/ctaLabel)·Card(순서대로 features/values/items/plans/faq/blog
+    소스에서 title/description으로 정규화)·Header/Navigation/Sidebar(brand를 logo로,
+    DesignDocument 자신의 페이지 목록을 navItems로)·Footer(브랜드명이 포함된 저작권 문구)에
+    실제 값을 주입한다. Table/Dashboard/Modal/Search/Pagination은 대응하는 SiteContent가
+    없어 지어내지 않고 그대로 둔다
+  - `packages/cli/src/website/builder.ts` — `designPages` 계산 시
+    `options.designDocument`를 `applyDesignDocumentPages()`에 넘기기 전에 위 함수로 감싸도록
+    변경(1줄 배선, 추가 AI 호출 없음)
+  - `packages/cli/src/generators/react/tsx.ts` — Header/Navigation/Sidebar/Hero/Card/Footer
+    렌더러가 `node.props`의 실제 값(logo/navItems/headline/subheadline/ctaLabel/title/
+    description/text)을 우선 사용하고, 없을 때만 기존 하드코딩 placeholder로 폴백하도록 수정.
+    Header/Navigation/Sidebar는 실제 `navItems`를 `<Link>` 태그로 렌더링(신규
+    `renderNavItems()`)
+  - **부수 발견·수정**: `SiteContent`에 페이지가 아닌 `seo` 키가 있어, enrichment의 페이지별
+    switch문이 `packages/cli` 자체 tsconfig(루트 `tsc --noEmit`은 `packages/**`를 제외해
+    걸러내지 못함) 기준으로는 exhaustive하지 않다는 컴파일 오류를 실제 `packages/cli`
+    `npm run build` 실행 중 발견 — `PageContentKey`를 `Exclude<keyof SiteContent, "seo">`로
+    좁혀 수정
+  - 테스트(신규 8개): `tests/website/design-content-enrichment.test.ts` — 페이지별 Hero
+    카피가 서로 다름, Card가 features 배열 순서대로 채워짐, FAQ(question/answer)·
+    pricing(name/features) 등 서로 다른 모양의 콘텐츠가 동일한 Card{title,description}
+    형태로 정규화됨, 콘텐츠 배열보다 Card가 많을 때 초과분은 그대로 유지됨, Header/
+    Navigation/Sidebar가 동일한 brand·navItems를 받음, Footer가 브랜드명을 포함함, Table/
+    Dashboard/Modal/Search/Pagination은 전혀 건드리지 않음, 입력 DesignDocument를
+    mutate하지 않음(순수 함수) 검증
+
+### 검증 (Verified)
+
+- `npx vitest run tests/website/design-content-enrichment.test.ts`(8개 전부 통과),
+  `npx vitest run tests/react-generator tests/website`(7 files/75 tests 전부 통과, 회귀 없음)
+- 루트 `npx tsc --noEmit`(0 errors, 단 `packages/**`는 루트 tsconfig exclude 대상이라 이
+  검사로는 실제 컴파일 오류를 못 잡음을 확인 — 아래 `packages/cli` 자체 빌드로 실제 검증)
+- `packages/cli`에서 `npm run build`(자체 tsconfig 기준, 위 `seo` 키 exhaustiveness 오류를
+  이 단계에서 실제로 재현·발견 후 수정, 재실행 시 0 errors)
+- **실제 CLI End-to-End**: 치과(dental) 업종 DesignDocument(Header·Hero·Card 3개·Footer landmark
+  포함)를 스크래치 디렉터리에 작성해 빌드된 CLI로 `ai website create --design-document` 실제
+  실행 → 생성된 `app/page.tsx`에 실제 치과·타겟 고객층 기준 Hero 카피
+  ("Bright Smile Dental E2E — dental clinic for local families")·3개 Card가 실제
+  치과 사이트 타입의 feature 3종(Gentle Care/Modern Equipment/Experienced Dentists)으로
+  채워짐·Header에 brand("Bright Smile")와 DesignDocument 자신의 페이지 목록에서 뽑은 nav
+  항목·Footer에 브랜드명이 포함된 저작권 문구가 실제로 반영됨을 파일 내용으로 직접 확인
+  → 생성된 프로젝트에서 `npm install` → `npx tsc --noEmit`(0 errors) → `npm run build`
+  (Next.js 16, 18개 라우트 전부 정상 생성) 끝까지 실행해 실사용 가능한 결과물임을 확인
+  - 검증 중 최초 스크래치 JSON에 유효하지 않은 `SectionType`("features")을 직접 입력해
+    `<undefined>` 태그가 렌더링되는 것을 발견했으나, 실제 파이프라인
+    (`claude-design-document-adapter.ts`)은 `SectionType`으로 타입이 고정된 키워드 매핑
+    테이블에서만 값을 만들어내므로 이 경로로는 도달할 수 없는 테스트 스크립트 자체의
+    오류였음을 코드로 확인(실제 시스템 결함 아님, 스크래치 JSON을 유효한 값으로 수정해 재검증)
+  - 검증에 사용한 스크래치 DesignDocument·생성 프로젝트는 검증 후 전부 삭제
+
+---
+
 ## 2026-09-08 (4)
 
 ### 추가 (Added)

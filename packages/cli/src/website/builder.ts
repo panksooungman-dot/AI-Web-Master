@@ -7,6 +7,7 @@ import { runWorkflow } from "../workflow/runtime.js";
 import type { WorkflowRunResult } from "../workflow/types.js";
 import type { DesignDocument } from "@cnbiz/design-system/types/design";
 import { applyDesignDocumentPages } from "./design-pages.js";
+import { enrichDesignDocumentWithContent } from "./design-content-enrichment.js";
 
 export interface WebsiteRawInputs {
   projectName: string;
@@ -83,8 +84,18 @@ export async function buildWebsite(options: BuildWebsiteOptions): Promise<BuildW
   // 4) Design 체인 산출물이 있으면 그 페이지들을 React Generator로 변환해 덮어쓴다.
   //    스캐폴딩을 대체하는 게 아니라 그 위에 얹는다 — DesignDocument가 다루지 않는 페이지·
   //    레이아웃·컴포넌트·설정은 그대로 남아야 사이트가 계속 빌드되기 때문이다.
+  //    Wireframe/Prototype 체인은 "구조"(어떤 컴포넌트가 어디에 있는지)만 갖고 있고 실제
+  //    카피는 없으므로, 바로 위에서 스캐폴딩용으로 이미 생성한 SiteContent(추가 AI 호출
+  //    없이 재사용)를 Hero/Card/Header/Navigation/Sidebar/Footer 컴포넌트에 그대로
+  //    꽂아 넣는다 — Table/Dashboard/Modal/Search/Pagination은 SiteContent에 대응하는
+  //    데이터가 없어 그대로 둔다(지어내지 않음).
   const designPages = options.designDocument
-    ? (await applyDesignDocumentPages(scaffolded.targetDir, options.designDocument)).written
+    ? (
+        await applyDesignDocumentPages(
+          scaffolded.targetDir,
+          enrichDesignDocumentWithContent(options.designDocument, scaffolded.content, inputs.brand)
+        )
+      ).written
     : [];
 
   return {

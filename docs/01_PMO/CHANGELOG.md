@@ -4,6 +4,90 @@
 
 ---
 
+## 2026-09-08 (2)
+
+### 추가 (Added)
+
+- **Website Builder(11개 템플릿 자동생성)에 Storyboard/Wireframe 단계 자동 삽입 + Wireframe Board
+  재사용**: `/developer/websites`("11개 템플릿 자동생성" 빠른 경로)와 Design Automation 전체
+  체인(Storyboard→...→Website Build)이 지금까지 완전히 분리된 두 파이프라인이었고, 빠른 경로는
+  Wireframe을 전혀 참조하지 않아 "실제 개발에서 쓰려면 레이아웃 스토리보드가 반영돼야 한다"는
+  요청에 따라 연결했다. "생성" 버튼을 누르면 이제 (1) 입력값으로 Design Plan·Storyboard·
+  Wireframe을 자동 생성하고 (2) 오늘 추가한 Wireframe Board(2026-09-08 (1))를 그대로 재사용해
+  화면 구성을 그 자리에서 편집한 뒤 (3) "생성 시작"을 누르면 그 레이아웃이 실제 생성 코드에
+  반영된다. Design Automation 전체 체인(Prototype/Claude Design/Review 승인 게이트)은 거치지
+  않는다 — 빠른 경로의 목적에 맞게 Wireframe 편집 결과만 최소 경유로 코드에 꽂아 넣는다
+  - `app/api/websites/route.ts` — `POST` 바디에 선택적 `wireframeId` 추가. 있으면 해당
+    Wireframe으로 Prototype을 생성(`generatePrototype()`)한 뒤
+    `prototypeToDesignDocument()`(Phase 6 Adapter)로 실제 `pages[].sections`가 채워진
+    DesignDocument를 만들어 임시 파일로 CLI에 `--design-document`로 전달한다.
+    `wireframeToDesignDocument()`(Phase 4 Adapter) 하나만으로는 `pages[].sections`가 항상 빈
+    배열이라(Prototype을 거쳐야 실제 컴포넌트 구성이 채워짐, `claude-design-document-adapter.ts`
+    참고) 이 경로에서는 쓰지 않는다. `wireframeId`가 없으면 기존 동작과 완전히 동일(하위 호환).
+    응답에 `designPageCount`/`designPageTotal` 추가 — "몇 개 페이지 중 몇 개가 실제로 반영됐는지"를
+    호출자가 확인할 수 있게 함(Phase 9 라우트의 기존 정직성 원칙과 동일)
+  - `app/developer/websites/page.tsx` — 기존 단일 폼을 2단계 마법사로 재구성. 1단계는 기존 입력
+    필드 그대로(신규 필드 없음, requirements는 businessType/audience로 결정론적으로 조립),
+    "다음: 스토리보드 생성" 클릭 시 `/api/design/requirements`→`/api/design/storyboard`→
+    `/api/design/wireframe`를 순서대로 호출해 자동 생성. 2단계는 화면별로
+    `WireframeBoardView`(오늘 만든 컴포넌트, 그대로 import해 재사용 — 새 편집 UI를 따로 만들지
+    않음)를 보여주고, "생성 시작" 클릭 시 편집 내용을 PATCH로 먼저 저장한 뒤
+    `wireframeId`를 포함해 `/api/websites`를 호출
+
+### 수정 (Fixed)
+
+- **React Generator — DesignDocument의 임의 `Component.props` 키가 유효하지 않은 JSX 속성으로
+  그대로 새어나가 생성된 페이지가 컴파일조차 되지 않던 버그 발견·수정**: 위 기능을 실제로 끝까지
+  실행해(Wireframe 편집 → 생성 → 생성된 프로젝트에서 직접 `npx tsc --noEmit`) 검증하는 과정에서
+  실제로 재현했다 — `claude-design-document-adapter.ts`가 원래 Wireframe 타입 정보를 보존하려고
+  모든 컴포넌트에 `props: { sourceType: wireframeType }`(예: `"Header"`)를 붙이는데,
+  `packages/cli/src/generators/react/tsx.ts`의 `renderGeneric()`(card/container/grid 등
+  버튼·이미지·네비·폼이 아닌 모든 컴포넌트가 여기로 옴)이 이 `sourceType`을
+  `<div sourceType={"Header"} />`처럼 그대로 JSX 속성명으로 박아 넣어, 생성된 프로젝트에서
+  `tsc`가 "Property 'sourceType' does not exist on type ... HTMLDivElement" 오류로 실패했다.
+  `sourceType`에 국한된 문제가 아니라 `passthroughAttrs()` 자체가 DesignDocument의 임의
+  `Component.props` 키를 유효한 HTML 속성명이라고 가정하고 그대로 방출하는 구조적 결함이었다
+  (다른 Adapter가 앞으로 다른 임의 키를 추가해도 동일하게 재발할 수 있었음). 지금까지 아무도
+  발견하지 못했던 이유는 이전 검증들이 전부 `--design-document` 없이(2026-08-07 검증) 또는
+  `designPageCount > 0`만 확인하고(Phase 9 라우트) `sections`가 실제로 채워진 상태에서 생성된
+  프로젝트를 직접 `tsc`로 빌드해 본 적이 없었기 때문으로 보인다
+  - `packages/cli/src/generators/react/tsx.ts` — `passthroughAttrs()`가 모든 통과 속성 키를
+    `data-*`(camelCase→kebab-case 변환, 예: `sourceType`→`data-source-type`)로 네임스페이스하도록
+    수정. HTML은 `data-*` 접두사가 붙은 속성은 임의의 이름을 허용하므로, Adapter가 앞으로 어떤
+    키를 추가해도 다시 깨지지 않는다
+  - 테스트(신규 1개): `tests/react-generator/react-generator.test.ts`에 실제 버그 재현 조건
+    (`type: "card"`, `props: { sourceType: "Header" }`)으로 렌더링한 TSX가 `data-source-type`
+    속성을 쓰고 원래의 유효하지 않은 `sourceType=` 속성은 쓰지 않는지 검증하는 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트 + `apps/cnbiz-web`, 0 errors), `npm run lint`(루트 + `apps/cnbiz-web`,
+  0 errors), `apps/cnbiz-web`의 `npm run build` 통과(`/api/websites` 포함 기존 라우트 전부 정상
+  생성)
+- `npx vitest run`(루트 171 tests 전부 통과, 신규 1개 포함) · `apps/cnbiz-web`의
+  `npx vitest run`(781 tests, 신규 실패 0건 — 실패 5건은 `tests/ai/bridge.test.ts`의 기존
+  타이밍/환경 플레이크로, `git stash`로 이번 변경을 전부 제거한 상태에서도 동일하게 재현되어
+  무관함을 확인)
+- **실제 dev 서버 + Playwright로 마법사 전체 실행**: developer 계정 로그인 → `/developer/websites`
+  1단계 폼 입력("QA Wizard Dental", dental clinic, local families) → "다음: 스토리보드 생성" →
+  자동으로 Design Plan→Storyboard→Wireframe 생성되어 2단계(Wireframe Board, 12개 섹션 블록)로
+  전환됨을 확인 → "생성 시작" 클릭 → `POST /api/websites`가 200과 함께
+  `designPageTotal:4, designPageCount:4`(4개 페이지 전부 Wireframe 레이아웃이 반영됨) 반환,
+  `website.status:"Success"` 확인, 콘솔/페이지 에러 0건
+  - **생성된 실제 코드를 직접 열어 확인**: 홈 페이지가 `<div data-source-type={"Header"} />`
+    처럼 Wireframe에서 편집한 컴포넌트 구성(Header/Hero/Footer 등)을 실제로 반영하고 있음을
+    확인(수정 전에는 `sourceType={"Header"}`로 무효한 속성이었던 것과 동일 지점)
+  - **버그 재현→수정 확인의 실측 절차**: 수정 전 커밋 상태로 동일 시나리오를 실행해 생성된
+    프로젝트에서 `npm install && npx tsc --noEmit` 실행 → `app/page.tsx`·`app/about/page.tsx`
+    등 5개 파일에서 실제로 `TS2322: Property 'sourceType' does not exist` 컴파일 오류 재현 →
+    `packages/cli`를 수정 후 재빌드(`npm run build`, `dist/generators/react/tsx.js`에 수정
+    반영 확인) → 동일 시나리오 재실행 → `tsc --noEmit` 0 errors → `npm run build`(Next.js
+    프로덕션 빌드)까지 실행해 18개 라우트 전부 정상 생성됨을 확인
+  - 검증에 사용한 dev 서버·QA 전용 계정·Playwright 임시 스크립트·생성된 테스트 프로젝트
+    (`/tmp/ai-business-os-cli/cli-cwd/qa-wizard-dental`)는 검증 후 전부 종료·삭제
+
+---
+
 ## 2026-09-08
 
 ### 추가 (Added)

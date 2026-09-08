@@ -1,7 +1,13 @@
+import fs from "fs/promises";
+import path from "path";
 import { NextResponse } from "next/server";
 import { execute } from "@/lib/commandEngine/engine";
 import { createWebsiteRecord, listWebsites } from "@/lib/websites/registry";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
+import { getWireframe } from "@/lib/design/wireframe";
+import { generatePrototype } from "@/lib/design/prototype-generator";
+import { createPrototype } from "@/lib/design/prototype";
+import { prototypeToDesignDocument } from "@/lib/design/claude-design-document-adapter";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
@@ -74,6 +80,50 @@ export async function POST(request: Request) {
   const outDirInput = str(body, "outDir");
   const outDir = outDirInput || resolveGeneratedWebsitesDir(slug);
 
+  // 관리자가 Storyboard·Wireframe을 미리 만들고 편집한 뒤 "생성 시작"을 눌렀을 때만 존재한다
+  // (`/developer/websites`의 3단계 마법사 — 폼 → Storyboard/Wireframe 생성 → Wireframe Board
+  // 편집 → 생성). 없으면 기존과 완전히 동일하게 동작한다(하위 호환, 회귀 없음).
+  const wireframeId = str(body, "wireframeId");
+  let documentPath: string | null = null;
+  let designPageCount = 0;
+  let designPageTotal = 0;
+
+  if (wireframeId) {
+    const wireframe = await getWireframe(wireframeId);
+    if (!wireframe) {
+      return NextResponse.json(
+        { success: false, error: `Wireframe "${wireframeId}"을(를) 찾을 수 없습니다.` },
+        { status: 404 }
+      );
+    }
+
+    // Wireframe의 화면 구성(content.layouts, 관리자가 방금 편집한 값)을 Prototype 생성을 거쳐
+    // React Generator가 실제로 읽는 DesignDocument로 바꾼다 — `wireframeToDesignDocument()`
+    // (Phase 3→4 Adapter)만으로는 `pages[].sections`가 항상 빈 배열이라 실제 컴포넌트 구성이
+    // 코드에 반영되지 않는다. Prototype(Phase 4)이 만드는 interactionMap을 거쳐야
+    // `prototypeToDesignDocument()`(Phase 4→6 Adapter)가 그 구성을 sections로 채운다 —
+    // Design Automation의 정식 흐름(Phase 9, `/api/design/website`)이 Review 승인까지
+    // 요구하는 것과 달리, 이 빠른 생성 경로는 Claude Design/Review 단계 없이 Prototype
+    // 산출물을 그 자리에서만 사용하고 저장은 정상적으로 남긴다(다른 Phase 산출물처럼
+    // History에 그대로 쌓임 — 별도 정리 불필요).
+    const { content, simulated: protoSimulated, provider, model } = await generatePrototype(wireframe);
+    const prototypeRecord = await createPrototype({
+      wireframeId,
+      planId: wireframe.planId,
+      content,
+      simulated: protoSimulated,
+      provider,
+      model,
+    });
+
+    const document = prototypeToDesignDocument(prototypeRecord);
+    designPageTotal = document.pages.length;
+    designPageCount = document.pages.filter((p) => p.sections.length > 0).length;
+
+    documentPath = path.join(resolveCliWorkingDir(), `design-document-quickbuild-${wireframeId}.json`);
+    await fs.writeFile(documentPath, JSON.stringify(document), "utf-8");
+  }
+
   const args = [
     `"${cliEntry}"`,
     "website",
@@ -85,9 +135,15 @@ export async function POST(request: Request) {
     `--language "${language}"`,
     `--site-type "${siteType}"`,
     `--out "${outDir}"`,
+    ...(documentPath ? [`--design-document "${documentPath}"`] : []),
   ];
 
-  const result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
+  let result;
+  try {
+    result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });
+  } finally {
+    if (documentPath) await fs.rm(documentPath, { force: true }).catch(() => {});
+  }
 
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
 
@@ -105,7 +161,10 @@ export async function POST(request: Request) {
     action: "website.generate",
     actor,
     success: result.success,
-    detail: result.success ? `"${name}" (${siteType}) 생성됨` : record.error ?? "생성 실패",
+    detail: result.success
+      ? `"${name}" (${siteType}) 생성됨` +
+        (documentPath ? ` — Wireframe 레이아웃 반영(${designPageTotal}개 페이지 중 ${designPageCount}개)` : "")
+      : record.error ?? "생성 실패",
   });
   await incrementMetric("websiteGenerationCount");
 
@@ -114,6 +173,10 @@ export async function POST(request: Request) {
       { success: false, error: record.error, website: record, output: result.stdout },
       { status: 500 }
     );
+  }
+
+  if (documentPath) {
+    return NextResponse.json({ success: true, website: record, output: result.stdout, designPageCount, designPageTotal });
   }
 
   return NextResponse.json({ success: true, website: record, output: result.stdout });

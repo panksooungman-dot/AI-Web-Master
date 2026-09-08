@@ -36,15 +36,27 @@ function eventAttrs(node: ReactComponentNode): string {
   return attrs.join("");
 }
 
-/** Renders props not specially handled by a type-specific renderer as plain JSX attributes. */
+/**
+ * Renders props not specially handled by a type-specific renderer as plain JSX attributes.
+ *
+ * DesignDocument `Component.props` keys are arbitrary (whatever an Adapter chose to preserve for
+ * traceability, e.g. `claude-design-document-adapter.ts`'s `{ sourceType: wireframeType }`) — they
+ * are NOT guaranteed to be valid HTML/JSX attribute names. Emitting them verbatim as
+ * `${key}={...}` breaks compilation for a `<div>`/`<section>` element the moment a key isn't a
+ * real DOM attribute (React/TypeScript reject unknown props on intrinsic elements). Every
+ * passthrough key is therefore namespaced under `data-*`, which HTML accepts for any name — this
+ * was found and confirmed by actually generating a page from a DesignDocument built off an edited
+ * Wireframe and running `tsc` on the output (`sourceType` failed with TS2322 on a bare `<div>`).
+ */
 function passthroughAttrs(node: ReactComponentNode, handledKeys: ReadonlySet<string>): string {
   const attrs: string[] = [];
 
   for (const [key, value] of Object.entries(node.props)) {
     if (handledKeys.has(key)) continue;
-    if (typeof value === "string") attrs.push(` ${key}=${jsxString(value)}`);
-    else if (typeof value === "number") attrs.push(` ${key}={${value}}`);
-    else if (typeof value === "boolean") attrs.push(` ${key}={${value}}`);
+    const dataKey = `data-${key.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase()}`;
+    if (typeof value === "string") attrs.push(` ${dataKey}=${jsxString(value)}`);
+    else if (typeof value === "number") attrs.push(` ${dataKey}={${value}}`);
+    else if (typeof value === "boolean") attrs.push(` ${dataKey}={${value}}`);
     // Object/array-valued props aren't representable as a plain JSX attribute — they remain
     // available on the returned ReactComponentNode.props for any downstream consumer, just not
     // inlined into the generated TSX text.

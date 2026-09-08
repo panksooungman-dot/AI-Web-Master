@@ -462,5 +462,27 @@ describe("React Generator — packages/cli/src/generators/react", () => {
       const tsx = generateReactComponentTree(document).pages[0].tsx;
       expect(tsx).toContain(JSON.stringify(`Say "hi" { welcome }`));
     });
+
+    it("namespaces passthrough props (e.g. Adapter-preserved `sourceType`) under data-* so the output stays valid JSX", () => {
+      // Reproduces a real bug found by generating a page from an Adapter-built DesignDocument
+      // (claude-design-document-adapter.ts sets `props: { sourceType: wireframeType }` on every
+      // component for traceability) and running `tsc` on the output: a bare `<div sourceType={...}
+      // />` fails to type-check because `sourceType` isn't a real DOM attribute. `card`/`container`/
+      // `grid` all fall through to renderGeneric(), which is what makes this reachable in practice.
+      const document = baseDocument({
+        pages: [
+          {
+            id: "home",
+            title: "Home",
+            path: "/",
+            sections: [{ id: "s", type: "hero", components: [{ id: "c1", type: "card", props: { sourceType: "Header" } }] }],
+          },
+        ],
+      });
+
+      const tsx = generateReactComponentTree(document).pages[0].tsx;
+      expect(tsx).toContain('data-source-type={"Header"}');
+      expect(tsx).not.toMatch(/[^-]sourceType=/);
+    });
   });
 });

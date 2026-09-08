@@ -66,3 +66,8 @@ apps/cnbiz-web/lib/data/
 
 # AI Business OS CLI
 packages/cli/dist/
+
+# tests/react-generator/typecheck-generated-pages.test.ts writes generated .tsx under the repo
+# root (not os.tmpdir()) so tsc's node_modules resolution finds this repo's real react/next
+# types; afterAll() removes it, this is only a safety net if a run is interrupted.
+.typecheck-fixture-*/

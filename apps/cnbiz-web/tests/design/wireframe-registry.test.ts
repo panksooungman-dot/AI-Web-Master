@@ -7,6 +7,7 @@ import {
   getWireframe,
   listWireframes,
   listWireframesForStoryboard,
+  updateWireframeContent,
 } from "../../lib/design/wireframe";
 import { createFsStore } from "../../lib/db/fsStore";
 import { buildDefaultWireframe } from "../../lib/design/wireframe-generator";
@@ -119,5 +120,38 @@ describe("Wireframe Registry — lib/design/wireframe.ts", () => {
 
     expect(record.provider).toBe("openai");
     expect(record.model).toBe("gpt-4o-mini");
+  });
+
+  it("updateWireframeContent() replaces content, keeps other fields, persists to disk", async () => {
+    const content = buildDefaultWireframe(STORYBOARD);
+    const record = await createWireframe(
+      { storyboardId: STORYBOARD.id, planId: STORYBOARD.planId, content, simulated: true, provider: "anthropic" },
+      store
+    );
+
+    const nextContent = {
+      ...content,
+      layouts: content.layouts.map((layout, i) =>
+        i === 0
+          ? { ...layout, desktop: { ...layout.desktop, sections: [{ name: "새 섹션", components: ["Hero" as const], description: "" }] } }
+          : layout
+      ),
+    };
+
+    const updated = await updateWireframeContent(record.id, nextContent, store);
+
+    expect(updated?.content.layouts[0].desktop.sections).toEqual([{ name: "새 섹션", components: ["Hero"], description: "" }]);
+    // simulated/provider/createdAt(생성 이력)은 편집으로 바뀌지 않는다.
+    expect(updated?.simulated).toBe(true);
+    expect(updated?.provider).toBe("anthropic");
+    expect(updated?.createdAt).toBe(record.createdAt);
+
+    const persisted = await getWireframe(record.id, store);
+    expect(persisted?.content.layouts[0].desktop.sections).toHaveLength(1);
+  });
+
+  it("updateWireframeContent() returns null for an unknown id and does not create a new record", async () => {
+    expect(await updateWireframeContent("does-not-exist", buildDefaultWireframe(STORYBOARD), store)).toBeNull();
+    expect(await listWireframes(store)).toEqual([]);
   });
 });

@@ -1,0 +1,27 @@
+{
+  "name": "@ai-business-os/lecture-editor-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "강의영상 자동편집 웹사이트 — apps/lecture-auto-editor(Python CLI)를 감싸는 업로드/처리/다운로드 웹앱. Vercel이 아닌 의뢰자 서버(VPS)에 직접 배포한다 (영상 처리는 서버리스 시간제한에 맞지 않음).",
+  "scripts": {
+    "dev": "next dev -p 4000",
+    "build": "next build",
+    "start": "next start -p 4000",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "typescript": "^5"
+  }
+}

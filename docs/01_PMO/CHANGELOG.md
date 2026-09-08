@@ -4,6 +4,244 @@
 
 ---
 
+## 2026-09-08 (4)
+
+### 추가 (Added)
+
+- **`docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`에 Cross-Phase Data Flow Reference(12번 섹션)
+  추가**: 기존 1~11번 섹션은 각 Phase가 "무엇을 만들었는지"는 기록하지만 Phase 사이에서
+  데이터가 실제로 어떻게 넘어가는지는 코드에만 흩어져 있었다. 그 결과 같은 종류의 문제
+  (DesignDocument가 실제로는 코드에 반영되지 않음)가 2026-08-07과 2026-09-08 두 번에 걸쳐
+  각각 다른 이유로 재발했고, 둘 다 "어느 Adapter가 무엇을 채우는지"를 코드에서 직접 다시
+  추적해야 했다(추천 3개 중 3번 항목). 이번에 추적한 결과를 정리해 세 번째 재조사를 막는다
+  - Wireframe→코드까지 실제 코드 생성으로 이어지는 두 개의 독립 경로(`/developer/websites`
+    빠른 생성 vs `/developer/design/website` Phase 9 전체 체인)를 표로 비교
+  - `pages[].sections`가 항상 빈 배열인 `wireframeToDesignDocument()`와, Prototype 생성을
+    거쳐야만 실제로 채워지는 `prototypeToDesignDocument()`의 차이를 다이어그램으로 정리
+    (2026-09-08 (2)에서 이 경계를 직접 코드로 추적했던 내용)
+  - `node.sourceType`(표준 18종 타입)과 `node.props.sourceType`(원래 Wireframe 랜드마크
+    타입) 두 값의 이름 충돌을 명시적으로 문서화(2026-09-08 (1)·(3)에서 발견한 버그의 근본 원인)
+  - Wireframe/Prototype 체인 어디에도 실제 마케팅 카피가 없고, Website Builder의 Content
+    Engine과 Design 체인이 아직 병합되지 않은 상태임을 명시
+  - 빠르게 찾기용 파일 지도 표 추가
+
+### 검증 (Verified)
+
+- 문서 전용 변경 — `npx tsc --noEmit`·`npm run lint`·`npx vitest run` 재실행 불필요(변경 없음
+  확인용으로 1회 재확인, 전부 통과). 문서에 언급한 모든 파일 경로가 실제로 존재하는지
+  확인(`lib/design/{wireframe,prototype-document-adapter,claude-design-document-adapter,
+  website-build-document-adapter}.ts`·`packages/cli/src/website/design-pages.ts`·
+  `packages/cli/src/generators/react/tsx.ts`·`tests/react-generator/
+  typecheck-generated-pages.test.ts` 전부 존재 확인)
+- CI의 "Validate Documentation" 체크(`.github/workflows/docs.yml`)는 필수 README 존재 여부·
+  빈 마크다운 파일만 검사해 이번 변경과 무관함을 확인(로컬에서 동일 로직 재확인)
+
+---
+
+## 2026-09-08 (3)
+
+### 추가 (Added)
+
+- **React Generator — Wireframe 13종 랜드마크에 실제 마크업 렌더러 추가(빈 상자 문제 해결)**:
+  Website Builder 마법사(2026-09-08 (2))로 Wireframe 레이아웃을 실제 코드에 반영하는 경로를
+  연결한 뒤 실제로 생성해보니, Header/Hero/Footer 등 랜드마크가 전부
+  `<div data-source-type="Header" />`처럼 **빈 상자**로만 나왔다 — 구조(어떤 컴포넌트가 몇 번째
+  순서로 들어가는지)는 Wireframe 편집이 정확히 반영되지만, 눈에 보이는 결과물이 없어 실제
+  개발 체감 효과가 제한적이었다(추천 3개 중 2번 항목). 원인은 Wireframe의 13종 랜드마크
+  팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/Button/Search/
+  Pagination)가 표준 DesignComponentType(18종, UI 원자 단위)에 매핑될 때 상당수가 뭉뚱그려
+  `"container"` 하나로 collapse되고(`claude-design-document-adapter.ts`의
+  `WIREFRAME_TO_DESIGN_COMPONENT`), React Generator에는 애초에 `"container"`용 실제 렌더러가
+  없어(`<div>` 태그만 배정, 콘텐츠는 없음) 전부 `renderGeneric()`의 빈 상자로 떨어졌기 때문이다.
+  Wireframe/Prototype 단계는 마케팅 카피 자체를 갖고 있지 않으므로(그건 별도의 Content Engine
+  영역), 이번 수정은 "AI가 만든 진짜 문구"가 아니라 실제로 그 랜드마크처럼 **보이는 구조 +
+  플레이스홀더 문구**를 채우는 것까지가 범위다
+  - `packages/cli/src/generators/react/tsx.ts` — Header/Navigation/Sidebar/Hero/Card/Table/
+    Dashboard/Footer/Modal/Search/Pagination 11종(Button·Form은 이미 전용 렌더러가 있어 제외)에
+    각각 실제 시맨틱 태그(`<header>`/`<nav>`/`<aside>`/`<footer>` 등) + Tailwind 마크업 +
+    한국어 플레이스홀더를 반환하는 전용 렌더러 추가. `renderComponent()`가 이제
+    `node.props.sourceType`(2026-09-08 (2)에서 `data-source-type`으로 안전하게 보존해 둔 원래
+    Wireframe 랜드마크 타입)을 먼저 확인해 11종 중 하나면 전용 렌더러로, 아니면 기존
+    `node.sourceType`(표준 DesignComponentType) 기준 switch로 그대로 폴백한다 — Wireframe이
+    아닌 다른 경로로 만들어진 DesignDocument(이 prop이 애초에 없음)는 동작이 전혀 바뀌지 않는다
+  - 테스트(신규 1개, 기존 1개 보강): `tests/react-generator/typecheck-generated-pages.test.ts`에
+    실제 Wireframe→Prototype→DesignDocument 체인이 만드는 것과 동일한 모양(11종 랜드마크,
+    `props: {sourceType: <랜드마크>}` 하나뿐)의 페이지를 실제로 렌더링해 (1) 11종 전부 자기
+    태그로 렌더링되고 빈 `<div data-source-type=.../>`로 떨어지지 않는지, (2) 실제 `tsc`로
+    0 errors인지 검증하는 케이스 추가. 기존 "모든 ComponentType" 테스트의 하드코딩된 추적값을
+    `"Header"`(이번에 새로 인식되는 랜드마크 키워드가 되어버려 의도와 다르게 전부 Header
+    렌더러로 우회되던 것을 발견)에서 `"Untracked"`로 교체해 원래 의도(임의 추적값 → 안전한
+    data-* passthrough)만 검증하도록 정정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`·`npm run lint`(0 errors), `npx vitest run`(루트 173 tests 전부 통과, 신규
+  1개 포함)
+- **버그 재현 방지 확인**: 하드코딩 추적값을 고치지 않고 뒀다면 "모든 ComponentType" 테스트의
+  18개 컴포넌트가 전부 실수로 Header 렌더러로 우회되어 테스트가 원래 검증하려던 것(범용
+  안전망)을 더 이상 검증하지 못했을 것 — 실제로 이 상태를 만들어 재현한 뒤 값을 바꿔 수정
+- **실제 생성 → 시각 확인까지 전 구간 재검증**: `packages/cli` 재빌드 후 dev 서버 + Playwright로
+  Website Builder 마법사(2026-09-08 (2)) 전체 재실행(치과 사이트) → 생성된 프로젝트의
+  `app/page.tsx`에 `<header>`(로고 + 메뉴 1/2/3) → `<div>`(Hero: 제목 "핵심 메시지를
+  입력하세요" + 부제 + "자세히 보기" 버튼) → `<footer>`(저작권 문구) 순으로 실제 마크업이
+  들어감을 소스 코드로 확인 → `npm install && npx tsc --noEmit`(0 errors) → `next build`
+  (18개 라우트 정상 생성) → **`next start`로 실제 기동해 브라우저 스크린샷 촬영**, 이전에는
+  완전히 빈 공백이었을 자리에 로고·내비게이션·Hero 제목/부제/버튼·Footer 저작권 문구가 실제로
+  화면에 렌더링됨을 육안으로 확인
+  - 검증에 사용한 dev/prod 서버·QA 전용 계정·Playwright 임시 스크립트·생성된 테스트 프로젝트
+    (`/tmp/ai-business-os-cli/cli-cwd/qa-landmark-dental`)는 검증 후 전부 종료·삭제
+
+---
+
+## 2026-09-08 (2)
+
+### 추가 (Added)
+
+- **Website Builder(11개 템플릿 자동생성)에 Storyboard/Wireframe 단계 자동 삽입 + Wireframe Board
+  재사용**: `/developer/websites`("11개 템플릿 자동생성" 빠른 경로)와 Design Automation 전체
+  체인(Storyboard→...→Website Build)이 지금까지 완전히 분리된 두 파이프라인이었고, 빠른 경로는
+  Wireframe을 전혀 참조하지 않아 "실제 개발에서 쓰려면 레이아웃 스토리보드가 반영돼야 한다"는
+  요청에 따라 연결했다. "생성" 버튼을 누르면 이제 (1) 입력값으로 Design Plan·Storyboard·
+  Wireframe을 자동 생성하고 (2) 오늘 추가한 Wireframe Board(2026-09-08 (1))를 그대로 재사용해
+  화면 구성을 그 자리에서 편집한 뒤 (3) "생성 시작"을 누르면 그 레이아웃이 실제 생성 코드에
+  반영된다. Design Automation 전체 체인(Prototype/Claude Design/Review 승인 게이트)은 거치지
+  않는다 — 빠른 경로의 목적에 맞게 Wireframe 편집 결과만 최소 경유로 코드에 꽂아 넣는다
+  - `app/api/websites/route.ts` — `POST` 바디에 선택적 `wireframeId` 추가. 있으면 해당
+    Wireframe으로 Prototype을 생성(`generatePrototype()`)한 뒤
+    `prototypeToDesignDocument()`(Phase 6 Adapter)로 실제 `pages[].sections`가 채워진
+    DesignDocument를 만들어 임시 파일로 CLI에 `--design-document`로 전달한다.
+    `wireframeToDesignDocument()`(Phase 4 Adapter) 하나만으로는 `pages[].sections`가 항상 빈
+    배열이라(Prototype을 거쳐야 실제 컴포넌트 구성이 채워짐, `claude-design-document-adapter.ts`
+    참고) 이 경로에서는 쓰지 않는다. `wireframeId`가 없으면 기존 동작과 완전히 동일(하위 호환).
+    응답에 `designPageCount`/`designPageTotal` 추가 — "몇 개 페이지 중 몇 개가 실제로 반영됐는지"를
+    호출자가 확인할 수 있게 함(Phase 9 라우트의 기존 정직성 원칙과 동일)
+  - `app/developer/websites/page.tsx` — 기존 단일 폼을 2단계 마법사로 재구성. 1단계는 기존 입력
+    필드 그대로(신규 필드 없음, requirements는 businessType/audience로 결정론적으로 조립),
+    "다음: 스토리보드 생성" 클릭 시 `/api/design/requirements`→`/api/design/storyboard`→
+    `/api/design/wireframe`를 순서대로 호출해 자동 생성. 2단계는 화면별로
+    `WireframeBoardView`(오늘 만든 컴포넌트, 그대로 import해 재사용 — 새 편집 UI를 따로 만들지
+    않음)를 보여주고, "생성 시작" 클릭 시 편집 내용을 PATCH로 먼저 저장한 뒤
+    `wireframeId`를 포함해 `/api/websites`를 호출
+
+### 수정 (Fixed)
+
+- **React Generator — DesignDocument의 임의 `Component.props` 키가 유효하지 않은 JSX 속성으로
+  그대로 새어나가 생성된 페이지가 컴파일조차 되지 않던 버그 발견·수정**: 위 기능을 실제로 끝까지
+  실행해(Wireframe 편집 → 생성 → 생성된 프로젝트에서 직접 `npx tsc --noEmit`) 검증하는 과정에서
+  실제로 재현했다 — `claude-design-document-adapter.ts`가 원래 Wireframe 타입 정보를 보존하려고
+  모든 컴포넌트에 `props: { sourceType: wireframeType }`(예: `"Header"`)를 붙이는데,
+  `packages/cli/src/generators/react/tsx.ts`의 `renderGeneric()`(card/container/grid 등
+  버튼·이미지·네비·폼이 아닌 모든 컴포넌트가 여기로 옴)이 이 `sourceType`을
+  `<div sourceType={"Header"} />`처럼 그대로 JSX 속성명으로 박아 넣어, 생성된 프로젝트에서
+  `tsc`가 "Property 'sourceType' does not exist on type ... HTMLDivElement" 오류로 실패했다.
+  `sourceType`에 국한된 문제가 아니라 `passthroughAttrs()` 자체가 DesignDocument의 임의
+  `Component.props` 키를 유효한 HTML 속성명이라고 가정하고 그대로 방출하는 구조적 결함이었다
+  (다른 Adapter가 앞으로 다른 임의 키를 추가해도 동일하게 재발할 수 있었음). 지금까지 아무도
+  발견하지 못했던 이유는 이전 검증들이 전부 `--design-document` 없이(2026-08-07 검증) 또는
+  `designPageCount > 0`만 확인하고(Phase 9 라우트) `sections`가 실제로 채워진 상태에서 생성된
+  프로젝트를 직접 `tsc`로 빌드해 본 적이 없었기 때문으로 보인다
+  - `packages/cli/src/generators/react/tsx.ts` — `passthroughAttrs()`가 모든 통과 속성 키를
+    `data-*`(camelCase→kebab-case 변환, 예: `sourceType`→`data-source-type`)로 네임스페이스하도록
+    수정. HTML은 `data-*` 접두사가 붙은 속성은 임의의 이름을 허용하므로, Adapter가 앞으로 어떤
+    키를 추가해도 다시 깨지지 않는다
+  - 테스트(신규 1개): `tests/react-generator/react-generator.test.ts`에 실제 버그 재현 조건
+    (`type: "card"`, `props: { sourceType: "Header" }`)으로 렌더링한 TSX가 `data-source-type`
+    속성을 쓰고 원래의 유효하지 않은 `sourceType=` 속성은 쓰지 않는지 검증하는 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(루트 + `apps/cnbiz-web`, 0 errors), `npm run lint`(루트 + `apps/cnbiz-web`,
+  0 errors), `apps/cnbiz-web`의 `npm run build` 통과(`/api/websites` 포함 기존 라우트 전부 정상
+  생성)
+- `npx vitest run`(루트 171 tests 전부 통과, 신규 1개 포함) · `apps/cnbiz-web`의
+  `npx vitest run`(781 tests, 신규 실패 0건 — 실패 5건은 `tests/ai/bridge.test.ts`의 기존
+  타이밍/환경 플레이크로, `git stash`로 이번 변경을 전부 제거한 상태에서도 동일하게 재현되어
+  무관함을 확인)
+- **실제 dev 서버 + Playwright로 마법사 전체 실행**: developer 계정 로그인 → `/developer/websites`
+  1단계 폼 입력("QA Wizard Dental", dental clinic, local families) → "다음: 스토리보드 생성" →
+  자동으로 Design Plan→Storyboard→Wireframe 생성되어 2단계(Wireframe Board, 12개 섹션 블록)로
+  전환됨을 확인 → "생성 시작" 클릭 → `POST /api/websites`가 200과 함께
+  `designPageTotal:4, designPageCount:4`(4개 페이지 전부 Wireframe 레이아웃이 반영됨) 반환,
+  `website.status:"Success"` 확인, 콘솔/페이지 에러 0건
+  - **생성된 실제 코드를 직접 열어 확인**: 홈 페이지가 `<div data-source-type={"Header"} />`
+    처럼 Wireframe에서 편집한 컴포넌트 구성(Header/Hero/Footer 등)을 실제로 반영하고 있음을
+    확인(수정 전에는 `sourceType={"Header"}`로 무효한 속성이었던 것과 동일 지점)
+  - **버그 재현→수정 확인의 실측 절차**: 수정 전 커밋 상태로 동일 시나리오를 실행해 생성된
+    프로젝트에서 `npm install && npx tsc --noEmit` 실행 → `app/page.tsx`·`app/about/page.tsx`
+    등 5개 파일에서 실제로 `TS2322: Property 'sourceType' does not exist` 컴파일 오류 재현 →
+    `packages/cli`를 수정 후 재빌드(`npm run build`, `dist/generators/react/tsx.js`에 수정
+    반영 확인) → 동일 시나리오 재실행 → `tsc --noEmit` 0 errors → `npm run build`(Next.js
+    프로덕션 빌드)까지 실행해 18개 라우트 전부 정상 생성됨을 확인
+  - 검증에 사용한 dev 서버·QA 전용 계정·Playwright 임시 스크립트·생성된 테스트 프로젝트
+    (`/tmp/ai-business-os-cli/cli-cwd/qa-wizard-dental`)는 검증 후 전부 종료·삭제
+
+---
+
+## 2026-09-08
+
+### 추가 (Added)
+
+- **Design Automation Phase 3(Wireframe) — 시각적 미리보기 + 기본 편집 기능(Wireframe Board)
+  추가**: 지금까지 Wireframe 화면(`/developer/design/wireframe`)은 AI/결정론적 기본값이 만든
+  레이아웃 JSON을 텍스트 표로만 보여줬다 — 실제로 어떻게 생겼는지 감이 오지 않아 Phase 9
+  (Website Build) 코드 생성 이후에야 눈으로 확인하고 되돌아가 고치는 식이었다. "cnbiz.kr
+  자동생성이 스토리보드/레이아웃 디자인 편집까지 지원해야 개발 정확도·시간이 단축될 것 같다"는
+  요청에 따라, 화면별 섹션 구성을 실제 화면처럼 보이는 박스 레이아웃으로 렌더링하고 그 자리에서
+  순서 변경·추가·삭제·구성 컴포넌트 수정까지 할 수 있게 했다. 드래그앤드롭 자유 배치(좌표 기반)는
+  이번 범위가 아니다 — Phase 3가 이미 갖고 있는 "섹션 목록 + 순서 + 컴포넌트 구성" 데이터를
+  시각화하고 그 데이터를 직접 편집하는 것이다(1세션 내 완료 가능한 범위로 사용자와 합의 후 진행)
+  - `components/developer/design/WireframeBoardView.tsx`(신규) — Desktop/Tablet/Mobile 탭별로
+    섹션을 세로로 쌓인 블록(컴포넌트 조합에 따라 높이가 다르게 보이는 시각적 힌트 포함)으로
+    렌더링. 블록마다 위/아래 이동·편집·삭제 버튼, 편집 모드에서는 이름·설명 인라인 수정과 13종
+    컴포넌트 팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/
+    Button/Search/Pagination) 중 추가/제거 가능. 이 컴포넌트는 Client Component인데
+    `lib/design/wireframe.ts`(서버 전용 registry, 내부적으로 `fs` 사용)에서 타입만
+    `import type`으로 가져오고(런타임에 완전히 지워져 번들에 포함되지 않음), 값인
+    `COMPONENT_TYPES`는 같은 13종 팔레트를 로컬에 복제해 사용 — 처음에는 값까지 그대로
+    import했다가 `next build`가 클라이언트 번들에 `fs`를 끌어들여 실패하는 것을 실제로 재현하고
+    수정했다
+  - `lib/design/wireframe.ts` — `updateWireframeContent(id, content)` 신규 추가. 관리자가
+    Wireframe Board에서 고친 결과(`content` 전체)를 그대로 저장한다(부분 patch 아님 — 클라이언트가
+    항상 서버가 내려준 원본을 들고 있다가 일부만 고쳐 보내므로 병합 로직 불필요)
+  - `app/api/design/wireframe/[id]/route.ts` — `PATCH` 핸들러 신규 추가(`{ content }` 받아
+    `updateWireframeContent()` 호출, `design.wireframe.edit` Audit 기록). 저장된 편집 결과는
+    이후 Prototype(`lib/design/prototype-document-adapter.ts`)·Figma Export
+    (`lib/design/figma-generator.ts`)·Design Sync(`lib/design/design-sync-engine.ts`)가 전부
+    `wireframe.content.layouts`를 직접 다시 읽으므로, 여기서 고친 내용이 이후 Phase에 실제로
+    반영된다(그냥 화면 장식이 아니라 파이프라인에 실제 영향을 주는 편집)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.wireframe.edit"` 추가,
+    `app/developer/{audit-log,errors}/page.tsx` 라벨/톤 갱신(필터 목록은 `ACTION_LABELS`에서
+    자동 파생되는 기존 구조라 별도 수정 불필요)
+  - `app/developer/design/wireframe/page.tsx` — "✎ 레이아웃 편집" 버튼으로 편집 모드 진입,
+    편집 중에는 기존 읽기 전용 표 대신 `WireframeBoardView`를 보여주고 "레이아웃 저장"/"취소"
+    버튼 제공. 저장 성공 시 로컬 목록을 서버 응답으로 교체, 다른 Wireframe 선택·재생성 시 편집
+    상태 자동 초기화
+  - 테스트(신규 2개): `tests/design/wireframe-registry.test.ts`에
+    `updateWireframeContent()`가 content를 교체하되 `simulated`/`provider`/`createdAt`(생성
+    이력)은 그대로 보존하는지, 존재하지 않는 id에는 `null`을 반환하고 새 레코드를 만들지
+    않는지 검증하는 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(신규
+  `PATCH /api/design/wireframe/[id]` 포함 기존 라우트 전부 정상 생성 — 클라이언트 번들에 `fs`가
+  끌려 들어가 빌드가 깨졌던 문제를 실제로 재현한 뒤 타입 전용 import로 수정해 재확인)
+- `npx vitest run tests/design tests/auth/rbac.test.ts`(299 tests, 신규 2개 포함 — 신규 실패
+  0건. 실패 1건은 `tests/design/review-registry.test.ts`의 같은 밀리초 충돌
+  타이밍 플레이크(2026-08-26 (8)에 이미 문서화된 것과 동일 계열)로 이번 변경과 무관함을 확인)
+- 검증 전용 임시 계정(developer role)으로 dev 서버를 실제로 띄워 Playwright로 전체 플로우 실행:
+  Design Plan → Storyboard → Wireframe 생성 → "레이아웃 편집" 클릭 → "+ 섹션 추가"로 새 섹션
+  추가 → 이름을 실제 한글로 수정 → "+ Hero" 클릭으로 컴포넌트 칩 추가 → "위로 이동" 클릭 →
+  "레이아웃 저장" 클릭 → `PATCH /api/design/wireframe/:id` 200(`success:true`) 확인 → 읽기
+  전용 화면에 수정한 섹션 이름이 정상 반영됨을 확인 → **페이지를 완전히 새로고침한 뒤에도
+  수정 내용이 그대로 남아있음을 확인**(클라이언트 상태가 아니라 서버에 실제로 영구 저장됐음을
+  검증) → `GET /api/audit?action=design.wireframe.edit`에 actor(로그인 계정 이메일)·detail이
+  정확히 기록됨을 확인, 콘솔/페이지 에러 0건
+  - 검증에 사용한 dev 서버·QA 전용 계정·Playwright 임시 스크립트·로컬 fs 데이터(`/tmp/cnbiz-web/data`)는
+    검증 후 전부 종료·삭제
+
+---
+
 ## 2026-09-07
 
 ### 추가 (Added)

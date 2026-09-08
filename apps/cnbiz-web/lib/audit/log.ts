@@ -20,6 +20,7 @@ export type AuditAction =
   | "design.generate"
   | "design.storyboard.generate"
   | "design.wireframe.generate"
+  | "design.wireframe.edit"
   | "design.prototype.generate"
   | "design.claude.generate"
   | "design.review.create"

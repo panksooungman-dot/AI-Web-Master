@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.generate": "Design Plan",
   "design.storyboard.generate": "Storyboard",
   "design.wireframe.generate": "Wireframe",
+  "design.wireframe.edit": "Wireframe 편집",
   "design.prototype.generate": "Prototype",
   "design.claude.generate": "Claude Design",
   "design.review.create": "Review 생성",

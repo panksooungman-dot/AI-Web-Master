@@ -1,10 +1,10 @@
 # Design Automation — Master Index
 
 > Version: v1.0
-> Status: Phase 1-9 Implemented
+> Status: Phase 1-9 Implemented + Cross-Phase Data Flow Reference(12번)
 > Priority: High
 > Owner: AI Business OS
-> Last Updated: 2026-07-15
+> Last Updated: 2026-09-08
 
 ---
 
@@ -573,3 +573,129 @@ Phase N"이라고 말할 때는 **`DESIGN_WORKFLOW.md`의 전체 Workflow(14 Pha
   동일한 패턴) · `tests/design/website-build-integration.test.ts`(어댑터+레지스트리 실 fs 연동 —
   Design Plan 체인에서 Website Builder 입력값을 만들고 성공/실패 두 시나리오를 기록·조회하는
   전체 라이프사이클).
+
+---
+
+# 12. Cross-Phase Data Flow Reference — Design이 실제 코드에 반영되는 경로 (2026-09-08)
+
+**왜 이 섹션이 필요했는가**: 위 1~11번 섹션은 각 Phase가 "무엇을 만들었는지"는 자세히
+기록하지만, Phase 사이에서 **데이터가 실제로 어떻게 넘어가는지**는 각 Phase 섹션에 흩어져
+있어 한눈에 보이지 않는다. 그 결과 같은 종류의 문제가 이미 한 번 발견됐던 자리에서 또
+재발했다 — 2026-08-07에 "Design 체인을 거친 빌드와 거치지 않은 빌드의 `.tsx`가 바이트
+단위로 동일하다"(`DesignDocument`가 실제로는 버려지고 있었음)는 게 발견돼 연결됐는데,
+2026-09-08에 Wireframe Board(3번 섹션 참고)로 실제 레이아웃을 편집해 그 경로를 다시 타보니
+이번엔 연결은 되어 있지만 **`pages[].sections`가 항상 빈 배열**이라 여전히 눈에 보이는
+결과물이 없었다. 두 번 다 "어느 Adapter가 무엇을 채우는지"를 코드에서 직접 다시 추적해야
+했던 것 — 이 섹션은 그 추적 결과를 한 곳에 정리해 세 번째 재조사를 막기 위한 것이다.
+
+## 12.1 실제 코드 생성으로 이어지는 두 개의 서로 다른 경로
+
+이 저장소에는 "웹사이트를 생성한다"는 진입점이 **두 개** 있고, 서로 완전히 독립적이다.
+
+| | `/developer/websites` (빠른 생성) | `/developer/design/website` (Phase 9, 전체 체인) |
+|---|---|---|
+| API | `POST /api/websites` | `POST /api/design/website` |
+| 전제조건 | 없음(이름·업종·타깃만 있으면 됨) | `reviewId`가 가리키는 Review의 `status === "approved"`(Phase 6 승인 게이트) |
+| Design 데이터 반영 | 2026-09-08 이전: 전혀 안 됨. 2026-09-08 이후: 마법사가 Plan→Storyboard→Wireframe을 자동 생성 + Wireframe Board로 편집 가능, `wireframeId`를 넘기면 반영(12.2 참고) | Review가 가리키는 Prototype/ClaudeDesign 체인 전체가 `buildWebsiteBuildHybridSource()`를 통해 반영 |
+| 콘텐츠(카피) | Website Builder 자체 Content Engine(`packages/cli/src/website/content.ts`)이 업종·타깃에 맞는 실제 문구를 생성 | 문구는 Design 체인이 만들지 않으므로(12.3 참고) 랜드마크별 고정 플레이스홀더만 나옴 |
+
+즉 **"실제 개발 카피"는 빠른 경로가, "레이아웃 반영"은 두 경로 모두** 담당하는 구조라,
+용도에 따라 어느 쪽을 쓸지 갈린다 — 세세한 카피까지 자동으로 채워진 완성본이 필요하면
+빠른 경로(Wireframe 편집 없이)를, 화면 구성 자체를 미리 설계·검토하고 싶으면 Wireframe
+Board를 거치는 쪽을 쓴다.
+
+## 12.2 Wireframe → 실제 코드까지, DesignDocument가 만들어지는 지점
+
+**가장 흔한 함정**: `wireframe.content.layouts`(Wireframe Board에서 편집하는 바로 그 데이터)를
+`DesignDocument`로 바꾸는 함수가 **두 개** 있고, 하나는 항상 빈 결과를 낸다.
+
+```
+lib/design/wireframe.ts (Phase 3, WireframeRecord.content.layouts)
+   │
+   ├─▶ wireframeToDesignDocument()          [prototype-document-adapter.ts]
+   │      pages[].sections는 "항상" 빈 배열 — Design JSON 스키마에 아직 컴포넌트
+   │      인벤토리를 실을 자리가 없던 Phase 3~4 시절의 Transitional Bridge라서 그렇다.
+   │      → 이 함수만으로 React Generator에 넘기면 페이지는 생기지만 전부 빈 화면이 된다.
+   │
+   └─▶ wireframeToPrototypeSource()          [prototype-document-adapter.ts]
+          document(위와 동일, sections 빈 배열) + screens[].components(화면별
+          컴포넌트 목록, wireframe.content.layouts[].desktop.sections에서 뽑음)
+          │
+          ▼
+       generatePrototype() → PrototypeRecord.content.interactionMap
+          (Phase 4, 화면별 컴포넌트에 인터랙션을 붙인 것 — 여기서도 아직 "카피"는 없다)
+          │
+          ▼
+       prototypeToDesignDocument()          [claude-design-document-adapter.ts]
+          ★ pages[].sections가 "여기서 처음" 실제로 채워진다 ★
+          interactionMap[].interactions[].element를 화면당 Section 1개로 묶어 넣는다
+          (Section 경계는 보존 안 됨 — 알려진 한계, claude-design-document-adapter.ts
+          module 주석 1~3번 참고). 화면당 Section이 정확히 1개뿐이라는 것도 여기서 정해짐.
+```
+
+**결론**: Wireframe만으로는 부족하고, 반드시 **Prototype을 생성하는 단계를 거쳐야**
+`pages[].sections`가 채워진 `DesignDocument`가 나온다. 2026-09-08 Website Builder 마법사
+(`app/api/websites/route.ts`의 `wireframeId` 처리)가 실제로 하는 일이 정확히 이것 —
+Wireframe Board 편집 → `generatePrototype()` 호출 → `prototypeToDesignDocument()` → 임시
+파일로 CLI에 전달. Phase 9(`app/api/design/website/route.ts`)는 여기서 한 단계 더
+나아가 ClaudeDesign/Review까지 거치지만, `pages[].sections`를 채우는 지점 자체는 똑같이
+`prototypeToDesignDocument()`다(`buildWebsiteBuildHybridSource()` 내부에서 호출).
+
+## 12.3 DesignDocument → 실제 파일
+
+```
+DesignDocument (pages[].sections까지 채워진 상태)
+   │  --design-document <임시 파일 경로>  (CLI 인자, app/api/websites 또는
+   │                                        app/api/design/website 라우트가 씀)
+   ▼
+packages/cli/src/website/design-pages.ts
+   applyDesignDocumentPages() — generateReactComponentTree()가 만든 페이지만 프로젝트에
+   씀(레이아웃·공통 컴포넌트·스타일·SEO·API 라우트는 스캐폴딩 템플릿 그대로 둠)
+   │
+   ▼
+packages/cli/src/generators/react/*  ("React Generator", Design JSON Standardization Phase 8
+   — 이 문서의 Phase 번호 체계와 다른 번호 체계이니 혼동 주의, componentTree.ts 상단 주석 참고)
+   순수 함수: DesignDocument → TSX 문자열. Component.type(18종 표준 타입)마다
+   componentMap.ts의 태그·tailwind.ts의 클래스가 배정되고, tsx.ts가 최종 텍스트로 렌더링.
+```
+
+**두 번째 함정(2026-09-08에 실제로 재현된 버그, 이미 수정됨)**: `Component.props`는
+DesignDocument 스키마상 임의의 키를 허용하는데, `claude-design-document-adapter.ts`가 원래
+Wireframe 타입을 보존하려고 모든 컴포넌트에 `props.sourceType`(예: `"Header"`)을 심어둔다.
+이 값은 `ReactComponentNode` 자신의 `sourceType` 필드(18종 표준 타입, 예: `"container"`)와
+**이름이 같지만 완전히 다른 것**이다 — 전자는 "Wireframe이 원래 뭐라고 불렀는지", 후자는
+"React Generator가 어떤 태그로 그릴지"를 가리킨다. 이 둘을 헷갈리면 `tsx.ts`를 읽을 때
+`node.sourceType`과 `node.props.sourceType`을 혼동하기 쉽다. `tsx.ts`는 이제 두 값을 각각
+쓴다 — `node.props.sourceType`(랜드마크 원래 이름)이 Header/Navigation/Sidebar/Hero/Card/
+Table/Dashboard/Footer/Modal/Search/Pagination 11종 중 하나면 전용 렌더러(실제
+`<header>`/`<footer>` 등 시맨틱 태그 + 플레이스홀더 문구)로, 아니면 `node.sourceType`(표준
+타입) 기준 switch로 폴백한다. 어느 쪽이든 `props`의 나머지 임의 키는 `data-*` 접두사로만
+방출된다(유효하지 않은 HTML 속성이 그대로 새어나가 `tsc`가 실패하는 걸 막기 위함).
+
+## 12.4 카피(마케팅 문구)는 이 체인 어디에도 없다
+
+Wireframe(Phase 3)·Prototype(Phase 4)·현재의 랜드마크 렌더러(12.3) 중 **어느 것도 실제
+마케팅 카피를 생성하지 않는다** — 전부 "구조"(어떤 컴포넌트가 어떤 순서로 배치되는가)만
+다룬다. 실제 문구가 필요한 두 갈래:
+
+- **Website Builder 자체 Content Engine**(`packages/cli/src/website/content.ts`) — 업종·
+  타깃에 맞는 진짜 카피를 생성하지만, Design 체인과는 완전히 분리된 별도 입력(`--type`/
+  `--audience` 같은 CLI 인자)만 본다. Design Document와 병합되지 않는다.
+- **랜드마크 렌더러의 플레이스홀더**(12.3, 2026-09-08 추가) — "핵심 메시지를 입력하세요"류
+  고정 한국어 문구. 실제 AI 생성 카피가 아니다(의도적으로 지어내지 않음).
+
+두 경로를 실제로 병합(Wireframe이 정한 "구조" 위에 Content Engine이 만든 "카피"를
+얹는 것)하는 건 이번 범위 밖이며, 다음에 필요해지면 이 섹션을 갱신한다.
+
+## 12.5 파일 지도 (빠르게 찾기용)
+
+| 무엇을 찾는가 | 파일 |
+|---|---|
+| Wireframe 편집 데이터 모델 | `lib/design/wireframe.ts` |
+| Wireframe → Prototype 변환 (+ 항상 빈 sections 버전) | `lib/design/prototype-document-adapter.ts` |
+| Prototype → DesignDocument (**sections가 처음 채워짐**) | `lib/design/claude-design-document-adapter.ts` |
+| Review 승인 후 전체 체인 조립 | `lib/design/website-build-document-adapter.ts` (`buildWebsiteBuildHybridSource()`) |
+| DesignDocument → 프로젝트 파일 쓰기 | `packages/cli/src/website/design-pages.ts` |
+| DesignDocument → TSX 문자열(순수 함수) | `packages/cli/src/generators/react/*` |
+| 랜드마크별 실제 마크업 렌더러 | `packages/cli/src/generators/react/tsx.ts`의 `WIREFRAME_LANDMARK_RENDERERS` |
+| 실제 `tsc`로 생성 결과를 검증하는 테스트 | `tests/react-generator/typecheck-generated-pages.test.ts` |

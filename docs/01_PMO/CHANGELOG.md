@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-09-08 (4)
+
+### 추가 (Added)
+
+- **`docs/03_DESIGN/DESIGN_AUTOMATION_MASTER.md`에 Cross-Phase Data Flow Reference(12번 섹션)
+  추가**: 기존 1~11번 섹션은 각 Phase가 "무엇을 만들었는지"는 기록하지만 Phase 사이에서
+  데이터가 실제로 어떻게 넘어가는지는 코드에만 흩어져 있었다. 그 결과 같은 종류의 문제
+  (DesignDocument가 실제로는 코드에 반영되지 않음)가 2026-08-07과 2026-09-08 두 번에 걸쳐
+  각각 다른 이유로 재발했고, 둘 다 "어느 Adapter가 무엇을 채우는지"를 코드에서 직접 다시
+  추적해야 했다(추천 3개 중 3번 항목). 이번에 추적한 결과를 정리해 세 번째 재조사를 막는다
+  - Wireframe→코드까지 실제 코드 생성으로 이어지는 두 개의 독립 경로(`/developer/websites`
+    빠른 생성 vs `/developer/design/website` Phase 9 전체 체인)를 표로 비교
+  - `pages[].sections`가 항상 빈 배열인 `wireframeToDesignDocument()`와, Prototype 생성을
+    거쳐야만 실제로 채워지는 `prototypeToDesignDocument()`의 차이를 다이어그램으로 정리
+    (2026-09-08 (2)에서 이 경계를 직접 코드로 추적했던 내용)
+  - `node.sourceType`(표준 18종 타입)과 `node.props.sourceType`(원래 Wireframe 랜드마크
+    타입) 두 값의 이름 충돌을 명시적으로 문서화(2026-09-08 (1)·(3)에서 발견한 버그의 근본 원인)
+  - Wireframe/Prototype 체인 어디에도 실제 마케팅 카피가 없고, Website Builder의 Content
+    Engine과 Design 체인이 아직 병합되지 않은 상태임을 명시
+  - 빠르게 찾기용 파일 지도 표 추가
+
+### 검증 (Verified)
+
+- 문서 전용 변경 — `npx tsc --noEmit`·`npm run lint`·`npx vitest run` 재실행 불필요(변경 없음
+  확인용으로 1회 재확인, 전부 통과). 문서에 언급한 모든 파일 경로가 실제로 존재하는지
+  확인(`lib/design/{wireframe,prototype-document-adapter,claude-design-document-adapter,
+  website-build-document-adapter}.ts`·`packages/cli/src/website/design-pages.ts`·
+  `packages/cli/src/generators/react/tsx.ts`·`tests/react-generator/
+  typecheck-generated-pages.test.ts` 전부 존재 확인)
+- CI의 "Validate Documentation" 체크(`.github/workflows/docs.yml`)는 필수 README 존재 여부·
+  빈 마크다운 파일만 검사해 이번 변경과 무관함을 확인(로컬에서 동일 로직 재확인)
+
+---
+
 ## 2026-09-08 (3)
 
 ### 추가 (Added)

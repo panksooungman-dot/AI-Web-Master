@@ -4,6 +4,71 @@
 
 ---
 
+## 2026-09-08
+
+### 추가 (Added)
+
+- **Design Automation Phase 3(Wireframe) — 시각적 미리보기 + 기본 편집 기능(Wireframe Board)
+  추가**: 지금까지 Wireframe 화면(`/developer/design/wireframe`)은 AI/결정론적 기본값이 만든
+  레이아웃 JSON을 텍스트 표로만 보여줬다 — 실제로 어떻게 생겼는지 감이 오지 않아 Phase 9
+  (Website Build) 코드 생성 이후에야 눈으로 확인하고 되돌아가 고치는 식이었다. "cnbiz.kr
+  자동생성이 스토리보드/레이아웃 디자인 편집까지 지원해야 개발 정확도·시간이 단축될 것 같다"는
+  요청에 따라, 화면별 섹션 구성을 실제 화면처럼 보이는 박스 레이아웃으로 렌더링하고 그 자리에서
+  순서 변경·추가·삭제·구성 컴포넌트 수정까지 할 수 있게 했다. 드래그앤드롭 자유 배치(좌표 기반)는
+  이번 범위가 아니다 — Phase 3가 이미 갖고 있는 "섹션 목록 + 순서 + 컴포넌트 구성" 데이터를
+  시각화하고 그 데이터를 직접 편집하는 것이다(1세션 내 완료 가능한 범위로 사용자와 합의 후 진행)
+  - `components/developer/design/WireframeBoardView.tsx`(신규) — Desktop/Tablet/Mobile 탭별로
+    섹션을 세로로 쌓인 블록(컴포넌트 조합에 따라 높이가 다르게 보이는 시각적 힌트 포함)으로
+    렌더링. 블록마다 위/아래 이동·편집·삭제 버튼, 편집 모드에서는 이름·설명 인라인 수정과 13종
+    컴포넌트 팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/
+    Button/Search/Pagination) 중 추가/제거 가능. 이 컴포넌트는 Client Component인데
+    `lib/design/wireframe.ts`(서버 전용 registry, 내부적으로 `fs` 사용)에서 타입만
+    `import type`으로 가져오고(런타임에 완전히 지워져 번들에 포함되지 않음), 값인
+    `COMPONENT_TYPES`는 같은 13종 팔레트를 로컬에 복제해 사용 — 처음에는 값까지 그대로
+    import했다가 `next build`가 클라이언트 번들에 `fs`를 끌어들여 실패하는 것을 실제로 재현하고
+    수정했다
+  - `lib/design/wireframe.ts` — `updateWireframeContent(id, content)` 신규 추가. 관리자가
+    Wireframe Board에서 고친 결과(`content` 전체)를 그대로 저장한다(부분 patch 아님 — 클라이언트가
+    항상 서버가 내려준 원본을 들고 있다가 일부만 고쳐 보내므로 병합 로직 불필요)
+  - `app/api/design/wireframe/[id]/route.ts` — `PATCH` 핸들러 신규 추가(`{ content }` 받아
+    `updateWireframeContent()` 호출, `design.wireframe.edit` Audit 기록). 저장된 편집 결과는
+    이후 Prototype(`lib/design/prototype-document-adapter.ts`)·Figma Export
+    (`lib/design/figma-generator.ts`)·Design Sync(`lib/design/design-sync-engine.ts`)가 전부
+    `wireframe.content.layouts`를 직접 다시 읽으므로, 여기서 고친 내용이 이후 Phase에 실제로
+    반영된다(그냥 화면 장식이 아니라 파이프라인에 실제 영향을 주는 편집)
+  - `lib/audit/log.ts`의 `AuditAction`에 `"design.wireframe.edit"` 추가,
+    `app/developer/{audit-log,errors}/page.tsx` 라벨/톤 갱신(필터 목록은 `ACTION_LABELS`에서
+    자동 파생되는 기존 구조라 별도 수정 불필요)
+  - `app/developer/design/wireframe/page.tsx` — "✎ 레이아웃 편집" 버튼으로 편집 모드 진입,
+    편집 중에는 기존 읽기 전용 표 대신 `WireframeBoardView`를 보여주고 "레이아웃 저장"/"취소"
+    버튼 제공. 저장 성공 시 로컬 목록을 서버 응답으로 교체, 다른 Wireframe 선택·재생성 시 편집
+    상태 자동 초기화
+  - 테스트(신규 2개): `tests/design/wireframe-registry.test.ts`에
+    `updateWireframeContent()`가 content를 교체하되 `simulated`/`provider`/`createdAt`(생성
+    이력)은 그대로 보존하는지, 존재하지 않는 id에는 `null`을 반환하고 새 레코드를 만들지
+    않는지 검증하는 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(신규
+  `PATCH /api/design/wireframe/[id]` 포함 기존 라우트 전부 정상 생성 — 클라이언트 번들에 `fs`가
+  끌려 들어가 빌드가 깨졌던 문제를 실제로 재현한 뒤 타입 전용 import로 수정해 재확인)
+- `npx vitest run tests/design tests/auth/rbac.test.ts`(299 tests, 신규 2개 포함 — 신규 실패
+  0건. 실패 1건은 `tests/design/review-registry.test.ts`의 같은 밀리초 충돌
+  타이밍 플레이크(2026-08-26 (8)에 이미 문서화된 것과 동일 계열)로 이번 변경과 무관함을 확인)
+- 검증 전용 임시 계정(developer role)으로 dev 서버를 실제로 띄워 Playwright로 전체 플로우 실행:
+  Design Plan → Storyboard → Wireframe 생성 → "레이아웃 편집" 클릭 → "+ 섹션 추가"로 새 섹션
+  추가 → 이름을 실제 한글로 수정 → "+ Hero" 클릭으로 컴포넌트 칩 추가 → "위로 이동" 클릭 →
+  "레이아웃 저장" 클릭 → `PATCH /api/design/wireframe/:id` 200(`success:true`) 확인 → 읽기
+  전용 화면에 수정한 섹션 이름이 정상 반영됨을 확인 → **페이지를 완전히 새로고침한 뒤에도
+  수정 내용이 그대로 남아있음을 확인**(클라이언트 상태가 아니라 서버에 실제로 영구 저장됐음을
+  검증) → `GET /api/audit?action=design.wireframe.edit`에 actor(로그인 계정 이메일)·detail이
+  정확히 기록됨을 확인, 콘솔/페이지 에러 0건
+  - 검증에 사용한 dev 서버·QA 전용 계정·Playwright 임시 스크립트·로컬 fs 데이터(`/tmp/cnbiz-web/data`)는
+    검증 후 전부 종료·삭제
+
+---
+
 ## 2026-09-07
 
 ### 추가 (Added)

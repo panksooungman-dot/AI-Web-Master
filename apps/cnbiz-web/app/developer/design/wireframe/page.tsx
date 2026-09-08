@@ -6,10 +6,11 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { DesignChainStepper } from "@/components/developer/design/DesignChainStepper";
+import { WireframeBoardView } from "@/components/developer/design/WireframeBoardView";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { StoryboardRecord } from "@/lib/design/storyboard";
-import type { WireframeRecord } from "@/lib/design/wireframe";
+import type { ScreenLayout, WireframeRecord } from "@/lib/design/wireframe";
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
@@ -80,6 +81,10 @@ export default function WireframePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  const [editingLayouts, setEditingLayouts] = useState<ScreenLayout[] | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -127,6 +132,8 @@ export default function WireframePage() {
 
       setWireframes((prev) => [json.wireframe!, ...prev]);
       setSelectedWireframeId(json.wireframe.id);
+      setEditingLayouts(null);
+      setSaveError(null);
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "요청 실패");
     } finally {
@@ -149,6 +156,48 @@ export default function WireframePage() {
   const handleExportMarkdown = () => {
     if (!selectedWireframe) return;
     downloadBlob(toMarkdown(projectName, selectedWireframe), `wireframe-${selectedWireframe.id}.md`, "text/markdown");
+  };
+
+  const handleStartEdit = () => {
+    if (!selectedWireframe) return;
+    setSaveError(null);
+    setEditingLayouts(selectedWireframe.content.layouts.map((layout) => ({ ...layout })));
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLayouts(null);
+    setSaveError(null);
+  };
+
+  const handleChangeLayout = (index: number, next: ScreenLayout) => {
+    setEditingLayouts((prev) => (prev ? prev.map((layout, i) => (i === index ? next : layout)) : prev));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedWireframe || !editingLayouts || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await fetch(`/api/design/wireframe/${selectedWireframe.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: { ...selectedWireframe.content, layouts: editingLayouts } }),
+      });
+      const json = (await res.json()) as { success: boolean; wireframe?: WireframeRecord; error?: string };
+
+      if (!json.success || !json.wireframe) {
+        setSaveError(json.error ?? "저장 실패");
+        return;
+      }
+
+      setWireframes((prev) => prev.map((wf) => (wf.id === json.wireframe!.id ? json.wireframe! : wf)));
+      setEditingLayouts(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "요청 실패");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -227,7 +276,11 @@ export default function WireframePage() {
               {wireframes.map((wf) => (
                 <li key={wf.id}>
                   <button
-                    onClick={() => setSelectedWireframeId(wf.id)}
+                    onClick={() => {
+                      setSelectedWireframeId(wf.id);
+                      setEditingLayouts(null);
+                      setSaveError(null);
+                    }}
                     className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedWireframeId === wf.id
                         ? "bg-blue-600/20 border border-blue-600"
@@ -249,7 +302,7 @@ export default function WireframePage() {
 
       {selectedWireframe && (
         <>
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             <button
               onClick={handleExportJson}
               className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors"
@@ -262,6 +315,35 @@ export default function WireframePage() {
             >
               Export Markdown
             </button>
+
+            <span className="flex-1" />
+
+            {editingLayouts ? (
+              <>
+                {saveError && <StatusMessage tone="error">{saveError}</StatusMessage>}
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={isSaving}
+                  className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors disabled:opacity-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                  className="rounded bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? "저장 중..." : "레이아웃 저장"}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleStartEdit}
+                className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors"
+              >
+                ✎ 레이아웃 편집
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -305,25 +387,29 @@ export default function WireframePage() {
           </div>
 
           <div className="flex flex-col gap-6">
-            {selectedWireframe.content.layouts.map((layout, i) => (
+            {(editingLayouts ?? selectedWireframe.content.layouts).map((layout, i) => (
               <Card key={i} title={`${layout.screen} (${layout.path})`}>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[layout.desktop, layout.tablet, layout.mobile].map((bp) => (
-                    <div key={bp.breakpoint} className="rounded border border-gray-800 p-3">
-                      <p className="text-xs font-semibold text-gray-400 uppercase mb-2">
-                        {bp.breakpoint} · {bp.columns} columns
-                      </p>
-                      <ul className="flex flex-col gap-1.5 text-xs text-gray-300">
-                        {bp.sections.map((section, j) => (
-                          <li key={j}>
-                            <span className="font-semibold text-gray-200">{section.name}</span>{" "}
-                            <span className="text-gray-500">[{section.components.join(", ")}]</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                {editingLayouts ? (
+                  <WireframeBoardView layout={layout} onChange={(next) => handleChangeLayout(i, next)} />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[layout.desktop, layout.tablet, layout.mobile].map((bp) => (
+                      <div key={bp.breakpoint} className="rounded border border-gray-800 p-3">
+                        <p className="text-xs font-semibold text-gray-400 uppercase mb-2">
+                          {bp.breakpoint} · {bp.columns} columns
+                        </p>
+                        <ul className="flex flex-col gap-1.5 text-xs text-gray-300">
+                          {bp.sections.map((section, j) => (
+                            <li key={j}>
+                              <span className="font-semibold text-gray-200">{section.name}</span>{" "}
+                              <span className="text-gray-500">[{section.components.join(", ")}]</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
             ))}
           </div>

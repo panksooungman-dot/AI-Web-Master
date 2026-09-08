@@ -156,3 +156,25 @@ export async function listWireframesForStoryboard(
   const records = await listWireframes(store);
   return records.filter((record) => record.storyboardId === storyboardId);
 }
+
+/**
+ * 관리자가 Wireframe Board(시각적 미리보기)에서 섹션 구성을 직접 수정한 뒤 저장할 때 쓴다.
+ * `content` 전체를 교체한다(부분 patch가 아님 — 클라이언트가 항상 전체 layouts/components/
+ * responsive를 함께 들고 있으므로 병합 로직 없이 그대로 대입해도 안전하다). `simulated`·
+ * `provider`·`model`은 "AI가 생성했는지" 이력이라 편집으로 바뀌지 않는다.
+ */
+export async function updateWireframeContent(
+  id: string,
+  content: WireframeContent,
+  store: CollectionStore = getDefaultStore()
+): Promise<WireframeRecord | null> {
+  const records = await store.list<WireframeRecord>(COLLECTION);
+  const index = records.findIndex((record) => record.id === id);
+  if (index === -1) return null;
+
+  const updated: WireframeRecord = { ...records[index], content };
+  records[index] = updated;
+  await store.replaceAll(COLLECTION, records);
+
+  return updated;
+}

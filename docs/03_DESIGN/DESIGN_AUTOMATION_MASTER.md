@@ -672,20 +672,31 @@ Table/Dashboard/Footer/Modal/Search/Pagination 11종 중 하나면 전용 렌더
 타입) 기준 switch로 폴백한다. 어느 쪽이든 `props`의 나머지 임의 키는 `data-*` 접두사로만
 방출된다(유효하지 않은 HTML 속성이 그대로 새어나가 `tsc`가 실패하는 걸 막기 위함).
 
-## 12.4 카피(마케팅 문구)는 이 체인 어디에도 없다
+## 12.4 카피(마케팅 문구) 병합 — 2026-09-08 (5)에서 해소
 
-Wireframe(Phase 3)·Prototype(Phase 4)·현재의 랜드마크 렌더러(12.3) 중 **어느 것도 실제
-마케팅 카피를 생성하지 않는다** — 전부 "구조"(어떤 컴포넌트가 어떤 순서로 배치되는가)만
-다룬다. 실제 문구가 필요한 두 갈래:
+~~Wireframe(Phase 3)·Prototype(Phase 4)·랜드마크 렌더러(12.3) 중 어느 것도 실제 마케팅
+카피를 생성하지 않는다~~ — 이 문단이 처음 쓰인 시점의 상태였고, 같은 날 후속 작업으로
+해소되었다. 두 갈래였던 것:
 
 - **Website Builder 자체 Content Engine**(`packages/cli/src/website/content.ts`) — 업종·
   타깃에 맞는 진짜 카피를 생성하지만, Design 체인과는 완전히 분리된 별도 입력(`--type`/
-  `--audience` 같은 CLI 인자)만 본다. Design Document와 병합되지 않는다.
-- **랜드마크 렌더러의 플레이스홀더**(12.3, 2026-09-08 추가) — "핵심 메시지를 입력하세요"류
-  고정 한국어 문구. 실제 AI 생성 카피가 아니다(의도적으로 지어내지 않음).
+  `--audience` 같은 CLI 인자)만 본다.
+- **랜드마크 렌더러의 플레이스홀더**(12.3) — "핵심 메시지를 입력하세요"류 고정 한국어 문구.
 
-두 경로를 실제로 병합(Wireframe이 정한 "구조" 위에 Content Engine이 만든 "카피"를
-얹는 것)하는 건 이번 범위 밖이며, 다음에 필요해지면 이 섹션을 갱신한다.
+`packages/cli/src/website/design-content-enrichment.ts`(신규,
+`enrichDesignDocumentWithContent()`)가 이 둘을 연결한다. `builder.ts`가 스캐폴딩 과정에서
+이미 만들어 둔 `SiteContent`(추가 AI 호출 없이 재사용)를, DesignDocument의 각
+`Component.props.sourceType`(Wireframe landmark 타입) 기준으로 Hero/Card/Header/
+Navigation/Sidebar/Footer의 `props`에 그대로 주입한 뒤 React Generator에 넘긴다 — 12.3의
+렌더러는 이 실제 값이 있으면 우선 쓰고, 없을 때만 기존 플레이스홀더로 폴백한다.
+Table/Dashboard/Modal/Search/Pagination은 `SiteContent`에 대응하는 데이터가 없어(표
+데이터·통계 위젯·다이얼로그 문구를 모델링하지 않음) 지어내지 않고 그대로 둔다.
+
+페이지 매칭은 DesignDocument의 `page.path`를 `SiteContent`의 11개 페이지 키(home/about/
+services/products/pricing/faq/blog/contact/privacy/terms/notFound)로 직접 매핑하는
+방식이라, Storyboard가 이 11개 경로 밖의 화면을 만들면(AI Provider가 실제로 연결된 경우
+가능) 그 페이지는 enrichment 없이 12.3의 플레이스홀더로 폴백된다 — 아직 검증되지 않은 채로
+남아있는 부분이니 실제로 문제가 되면 이 섹션을 다시 갱신한다.
 
 ## 12.5 파일 지도 (빠르게 찾기용)
 

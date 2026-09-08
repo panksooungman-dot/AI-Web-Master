@@ -166,6 +166,169 @@ function renderGeneric(node: ReactComponentNode, context: RenderContext, indent:
   return `${indent}<${node.tag}${attrs}>\n${inner}\n${indent}</${node.tag}>`;
 }
 
+/**
+ * Wireframe landmark renderers (2026-09-08).
+ *
+ * `node.sourceType` is the standard 18-value DesignComponentType ("container"/"card"/"grid"/…) —
+ * too coarse to tell a page Header apart from its Footer, both of which
+ * `claude-design-document-adapter.ts`'s `WIREFRAME_TO_DESIGN_COMPONENT` map to "container". Every
+ * such node still carries the *original* Wireframe landmark type (Header/Navigation/Sidebar/Hero/
+ * Card/Table/Dashboard/Footer/Modal/Search/Pagination — Button and Form are excluded here because
+ * they already map to DesignComponentTypes with a real dedicated renderer above) as
+ * `node.props.sourceType`, which `renderComponent()` checks first. Without this, every one of
+ * those landmarks rendered as an empty `<div data-source-type="Header" />` — structurally correct
+ * (right element, right position, right order — that part came from the Wireframe/Prototype chain
+ * and is unchanged) but visually nothing, since neither Wireframe nor Prototype carry marketing
+ * copy. These renderers exist to make a Wireframe Board edit look like a page, not fix that copy
+ * gap — every string below is a generic placeholder label, not content generation; an Adapter
+ * populating real `Component.props` (text/items/fields, already-handled per-type above) always
+ * takes priority over a landmark's own hardcoded copy where the two could conflict, but today's
+ * Wireframe chain never sets those for these types, so in practice a landmark always renders its
+ * placeholder.
+ */
+
+function mergeClass(defaultClass: string, nodeClass: string): string {
+  return [defaultClass, nodeClass].filter(Boolean).join(" ");
+}
+
+function dataSourceTypeAttr(node: ReactComponentNode): string {
+  return isNonEmptyString(node.props.sourceType) ? ` data-source-type=${jsxString(node.props.sourceType)}` : "";
+}
+
+function renderWireframeHeader(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex flex-wrap items-center justify-between gap-4 py-4", node.className);
+  return `${indent}<header${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <span className="text-lg font-bold text-slate-900">로고</span>
+${indent}  <nav className="flex gap-6 text-sm text-slate-600">
+${indent}    <span>메뉴 1</span>
+${indent}    <span>메뉴 2</span>
+${indent}    <span>메뉴 3</span>
+${indent}  </nav>
+${indent}</header>`;
+}
+
+function renderWireframeNavigation(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex flex-wrap gap-6 text-sm text-slate-600", node.className);
+  return `${indent}<nav${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <span>메뉴 1</span>
+${indent}  <span>메뉴 2</span>
+${indent}  <span>메뉴 3</span>
+${indent}</nav>`;
+}
+
+function renderWireframeSidebar(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex w-full flex-col gap-2 text-sm text-slate-600 sm:w-56", node.className);
+  return `${indent}<aside${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <span>메뉴 1</span>
+${indent}  <span>메뉴 2</span>
+${indent}  <span>메뉴 3</span>
+${indent}</aside>`;
+}
+
+function renderWireframeHero(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex flex-col items-center gap-4 py-12 text-center", node.className);
+  return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">핵심 메시지를 입력하세요</h1>
+${indent}  <p className="max-w-xl text-slate-600">방문자에게 전달하고 싶은 한 문장을 여기에 작성합니다.</p>
+${indent}  <button className="rounded bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">자세히 보기</button>
+${indent}</div>`;
+}
+
+function renderWireframeCard(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("rounded-lg border border-slate-200 p-6", node.className);
+  return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <h3 className="text-lg font-bold text-slate-900">카드 제목</h3>
+${indent}  <p className="mt-2 text-sm text-slate-600">카드 설명 텍스트가 들어갑니다.</p>
+${indent}</div>`;
+}
+
+function renderWireframeTable(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("w-full border-collapse text-left text-sm", node.className);
+  return `${indent}<table${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <thead>
+${indent}    <tr className="border-b border-slate-200 text-slate-900">
+${indent}      <th className="py-2 pr-4 font-semibold">항목</th>
+${indent}      <th className="py-2 pr-4 font-semibold">값</th>
+${indent}    </tr>
+${indent}  </thead>
+${indent}  <tbody className="text-slate-600">
+${indent}    <tr className="border-b border-slate-100">
+${indent}      <td className="py-2 pr-4">데이터 1</td>
+${indent}      <td className="py-2 pr-4">-</td>
+${indent}    </tr>
+${indent}    <tr>
+${indent}      <td className="py-2 pr-4">데이터 2</td>
+${indent}      <td className="py-2 pr-4">-</td>
+${indent}    </tr>
+${indent}  </tbody>
+${indent}</table>`;
+}
+
+function renderWireframeDashboard(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("grid grid-cols-2 gap-4 sm:grid-cols-4", node.className);
+  const stat = (label: string) => `${indent}  <div className="rounded-lg border border-slate-200 p-4">
+${indent}    <p className="text-xs text-slate-500">${label}</p>
+${indent}    <p className="text-2xl font-bold text-slate-900">-</p>
+${indent}  </div>`;
+  return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${stat("지표 1")}
+${stat("지표 2")}
+${indent}</div>`;
+}
+
+function renderWireframeFooter(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex flex-col items-center gap-2 py-8 text-sm text-slate-500", node.className);
+  return `${indent}<footer${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <span>© 2026 Company Name. All rights reserved.</span>
+${indent}</footer>`;
+}
+
+function renderWireframeModal(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  // A real open/close toggle is interaction wiring the Wireframe/Prototype chain never carries
+  // (no business logic is generated by React Generator, same principle as the form's TODO stub)
+  // — this renders the panel a Modal would show, always visible, as a static layout preview.
+  const cls = mergeClass("rounded-lg border border-slate-200 bg-white p-6 shadow-lg", node.className);
+  return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <h3 className="text-lg font-bold text-slate-900">팝업 제목</h3>
+${indent}  <p className="mt-2 text-sm text-slate-600">팝업 내용이 들어갑니다.</p>
+${indent}  <button className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white">확인</button>
+${indent}</div>`;
+}
+
+function renderWireframeSearch(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex gap-2", node.className);
+  return `${indent}<div${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${indent}  <input type="search" placeholder="검색어를 입력하세요" className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm" />
+${indent}  <button className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white">검색</button>
+${indent}</div>`;
+}
+
+function renderWireframePagination(node: ReactComponentNode, _context: RenderContext, indent: string): string {
+  const cls = mergeClass("flex justify-center gap-2 text-sm", node.className);
+  const page = (label: string) => `${indent}  <button className="rounded border border-slate-300 px-3 py-1.5">${label}</button>`;
+  return `${indent}<nav${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
+${page("1")}
+${page("2")}
+${page("3")}
+${indent}</nav>`;
+}
+
+const WIREFRAME_LANDMARK_RENDERERS: Readonly<
+  Record<string, (node: ReactComponentNode, context: RenderContext, indent: string) => string>
+> = {
+  Header: renderWireframeHeader,
+  Navigation: renderWireframeNavigation,
+  Sidebar: renderWireframeSidebar,
+  Hero: renderWireframeHero,
+  Card: renderWireframeCard,
+  Table: renderWireframeTable,
+  Dashboard: renderWireframeDashboard,
+  Footer: renderWireframeFooter,
+  Modal: renderWireframeModal,
+  Search: renderWireframeSearch,
+  Pagination: renderWireframePagination,
+};
+
 const PASSTHROUGH_HANDLED_KEYS = new Set([
   "text",
   "href",
@@ -187,6 +350,11 @@ const PASSTHROUGH_HANDLED_KEYS = new Set([
 ]);
 
 function renderComponent(node: ReactComponentNode, context: RenderContext, indent: string): string {
+  const wireframeSourceType = node.props.sourceType;
+  const landmarkRenderer =
+    isNonEmptyString(wireframeSourceType) ? WIREFRAME_LANDMARK_RENDERERS[wireframeSourceType] : undefined;
+  if (landmarkRenderer) return landmarkRenderer(node, context, indent);
+
   switch (node.sourceType) {
     case "button":
       return renderButton(node, context, indent);

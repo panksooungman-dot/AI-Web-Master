@@ -4,6 +4,61 @@
 
 ---
 
+## 2026-09-08 (3)
+
+### 추가 (Added)
+
+- **React Generator — Wireframe 13종 랜드마크에 실제 마크업 렌더러 추가(빈 상자 문제 해결)**:
+  Website Builder 마법사(2026-09-08 (2))로 Wireframe 레이아웃을 실제 코드에 반영하는 경로를
+  연결한 뒤 실제로 생성해보니, Header/Hero/Footer 등 랜드마크가 전부
+  `<div data-source-type="Header" />`처럼 **빈 상자**로만 나왔다 — 구조(어떤 컴포넌트가 몇 번째
+  순서로 들어가는지)는 Wireframe 편집이 정확히 반영되지만, 눈에 보이는 결과물이 없어 실제
+  개발 체감 효과가 제한적이었다(추천 3개 중 2번 항목). 원인은 Wireframe의 13종 랜드마크
+  팔레트(Header/Navigation/Sidebar/Hero/Card/Form/Table/Dashboard/Footer/Modal/Button/Search/
+  Pagination)가 표준 DesignComponentType(18종, UI 원자 단위)에 매핑될 때 상당수가 뭉뚱그려
+  `"container"` 하나로 collapse되고(`claude-design-document-adapter.ts`의
+  `WIREFRAME_TO_DESIGN_COMPONENT`), React Generator에는 애초에 `"container"`용 실제 렌더러가
+  없어(`<div>` 태그만 배정, 콘텐츠는 없음) 전부 `renderGeneric()`의 빈 상자로 떨어졌기 때문이다.
+  Wireframe/Prototype 단계는 마케팅 카피 자체를 갖고 있지 않으므로(그건 별도의 Content Engine
+  영역), 이번 수정은 "AI가 만든 진짜 문구"가 아니라 실제로 그 랜드마크처럼 **보이는 구조 +
+  플레이스홀더 문구**를 채우는 것까지가 범위다
+  - `packages/cli/src/generators/react/tsx.ts` — Header/Navigation/Sidebar/Hero/Card/Table/
+    Dashboard/Footer/Modal/Search/Pagination 11종(Button·Form은 이미 전용 렌더러가 있어 제외)에
+    각각 실제 시맨틱 태그(`<header>`/`<nav>`/`<aside>`/`<footer>` 등) + Tailwind 마크업 +
+    한국어 플레이스홀더를 반환하는 전용 렌더러 추가. `renderComponent()`가 이제
+    `node.props.sourceType`(2026-09-08 (2)에서 `data-source-type`으로 안전하게 보존해 둔 원래
+    Wireframe 랜드마크 타입)을 먼저 확인해 11종 중 하나면 전용 렌더러로, 아니면 기존
+    `node.sourceType`(표준 DesignComponentType) 기준 switch로 그대로 폴백한다 — Wireframe이
+    아닌 다른 경로로 만들어진 DesignDocument(이 prop이 애초에 없음)는 동작이 전혀 바뀌지 않는다
+  - 테스트(신규 1개, 기존 1개 보강): `tests/react-generator/typecheck-generated-pages.test.ts`에
+    실제 Wireframe→Prototype→DesignDocument 체인이 만드는 것과 동일한 모양(11종 랜드마크,
+    `props: {sourceType: <랜드마크>}` 하나뿐)의 페이지를 실제로 렌더링해 (1) 11종 전부 자기
+    태그로 렌더링되고 빈 `<div data-source-type=.../>`로 떨어지지 않는지, (2) 실제 `tsc`로
+    0 errors인지 검증하는 케이스 추가. 기존 "모든 ComponentType" 테스트의 하드코딩된 추적값을
+    `"Header"`(이번에 새로 인식되는 랜드마크 키워드가 되어버려 의도와 다르게 전부 Header
+    렌더러로 우회되던 것을 발견)에서 `"Untracked"`로 교체해 원래 의도(임의 추적값 → 안전한
+    data-* passthrough)만 검증하도록 정정
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`·`npm run lint`(0 errors), `npx vitest run`(루트 173 tests 전부 통과, 신규
+  1개 포함)
+- **버그 재현 방지 확인**: 하드코딩 추적값을 고치지 않고 뒀다면 "모든 ComponentType" 테스트의
+  18개 컴포넌트가 전부 실수로 Header 렌더러로 우회되어 테스트가 원래 검증하려던 것(범용
+  안전망)을 더 이상 검증하지 못했을 것 — 실제로 이 상태를 만들어 재현한 뒤 값을 바꿔 수정
+- **실제 생성 → 시각 확인까지 전 구간 재검증**: `packages/cli` 재빌드 후 dev 서버 + Playwright로
+  Website Builder 마법사(2026-09-08 (2)) 전체 재실행(치과 사이트) → 생성된 프로젝트의
+  `app/page.tsx`에 `<header>`(로고 + 메뉴 1/2/3) → `<div>`(Hero: 제목 "핵심 메시지를
+  입력하세요" + 부제 + "자세히 보기" 버튼) → `<footer>`(저작권 문구) 순으로 실제 마크업이
+  들어감을 소스 코드로 확인 → `npm install && npx tsc --noEmit`(0 errors) → `next build`
+  (18개 라우트 정상 생성) → **`next start`로 실제 기동해 브라우저 스크린샷 촬영**, 이전에는
+  완전히 빈 공백이었을 자리에 로고·내비게이션·Hero 제목/부제/버튼·Footer 저작권 문구가 실제로
+  화면에 렌더링됨을 육안으로 확인
+  - 검증에 사용한 dev/prod 서버·QA 전용 계정·Playwright 임시 스크립트·생성된 테스트 프로젝트
+    (`/tmp/ai-business-os-cli/cli-cwd/qa-landmark-dental`)는 검증 후 전부 종료·삭제
+
+---
+
 ## 2026-09-08 (2)
 
 ### 추가 (Added)

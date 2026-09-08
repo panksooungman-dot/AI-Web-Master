@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import ts from "typescript";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { generateReactComponentTree } from "../../packages/cli/src/generators/react/index.js";
 import type { Component, ComponentType, DesignDocument } from "@cnbiz/design-system/types/design";
 
@@ -37,15 +37,17 @@ function baseDocument(overrides: Partial<DesignDocument> = {}): DesignDocument {
   };
 }
 
-/** One component per ComponentType, each carrying the same Adapter-style traceability prop
- *  (`claude-design-document-adapter.ts`'s `{ sourceType: wireframeType }`) plus whatever specific
- *  props that type's dedicated renderer (tsx.ts) actually reads, so every render path — not just
- *  the generic fallback — is exercised in one page. */
+/** One component per ComponentType, each carrying an arbitrary Adapter-style traceability prop
+ *  (`claude-design-document-adapter.ts`'s `{ sourceType: wireframeType }` shape, but a value —
+ *  "Untracked" — that isn't one of the 11 recognized Wireframe landmark keywords tsx.ts now
+ *  dispatches on) plus whatever specific props that type's dedicated renderer (tsx.ts) actually
+ *  reads, so every base render path — not just the generic fallback — is exercised in one page
+ *  without being redirected into a landmark renderer. */
 function allComponentTypesSection(): Component[] {
   const withTrace = (type: ComponentType, props: Record<string, unknown>): Component => ({
     id: `c-${type}`,
     type,
-    props: { sourceType: "Header", ...props },
+    props: { sourceType: "Untracked", ...props },
   });
 
   return [
@@ -71,11 +73,84 @@ function allComponentTypesSection(): Component[] {
   ];
 }
 
-describe("React Generator — generated TSX actually type-checks (real tsc, real @types/react/next)", () => {
-  let tmpDir: string | null = null;
+/** Mirrors `claude-design-document-adapter.ts`'s `WIREFRAME_TO_DESIGN_COMPONENT` + `buildPageSections()`
+ *  exactly: one component per Wireframe landmark type (Button/Form excluded — those already had a
+ *  real dedicated renderer before 2026-09-08 and are covered by the test above), each carrying
+ *  only `{ sourceType: <landmark> }`, nothing else — this is precisely what a real Wireframe Board
+ *  edit produces once it reaches Prototype → DesignDocument. */
+function wireframeLandmarkSection(): Component[] {
+  const landmarks = [
+    "Header",
+    "Navigation",
+    "Sidebar",
+    "Hero",
+    "Card",
+    "Table",
+    "Dashboard",
+    "Footer",
+    "Modal",
+    "Search",
+    "Pagination",
+  ] as const;
 
-  afterAll(() => {
-    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+  const designTypeFor: Record<(typeof landmarks)[number], ComponentType> = {
+    Header: "container",
+    Navigation: "container",
+    Sidebar: "container",
+    Hero: "container",
+    Card: "card",
+    Table: "grid",
+    Dashboard: "grid",
+    Footer: "container",
+    Modal: "container",
+    Search: "input",
+    Pagination: "button",
+  };
+
+  return landmarks.map((landmark, index) => ({
+    id: `c-${index}-${landmark.toLowerCase()}`,
+    type: designTypeFor[landmark],
+    props: { sourceType: landmark },
+  }));
+}
+
+function typecheckTsx(tsx: string, tmpDirPrefix: string): { diagnosticsText: string; diagnosticCount: number; dir: string } {
+  // Written under the repo root (not os.tmpdir()) so TypeScript's node_modules resolution walks
+  // up and finds this repo's real `react`/`next` type declarations.
+  const dir = fs.mkdtempSync(path.join(REPO_ROOT, tmpDirPrefix));
+  const filePath = path.join(dir, "page.tsx");
+  fs.writeFileSync(filePath, tsx, "utf-8");
+
+  const compilerOptions: ts.CompilerOptions = {
+    target: ts.ScriptTarget.ES2017,
+    lib: ["dom", "dom.iterable", "esnext"],
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.ReactJSX,
+    esModuleInterop: true,
+    resolveJsonModule: true,
+    isolatedModules: true,
+    strict: true,
+    noEmit: true,
+    skipLibCheck: true,
+  };
+
+  const program = ts.createProgram([filePath], compilerOptions);
+  const diagnostics = ts.getPreEmitDiagnostics(program).filter((d) => d.file?.fileName === filePath);
+  const diagnosticsText = ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+    getCurrentDirectory: () => dir,
+    getCanonicalFileName: (f) => f,
+    getNewLine: () => "\n",
+  });
+
+  return { diagnosticsText, diagnosticCount: diagnostics.length, dir };
+}
+
+describe("React Generator — generated TSX actually type-checks (real tsc, real @types/react/next)", () => {
+  const dirsToClean: string[] = [];
+
+  afterEach(() => {
+    while (dirsToClean.length > 0) fs.rmSync(dirsToClean.pop()!, { recursive: true, force: true });
   });
 
   it("produces zero tsc diagnostics for a page covering every ComponentType", () => {
@@ -93,35 +168,40 @@ describe("React Generator — generated TSX actually type-checks (real tsc, real
     const tree = generateReactComponentTree(document);
     expect(tree.pages).toHaveLength(1);
 
-    // Written under the repo root (not os.tmpdir()) so TypeScript's node_modules resolution
-    // walks up and finds this repo's real `react`/`next` type declarations.
-    tmpDir = fs.mkdtempSync(path.join(REPO_ROOT, ".typecheck-fixture-"));
-    const filePath = path.join(tmpDir, "page.tsx");
-    fs.writeFileSync(filePath, tree.pages[0].tsx, "utf-8");
+    const { diagnosticsText, diagnosticCount, dir } = typecheckTsx(tree.pages[0].tsx, ".typecheck-fixture-");
+    dirsToClean.push(dir);
 
-    const compilerOptions: ts.CompilerOptions = {
-      target: ts.ScriptTarget.ES2017,
-      lib: ["dom", "dom.iterable", "esnext"],
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      jsx: ts.JsxEmit.ReactJSX,
-      esModuleInterop: true,
-      resolveJsonModule: true,
-      isolatedModules: true,
-      strict: true,
-      noEmit: true,
-      skipLibCheck: true,
-    };
+    expect(diagnosticCount, diagnosticsText).toBe(0);
+  });
 
-    const program = ts.createProgram([filePath], compilerOptions);
-    const diagnostics = ts.getPreEmitDiagnostics(program).filter((d) => d.file?.fileName === filePath);
-
-    const formatted = ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-      getCurrentDirectory: () => tmpDir!,
-      getCanonicalFileName: (f) => f,
-      getNewLine: () => "\n",
+  it("renders every Wireframe landmark type through its dedicated renderer, and the page still type-checks", () => {
+    const document = baseDocument({
+      pages: [
+        {
+          id: "home",
+          title: "Home",
+          path: "/",
+          sections: [{ id: "s", type: "hero", components: wireframeLandmarkSection() }],
+        },
+      ],
     });
 
-    expect(diagnostics, formatted).toHaveLength(0);
+    const tsx = generateReactComponentTree(document).pages[0].tsx;
+
+    // A landmark that fell through to the pre-2026-09-08 generic renderer would show up here as
+    // an empty `<div data-source-type="X" />` instead of its own semantic tag/placeholder copy.
+    expect(tsx).toContain("<header");
+    expect(tsx).toContain("로고");
+    expect(tsx).toContain("<footer");
+    expect(tsx).toContain("<aside");
+    expect(tsx).toContain("핵심 메시지를 입력하세요");
+    expect(tsx).toContain("<table");
+    expect(tsx).toContain('type="search"');
+    expect(tsx).not.toMatch(/<div data-source-type=\{"(Header|Footer|Sidebar|Hero|Card|Table|Dashboard|Modal)"\} \/>/);
+
+    const { diagnosticsText, diagnosticCount, dir } = typecheckTsx(tsx, ".typecheck-landmarks-");
+    dirsToClean.push(dir);
+
+    expect(diagnosticCount, diagnosticsText).toBe(0);
   });
 });

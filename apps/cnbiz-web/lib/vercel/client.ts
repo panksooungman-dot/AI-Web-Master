@@ -117,6 +117,13 @@ export interface CreateDeploymentInput {
    * `createDeployment()`를 호출하므로 항상 `true`를 전달한다.
    */
   isInitialDeployment?: boolean;
+  /**
+   * "미리보기 확인 후 운영 배포" 요구사항(2026-09-11) — 자동 생성 직후 관리자가 실제 화면을
+   * 확인하기 전까지는 실제 운영 도메인에 반영되면 안 되므로, 최초 배포는 항상 "preview"로
+   * 실행하고 관리자가 확인 후 promoteDeployment()로 별도 승격한다. 필수 필드로 두어 호출부가
+   * 값을 빠뜨린 채 실수로 production을 쏘는 것을 막는다.
+   */
+  target: "production" | "preview";
 }
 
 /** `createDeployment()`가 실제로 fetch를 호출하기 전에 요청 Body를 이룰 값들을 검증한다. */
@@ -159,7 +166,7 @@ export async function createDeployment(
     body: JSON.stringify({
       name: input.name,
       project: input.projectId,
-      target: "production",
+      target: input.target,
       // Vercel API 공식 스펙(gitSource discriminated union, type: "github") — repoId가 없으면
       // "gitSource missing required property repoId"로 거부된다. ref는 선택 필드(브랜치 지정).
       gitSource: { type: "github", repoId: input.repoId, ref: input.gitBranch ?? "main" },
@@ -178,6 +185,30 @@ export async function createDeployment(
     url: host ? `https://${host}` : "",
     readyState: typeof json.readyState === "string" ? json.readyState : "UNKNOWN",
   };
+}
+
+/**
+ * Preview 배포를 운영(Production)으로 승격한다 — Vercel 대시보드의 "Promote to Production"과
+ * 동일한 동작(공식 REST API `POST /v10/projects/:idOrName/promote/:deploymentId`). 이 환경에는
+ * `VERCEL_TOKEN`이 없어(파일 상단 주석 참고) 실제 계정으로 왕복 검증하지 못했다 — 공식 문서 기준
+ * 엔드포인트를 그대로 사용했으며, 실제 배포 전 반드시 실 토큰으로 1회 확인이 필요하다.
+ */
+export async function promoteDeployment(
+  projectIdOrName: string,
+  deploymentId: string,
+  fetchFn: FetchLike = fetch
+): Promise<VercelOperationResult> {
+  if (!isVercelConfigured()) {
+    return { success: false, error: "VERCEL_TOKEN이 설정되지 않았습니다." };
+  }
+
+  const res = await fetchFn(
+    `${VERCEL_API_BASE}/v10/projects/${encodeURIComponent(projectIdOrName)}/promote/${encodeURIComponent(deploymentId)}${teamQuery()}`,
+    { method: "POST", headers: authHeaders() }
+  );
+
+  if (res.ok) return { success: true };
+  return { success: false, error: `Vercel 운영 배포 승격 실패 (${res.status}): ${await readErrorBody(res)}` };
 }
 
 /** 롤백용. 이미 없는 Project(404)는 실패로 취급하지 않는다(lib/github/client.ts와 동일 원칙). */

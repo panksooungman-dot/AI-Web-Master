@@ -180,18 +180,22 @@ export async function runDeploymentPipeline(
       metadata: { websiteId: input.websiteId, projectId: vercelProject.id },
     });
 
-    // 7. Production Deploy 실행 — repoId는 Step 2에서 GitHub Repository를 생성할 때 이미 받아둔
+    // 7. Preview Deploy 실행 — repoId는 Step 2에서 GitHub Repository를 생성할 때 이미 받아둔
     // 숫자 ID를 그대로 사용한다(Vercel gitSource.repoId 필수 요구사항, FINAL_E2E_REPORT.md 참고).
     // isInitialDeployment: true — 이 파이프라인은 Step 5(createProject)에서 방금 만든 새 Project에
     // 항상 첫 배포만 수행하므로 항상 true(FINAL_E2E_REPORT_v2.md의 missing_project_settings 대응).
+    // target: "preview"(2026-09-11 변경) — "AI 생성 즉시 운영 도메인에 반영"이 아니라 관리자가
+    // 실제 화면(이 preview URL)을 먼저 확인한 뒤 명시적으로 운영 배포를 확정하도록 순서를
+    // 바꿨다. 운영 승격은 lib/deployment/promote.ts의 promoteWebsiteToProduction()이 담당한다.
     const deployment = await deps.createDeployment({
       name: repoName,
       projectId: vercelProject.id,
       repoId: repository.id,
       gitBranch: repository.defaultBranch,
       isInitialDeployment: true,
+      target: "preview",
     });
-    pushLog(logs, "vercel.deploy", true, `배포 완료: ${deployment.url}`);
+    pushLog(logs, "vercel.deploy", true, `Preview 배포 완료: ${deployment.url}`);
     await recordAuditEvent({
       action: "deployment.vercel.deploy",
       actor: null,
@@ -217,7 +221,7 @@ export async function runDeploymentPipeline(
           deploymentId: deployment.id,
           url: deployment.url,
         },
-        deploymentStatus: "Success",
+        deploymentStatus: "PreviewReady",
         deploymentError: null,
       },
       store
@@ -231,7 +235,7 @@ export async function runDeploymentPipeline(
       metadata: { websiteId: input.websiteId },
     });
 
-    return { success: true, status: "Success", logs, repository, deployment, rolledBack: false };
+    return { success: true, status: "PreviewReady", logs, repository, deployment, rolledBack: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
     pushLog(logs, "pipeline.failed", false, message);

@@ -104,6 +104,12 @@ const UNGATED_API_PREFIXES = [
   // 같은 이유로 로그인 없이 허용한다(문서 생성·공유 링크 발급은 여전히 developer 게이팅된
   // 관리자 API를 통해서만 이뤄진다).
   "/api/quote/public",
+  // Storyboard 공유 링크(디자인 문서를 개발 착수 전 의뢰자에게 확인시키는 용도, 2026-09-11) 공개
+  // 조회·응답 전용 경로 — 의뢰자가 로그인 없이 여는 app/design-review/[id]/page.tsx가 사용한다.
+  // /api/quote/public과 동일한 원칙: GET(조회)뿐 아니라 POST(.../respond, 승인·수정요청)도 같은
+  // 이유로 로그인 없이 허용한다. 공유 링크 생성(app/api/design/storyboard/[id]/share, POST)은
+  // 이 prefix 밖이라 developer 게이팅이 그대로 유지된다.
+  "/api/design/storyboard-shares/public",
 ];
 
 /**

@@ -3,7 +3,7 @@ import type { EmailProvider } from "@/lib/contact/email/types";
 import { recordAuditEvent } from "@/lib/audit/log";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getAiJob } from "@/lib/aiJobs/registry";
-import { getWebsiteOrder } from "@/lib/websiteOrders/registry";
+import { getWebsiteOrder, getWebsiteOrderByWebsiteId } from "@/lib/websiteOrders/registry";
 import { getClient } from "@/lib/clients/registry";
 import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
@@ -113,5 +113,31 @@ export async function triggerCustomerNotification(
 
   await notifyFn(client, websiteOrder, website, undefined, store).catch((error) => {
     console.error(`Customer notification failed for AI Job ${jobId}`, error);
+  });
+}
+
+/**
+ * "미리보기 확인 후 운영 배포 확정"(2026-09-11) — 관리자가 lib/deployment/promote.ts의
+ * promoteWebsiteToProduction()으로 운영 승격을 확정한 직후 호출된다. triggerCustomerNotification()과
+ * 동일한 가드(deploymentStatus가 "Success"가 아니거나 client.email이 없으면 아무 것도 하지
+ * 않음)를 그대로 따르되, jobId가 아니라 websiteId를 시작점으로 삼는다는 점만 다르다(운영 배포
+ * 확정은 AiJob이 아니라 Website 단위 액션이라 jobId를 항상 들고 있지 않음).
+ */
+export async function notifyCustomerForWebsiteIfReady(
+  websiteId: string,
+  notifyFn: typeof notifyCustomerOfDeployment = notifyCustomerOfDeployment,
+  store?: CollectionStore
+): Promise<void> {
+  const website = await getWebsite(websiteId, store);
+  if (!website || website.deploymentStatus !== "Success" || !website.deployment) return;
+
+  const websiteOrder = await getWebsiteOrderByWebsiteId(websiteId, store);
+  if (!websiteOrder) return;
+
+  const client = await getClient(websiteOrder.clientId, store);
+  if (!client || !client.email) return;
+
+  await notifyFn(client, websiteOrder, website, undefined, store).catch((error) => {
+    console.error(`Customer notification failed for website ${websiteId}`, error);
   });
 }

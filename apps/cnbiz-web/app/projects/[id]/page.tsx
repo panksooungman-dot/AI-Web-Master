@@ -275,10 +275,10 @@ export default function ProjectDashboardPage() {
                   <dt className="text-gray-500">상세</dt>
                   <dd className="text-gray-200">
                     <Link
-                      href={`/developer/website-orders/${websiteOrder.id}`}
+                      href={`/developer/inquiries/${websiteOrder.inquiryId}`}
                       className="text-blue-400 hover:underline"
                     >
-                      주문 상세로 이동 →
+                      의뢰 상세로 이동 →
                     </Link>
                   </dd>
                 </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { roleCanAccessArea } from "@/lib/auth/rbac";
@@ -25,10 +25,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "접수",
     links: [
-      { href: "/developer/requests", label: "의뢰 관리" },
       { href: "/developer/inquiries", label: "AI 의뢰 관리" },
       { href: "/developer/clients", label: "고객사 관리" },
-      { href: "/developer/website-orders", label: "주문 관리" },
     ],
   },
   {
@@ -105,6 +103,38 @@ export function DeveloperNav() {
     return "메뉴";
   }, [pathname]);
 
+  const activeGroupTitle = useMemo(() => {
+    if (!pathname) return null;
+    return NAV_GROUPS.find((group) => group.links.some((link) => isLinkActive(pathname, link.href)))?.title ?? null;
+  }, [pathname]);
+
+  // 카테고리(그룹) 헤더를 눌러야 그 하위 메뉴만 펼쳐지는 아코디언 — 여러 그룹을 동시에
+  // 펴놓을 수 있도록 그룹마다 독립적으로 토글한다(하나를 열어도 다른 그룹이 닫히지 않음).
+  // 초기값·경로 이동 시에는 현재 위치가 속한 그룹을 항상 펼친 상태로 보정하되, 사용자가
+  // 이미 펼쳐둔 다른 그룹은 그대로 유지한다.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(activeGroupTitle ? [activeGroupTitle] : [])
+  );
+
+  useEffect(() => {
+    if (!activeGroupTitle) return;
+    queueMicrotask(() => {
+      setOpenGroups((prev) => (prev.has(activeGroupTitle) ? prev : new Set(prev).add(activeGroupTitle)));
+    });
+  }, [activeGroupTitle]);
+
+  function toggleGroup(title: string) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) {
+        next.delete(title);
+      } else {
+        next.add(title);
+      }
+      return next;
+    });
+  }
+
   // Release Hardening (v1.0) — RBAC: the server (proxy.ts) already blocks /developer/** for
   // roles without access; this is defense-in-depth so the nav itself never renders for them
   // during a client-side transition (e.g. a role change mid-session).
@@ -146,33 +176,50 @@ export function DeveloperNav() {
           Dashboard
         </Link>
 
-        {NAV_GROUPS.map((group) => (
-          <div key={group.title}>
-            <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-gray-600">
-              {group.title}
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {group.links.map((link) => {
-                const isActive = isLinkActive(pathname ?? "", link.href);
+        {NAV_GROUPS.map((group, groupIndex) => {
+          const isGroupOpen = openGroups.has(group.title);
+          const groupPanelId = `developer-nav-group-${groupIndex}`;
 
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setIsOpen(false)}
-                    className={`rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
-                      isActive
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
+          return (
+            <div key={group.title}>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.title)}
+                aria-expanded={isGroupOpen}
+                aria-controls={groupPanelId}
+                className="mb-1.5 flex w-full items-center justify-between px-3 text-xs font-semibold uppercase tracking-widest text-gray-600 transition-colors hover:text-gray-400"
+              >
+                <span>{group.title}</span>
+                <span aria-hidden className={`transition-transform ${isGroupOpen ? "rotate-180" : ""}`}>
+                  ▾
+                </span>
+              </button>
+
+              {isGroupOpen && (
+                <div id={groupPanelId} className="flex flex-col gap-0.5">
+                  {group.links.map((link) => {
+                    const isActive = isLinkActive(pathname ?? "", link.href);
+
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setIsOpen(false)}
+                        className={`rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
+                          isActive
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </nav>
   );

@@ -14,6 +14,7 @@ import type { WebsiteOrderRecord, WebsiteOrderStatus } from "@/lib/websiteOrders
 import { WEBSITE_ORDER_STATUSES } from "@/lib/websiteOrders/types";
 import type { AiJobRecord } from "@/lib/aiJobs/types";
 import type { DeploymentStatus, WebsiteRecord } from "@/lib/websites/registry";
+import type { WebsitePreviewShareRecord } from "@/lib/websites/preview-share";
 import type { ProjectRecord } from "@/lib/projects/registry";
 import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
@@ -111,6 +112,10 @@ export default function InquiryDetailPage() {
   const [websites, setWebsites] = useState<WebsiteRecord[]>([]);
   const [promotingWebsiteId, setPromotingWebsiteId] = useState<string | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
+  const [previewShares, setPreviewShares] = useState<Record<string, WebsitePreviewShareRecord>>({});
+  const [sharingWebsiteId, setSharingWebsiteId] = useState<string | null>(null);
+  const [previewShareError, setPreviewShareError] = useState<string | null>(null);
+  const [copiedPreviewShareId, setCopiedPreviewShareId] = useState<string | null>(null);
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
   const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
@@ -314,6 +319,38 @@ export default function InquiryDetailPage() {
       setPromoteError("운영 배포 확정 중 오류가 발생했습니다.");
     } finally {
       setPromotingWebsiteId(null);
+    }
+  }
+
+  // "의뢰자한테 실제화면으로 보여줘야지 의뢰자도 이해를 할 수가 있지" — Preview 배포(실제로
+  // 동작하는 화면)를 로그인 없이 열리는 링크로 의뢰자에게 공유해 승인/수정요청을 받는다.
+  async function handleSharePreview(websiteId: string) {
+    setSharingWebsiteId(websiteId);
+    setPreviewShareError(null);
+
+    try {
+      const res = await fetch(`/api/websites/${websiteId}/preview-share`, { method: "POST" });
+      const data: { success: boolean; share?: WebsitePreviewShareRecord; error?: string } = await res.json();
+      if (!data.success || !data.share) {
+        setPreviewShareError(data.error ?? "공유 링크 생성에 실패했습니다.");
+        return;
+      }
+      setPreviewShares((prev) => ({ ...prev, [websiteId]: data.share! }));
+    } catch {
+      setPreviewShareError("공유 링크 생성 중 오류가 발생했습니다.");
+    } finally {
+      setSharingWebsiteId(null);
+    }
+  }
+
+  async function handleCopyPreviewShareLink(shareId: string) {
+    const url = `${window.location.origin}/preview-review/${shareId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedPreviewShareId(shareId);
+      setTimeout(() => setCopiedPreviewShareId(null), 2000);
+    } catch {
+      // 클립보드 권한이 없는 환경 — 링크는 화면에 그대로 표시되어 있으므로 수동 복사 가능.
     }
   }
 
@@ -1419,16 +1456,65 @@ export default function InquiryDetailPage() {
 
                         {website.deploymentStatus === "PreviewReady" && (
                           <div>
-                            <button
-                              onClick={() => handlePromoteWebsite(websiteId)}
-                              disabled={promotingWebsiteId === websiteId}
-                              className="rounded bg-green-700 hover:bg-green-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
-                            >
-                              {promotingWebsiteId === websiteId ? "배포 확정 중..." : "미리보기 확인함 — 운영 배포 확정"}
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handlePromoteWebsite(websiteId)}
+                                disabled={promotingWebsiteId === websiteId}
+                                className="rounded bg-green-700 hover:bg-green-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                              >
+                                {promotingWebsiteId === websiteId ? "배포 확정 중..." : "미리보기 확인함 — 운영 배포 확정"}
+                              </button>
+                              <button
+                                onClick={() => handleSharePreview(websiteId)}
+                                disabled={sharingWebsiteId === websiteId}
+                                className="rounded bg-purple-700 hover:bg-purple-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                              >
+                                {sharingWebsiteId === websiteId
+                                  ? "링크 생성 중..."
+                                  : previewShares[websiteId]
+                                    ? "공유 링크 다시 보기"
+                                    : "의뢰자에게 실제 화면 공유"}
+                              </button>
+                            </div>
                             <p className="mt-1 text-[11px] text-gray-500">
                               위 링크로 실제 화면을 먼저 확인하세요. 확정 전까지는 운영 도메인·고객 알림에 전혀 반영되지 않습니다.
                             </p>
+
+                            {previewShares[websiteId] && (
+                              <div className="mt-2 flex flex-col gap-1 rounded border border-gray-800 bg-gray-950 px-2 py-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <code className="rounded bg-black px-2 py-1 text-[11px] text-blue-300">
+                                    {`${typeof window !== "undefined" ? window.location.origin : ""}/preview-review/${previewShares[websiteId].id}`}
+                                  </code>
+                                  <button
+                                    onClick={() => handleCopyPreviewShareLink(previewShares[websiteId].id)}
+                                    className="rounded bg-gray-700 hover:bg-gray-600 px-2 py-0.5 text-[11px] transition-colors"
+                                  >
+                                    {copiedPreviewShareId === previewShares[websiteId].id ? "복사됨!" : "복사"}
+                                  </button>
+                                  <Badge
+                                    tone={
+                                      previewShares[websiteId].status === "approved"
+                                        ? "success"
+                                        : previewShares[websiteId].status === "revision_requested"
+                                          ? "warning"
+                                          : "neutral"
+                                    }
+                                  >
+                                    {previewShares[websiteId].status === "approved"
+                                      ? "승인됨"
+                                      : previewShares[websiteId].status === "revision_requested"
+                                        ? "수정 요청됨"
+                                        : "응답 대기 중"}
+                                  </Badge>
+                                </div>
+                                {previewShares[websiteId].comment && (
+                                  <p className="text-[11px] text-gray-400">
+                                    의뢰자 의견: &ldquo;{previewShares[websiteId].comment}&rdquo;
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1437,6 +1523,7 @@ export default function InquiryDetailPage() {
                 </div>
               )}
               {promoteError && <StatusMessage tone="error" className="mt-2">{promoteError}</StatusMessage>}
+              {previewShareError && <StatusMessage tone="error" className="mt-2">{previewShareError}</StatusMessage>}
             </div>
           )}
 

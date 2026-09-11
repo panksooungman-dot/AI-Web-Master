@@ -91,6 +91,15 @@ async function resolveDeployment(
   }
 
   const website = await getWebsite(latestWebsiteId, store);
+
+  // "미리보기 확인 후 운영 배포" 요구사항(2026-09-11) — "PreviewReady"는 관리자가 아직 실제
+  // 화면을 확인·확정하기 전 상태다. 고객 포털에는 관리자가 운영 배포를 확정("Success")하기
+  // 전까지 Preview URL·상태를 전혀 노출하지 않는다(NotStarted와 동일하게 취급) — 확정 전
+  // 고객에게 링크가 먼저 보이는 일을 API 응답 단계에서 원천 차단한다.
+  if (website?.deploymentStatus === "PreviewReady") {
+    return { deploymentStatus: null, deploymentUrl: null };
+  }
+
   return {
     deploymentStatus: website?.deploymentStatus ?? null,
     deploymentUrl: website?.deployment?.url ?? null,

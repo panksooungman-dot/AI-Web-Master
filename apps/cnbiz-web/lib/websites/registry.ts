@@ -8,8 +8,12 @@ export type WebsiteGenerationStatus = "Success" | "Failed";
  * AI Business OS Rewiring Phase 3 — 고객별 독립 GitHub Repository/Vercel Project 배포 파이프라인
  * (lib/deployment/pipeline.ts)의 진행 상태. "NotConfigured"는 GITHUB_TOKEN/VERCEL_TOKEN이 없어
  * 파이프라인 자체를 시도하지 않은 상태(가짜 URL을 만들지 않는다 — lib/github/client.ts 참고).
+ * "PreviewReady"(2026-09-11 추가) — 코드 생성 직후 자동 배포는 항상 Preview까지만 진행되고,
+ * 관리자가 실제 화면을 확인한 뒤 명시적으로 승인해야만("운영 배포 확정") "Success"(실제 운영
+ * 도메인 반영)로 넘어간다. 고객 알림(lib/websites/notify.ts)도 "Success"가 될 때까지 보내지
+ * 않으므로, 확인 전 고객에게 URL이 먼저 전달되는 일이 없다.
  */
-export type DeploymentStatus = "NotStarted" | "Success" | "Failed" | "NotConfigured";
+export type DeploymentStatus = "NotStarted" | "PreviewReady" | "Success" | "Failed" | "NotConfigured";
 
 export interface WebsiteRepositoryInfo {
   owner: string;

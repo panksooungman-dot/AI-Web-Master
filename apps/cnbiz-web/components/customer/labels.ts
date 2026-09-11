@@ -14,6 +14,10 @@ export const ORDER_STATUS_LABELS: Record<WebsiteOrderStatus, string> = {
 
 export const DEPLOYMENT_STATUS_LABELS: Record<DeploymentStatus, string> = {
   NotStarted: "배포 전",
+  // lib/customerPortal/view.ts가 고객 응답에서 "PreviewReady"를 항상 null로 치환하므로
+  // 실제로는 도달하지 않는다 — Record<DeploymentStatus, string> 완전성(exhaustiveness)을
+  // 위해서만 존재.
+  PreviewReady: "배포 전",
   Success: "배포 완료",
   Failed: "배포 실패",
   NotConfigured: "배포 준비 중",

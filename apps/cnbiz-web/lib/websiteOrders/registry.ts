@@ -134,6 +134,15 @@ export async function getWebsiteOrderByShareToken(
   return records.find((order) => order.shareToken === token);
 }
 
+/** 특정 Website 산출물을 담고 있는 주문을 역방향으로 찾는다(운영 배포 확정 시 고객 알림 대상 조회용). */
+export async function getWebsiteOrderByWebsiteId(
+  websiteId: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<WebsiteOrderRecord | undefined> {
+  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
+  return records.find((order) => order.websiteIds.includes(websiteId));
+}
+
 export async function addWebsiteToOrder(
   orderId: string,
   websiteId: string,

@@ -143,7 +143,7 @@ describe("Vercel client — lib/vercel/client.ts (AI Business OS Rewiring Phase 
       };
 
       const result = await createDeployment(
-        { name: "restaurant-a1b2c3d4", projectId: "prj_1", repoId: 999888777, gitBranch: "main" },
+        { name: "restaurant-a1b2c3d4", projectId: "prj_1", repoId: 999888777, gitBranch: "main", target: "production" },
         fakeFetch
       );
 

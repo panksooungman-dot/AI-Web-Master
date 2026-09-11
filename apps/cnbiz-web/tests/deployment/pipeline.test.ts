@@ -139,7 +139,7 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
     );
 
     expect(result.success).toBe(true);
-    expect(result.status).toBe("Success");
+    expect(result.status).toBe("PreviewReady");
     expect(result.repository).toEqual(FAKE_REPO);
     expect(result.deployment).toEqual(FAKE_DEPLOYMENT);
     expect(result.rolledBack).toBe(false);
@@ -154,7 +154,7 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
     ]);
 
     const persisted = await getWebsite(website.id, store);
-    expect(persisted?.deploymentStatus).toBe("Success");
+    expect(persisted?.deploymentStatus).toBe("PreviewReady");
     expect(persisted?.repository?.fullName).toBe(FAKE_REPO.fullName);
     expect(persisted?.deployment?.url).toBe(FAKE_DEPLOYMENT.url);
   });

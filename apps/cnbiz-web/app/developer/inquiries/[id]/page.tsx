@@ -13,6 +13,7 @@ import type { ClientRecord } from "@/lib/clients/types";
 import type { WebsiteOrderRecord, WebsiteOrderStatus } from "@/lib/websiteOrders/types";
 import { WEBSITE_ORDER_STATUSES } from "@/lib/websiteOrders/types";
 import type { AiJobRecord } from "@/lib/aiJobs/types";
+import type { DeploymentStatus, WebsiteRecord } from "@/lib/websites/registry";
 import type { ProjectRecord } from "@/lib/projects/registry";
 import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
@@ -63,6 +64,22 @@ const ORDER_STATUS_LABELS: Record<WebsiteOrderStatus, string> = {
   Cancelled: "취소",
 };
 
+const DEPLOYMENT_STATUS_LABELS: Record<DeploymentStatus, string> = {
+  NotStarted: "배포 전",
+  PreviewReady: "미리보기 준비됨",
+  Success: "운영 배포 완료",
+  Failed: "배포 실패",
+  NotConfigured: "배포 미설정",
+};
+
+const DEPLOYMENT_STATUS_TONES: Record<DeploymentStatus, BadgeTone> = {
+  NotStarted: "neutral",
+  PreviewReady: "warning",
+  Success: "success",
+  Failed: "danger",
+  NotConfigured: "neutral",
+};
+
 interface EditForm {
   companyName: string;
   contactName: string;
@@ -91,6 +108,9 @@ export default function InquiryDetailPage() {
   const [websiteOrder, setWebsiteOrder] = useState<WebsiteOrderRecord | null>(null);
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [aiJobs, setAiJobs] = useState<AiJobRecord[]>([]);
+  const [websites, setWebsites] = useState<WebsiteRecord[]>([]);
+  const [promotingWebsiteId, setPromotingWebsiteId] = useState<string | null>(null);
+  const [promoteError, setPromoteError] = useState<string | null>(null);
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
   const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
@@ -164,6 +184,20 @@ export default function InquiryDetailPage() {
         setClient(clientResult?.client ?? null);
         const order: WebsiteOrderRecord | null = orderResult?.websiteOrder ?? null;
         setWebsiteOrder(order);
+
+        if (order && order.websiteIds.length > 0) {
+          Promise.all(
+            order.websiteIds.map((websiteId) =>
+              fetch(`/api/websites/${websiteId}`)
+                .then((res) => res.json())
+                .then((result: { website?: WebsiteRecord }) => result.website ?? null)
+            )
+          )
+            .then((results) => setWebsites(results.filter((w): w is WebsiteRecord => w !== null)))
+            .catch(() => setWebsites([]));
+        } else {
+          setWebsites([]);
+        }
 
         if (order?.projectId) {
           fetch(`/api/projects/${order.projectId}`)
@@ -258,6 +292,28 @@ export default function InquiryDetailPage() {
       setOrderUpdateError("주문 상태 변경 중 오류가 발생했습니다.");
     } finally {
       setIsUpdatingOrder(false);
+    }
+  }
+
+  // "미리보기 확인 후 운영 배포" — 자동 생성 직후에는 항상 Preview 배포까지만 진행되고
+  // (lib/deployment/pipeline.ts), 관리자가 이 버튼으로 실제 화면을 확인한 뒤 명시적으로
+  // 확정해야만 운영 도메인에 반영되고 고객에게도 알림이 나간다(lib/deployment/promote.ts).
+  async function handlePromoteWebsite(websiteId: string) {
+    setPromotingWebsiteId(websiteId);
+    setPromoteError(null);
+
+    try {
+      const res = await fetch(`/api/websites/${websiteId}/promote`, { method: "POST" });
+      const data: { success: boolean; error?: string } = await res.json();
+      if (!data.success) {
+        setPromoteError(data.error ?? "운영 배포 확정에 실패했습니다.");
+        return;
+      }
+      load();
+    } catch {
+      setPromoteError("운영 배포 확정 중 오류가 발생했습니다.");
+    } finally {
+      setPromotingWebsiteId(null);
     }
   }
 
@@ -1329,14 +1385,58 @@ export default function InquiryDetailPage() {
               {websiteOrder.websiteIds.length === 0 ? (
                 <p className="text-xs text-gray-500">아직 생성된 웹사이트 산출물이 없습니다.</p>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {websiteOrder.websiteIds.map((websiteId) => (
-                    <Badge key={websiteId} tone="success">
-                      {websiteId}
-                    </Badge>
-                  ))}
+                <div className="flex flex-col gap-2">
+                  {websiteOrder.websiteIds.map((websiteId) => {
+                    const website = websites.find((w) => w.id === websiteId);
+                    if (!website) {
+                      return (
+                        <Badge key={websiteId} tone="neutral">
+                          {websiteId}
+                        </Badge>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={websiteId}
+                        className="flex flex-col gap-1.5 rounded border border-gray-800 bg-gray-900 px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone={DEPLOYMENT_STATUS_TONES[website.deploymentStatus ?? "NotStarted"]}>
+                            {DEPLOYMENT_STATUS_LABELS[website.deploymentStatus ?? "NotStarted"]}
+                          </Badge>
+                          {website.deployment?.url && (
+                            <a
+                              href={website.deployment.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-400 hover:underline"
+                            >
+                              {website.deploymentStatus === "Success" ? "운영 사이트 보기" : "미리보기 화면 확인"} →
+                            </a>
+                          )}
+                        </div>
+
+                        {website.deploymentStatus === "PreviewReady" && (
+                          <div>
+                            <button
+                              onClick={() => handlePromoteWebsite(websiteId)}
+                              disabled={promotingWebsiteId === websiteId}
+                              className="rounded bg-green-700 hover:bg-green-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                            >
+                              {promotingWebsiteId === websiteId ? "배포 확정 중..." : "미리보기 확인함 — 운영 배포 확정"}
+                            </button>
+                            <p className="mt-1 text-[11px] text-gray-500">
+                              위 링크로 실제 화면을 먼저 확인하세요. 확정 전까지는 운영 도메인·고객 알림에 전혀 반영되지 않습니다.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
+              {promoteError && <StatusMessage tone="error" className="mt-2">{promoteError}</StatusMessage>}
             </div>
           )}
 

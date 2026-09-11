@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { roleCanAccessArea } from "@/lib/auth/rbac";
@@ -82,9 +83,27 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+function isLinkActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function DeveloperNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  // 모바일에서는 30개 가까운 링크가 항상 펼쳐져 있어 페이지 진입 시마다 본문까지
+  // 스크롤을 많이 내려야 했다. 기본은 접어두고(현재 위치만 버튼에 표시) 탭했을 때만
+  // 펼치는 방식으로 전환 — md 이상(데스크탑 2단 레이아웃)에서는 항상 펼쳐진 상태 유지.
+  const [isOpen, setIsOpen] = useState(false);
+
+  const currentLabel = useMemo(() => {
+    if (!pathname) return "메뉴";
+    if (pathname === "/developer") return "Dashboard";
+    for (const group of NAV_GROUPS) {
+      const match = group.links.find((link) => isLinkActive(pathname, link.href));
+      if (match) return match.label;
+    }
+    return "메뉴";
+  }, [pathname]);
 
   // Release Hardening (v1.0) — RBAC: the server (proxy.ts) already blocks /developer/** for
   // roles without access; this is defense-in-depth so the nav itself never renders for them
@@ -95,46 +114,66 @@ export function DeveloperNav() {
 
   return (
     <nav
-      className="flex w-full shrink-0 flex-col gap-6 border-b border-gray-800 pb-6 md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-4"
+      className="w-full shrink-0 border-b border-gray-800 pb-3 md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-4"
       {...componentMarker("DeveloperNav", "components/developer/DeveloperNav.tsx")}
     >
-      <Link
-        href="/developer"
-        className={`rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
-          pathname === "/developer"
-            ? "bg-blue-600 text-white"
-            : "text-gray-400 hover:bg-gray-800 hover:text-white"
-        }`}
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        aria-controls="developer-nav-links"
+        className="flex w-full items-center justify-between rounded bg-gray-900 px-3 py-2 text-sm font-semibold text-white md:hidden"
       >
-        Dashboard
-      </Link>
+        <span className="truncate">{currentLabel}</span>
+        <span aria-hidden className={`ml-2 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}>
+          ▾
+        </span>
+      </button>
 
-      {NAV_GROUPS.map((group) => (
-        <div key={group.title}>
-          <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-gray-600">
-            {group.title}
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {group.links.map((link) => {
-              const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+      <div
+        id="developer-nav-links"
+        className={`${isOpen ? "flex" : "hidden"} flex-col gap-6 pt-3 md:flex md:pt-0`}
+      >
+        <Link
+          href="/developer"
+          onClick={() => setIsOpen(false)}
+          className={`rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
+            pathname === "/developer"
+              ? "bg-blue-600 text-white"
+              : "text-gray-400 hover:bg-gray-800 hover:text-white"
+          }`}
+        >
+          Dashboard
+        </Link>
 
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
-                    isActive
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
+        {NAV_GROUPS.map((group) => (
+          <div key={group.title}>
+            <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-gray-600">
+              {group.title}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {group.links.map((link) => {
+                const isActive = isLinkActive(pathname ?? "", link.href);
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsOpen(false)}
+                    className={`rounded px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      isActive
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </nav>
   );
 }

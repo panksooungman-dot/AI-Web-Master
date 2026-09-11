@@ -10,6 +10,11 @@ import { ToastStack, type ToastMessage, type ToastTone } from "@/components/deve
 
 const ACCEPTED_EXTENSIONS = [
   ".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
+  // iPhone 카메라·사진 앱의 기본 저장 형식(설정 > 카메라 > 포맷 > "높은 효율성") — 이 확장자가
+  // 빠져 있으면 아이폰에서 사진을 첨부할 때마다 "지원하지 않는 형식" 토스트만 뜨고 조용히
+  // 거부되어, 사용자에게는 "파일 업로더가 안 된다"로 보인다(2026-09-11 실사용 버그 리포트).
+  // 서버(app/api/inquiries/upload/route.ts)는 확장자 allowlist가 없어 그대로 저장 가능하다.
+  ".heic", ".heif",
   // 코드 파일 — app/api/inquiries/upload/route.ts가 바이너리 저장 대신 텍스트로 읽어
   // codeSnippets에 담고, lib/ai-analysis/prompts.ts가 AI Analysis 프롬프트에 포함한다.
   ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".go", ".rb", ".php", ".css", ".scss",
@@ -58,6 +63,9 @@ export default function NewInquiryPage() {
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  // 첨부 거부 사유를 토스트(3초 후 자동 소멸, 모바일에서 놓치기 쉬움)만이 아니라 위젯
+  // 바로 아래에도 남겨, 사용자가 "왜 아무 반응이 없지?"로 오인하지 않도록 한다.
+  const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState<"analyze" | null>(null);
   const [errors, setErrors] = useState<{ title?: string; content?: string; contactName?: string; email?: string }>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -101,6 +109,7 @@ export default function NewInquiryPage() {
     if (accepted.length > 0) {
       setFiles((prev) => [...prev, ...accepted]);
     }
+    setRejectedFiles(rejected);
     if (rejected.length > 0) {
       pushToast("error", `업로드할 수 없는 파일: ${rejected.join(", ")}`);
     }
@@ -377,9 +386,20 @@ export default function NewInquiryPage() {
               />
             </label>
             <p className="text-xs text-gray-600 mt-3">
-              PDF · DOC · DOCX · TXT · 이미지(PNG·JPG·GIF·WEBP·SVG) · 코드 파일(JS·TS·PY 등)
+              PDF · DOC · DOCX · TXT · 이미지(PNG·JPG·GIF·WEBP·SVG·HEIC) · 코드 파일(JS·TS·PY 등)
             </p>
           </div>
+
+          {rejectedFiles.length > 0 && (
+            <div className="mt-3 rounded border border-red-900 bg-red-950/40 px-3 py-2">
+              <p className="text-xs font-semibold text-red-400">업로드할 수 없는 파일이 있습니다</p>
+              <ul className="mt-1 text-xs text-red-300 list-disc list-inside">
+                {rejectedFiles.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {files.length > 0 && (
             <ul className="flex flex-col gap-2 mt-4">

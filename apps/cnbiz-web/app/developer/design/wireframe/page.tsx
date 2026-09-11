@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
@@ -85,6 +85,14 @@ export default function WireframePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // 페이지가 뷰포트보다 훨씬 길어(Desktop/Tablet/Mobile 화면별 상세까지 포함) 생성 직후에는
+  // "History"/"Export" 버튼만 보이고 실제 결과(Component Layout 등)는 한참 스크롤해야 나온다는
+  // 혼동이 반복 확인되어(2026-09-11), 결과가 준비되면 그 지점으로 자동 스크롤한다.
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const scrollToResults = () => {
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -134,6 +142,7 @@ export default function WireframePage() {
       setSelectedWireframeId(json.wireframe.id);
       setEditingLayouts(null);
       setSaveError(null);
+      scrollToResults();
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "요청 실패");
     } finally {
@@ -280,6 +289,7 @@ export default function WireframePage() {
                       setSelectedWireframeId(wf.id);
                       setEditingLayouts(null);
                       setSaveError(null);
+                      scrollToResults();
                     }}
                     className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedWireframeId === wf.id
@@ -302,7 +312,7 @@ export default function WireframePage() {
 
       {selectedWireframe && (
         <>
-          <div className="flex flex-wrap items-center gap-2 mb-6">
+          <div ref={resultsRef} className="flex flex-wrap items-center gap-2 mb-6">
             <button
               onClick={handleExportJson}
               className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors"

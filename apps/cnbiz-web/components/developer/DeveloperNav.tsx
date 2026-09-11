@@ -187,7 +187,7 @@ export function DeveloperNav() {
                 onClick={() => toggleGroup(group.title)}
                 aria-expanded={isGroupOpen}
                 aria-controls={groupPanelId}
-                className="mb-1.5 flex w-full items-center justify-between px-3 text-xs font-semibold uppercase tracking-widest text-gray-600 transition-colors hover:text-gray-400"
+                className="mb-1.5 flex w-full items-center justify-between px-3 text-xs font-semibold uppercase tracking-widest text-gray-400 transition-colors hover:text-white"
               >
                 <span>{group.title}</span>
                 <span aria-hidden className={`transition-transform ${isGroupOpen ? "rotate-180" : ""}`}>

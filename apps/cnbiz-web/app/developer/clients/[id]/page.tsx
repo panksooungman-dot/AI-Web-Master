@@ -8,6 +8,7 @@ import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { ClientRecord } from "@/lib/clients/types";
+import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
 
 interface ClientResponse {
   client?: ClientRecord;
@@ -20,6 +21,10 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // '주문 관리'(구 /developer/website-orders) 화면이 없어져 주문 상세는 이제 그 주문의
+  // 원본 의뢰(Inquiry) 상세로 연결한다 — orderId만으로는 inquiryId를 알 수 없어 각 주문을
+  // 개별 조회해 매핑을 만든다.
+  const [orderInquiryMap, setOrderInquiryMap] = useState<Record<string, string>>({});
 
   const load = () => {
     setIsLoading(true);
@@ -33,6 +38,23 @@ export default function ClientDetailPage() {
           return;
         }
         setClient(data.client);
+
+        Promise.all(
+          data.client.websiteOrderIds.map((orderId) =>
+            fetch(`/api/website-orders/${orderId}`)
+              .then((res) => res.json())
+              .then((orderData: { websiteOrder?: WebsiteOrderRecord }) =>
+                orderData.websiteOrder ? ([orderId, orderData.websiteOrder.inquiryId] as const) : null
+              )
+              .catch(() => null)
+          )
+        ).then((pairs) => {
+          const map: Record<string, string> = {};
+          for (const pair of pairs) {
+            if (pair) map[pair[0]] = pair[1];
+          }
+          setOrderInquiryMap(map);
+        });
       })
       .catch(() => setLoadError("고객사를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -116,16 +138,23 @@ export default function ClientDetailPage() {
             <p className="text-sm text-gray-500">연결된 주문이 없습니다.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {client.websiteOrderIds.map((orderId) => (
-                <Link
-                  key={orderId}
-                  href={`/developer/website-orders/${orderId}`}
-                  className="flex items-center justify-between rounded border border-gray-800 bg-gray-950 px-3 py-2 text-sm hover:border-blue-600 transition-colors"
-                >
-                  <span className="font-mono text-xs text-gray-400 truncate">{orderId}</span>
-                  <Badge tone="accent">보기 →</Badge>
-                </Link>
-              ))}
+              {client.websiteOrderIds.map((orderId) => {
+                const inquiryId = orderInquiryMap[orderId];
+
+                return (
+                  <Link
+                    key={orderId}
+                    href={inquiryId ? `/developer/inquiries/${inquiryId}` : "#"}
+                    aria-disabled={!inquiryId}
+                    className={`flex items-center justify-between rounded border border-gray-800 bg-gray-950 px-3 py-2 text-sm transition-colors ${
+                      inquiryId ? "hover:border-blue-600" : "pointer-events-none opacity-50"
+                    }`}
+                  >
+                    <span className="font-mono text-xs text-gray-400 truncate">{orderId}</span>
+                    <Badge tone="accent">의뢰에서 보기 →</Badge>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </Card>

@@ -27,7 +27,6 @@ const NAV_GROUPS: NavGroup[] = [
     links: [
       { href: "/developer/inquiries", label: "AI 의뢰 관리" },
       { href: "/developer/clients", label: "고객사 관리" },
-      { href: "/developer/website-orders", label: "주문 관리" },
     ],
   },
   {

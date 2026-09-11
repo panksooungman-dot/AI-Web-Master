@@ -10,7 +10,8 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import type { InquiryRecord, InquiryStatus } from "@/lib/inquiries/types";
 import { INQUIRY_STATUSES } from "@/lib/inquiries/types";
 import type { ClientRecord } from "@/lib/clients/types";
-import type { WebsiteOrderRecord } from "@/lib/websiteOrders/types";
+import type { WebsiteOrderRecord, WebsiteOrderStatus } from "@/lib/websiteOrders/types";
+import { WEBSITE_ORDER_STATUSES } from "@/lib/websiteOrders/types";
 import type { AiJobRecord } from "@/lib/aiJobs/types";
 import type { ProjectRecord } from "@/lib/projects/registry";
 import type { EstimateRecord } from "@/lib/estimates/types";
@@ -50,6 +51,16 @@ const AI_JOB_STATUS_TONES: Record<AiJobRecord["status"], BadgeTone> = {
   Success: "success",
   Failed: "danger",
   Cancelled: "neutral",
+};
+
+// '주문 관리'(구 /developer/website-orders) 화면을 이 파이프라인 카드로 완전히 흡수하며
+// 그대로 옮겨온 라벨 — 별도 페이지에서 쓰던 값과 동일하게 유지한다.
+const ORDER_STATUS_LABELS: Record<WebsiteOrderStatus, string> = {
+  Requested: "접수",
+  InProgress: "처리중",
+  Review: "검수",
+  Delivered: "납품완료",
+  Cancelled: "취소",
 };
 
 interface EditForm {
@@ -93,6 +104,8 @@ export default function InquiryDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
+  const [orderUpdateError, setOrderUpdateError] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
@@ -218,6 +231,33 @@ export default function InquiryDetailPage() {
       setUpdateError("상태 변경 중 오류가 발생했습니다.");
     } finally {
       setIsUpdating(false);
+    }
+  }
+
+  async function handleOrderStatusChange(status: WebsiteOrderStatus) {
+    if (!websiteOrder) return;
+
+    setIsUpdatingOrder(true);
+    setOrderUpdateError(null);
+
+    try {
+      const res = await fetch(`/api/website-orders/${websiteOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data: { success: boolean; websiteOrder?: WebsiteOrderRecord; error?: string } = await res.json();
+
+      if (!data.success || !data.websiteOrder) {
+        setOrderUpdateError(data.error ?? "주문 상태 변경에 실패했습니다.");
+        return;
+      }
+
+      setWebsiteOrder(data.websiteOrder);
+    } catch {
+      setOrderUpdateError("주문 상태 변경 중 오류가 발생했습니다.");
+    } finally {
+      setIsUpdatingOrder(false);
     }
   }
 
@@ -1261,6 +1301,44 @@ export default function InquiryDetailPage() {
               <Badge tone="neutral">5. Project Workspace 생성 전</Badge>
             )}
           </div>
+
+          {websiteOrder && (
+            <div className="rounded border border-gray-800 bg-gray-950 px-3 py-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-500">주문 상태</p>
+              <div className="flex flex-wrap gap-2">
+                {WEBSITE_ORDER_STATUSES.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleOrderStatusChange(status)}
+                    disabled={isUpdatingOrder || status === websiteOrder.status}
+                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      status === websiteOrder.status
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    }`}
+                  >
+                    {ORDER_STATUS_LABELS[status]}
+                  </button>
+                ))}
+              </div>
+              {orderUpdateError && <StatusMessage tone="error" className="mt-2">{orderUpdateError}</StatusMessage>}
+
+              <p className="mt-3 mb-2 text-xs font-semibold uppercase tracking-widest text-gray-500">
+                산출물(Website)
+              </p>
+              {websiteOrder.websiteIds.length === 0 ? (
+                <p className="text-xs text-gray-500">아직 생성된 웹사이트 산출물이 없습니다.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {websiteOrder.websiteIds.map((websiteId) => (
+                    <Badge key={websiteId} tone="success">
+                      {websiteId}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {aiJobs.length === 0 ? (
             <p className="text-gray-500">아직 연결된 AI Job이 없습니다.</p>

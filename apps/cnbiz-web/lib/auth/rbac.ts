@@ -69,7 +69,8 @@ const PAGE_AREA_PREFIXES: ReadonlyArray<readonly [string, ProtectedArea]> = [
  * /api/contact and /api/requests/submit used to be listed here (public Contact/Request form
  * submission endpoints) — both routes were deleted when CNBIZ.KR stopped taking website-creation
  * requests directly (see /contact and /request redirects in next.config.ts). GET /api/requests
- * and /api/requests/[id] remain admin-only ("developer" gate) for viewing historical submissions.
+ * and /api/requests/[id] (admin-only "developer" viewer for historical submissions) were confirmed
+ * empty in production and removed entirely — see lib/requests/ (deleted).
  * /contact was restored (AI Business OS Rewiring) as a direct customer intake form; see the exact
  * (method, path) exemption below instead of a prefix, since GET /api/inquiries (admin listing)
  * and PATCH /api/inquiries/[id] must stay "developer"-gated.

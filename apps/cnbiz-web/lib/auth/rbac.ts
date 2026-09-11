@@ -110,6 +110,11 @@ const UNGATED_API_PREFIXES = [
   // 이유로 로그인 없이 허용한다. 공유 링크 생성(app/api/design/storyboard/[id]/share, POST)은
   // 이 prefix 밖이라 developer 게이팅이 그대로 유지된다.
   "/api/design/storyboard-shares/public",
+  // 실제 생성된 웹사이트의 Preview 배포 화면 공개 조회·응답 전용 경로("의뢰자한테 실제화면으로
+  // 보여줘야지 의뢰자도 이해를 할 수가 있지", 2026-09-11) — 의뢰자가 로그인 없이 여는
+  // app/preview-review/[id]/page.tsx가 사용한다. 공유 링크 생성(app/api/websites/[id]/
+  // preview-share, POST)은 이 prefix 밖이라 developer 게이팅이 그대로 유지된다.
+  "/api/websites/preview-shares/public",
 ];
 
 /**

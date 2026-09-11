@@ -24,6 +24,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "design.storyboard.generate": "Storyboard",
   "design.storyboard.share.create": "Storyboard 공유 링크 생성",
   "design.storyboard.share.respond": "Storyboard 공유 응답(의뢰자)",
+  "website.preview.share.create": "실제 화면 공유 링크 생성",
+  "website.preview.share.respond": "실제 화면 공유 응답(의뢰자)",
   "design.wireframe.generate": "Wireframe",
   "design.wireframe.edit": "Wireframe 편집",
   "design.prototype.generate": "Prototype",

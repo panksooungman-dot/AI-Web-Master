@@ -103,14 +103,6 @@ export function MetricsWidget() {
             <span className="text-gray-200">{counters.revisionCount}</span>
           </li>
           <li className="flex items-center justify-between gap-3">
-            <span className="text-gray-500">Figma Imports</span>
-            <span className="text-gray-200">{counters.figmaImportCount}</span>
-          </li>
-          <li className="flex items-center justify-between gap-3">
-            <span className="text-gray-500">Figma Exports</span>
-            <span className="text-gray-200">{counters.figmaExportCount}</span>
-          </li>
-          <li className="flex items-center justify-between gap-3">
             <span className="text-gray-500">Design Syncs</span>
             <span className="text-gray-200">{counters.designSyncCount}</span>
           </li>

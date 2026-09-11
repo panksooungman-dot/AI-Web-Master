@@ -336,8 +336,8 @@ export default function CustomerReviewPage() {
             <Link href="/developer/design/claude" className="text-xs text-blue-400 hover:underline">
               ← Claude Design
             </Link>
-            <Link href="/developer/design/figma" className="text-xs text-blue-400 hover:underline">
-              Figma →
+            <Link href="/developer/design/sync" className="text-xs text-blue-400 hover:underline">
+              Design Sync →
             </Link>
           </div>
         }

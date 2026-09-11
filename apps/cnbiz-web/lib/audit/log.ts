@@ -21,6 +21,8 @@ export type AuditAction =
   | "design.storyboard.generate"
   | "design.storyboard.share.create"
   | "design.storyboard.share.respond"
+  | "website.preview.share.create"
+  | "website.preview.share.respond"
   | "design.wireframe.generate"
   | "design.wireframe.edit"
   | "design.prototype.generate"

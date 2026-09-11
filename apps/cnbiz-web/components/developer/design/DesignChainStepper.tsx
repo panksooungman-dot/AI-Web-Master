@@ -17,7 +17,6 @@ const DESIGN_STAGES: DesignStage[] = [
   { href: "/developer/design/prototype", label: "Prototype" },
   { href: "/developer/design/claude", label: "Claude Design" },
   { href: "/developer/design/review", label: "Review" },
-  { href: "/developer/design/figma", label: "Figma" },
   { href: "/developer/design/sync", label: "Design Sync" },
   { href: "/developer/design/website", label: "Website Build" },
 ];

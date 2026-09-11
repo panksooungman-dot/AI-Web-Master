@@ -15,6 +15,11 @@ const ACCEPTED_EXTENSIONS = [
   // 거부되어, 사용자에게는 "파일 업로더가 안 된다"로 보인다(2026-09-11 실사용 버그 리포트).
   // 서버(app/api/inquiries/upload/route.ts)는 확장자 allowlist가 없어 그대로 저장 가능하다.
   ".heic", ".heif",
+  // 이 화면 자체가 "고객 상담 내용 또는 제안서를 등록"하는 용도인데, 국내 기업 제안서·견적서는
+  // 흔히 한글(HWP)·엑셀·파워포인트로 작성된다 — 이 형식들이 빠져 있으면 정작 이 화면의 주된
+  // 사용 사례(제안서 첨부)에서 거부되기 쉽다(2026-09-11 PC 환경 실사용 버그 리포트, HEIC와
+  // 같은 종류의 허용 목록 누락). 서버는 확장자 allowlist가 없어 그대로 저장 가능하다.
+  ".hwp", ".hwpx", ".xls", ".xlsx", ".ppt", ".pptx", ".csv",
   // 코드 파일 — app/api/inquiries/upload/route.ts가 바이너리 저장 대신 텍스트로 읽어
   // codeSnippets에 담고, lib/ai-analysis/prompts.ts가 AI Analysis 프롬프트에 포함한다.
   ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".go", ".rb", ".php", ".css", ".scss",
@@ -386,7 +391,7 @@ export default function NewInquiryPage() {
               />
             </label>
             <p className="text-xs text-gray-600 mt-3">
-              PDF · DOC · DOCX · TXT · 이미지(PNG·JPG·GIF·WEBP·SVG·HEIC) · 코드 파일(JS·TS·PY 등)
+              PDF · DOC/DOCX · HWP/HWPX · XLS/XLSX · PPT/PPTX · CSV · TXT · 이미지(PNG·JPG·GIF·WEBP·SVG·HEIC) · 코드 파일(JS·TS·PY 등)
             </p>
           </div>
 

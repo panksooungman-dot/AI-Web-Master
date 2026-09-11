@@ -43,3 +43,12 @@ export async function createContract(
 
   return record;
 }
+
+export async function deleteContract(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<ContractRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

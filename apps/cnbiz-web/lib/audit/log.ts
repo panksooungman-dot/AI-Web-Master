@@ -61,7 +61,14 @@ export type AuditAction =
   | "inquiry.delete"
   | "inquiry.analyze"
   | "estimate.client_decision"
-  | "estimate.client_message";
+  | "estimate.client_message"
+  | "client.delete"
+  | "estimate.delete"
+  | "specification.delete"
+  | "timeline.delete"
+  | "contract.delete"
+  | "proposal.delete"
+  | "launchRequest.delete";
 
 export interface AuditEntry {
   id: string;

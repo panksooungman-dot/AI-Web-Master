@@ -43,3 +43,12 @@ export async function createTimeline(
 
   return record;
 }
+
+export async function deleteTimeline(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<TimelineRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

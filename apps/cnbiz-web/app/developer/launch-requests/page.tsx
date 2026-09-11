@@ -21,6 +21,8 @@ export default function LaunchRequestsPage() {
   const [launchRequests, setLaunchRequests] = useState<LaunchRequestRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -36,6 +38,34 @@ export default function LaunchRequestsPage() {
   useEffect(() => {
     queueMicrotask(load);
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, launchRequest: LaunchRequestRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${launchRequest.companyName}" 정보 요청서를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(launchRequest.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/launch-requests/${launchRequest.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setLaunchRequests((prev) => prev.filter((item) => item.id !== launchRequest.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -53,6 +83,8 @@ export default function LaunchRequestsPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -77,6 +109,14 @@ export default function LaunchRequestsPage() {
                   {launchRequest.companyName}
                 </span>
                 <Badge tone="purple">{launchRequest.services.length}개 항목</Badge>
+
+                <button
+                  onClick={(e) => handleDelete(e, launchRequest)}
+                  disabled={deletingId === launchRequest.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === launchRequest.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

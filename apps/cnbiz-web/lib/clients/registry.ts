@@ -101,3 +101,12 @@ export async function addWebsiteOrderToClient(
 
   return records[index];
 }
+
+export async function deleteClient(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<ClientRecord>(COLLECTION);
+  const next = records.filter((client) => client.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

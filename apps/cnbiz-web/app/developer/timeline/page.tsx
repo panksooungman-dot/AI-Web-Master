@@ -22,6 +22,8 @@ export default function TimelinesPage() {
   const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -37,6 +39,34 @@ export default function TimelinesPage() {
   useEffect(() => {
     queueMicrotask(load);
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, timeline: TimelineRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${timeline.input.companyName}" 프로젝트 일정을 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(timeline.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/timeline/${timeline.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setTimelines((prev) => prev.filter((item) => item.id !== timeline.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -54,6 +84,8 @@ export default function TimelinesPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -80,6 +112,14 @@ export default function TimelinesPage() {
                 <Badge tone="purple">총 {timeline.result.totalDurationWeeks}주</Badge>
                 <span className="text-xs text-gray-400">Phase {timeline.result.phases.length}개</span>
                 {timeline.simulated && <Badge tone="warning">Simulated</Badge>}
+
+                <button
+                  onClick={(e) => handleDelete(e, timeline)}
+                  disabled={deletingId === timeline.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === timeline.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

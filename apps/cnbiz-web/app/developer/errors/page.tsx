@@ -65,6 +65,13 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "inquiry.analyze": "AI 재분석",
   "estimate.client_decision": "견적서 수락/거절",
   "estimate.client_message": "견적서 메시지",
+  "client.delete": "고객사 삭제",
+  "estimate.delete": "견적서 삭제",
+  "specification.delete": "기능 명세서 삭제",
+  "timeline.delete": "프로젝트 일정 삭제",
+  "contract.delete": "계약서 삭제",
+  "proposal.delete": "제안서 삭제",
+  "launchRequest.delete": "정보 요청서 삭제",
 };
 
 /**

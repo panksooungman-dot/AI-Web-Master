@@ -16,6 +16,8 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -31,6 +33,34 @@ export default function ClientsPage() {
   useEffect(() => {
     queueMicrotask(load);
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, client: ClientRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${client.companyName || client.contactName}" 고객사를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(client.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setClients((prev) => prev.filter((item) => item.id !== client.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -50,6 +80,8 @@ export default function ClientsPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -76,6 +108,14 @@ export default function ClientsPage() {
 
                 <Badge tone="info">문의 {client.inquiryIds.length}</Badge>
                 <Badge tone="accent">주문 {client.websiteOrderIds.length}</Badge>
+
+                <button
+                  onClick={(e) => handleDelete(e, client)}
+                  disabled={deletingId === client.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === client.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

@@ -21,6 +21,8 @@ export default function EstimatesPage() {
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -37,6 +39,34 @@ export default function EstimatesPage() {
     queueMicrotask(load);
   }, []);
 
+  async function handleDelete(e: React.MouseEvent, estimate: EstimateRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${estimate.input.companyName}" 견적서를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(estimate.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setEstimates((prev) => prev.filter((item) => item.id !== estimate.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -45,7 +75,7 @@ export default function EstimatesPage() {
         description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기술 견적서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
         help={[
           "생성 버튼은 이 화면이 아니라 'AI 의뢰 관리' 상세 화면에 있습니다.",
-          "수정·삭제 기능은 없습니다 — 새로 생성만 가능합니다.",
+          "수정 기능은 없습니다 — 새로 생성만 가능합니다.",
         ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
@@ -53,6 +83,8 @@ export default function EstimatesPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -81,6 +113,14 @@ export default function EstimatesPage() {
                 </Badge>
                 <span className="text-xs text-gray-400">{estimate.result.timelineWeeks}주</span>
                 {estimate.simulated && <Badge tone="warning">Simulated</Badge>}
+
+                <button
+                  onClick={(e) => handleDelete(e, estimate)}
+                  disabled={deletingId === estimate.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === estimate.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

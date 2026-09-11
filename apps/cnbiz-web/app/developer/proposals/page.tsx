@@ -22,6 +22,8 @@ export default function ProposalsPage() {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -37,6 +39,34 @@ export default function ProposalsPage() {
   useEffect(() => {
     queueMicrotask(load);
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, proposal: ProposalRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${proposal.input.companyName}" 제안서를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(proposal.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/proposals/${proposal.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setProposals((prev) => prev.filter((item) => item.id !== proposal.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -54,6 +84,8 @@ export default function ProposalsPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -82,6 +114,14 @@ export default function ProposalsPage() {
                   {proposal.result.cost.currency}
                 </Badge>
                 {proposal.simulated && <Badge tone="warning">Simulated</Badge>}
+
+                <button
+                  onClick={(e) => handleDelete(e, proposal)}
+                  disabled={deletingId === proposal.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === proposal.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

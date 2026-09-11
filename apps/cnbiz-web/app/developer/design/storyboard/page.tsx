@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
@@ -89,6 +89,13 @@ export default function StoryboardPage() {
   const [shareError, setShareError] = useState<string | null>(null);
   const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
 
+  // 페이지가 뷰포트보다 훨씬 길어 생성 직후에는 실제 결과(Screen Flow 등)가 한참 스크롤해야
+  // 나온다는 혼동이 반복 확인되어(2026-09-11), 결과가 준비되면 그 지점으로 자동 스크롤한다.
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const scrollToResults = () => {
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -133,6 +140,7 @@ export default function StoryboardPage() {
 
       setStoryboards((prev) => [json.storyboard!, ...prev]);
       setSelectedStoryboardId(json.storyboard.id);
+      scrollToResults();
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "요청 실패");
     } finally {
@@ -266,7 +274,10 @@ export default function StoryboardPage() {
                 return (
                   <li key={sb.id}>
                     <button
-                      onClick={() => setSelectedStoryboardId(sb.id)}
+                      onClick={() => {
+                        setSelectedStoryboardId(sb.id);
+                        scrollToResults();
+                      }}
                       className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
                         selectedStoryboardId === sb.id
                           ? "bg-blue-600/20 border border-blue-600"
@@ -289,7 +300,7 @@ export default function StoryboardPage() {
 
       {selectedStoryboard && linkedPlan && (
         <>
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div ref={resultsRef} className="flex flex-wrap gap-2 mb-6">
             <button
               onClick={handleExportJson}
               className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors"

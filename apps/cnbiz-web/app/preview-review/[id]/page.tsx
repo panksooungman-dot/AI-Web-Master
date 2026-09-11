@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Button, Textarea } from "@cnbiz/ui";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { componentMarker } from "@/lib/dev/component-marker";
+import { PREVIEW_PAGE_CATALOG } from "@/lib/websites/pageCatalog";
 
 /**
  * "의뢰자한테 실제화면으로 보여줘야지 의뢰자도 이해를 할 수가 있지" (2026-09-11) —
@@ -36,6 +37,7 @@ export default function PreviewReviewPublicPage() {
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState<"approved" | "revision_requested" | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string>(PREVIEW_PAGE_CATALOG[0].path);
 
   function load() {
     setIsLoading(true);
@@ -109,9 +111,9 @@ export default function PreviewReviewPublicPage() {
         <p className="text-sm font-semibold tracking-widest uppercase text-primary">PREVIEW REVIEW</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">{projectName} 실제 화면 확인</h1>
         <p className="mt-4 text-base leading-relaxed text-slate-600">
-          아래는 저희가 실제로 만든 웹사이트 화면입니다. 직접 눌러보시고 확인해 주세요. 문제가 없으면
-          &ldquo;승인&rdquo;을, 수정이 필요하면 &ldquo;수정 요청&rdquo;을 눌러 의견을 남겨주세요. 아직 정식
-          주소로는 연결되지 않은 확인용 화면입니다.
+          아래는 저희가 실제로 만든 웹사이트 화면입니다. 페이지 탭을 눌러가며 화면을 하나씩 확인해
+          주세요. 문제가 없으면 &ldquo;승인&rdquo;을, 수정이 필요하면 &ldquo;수정 요청&rdquo;을 눌러
+          의견을 남겨주세요. 아직 정식 주소로는 연결되지 않은 확인용 화면입니다.
         </p>
 
         {share.status !== "pending" && (
@@ -126,27 +128,62 @@ export default function PreviewReviewPublicPage() {
           </div>
         )}
 
-        <div className="mt-8 overflow-hidden rounded-xl border border-slate-200 shadow-lg">
-          <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-100 px-4 py-2">
-            <span className="h-3 w-3 rounded-full bg-red-400" />
-            <span className="h-3 w-3 rounded-full bg-yellow-400" />
-            <span className="h-3 w-3 rounded-full bg-green-400" />
-            <span className="ml-2 truncate text-xs text-slate-500">{previewUrl}</span>
-            <a
-              href={previewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto shrink-0 text-xs text-primary hover:underline"
-            >
-              새 창에서 열기 →
-            </a>
+        <div className="mt-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
+            페이지를 선택해서 실제 화면을 확인하세요
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PREVIEW_PAGE_CATALOG.map((page) => (
+              <button
+                key={page.path}
+                onClick={() => setSelectedPath(page.path)}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  selectedPath === page.path
+                    ? "bg-primary text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {page.label}
+              </button>
+            ))}
           </div>
-          <iframe
-            src={previewUrl}
-            title={`${projectName} 미리보기`}
-            className="h-[70vh] w-full bg-white"
-          />
         </div>
+
+        {(() => {
+          const selectedPage = PREVIEW_PAGE_CATALOG.find((page) => page.path === selectedPath) ?? PREVIEW_PAGE_CATALOG[0];
+          const pageUrl = `${previewUrl.replace(/\/$/, "")}${selectedPage.path}`;
+
+          return (
+            <div className="mt-4">
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">{selectedPage.label}</span> — {selectedPage.description}
+              </p>
+
+              <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 shadow-lg">
+                <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-100 px-4 py-2">
+                  <span className="h-3 w-3 rounded-full bg-red-400" />
+                  <span className="h-3 w-3 rounded-full bg-yellow-400" />
+                  <span className="h-3 w-3 rounded-full bg-green-400" />
+                  <span className="ml-2 truncate text-xs text-slate-500">{pageUrl}</span>
+                  <a
+                    href={pageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-auto shrink-0 text-xs text-primary hover:underline"
+                  >
+                    새 창에서 열기 →
+                  </a>
+                </div>
+                <iframe
+                  key={pageUrl}
+                  src={pageUrl}
+                  title={`${projectName} — ${selectedPage.label}`}
+                  className="h-[70vh] w-full bg-white"
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="mt-10 rounded-lg border border-slate-200 p-6">
           <h2 className="text-lg font-bold text-slate-900">확인 결과를 남겨주세요</h2>

@@ -22,6 +22,8 @@ export default function ContractsPage() {
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -37,6 +39,34 @@ export default function ContractsPage() {
   useEffect(() => {
     queueMicrotask(load);
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, contract: ContractRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${contract.input.companyName}" 계약서를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(contract.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setContracts((prev) => prev.filter((item) => item.id !== contract.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -54,6 +84,8 @@ export default function ContractsPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -82,6 +114,14 @@ export default function ContractsPage() {
                   {contract.result.contractAmount.currency}
                 </Badge>
                 {contract.simulated && <Badge tone="warning">Simulated</Badge>}
+
+                <button
+                  onClick={(e) => handleDelete(e, contract)}
+                  disabled={deletingId === contract.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === contract.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getLaunchRequest } from "@/lib/launchRequests/registry";
+import { deleteLaunchRequest, getLaunchRequest } from "@/lib/launchRequests/registry";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -15,4 +17,26 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json({ launchRequest });
+}
+
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+  const record = await getLaunchRequest(id);
+
+  if (!record) {
+    return NextResponse.json({ success: false, error: "정보 요청서를 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  await deleteLaunchRequest(id);
+
+  const actor = await getCurrentActorEmail();
+  await recordAuditEvent({
+    action: "launchRequest.delete",
+    actor,
+    success: true,
+    detail: `"${record.companyName}" 정보 요청서 삭제`,
+    metadata: { launchRequestId: id },
+  });
+
+  return NextResponse.json({ success: true });
 }

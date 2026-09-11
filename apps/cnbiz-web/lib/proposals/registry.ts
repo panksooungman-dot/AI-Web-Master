@@ -43,3 +43,12 @@ export async function createProposal(
 
   return record;
 }
+
+export async function deleteProposal(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<ProposalRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

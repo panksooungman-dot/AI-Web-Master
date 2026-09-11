@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { getEstimate, updateEstimateDocument } from "@/lib/estimates/registry";
+import { deleteEstimate, getEstimate, updateEstimateDocument } from "@/lib/estimates/registry";
 import type { EstimateDocumentDetails } from "@/lib/estimates/types";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -44,4 +46,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json({ success: true, estimate: record });
+}
+
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+  const record = await getEstimate(id);
+
+  if (!record) {
+    return NextResponse.json({ success: false, error: "견적서를 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  await deleteEstimate(id);
+
+  const actor = await getCurrentActorEmail();
+  await recordAuditEvent({
+    action: "estimate.delete",
+    actor,
+    success: true,
+    detail: `"${record.input.companyName}" 견적서 삭제`,
+    metadata: { estimateId: id },
+  });
+
+  return NextResponse.json({ success: true });
 }

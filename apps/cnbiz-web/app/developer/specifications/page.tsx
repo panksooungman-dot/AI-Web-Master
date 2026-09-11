@@ -22,6 +22,8 @@ export default function SpecificationsPage() {
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -38,6 +40,34 @@ export default function SpecificationsPage() {
     queueMicrotask(load);
   }, []);
 
+  async function handleDelete(e: React.MouseEvent, specification: SpecificationRecord) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm(`"${specification.input.companyName}" 기능 명세서를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(specification.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/specifications/${specification.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setSpecifications((prev) => prev.filter((item) => item.id !== specification.id));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -46,7 +76,7 @@ export default function SpecificationsPage() {
         description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기능 명세서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
         help={[
           "생성은 이 화면이 아니라 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
-          "수정·삭제 기능은 없습니다.",
+          "수정 기능은 없습니다.",
         ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
@@ -54,6 +84,8 @@ export default function SpecificationsPage() {
           </button>
         }
       />
+
+      {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
 
       {isLoading ? (
         <LoadingText />
@@ -80,6 +112,14 @@ export default function SpecificationsPage() {
                 <Badge tone="purple">페이지 {specification.result.pages.length}종</Badge>
                 <span className="text-xs text-gray-400">기능 {specification.result.features.length}종</span>
                 {specification.simulated && <Badge tone="warning">Simulated</Badge>}
+
+                <button
+                  onClick={(e) => handleDelete(e, specification)}
+                  disabled={deletingId === specification.id}
+                  className="shrink-0 rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {deletingId === specification.id ? "삭제 중..." : "삭제"}
+                </button>
               </Card>
             </Link>
           ))}

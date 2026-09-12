@@ -172,7 +172,42 @@
 
 ---
 
-## 2026-09-08 (4)
+## 2026-09-12 (3)
+
+### 수정 (Fixed)
+
+- **`/developer/design`의 "Generate → Storyboard로 자동 이동" 버튼이 탭해도 반응이 없는 것처럼
+  보이던 문제 — 진행 표시 부재 원인 발견·보강**: 사용자가 실제 프로덕션(cnbiz.kr)에서 의뢰
+  연동으로 진입한 뒤 버튼을 눌러도 "안 눌러진다"고 보고. 코드를 추적한 결과 이 버튼 하나가
+  Design Plan 생성(`POST /api/design/requirements`)과 Storyboard 생성
+  (`POST /api/design/storyboard`) **두 번의 AI 호출을 순차로 체이닝**하고 있고, 각 호출은
+  `packages/cli/src/providers/provider.ts`의 `DEFAULT_TIMEOUT_MS`(120초) 기준으로 최대 3회까지
+  재시도할 수 있어(2026-08-09 (2)에서 큰 스키마 호출을 위해 상향된 값) 이론상 수 분간 응답이
+  없을 수 있는 구조였다. 그 대기 시간 동안 화면에 보이는 변화는 버튼 문구가 "Generating..." →
+  "Storyboard로 이어서 생성 중..."으로 바뀌는 것뿐이라, 특히 모바일 화면에서는 눈에 잘 띄지
+  않아 "클릭이 안 먹힌다"로 오인되기 쉬웠다. 이 실행 환경에는 실제 AI Provider 키가 없어
+  (`ANTHROPIC_API_KEY` 미설정) 이 정확한 지연 시간 자체는 재현하지 못했지만, 로컬 재현으로
+  버튼이 실제로 두 개의 무거운 AI 생성 요청을 순차 실행한다는 코드 경로 자체는 확인했다
+  - `apps/cnbiz-web/app/developer/design/page.tsx` — 생성 버튼에 회전 스피너 아이콘
+    (`animate-spin`)을 추가하고, 생성 중(`isSubmitting`·`isAutoContinuing`)에는 버튼 아래에
+    "AI가 실제로 내용을 생성하는 중이라 최대 1~2분 정도 걸릴 수 있습니다 ... 버튼을 여러 번
+    누르지 않아도 됩니다" 안내 문구를 표시. 기존에도 `isSubmitting`/`isAutoContinuing` 동안
+    버튼이 이미 비활성화(disabled)되어 중복 클릭 자체는 안전했으나, 그 사실이 화면에 드러나지
+    않았던 것을 보강
+
+### 검증 (Verified)
+
+- 로컬 dev 서버(`ANTHROPIC_API_KEY` 미설정, 결정론적 폴백 경로)로 developer 계정 로그인 →
+  실제 Inquiry 생성(회사명 "사색찬미한정식") → `POST /api/design/requirements`를 버튼이
+  보내는 것과 동일한 payload(`projectId` 포함)로 직접 호출해 0.47초 만에 정상 응답됨을 확인
+  (이 폴백 경로 자체는 빠르므로, 실제 AI 경로에서만 재현되는 지연 문제라는 점을 재확인)
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(변경 없음,
+  기존 라우트 전부 정상 생성)
+- **미해결로 남긴 부분**: Vercel 함수 자체의 실행 시간 제한(`maxDuration` 미설정, 플랜별 상한이
+  달라 임의로 값을 정하면 배포 자체가 실패할 위험이 있어 이번 범위에서 건드리지 않음)이 실제로
+  두 번째(Storyboard) 호출 도중 요청을 강제 종료시키고 있는지는 이 환경에서 확인하지 못했다.
+  이번 수정 이후에도 "버튼이 안 눌린다"는 현상이 재현되면 Vercel 플랜의 함수 실행 시간
+  상한을 확인해 `export const maxDuration`을 라우트에 명시하는 후속 조치가 필요할 수 있다.
 
 ### 추가 (Added)
 

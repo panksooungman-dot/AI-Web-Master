@@ -298,8 +298,14 @@ function DesignRequirementsPageInner() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || isAutoContinuing || !projectName || !requirements}
-              className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
             >
+              {(isSubmitting || isAutoContinuing) && (
+                <span
+                  aria-hidden
+                  className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                />
+              )}
               {isSubmitting
                 ? "Generating..."
                 : isAutoContinuing
@@ -308,6 +314,12 @@ function DesignRequirementsPageInner() {
                     ? "Generate → Storyboard로 자동 이동"
                     : "Generate"}
             </button>
+            {(isSubmitting || isAutoContinuing) && (
+              <p className="text-xs text-gray-500">
+                AI가 실제로 내용을 생성하는 중이라 최대 1~2분 정도 걸릴 수 있습니다. 이 화면을
+                벗어나지 말고 잠시 기다려 주세요 — 버튼을 여러 번 누르지 않아도 됩니다.
+              </p>
+            )}
           </div>
         </Card>
 

@@ -49,6 +49,11 @@ interface InquiryFormState {
 
 let toastSeq = 0;
 
+/** DOCX/PPTX/XLSX/PDF에서 추출된 원문 텍스트를 그대로 이어붙인다 — 요약·재작성 없음. */
+function joinDocumentExtracts(documentExtracts: { filename: string; content: string }[]): string {
+  return documentExtracts.map((d) => `[${d.filename}]\n${d.content}`).join("\n\n");
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
@@ -304,7 +309,7 @@ export default function NewInquiryPage() {
       });
 
       if (!content.trim() && documentExtracts.length > 0) {
-        setContent(documentExtracts.map((d) => `[${d.filename}]\n${d.content}`).join("\n\n"));
+        setContent(joinDocumentExtracts(documentExtracts));
         filledKeys.push("문의 내용");
       }
 
@@ -343,10 +348,18 @@ export default function NewInquiryPage() {
     setLoading("analyze");
 
     try {
-      const { uploadedFiles, codeSnippets, failures: uploadFailures } = await resolveUploads();
+      const { uploadedFiles, codeSnippets, documentExtracts, failures: uploadFailures } = await resolveUploads();
 
       if (uploadFailures.length > 0) {
         pushToast("error", `일부 파일 업로드 실패: ${uploadFailures.join(", ")}`);
+      }
+
+      // "파일로 업로더 했는데" (2026-09-12) — 첨부만 하고 "파일에서 자동 채우기"를 따로
+      // 누르지 않은 채 바로 제출하면, 이전에는 문의 내용이 계속 빈 채로 등록됐다. 문의 내용이
+      // 비어있고 문서 추출 텍스트가 있으면 제출 시점에도 자동으로 채운다(별도 버튼 클릭 불필요).
+      const effectiveRequirements = content.trim() || joinDocumentExtracts(documentExtracts);
+      if (!content.trim() && effectiveRequirements) {
+        setContent(effectiveRequirements);
       }
 
       const referenceUrls = form.referenceUrls
@@ -362,7 +375,7 @@ export default function NewInquiryPage() {
           companyName: form.companyName,
           contactName: form.contactName,
           email: form.email,
-          requirements: content,
+          requirements: effectiveRequirements,
           uploadedFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined,
           codeSnippets: codeSnippets.length > 0 ? codeSnippets : undefined,
           referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,

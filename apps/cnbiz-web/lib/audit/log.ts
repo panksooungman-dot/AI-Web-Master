@@ -59,6 +59,7 @@ export type AuditAction =
   | "inquiry.notify_admin"
   | "inquiry.notify_admin_slack"
   | "inquiry.notify_admin_solapi"
+  | "inquiry.upload_failed"
   | "document.share_customer"
   | "customer.login"
   | "customer.view_document"

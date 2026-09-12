@@ -5,7 +5,7 @@ import type { DesignDocument } from "@cnbiz/design-system/types/design";
 import { ask } from "../lib/prompt.js";
 import { buildWebsite } from "../website/builder.js";
 import { parseDesignDocument } from "../website/design-pages.js";
-import { WEBSITE_TYPES, siteTypeLabel } from "../website/types.js";
+import { WEBSITE_TYPES, siteTypeLabel, HEX_COLOR_PATTERN } from "../website/types.js";
 import { WorkflowError } from "../workflow/types.js";
 import { RuntimeError } from "../runtime/types.js";
 import { ProviderError } from "../providers/types.js";
@@ -22,6 +22,7 @@ export interface WebsiteCreateOptions {
   out?: string;
   provider?: string;
   designDocument?: string;
+  color?: string;
 }
 
 /**
@@ -91,6 +92,14 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
     );
   }
 
+  let primaryColor = options.color?.trim();
+  if (primaryColor && !HEX_COLOR_PATTERN.test(primaryColor)) {
+    console.log(
+      chalk.yellow(`⚠ "--color ${primaryColor}" is not a valid hex color (expected #RRGGBB) — using the site type's default palette instead.`)
+    );
+    primaryColor = undefined;
+  }
+
   const designDocument = options.designDocument ? await readDesignDocument(options.designDocument) : undefined;
 
   try {
@@ -99,7 +108,8 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
       siteType: siteTypeInput,
       providerId: options.provider,
       outDir: options.out,
-      designDocument
+      designDocument,
+      primaryColor
     });
 
     if (!result.workflowResult.success) {
@@ -168,6 +178,7 @@ export function buildWebsiteCommand(): Command {
     .option("--type <type>", "Business Type (free text, e.g. \"dental clinic\")")
     .option("--audience <audience>", "Target Audience")
     .option("--brand <brand>", "Brand")
+    .option("--color <hex>", "Primary brand color override (#RRGGBB) — replaces the site type's default palette primary/hover color")
     .option("--language <language>", "Language")
     .option("--out <dir>", "출력 디렉터리 (기본값: ./<project-slug>)")
     .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama). 생략 시 기본 provider 또는 시뮬레이션")

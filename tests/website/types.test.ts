@@ -5,6 +5,7 @@ import {
   SITE_TYPE_COPY,
   isWebsiteType,
   siteTypeLabel,
+  resolvePalette,
   type WebsiteType
 } from "../../packages/cli/src/website/types.js";
 
@@ -83,5 +84,31 @@ describe("Website Builder v2 — site type registry (packages/cli/src/website/ty
     const type: WebsiteType = "dental";
     expect(siteTypeLabel(type)).toBe(SITE_TYPE_COPY.dental.label);
     expect(siteTypeLabel(type)).toBe("Dental Clinic");
+  });
+
+  describe("resolvePalette() — 브랜드 컬러 오버라이드", () => {
+    it("유효한 hex가 주어지면 primary/primaryDark만 교체하고 나머지는 siteType 기본값을 유지한다", () => {
+      const palette = resolvePalette("dental", "#005BAC");
+      expect(palette.primary).toBe("#005BAC");
+      expect(palette.primaryDark).not.toBe(PALETTES.dental.primaryDark);
+      expect(palette.primaryDark).toMatch(HEX_COLOR);
+      expect(palette.secondary).toBe(PALETTES.dental.secondary);
+      expect(palette.accent).toBe(PALETTES.dental.accent);
+      expect(palette.background).toBe(PALETTES.dental.background);
+    });
+
+    it("오버라이드가 없거나 형식이 올바르지 않으면 siteType 기본 팔레트를 그대로 반환한다", () => {
+      expect(resolvePalette("restaurant", undefined)).toEqual(PALETTES.restaurant);
+      expect(resolvePalette("restaurant", "")).toEqual(PALETTES.restaurant);
+      expect(resolvePalette("restaurant", "파란색")).toEqual(PALETTES.restaurant);
+      expect(resolvePalette("restaurant", "#fff")).toEqual(PALETTES.restaurant);
+      expect(resolvePalette("restaurant", "005bac")).toEqual(PALETTES.restaurant);
+    });
+
+    it("앞뒤 공백은 다듬고 대소문자 상관없이 유효한 hex로 인식한다", () => {
+      const palette = resolvePalette("shopping", "  #ABCDEF  ");
+      expect(palette.primary).toBe("#ABCDEF");
+      expect(palette.primaryDark).not.toBe(PALETTES.shopping.primaryDark);
+    });
   });
 });

@@ -4,7 +4,7 @@ import type { MemoryRecord } from "../memory/types.js";
 import { generateWebsiteProject } from "../generators/website.js";
 import { executeTool } from "../tools/manager.js";
 import { generateSiteContent, type SiteContent } from "./content.js";
-import { PALETTES, isWebsiteType, siteTypeLabel, type WebsiteInputs, type WebsiteType } from "./types.js";
+import { resolvePalette, isWebsiteType, siteTypeLabel, type WebsiteInputs, type WebsiteType } from "./types.js";
 import { WEBSITE_PIPELINE_AGENTS } from "./agents.js";
 import { WEBSITE_WORKFLOW_NAME } from "./workflow.js";
 
@@ -127,7 +127,7 @@ export async function scaffoldWebsiteProject(
   const memory = await getMemory(cwd, WEBSITE_WORKFLOW_NAME);
 
   const { content, simulated } = await generateSiteContent(cwd, inputs, providerId);
-  const palette = PALETTES[inputs.siteType];
+  const palette = resolvePalette(inputs.siteType, inputs.primaryColor);
 
   const siteConfig: SiteConfigData = {
     projectName: inputs.projectName,

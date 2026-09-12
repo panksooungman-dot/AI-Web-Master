@@ -60,4 +60,33 @@ describe("Inquiry validate — lib/inquiries/validate.ts", () => {
     });
     expect(validateInquiryInput(input)).toEqual({});
   });
+
+  it("validateInquiryInput() does not require requirements when an uploaded file is attached", () => {
+    const input = parseInquiryInput({
+      contactName: "Jane",
+      email: "jane@example.com",
+      requirements: "",
+      uploadedFiles: ["/api/uploads/proposal.hwp"],
+    });
+    expect(validateInquiryInput(input).requirements).toBeUndefined();
+  });
+
+  it("validateInquiryInput() does not require requirements when a code snippet is attached", () => {
+    const input = parseInquiryInput({
+      contactName: "Jane",
+      email: "jane@example.com",
+      requirements: "",
+      codeSnippets: [{ filename: "index.ts", content: "console.log(1)" }],
+    });
+    expect(validateInquiryInput(input).requirements).toBeUndefined();
+  });
+
+  it("validateInquiryInput() still requires requirements when there is no attachment", () => {
+    const input = parseInquiryInput({
+      contactName: "Jane",
+      email: "jane@example.com",
+      requirements: "",
+    });
+    expect(validateInquiryInput(input).requirements).toBeTruthy();
+  });
 });

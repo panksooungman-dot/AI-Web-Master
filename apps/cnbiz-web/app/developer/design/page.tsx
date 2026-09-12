@@ -46,6 +46,26 @@ function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
 const inputClass =
   "w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500";
 
+/**
+ * 의뢰의 siteType별 Customer Requirements 예시 문구(placeholder). 실제 사실이 아닌, 그 업종에서
+ * 흔히 나오는 요구사항 카테고리 예시일 뿐이다 — 특정 의뢰의 실제 요구사항을 지어내는 것이 아님
+ * (2026-09-12, "치과" 예시가 레스토랑 의뢰에도 항상 그대로 뜨던 문제 개선).
+ */
+const REQUIREMENTS_EXAMPLE_BY_SITE_TYPE: Record<string, string> = {
+  website: "회사 소개, 서비스 안내, 문의하기가 필요합니다.",
+  landing: "제품 소개, 신청·구매 유도, 후기 노출이 필요합니다.",
+  portfolio: "작업물 소개, 이력, 연락처 안내가 필요합니다.",
+  corporate: "회사 소개, 사업 영역, 연혁, 채용 안내가 필요합니다.",
+  agency: "포트폴리오, 서비스 소개, 상담 문의가 필요합니다.",
+  dental: "온라인 예약, 진료 안내, 오시는 길 안내가 필요합니다.",
+  hospital: "진료과 안내, 예약 문의, 오시는 길 안내가 필요합니다.",
+  restaurant: "예약 문의, 대표 메뉴 안내, 오시는 길 안내가 필요합니다.",
+  shopping: "상품 소개, 온라인 결제, 배송 안내가 필요합니다.",
+  blog: "글 목록, 카테고리 분류, 구독 알림이 필요합니다.",
+  education: "강의 소개, 수강 신청, 커리큘럼 안내가 필요합니다.",
+};
+const DEFAULT_REQUIREMENTS_EXAMPLE = "예약 문의, 서비스 소개, 오시는 길 안내가 필요합니다.";
+
 // useSearchParams()(?inquiryId= 읽기용)는 Suspense 경계 없이 쓰면 정적 생성이 실패한다
 // (Next.js "should be wrapped in a suspense boundary") — 실제 폼은 그대로 두고 얇은 래퍼만 추가.
 export default function DesignRequirementsPage() {
@@ -77,7 +97,11 @@ function DesignRequirementsPageInner() {
   // ?inquiryId=로 들어오면 그 의뢰의 정보로 폼을 미리 채운다(2026-09-12 — Design 체인이 의뢰
   // 정보와 전혀 연결되지 않아 매번 재입력해야 한다는 지적). 채워진 값은 여전히 자유롭게 수정
   // 가능하고, projectId로 원본 의뢰를 함께 기록해 어느 의뢰에서 시작됐는지 추적 가능하게 한다.
-  const [linkedInquiry, setLinkedInquiry] = useState<{ id: string; companyName: string } | null>(null);
+  const [linkedInquiry, setLinkedInquiry] = useState<{
+    id: string;
+    companyName: string;
+    siteType?: string;
+  } | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [isAutoContinuing, setIsAutoContinuing] = useState(false);
   const [autoContinueError, setAutoContinueError] = useState<string | null>(null);
@@ -98,7 +122,11 @@ function DesignRequirementsPageInner() {
         setProjectName(inquiry.companyName || inquiry.contactName);
         setProjectType(typeLabel);
         setRequirements(buildRequirementsFromInquiry(inquiry));
-        setLinkedInquiry({ id: inquiry.id, companyName: inquiry.companyName || inquiry.contactName });
+        setLinkedInquiry({
+          id: inquiry.id,
+          companyName: inquiry.companyName || inquiry.contactName,
+          siteType: inquiry.siteType,
+        });
       })
       .catch(() => setLinkError("의뢰를 불러오지 못했습니다."));
     // inquiryId는 페이지 진입 시 한 번만 반영하면 되고, 이후 admin이 폼을 수정해도 다시
@@ -216,6 +244,10 @@ function DesignRequirementsPageInner() {
     Boolean
   ) as string[];
 
+  const requirementsPlaceholder = linkedInquiry?.siteType
+    ? (REQUIREMENTS_EXAMPLE_BY_SITE_TYPE[linkedInquiry.siteType] ?? DEFAULT_REQUIREMENTS_EXAMPLE)
+    : DEFAULT_REQUIREMENTS_EXAMPLE;
+
   const selected = plans.find((plan) => plan.id === selectedId) ?? null;
   // History 목록도 위 자동 선택과 동일한 기준으로 범위를 좁힌다 — 그래야 목록에 뜨는 항목과
   // 자동 선택되는 항목이 항상 일치하고, 의뢰와 무관한 옛 기록이 나열되지 않는다.
@@ -291,7 +323,7 @@ function DesignRequirementsPageInner() {
               <textarea
                 value={requirements}
                 onChange={(e) => setRequirements(e.target.value)}
-                placeholder="온라인 예약, 진료 안내, 오시는 길 안내가 필요합니다."
+                placeholder={requirementsPlaceholder}
                 rows={4}
                 className={inputClass}
               />

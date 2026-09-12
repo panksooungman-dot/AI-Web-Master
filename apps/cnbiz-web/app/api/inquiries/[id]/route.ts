@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { deleteInquiry, getInquiry, updateInquiry, updateInquiryStatus } from "@/lib/inquiries/registry";
+import { deleteInquiry, getInquiry, saveInquiryAnalysis, updateInquiry, updateInquiryStatus } from "@/lib/inquiries/registry";
 import { INQUIRY_STATUSES, type InquiryInput, type InquiryStatus } from "@/lib/inquiries/types";
 import { mergeSurveyPatch, mergeUploadedFiles, pickReferenceUrls } from "@/lib/inquiries/editPatch";
+import { computeCompleteness } from "@/lib/ai-analysis/score";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 
@@ -121,10 +122,20 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ success: false, error: "올바른 이메일 형식이 아닙니다." }, { status: 400 });
   }
 
-  const record = await updateInquiry(id, patch);
+  let record = await updateInquiry(id, patch);
 
   if (!record) {
     return NextResponse.json({ success: false, error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  // 완성도 체크리스트(lib/ai-analysis/score.ts)는 AI 호출 없는 순수 규칙 기반 계산이므로,
+  // 이미 분석이 실행된 의뢰라면 수정할 때마다 재분석 없이 즉시 다시 계산해 반영한다 — 그렇지
+  // 않으면 관리자가 정보를 채워 넣어도 Missing Items가 이전 분석 시점 스냅샷 그대로 남는다.
+  // AI가 생성한 summary/detectedBusinessType 등 나머지 필드는 건드리지 않는다.
+  if (record.analysis) {
+    const { completeness, missingItems } = computeCompleteness(record);
+    const updated = await saveInquiryAnalysis(id, { ...record.analysis, completeness, missingItems });
+    if (updated) record = updated;
   }
 
   const actor = await getCurrentActorEmail();

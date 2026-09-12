@@ -113,6 +113,9 @@ export default function InquiryDetailPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
+  const [isUploadingExtraFiles, setIsUploadingExtraFiles] = useState(false);
+  const [extraFilesUploadError, setExtraFilesUploadError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -490,6 +493,51 @@ export default function InquiryDetailPage() {
       setLogoUploadError("로고 업로드 중 오류가 발생했습니다.");
     } finally {
       setIsUploadingLogo(false);
+    }
+  }
+
+  // 로고 외 참고 이미지·자료 파일을 여러 개 한 번에 업로드한다. handleUploadLogo와 달리
+  // 파일명을 보정하지 않는다("logo" 접두사를 붙이면 score.ts의 company_logo 체크를 오염시킴).
+  // /api/inquiries/upload는 파일 하나만 받으므로 순차 업로드 후 한 번의 PATCH로 모아 등록한다.
+  async function handleUploadExtraFiles() {
+    if (extraFiles.length === 0) return;
+
+    setIsUploadingExtraFiles(true);
+    setExtraFilesUploadError(null);
+
+    try {
+      const urls: string[] = [];
+      for (const file of extraFiles) {
+        const uploadBody = new FormData();
+        uploadBody.append("file", file);
+        const uploadRes = await fetch("/api/inquiries/upload", { method: "POST", body: uploadBody });
+        const uploadData: { success: boolean; url?: string; error?: string } = await uploadRes.json();
+
+        if (!uploadData.success || !uploadData.url) {
+          setExtraFilesUploadError(`"${file.name}" 업로드 실패: ${uploadData.error ?? "알 수 없는 오류"}`);
+          return;
+        }
+        urls.push(uploadData.url);
+      }
+
+      const patchRes = await fetch(`/api/inquiries/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addUploadedFiles: urls }),
+      });
+      const patchData: { success: boolean; inquiry?: InquiryRecord; error?: string } = await patchRes.json();
+
+      if (!patchData.success || !patchData.inquiry) {
+        setExtraFilesUploadError(patchData.error ?? "자료 등록에 실패했습니다.");
+        return;
+      }
+
+      setInquiry(patchData.inquiry);
+      setExtraFiles([]);
+    } catch {
+      setExtraFilesUploadError("자료 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingExtraFiles(false);
     }
   }
 
@@ -992,6 +1040,30 @@ export default function InquiryDetailPage() {
               다른 텍스트 필드와 달리 선택 즉시 업로드되어 첨부파일에 추가됩니다(저장 버튼과 무관).
             </p>
             {logoUploadError && <StatusMessage tone="error" className="mt-1">{logoUploadError}</StatusMessage>}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-1">
+            <span className="text-sm text-gray-500">추가 자료(참고 이미지·서비스 사진 등)</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="file"
+                multiple
+                onChange={(e) => setExtraFiles(Array.from(e.target.files ?? []))}
+                className="text-sm text-gray-300"
+              />
+              <button
+                onClick={handleUploadExtraFiles}
+                disabled={extraFiles.length === 0 || isUploadingExtraFiles}
+                className="rounded bg-purple-700 hover:bg-purple-600 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {isUploadingExtraFiles ? "업로드 중..." : `자료 업로드${extraFiles.length > 0 ? ` (${extraFiles.length}개)` : ""}`}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              로고와 마찬가지로 선택 즉시 업로드되어 첨부파일에 추가됩니다(저장 버튼과 무관). 여러 개를
+              한 번에 선택할 수 있습니다.
+            </p>
+            {extraFilesUploadError && <StatusMessage tone="error" className="mt-1">{extraFilesUploadError}</StatusMessage>}
           </div>
 
           {saveError && <StatusMessage tone="error" className="mt-4">{saveError}</StatusMessage>}

@@ -6,6 +6,12 @@ import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
 
+// AI 호출 1회가 최대 2분(providers/provider.ts의 DEFAULT_TIMEOUT_MS)까지 걸릴 수 있어, Vercel
+// 서버리스 함수의 기본 실행 시간 제한(플랜에 따라 10초 전후)을 넘기면 정상 JSON 대신 타임아웃
+// 에러 페이지가 반환돼 클라이언트가 이를 파싱하지 못하고 조용히 실패한다(Generate 버튼이 "안
+// 눌리는 것처럼" 보이던 원인). 모든 Vercel 플랜(Hobby 포함)에서 지원하는 상한인 60초로 상향.
+export const maxDuration = 60;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

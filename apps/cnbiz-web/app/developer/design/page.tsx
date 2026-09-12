@@ -157,7 +157,8 @@ function DesignRequirementsPageInner() {
       }
 
       router.push("/developer/design/storyboard");
-    } catch {
+    } catch (err) {
+      console.error("[design/storyboard] auto-generate failed", err);
       setAutoContinueError("Storyboard 자동 생성 중 오류가 발생했습니다.");
     } finally {
       setIsAutoContinuing(false);
@@ -200,6 +201,7 @@ function DesignRequirementsPageInner() {
         await autoGenerateStoryboard(json.plan.id);
       }
     } catch (err) {
+      console.error("[design/requirements] generate failed", err);
       setSubmitError(err instanceof Error ? err.message : "요청 실패");
     } finally {
       setIsSubmitting(false);

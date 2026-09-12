@@ -32,11 +32,19 @@ export interface SavedFile {
   storage: "supabase" | "local";
 }
 
-function safeFileName(name: string): string {
+/** exported for tests only — 나머지 코드는 saveUploadedFile()을 통해서만 이 이름을 쓴다. */
+export function safeFileName(name: string): string {
   const ext = path.extname(name).slice(0, 20);
+  // 2026-09-12 실사용 버그 리포트: 한글 파일명(제안서 등, 이 화면의 주된 사용 사례)을 첨부하면
+  // Supabase Storage가 "Invalid key"로 업로드 자체를 거부함을 실제 프로덕션 에러로 확인 —
+  // Supabase Storage의 오브젝트 키는 ASCII만 허용하고, 한글을 포함해 어떤 비-ASCII 문자도
+  // 유효하지 않은 키로 취급한다(S3 자체는 UTF-8 키를 허용하지만 Supabase Storage 레이어가
+  // 더 엄격하다). 원래 코드가 `가-힣`을 허용 목록에 넣어 한글을 그대로 통과시키던 것이 원인 —
+  // 사람이 읽는 원본 파일명은 어차피 별도로(응답의 filename 필드) 보존되므로, 저장 키 자체는
+  // ASCII로만 구성해도 기능상 손실이 없다.
   const base = path
     .basename(name, ext)
-    .replace(/[^a-zA-Z0-9가-힣_-]/g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
     .slice(0, 60);
   return `${randomUUID()}-${base || "file"}${ext}`;
 }

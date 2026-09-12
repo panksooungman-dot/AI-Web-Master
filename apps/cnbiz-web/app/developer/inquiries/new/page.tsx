@@ -78,6 +78,7 @@ export default function NewInquiryPage() {
     signature: string;
     uploadedFiles: string[];
     codeSnippets: { filename: string; content: string }[];
+    documentExtracts: { filename: string; content: string }[];
     failures: string[];
   } | null>(null);
   const [errors, setErrors] = useState<{ title?: string; content?: string; contactName?: string; email?: string }>({});
@@ -203,6 +204,9 @@ export default function NewInquiryPage() {
   async function resolveUploads(): Promise<{
     uploadedFiles: string[];
     codeSnippets: { filename: string; content: string }[];
+    // DOCX/PPTX/XLSX/PDF에서 뽑아낸 텍스트만 별도로도 모아둔다(codeSnippets는 실제 소스
+    // 코드 파일과 섞여있어 "문의 내용" 자동 채우기에 그대로 쓰기엔 부적절하다).
+    documentExtracts: { filename: string; content: string }[];
     failures: string[];
   }> {
     if (uploadCache && uploadCache.signature === filesSignature) {
@@ -211,6 +215,7 @@ export default function NewInquiryPage() {
 
     const uploadedFiles: string[] = [];
     const codeSnippets: { filename: string; content: string }[] = [];
+    const documentExtracts: { filename: string; content: string }[] = [];
     const failures: string[] = [];
 
     for (const staged of files) {
@@ -225,13 +230,14 @@ export default function NewInquiryPage() {
         uploadedFiles.push(result.url);
         if (result.content.trim()) {
           codeSnippets.push({ filename: result.filename, content: result.content });
+          documentExtracts.push({ filename: result.filename, content: result.content });
         }
       } else {
         uploadedFiles.push(result.url);
       }
     }
 
-    const resolved = { signature: filesSignature, uploadedFiles, codeSnippets, failures };
+    const resolved = { signature: filesSignature, uploadedFiles, codeSnippets, documentExtracts, failures };
     setUploadCache(resolved);
     return resolved;
   }
@@ -239,9 +245,15 @@ export default function NewInquiryPage() {
   /**
    * "파일 안에 정보가 있을텐데 기재 않하고 파일로 대체" (2026-09-12) — 첨부파일(이미지·텍스트/
    * 코드) 내용에서 회사명·담당자명·이메일·문의 제목을 AI로 뽑아 빈 필드만 채워준다. 이미 값이
-   * 있는 필드는 덮어쓰지 않아 관리자가 직접 입력한 내용을 보존한다. HWP/DOCX/XLSX/PPTX/PDF는
-   * 서버가 아직 내용을 파싱하지 못해(app/api/inquiries/upload/route.ts, 바이너리 URL만 저장)
-   * 이번 1단계 범위에는 포함되지 않는다 — 그런 파일만 있으면 아무것도 채워지지 않는다.
+   * 있는 필드는 덮어쓰지 않아 관리자가 직접 입력한 내용을 보존한다. HWP는 검증된 오픈소스
+   * 파서가 없어 이번 범위에서 제외된다(lib/uploads/officeText.ts) — 그런 파일만 있으면
+   * 아무것도 채워지지 않는다.
+   *
+   * "문의 내용"도 함께 채운다(2026-09-12 — 의뢰자가 문서로 제공한 정보를 관리자가 다시
+   * 타이핑하지 않아도 되어야 한다는 지적. 이 필드가 비어있으면 Design Automation의 Generate
+   * 버튼이 끝까지 막혀있던 문제와 직결됨). DOCX/PPTX/XLSX/PDF에서 실제로 추출된 원문 텍스트를
+   * 그대로 옮겨 담을 뿐 AI로 요약·재작성하지 않는다 — 지어내지 않고 원본 그대로 전달한다는
+   * 원칙(사실을 지어내지 않는다) 그대로 적용.
    */
   async function handleAutoFill() {
     if (loading) return;
@@ -252,7 +264,7 @@ export default function NewInquiryPage() {
 
     setLoading("extract");
     try {
-      const { uploadedFiles, codeSnippets, failures } = await resolveUploads();
+      const { uploadedFiles, codeSnippets, documentExtracts, failures } = await resolveUploads();
       if (failures.length > 0) {
         pushToast("error", `일부 파일 업로드 실패: ${failures.join(", ")}`);
       }
@@ -290,6 +302,11 @@ export default function NewInquiryPage() {
         }
         return next;
       });
+
+      if (!content.trim() && documentExtracts.length > 0) {
+        setContent(documentExtracts.map((d) => `[${d.filename}]\n${d.content}`).join("\n\n"));
+        filledKeys.push("문의 내용");
+      }
 
       if (filledKeys.length > 0) {
         pushToast("success", `파일에서 ${filledKeys.join("·")}을(를) 채웠습니다. 확인 후 진행해주세요.`);
@@ -520,8 +537,8 @@ export default function NewInquiryPage() {
           )}
           {files.length > 0 && (
             <p className="text-xs text-gray-600 mt-1">
-              이미지·텍스트/코드 파일·DOCX·PPTX·XLSX·PDF에서 회사명·담당자명·이메일을 찾아
-              빈 항목만 채웁니다. HWP는 아직 지원하지 않습니다.
+              이미지·텍스트/코드 파일·DOCX·PPTX·XLSX·PDF에서 회사명·담당자명·이메일·문의 내용을
+              찾아 빈 항목만 채웁니다. HWP는 아직 지원하지 않습니다.
             </p>
           )}
 

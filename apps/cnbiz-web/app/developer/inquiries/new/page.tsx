@@ -71,7 +71,15 @@ export default function NewInquiryPage() {
   // 첨부 거부 사유를 토스트(3초 후 자동 소멸, 모바일에서 놓치기 쉬움)만이 아니라 위젯
   // 바로 아래에도 남겨, 사용자가 "왜 아무 반응이 없지?"로 오인하지 않도록 한다.
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
-  const [loading, setLoading] = useState<"analyze" | null>(null);
+  const [loading, setLoading] = useState<"analyze" | "extract" | null>(null);
+  // files가 바뀌기 전까지는 업로드 결과를 재사용해, "자동 채우기"에서 이미 올린 파일을
+  // "AI 분석 시작"에서 다시 업로드하지 않도록 한다. signature가 현재 files와 다르면 무효.
+  const [uploadCache, setUploadCache] = useState<{
+    signature: string;
+    uploadedFiles: string[];
+    codeSnippets: { filename: string; content: string }[];
+    failures: string[];
+  } | null>(null);
   const [errors, setErrors] = useState<{ title?: string; content?: string; contactName?: string; email?: string }>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -179,6 +187,113 @@ export default function NewInquiryPage() {
     return res.json();
   }
 
+  const filesSignature = files.map((f) => f.id).join(",");
+
+  /** 현재 첨부 목록을 업로드하되, files가 바뀌지 않았으면 이전 업로드 결과(uploadCache)를
+   *  그대로 재사용한다 — "자동 채우기"와 "AI 분석 시작"이 같은 파일을 두 번 올리지 않도록. */
+  async function resolveUploads(): Promise<{
+    uploadedFiles: string[];
+    codeSnippets: { filename: string; content: string }[];
+    failures: string[];
+  }> {
+    if (uploadCache && uploadCache.signature === filesSignature) {
+      return uploadCache;
+    }
+
+    const uploadedFiles: string[] = [];
+    const codeSnippets: { filename: string; content: string }[] = [];
+    const failures: string[] = [];
+
+    for (const staged of files) {
+      const result = await uploadOne(staged.file);
+      if (!result.success) {
+        failures.push(`${staged.file.name} (${result.error})`);
+        continue;
+      }
+      if (result.type === "code") {
+        codeSnippets.push({ filename: result.filename, content: result.content });
+      } else {
+        uploadedFiles.push(result.url);
+      }
+    }
+
+    const resolved = { signature: filesSignature, uploadedFiles, codeSnippets, failures };
+    setUploadCache(resolved);
+    return resolved;
+  }
+
+  /**
+   * "파일 안에 정보가 있을텐데 기재 않하고 파일로 대체" (2026-09-12) — 첨부파일(이미지·텍스트/
+   * 코드) 내용에서 회사명·담당자명·이메일·문의 제목을 AI로 뽑아 빈 필드만 채워준다. 이미 값이
+   * 있는 필드는 덮어쓰지 않아 관리자가 직접 입력한 내용을 보존한다. HWP/DOCX/XLSX/PPTX/PDF는
+   * 서버가 아직 내용을 파싱하지 못해(app/api/inquiries/upload/route.ts, 바이너리 URL만 저장)
+   * 이번 1단계 범위에는 포함되지 않는다 — 그런 파일만 있으면 아무것도 채워지지 않는다.
+   */
+  async function handleAutoFill() {
+    if (loading) return;
+    if (files.length === 0) {
+      pushToast("error", "먼저 파일을 첨부해주세요.");
+      return;
+    }
+
+    setLoading("extract");
+    try {
+      const { uploadedFiles, codeSnippets, failures } = await resolveUploads();
+      if (failures.length > 0) {
+        pushToast("error", `일부 파일 업로드 실패: ${failures.join(", ")}`);
+      }
+
+      const res = await fetch("/api/inquiries/extract-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploadedFiles, codeSnippets }),
+      });
+      const data: {
+        success: boolean;
+        extracted?: { companyName?: string; contactName?: string; email?: string; title?: string };
+        simulated?: boolean;
+      } = await res.json();
+
+      const extracted = data.extracted ?? {};
+      const filledKeys: string[] = [];
+      setForm((prev) => {
+        const next = { ...prev };
+        if (!next.title.trim() && extracted.title) {
+          next.title = extracted.title;
+          filledKeys.push("문의 제목");
+        }
+        if (!next.contactName.trim() && extracted.contactName) {
+          next.contactName = extracted.contactName;
+          filledKeys.push("고객명");
+        }
+        if (!next.companyName.trim() && extracted.companyName) {
+          next.companyName = extracted.companyName;
+          filledKeys.push("회사명");
+        }
+        if (!next.email.trim() && extracted.email) {
+          next.email = extracted.email;
+          filledKeys.push("이메일");
+        }
+        return next;
+      });
+
+      if (filledKeys.length > 0) {
+        pushToast("success", `파일에서 ${filledKeys.join("·")}을(를) 채웠습니다. 확인 후 진행해주세요.`);
+      } else if (data.simulated) {
+        pushToast(
+          "error",
+          "첨부파일에서 정보를 찾지 못했습니다(HWP·오피스 문서·PDF는 아직 자동 인식을 지원하지 않습니다). 직접 입력해주세요.",
+        );
+      } else {
+        pushToast("error", "첨부파일에서 정보를 찾지 못했습니다. 직접 입력해주세요.");
+      }
+    } catch {
+      pushToast("error", "자동 채우기 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
   /**
    * AI Business OS Rewiring Phase 1 — POST /api/inquiries(내부, app/api/inquiries/route.ts)를
    * 호출해 createInquiry() 이하 기존 파이프라인(AI Analysis → Client → WebsiteOrder → AiJob)에
@@ -197,22 +312,7 @@ export default function NewInquiryPage() {
     setLoading("analyze");
 
     try {
-      const uploadedFiles: string[] = [];
-      const codeSnippets: { filename: string; content: string }[] = [];
-      const uploadFailures: string[] = [];
-
-      for (const staged of files) {
-        const result = await uploadOne(staged.file);
-        if (!result.success) {
-          uploadFailures.push(`${staged.file.name} (${result.error})`);
-          continue;
-        }
-        if (result.type === "code") {
-          codeSnippets.push({ filename: result.filename, content: result.content });
-        } else {
-          uploadedFiles.push(result.url);
-        }
-      }
+      const { uploadedFiles, codeSnippets, failures: uploadFailures } = await resolveUploads();
 
       if (uploadFailures.length > 0) {
         pushToast("error", `일부 파일 업로드 실패: ${uploadFailures.join(", ")}`);
@@ -394,6 +494,22 @@ export default function NewInquiryPage() {
               PDF · DOC/DOCX · HWP/HWPX · XLS/XLSX · PPT/PPTX · CSV · TXT · 이미지(PNG·JPG·GIF·WEBP·SVG·HEIC) · 코드 파일(JS·TS·PY 등)
             </p>
           </div>
+
+          {files.length > 0 && (
+            <button
+              onClick={handleAutoFill}
+              disabled={loading !== null}
+              className="mt-3 w-full rounded bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 transition-colors disabled:opacity-50"
+            >
+              {loading === "extract" ? "파일 확인 중..." : "✨ 파일에서 자동 채우기"}
+            </button>
+          )}
+          {files.length > 0 && (
+            <p className="text-xs text-gray-600 mt-1">
+              이미지·텍스트/코드 파일에서 회사명·담당자명·이메일을 찾아 빈 항목만 채웁니다.
+              HWP·오피스 문서·PDF는 아직 지원하지 않습니다.
+            </p>
+          )}
 
           {rejectedFiles.length > 0 && (
             <div className="mt-3 rounded border border-red-900 bg-red-950/40 px-3 py-2">

@@ -14,12 +14,12 @@ import { resolveAbsoluteUrl } from "./siteUrl";
  * 자체를 절대 막지 않는다(generateAnalysis()의 다른 결정론적 폴백들과 동일한 원칙).
  */
 
-const ANTHROPIC_VERSION = "2023-06-01";
-const MODEL = "claude-sonnet-5";
+export const ANTHROPIC_VERSION = "2023-06-01";
+export const VISION_MODEL = "claude-sonnet-5";
 const MAX_IMAGES = 2;
 const FETCH_TIMEOUT_MS = 15000;
 
-const VISION_MEDIA_TYPE_BY_EXT: Record<string, string> = {
+export const VISION_MEDIA_TYPE_BY_EXT: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -27,7 +27,7 @@ const VISION_MEDIA_TYPE_BY_EXT: Record<string, string> = {
   ".webp": "image/webp",
 };
 
-function extensionOf(url: string): string {
+export function extensionOf(url: string): string {
   const withoutQuery = url.split("?")[0];
   const dot = withoutQuery.lastIndexOf(".");
   return dot === -1 ? "" : withoutQuery.slice(dot).toLowerCase();
@@ -48,19 +48,20 @@ async function fetchAsBase64(url: string, timeoutMs: number): Promise<string | n
   }
 }
 
-interface ImageBlock {
+export interface ImageBlock {
   type: "image";
   source: { type: "base64"; media_type: string; data: string };
 }
 
 /**
  * uploadedFiles 중 비전 API가 지원하는 확장자(png/jpg/jpeg/gif/webp — svg는 Anthropic이
- * 이미지 블록으로 지원하지 않아 제외)만 골라 최대 MAX_IMAGES개까지 base64로 인코딩한다.
+ * 이미지 블록으로 지원하지 않아 제외)만 골라 최대 개수까지 base64로 인코딩한다. lib/inquiries/
+ * extractContact.ts도 동일한 로직을 재사용한다(중복 구현하지 않음).
  */
-async function collectImageBlocks(uploadedFiles: string[]): Promise<ImageBlock[]> {
+export async function collectImageBlocks(uploadedFiles: string[], maxImages = MAX_IMAGES): Promise<ImageBlock[]> {
   const candidates = uploadedFiles
     .filter((url) => extensionOf(url) in VISION_MEDIA_TYPE_BY_EXT)
-    .slice(0, MAX_IMAGES);
+    .slice(0, maxImages);
 
   const blocks: ImageBlock[] = [];
   for (const url of candidates) {
@@ -95,7 +96,7 @@ export async function describeUploadedImages(uploadedFiles?: string[]): Promise<
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: VISION_MODEL,
         max_tokens: 512,
         messages: [
           {

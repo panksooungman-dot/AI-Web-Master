@@ -16,6 +16,12 @@ const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".sv
 const CODE_EXTENSIONS = new Set([
   ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".go", ".rb", ".php", ".c", ".cpp", ".cs",
   ".css", ".scss", ".html", ".json", ".md", ".yml", ".yaml", ".sh", ".sql", ".vue", ".swift", ".kt",
+  // .txt/.csv는 순수 텍스트지만 이 목록에 없어 첨부해도 텍스트로 읽히지 않고 바이너리 URL로만
+  // 저장되고 있었다 — app/developer/inquiries/new/page.tsx의 ACCEPTED_EXTENSIONS는 이미 이
+  // 둘을 "텍스트 파일"로 안내하고 있고, lib/inquiries/extractContact.ts(파일에서 자동
+  // 채우기)·AI Analysis 프롬프트 둘 다 텍스트 내용이 있어야만 동작하므로 함께 추가한다
+  // (2026-09-12 발견).
+  ".txt", ".csv",
 ]);
 
 const MAX_BINARY_BYTES = 20 * 1024 * 1024; // 20MB — 관리자 폼(ACCEPTED_EXTENSIONS)과 동일한 상한

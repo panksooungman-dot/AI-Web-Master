@@ -90,7 +90,16 @@ interface EditForm {
   budget: string;
   siteType: string;
   requirements: string;
+  // 2026-09-12 — Missing Items(AI 분석 카드) 중 초기 접수 이후에는 이 화면에서 채울 방법이
+  // 아예 없던 3개 텍스트 항목. 줄바꿈/쉼표로 구분된 문자열로 편집하고 저장 시 배열로 변환한다
+  // (회사 로고는 파일 업로드라 별도 상태로 관리 — logoFile 등 참고).
+  referenceUrls: string;
+  brandColor: string;
+  domain: string;
 }
+
+const BRAND_COLOR_SURVEY_KEY = "브랜드컬러";
+const DOMAIN_SURVEY_KEY = "도메인";
 
 export default function InquiryDetailPage() {
   const params = useParams<{ id: string }>();
@@ -101,6 +110,9 @@ export default function InquiryDetailPage() {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -358,6 +370,8 @@ export default function InquiryDetailPage() {
 
   function startEdit() {
     if (!inquiry) return;
+    const brandColor = inquiry.survey?.[BRAND_COLOR_SURVEY_KEY];
+    const domain = inquiry.survey?.[DOMAIN_SURVEY_KEY];
     setEditForm({
       companyName: inquiry.companyName,
       contactName: inquiry.contactName,
@@ -367,8 +381,13 @@ export default function InquiryDetailPage() {
       budget: inquiry.budget ?? "",
       siteType: inquiry.siteType,
       requirements: inquiry.requirements,
+      referenceUrls: (inquiry.referenceUrls ?? []).join("\n"),
+      brandColor: typeof brandColor === "string" ? brandColor : "",
+      domain: typeof domain === "string" ? domain : "",
     });
     setSaveError(null);
+    setLogoFile(null);
+    setLogoUploadError(null);
     setIsEditing(true);
   }
 
@@ -376,6 +395,8 @@ export default function InquiryDetailPage() {
     setIsEditing(false);
     setEditForm(null);
     setSaveError(null);
+    setLogoFile(null);
+    setLogoUploadError(null);
   }
 
   async function handleSaveEdit() {
@@ -393,7 +414,22 @@ export default function InquiryDetailPage() {
       const res = await fetch(`/api/inquiries/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          companyName: editForm.companyName,
+          contactName: editForm.contactName,
+          email: editForm.email,
+          phone: editForm.phone,
+          industry: editForm.industry,
+          budget: editForm.budget,
+          siteType: editForm.siteType,
+          requirements: editForm.requirements,
+          referenceUrls: editForm.referenceUrls
+            .split(/[\n,]+/)
+            .map((url) => url.trim())
+            .filter(Boolean),
+          brandColor: editForm.brandColor,
+          domain: editForm.domain,
+        }),
       });
       const data: { success: boolean; inquiry?: InquiryRecord; error?: string } = await res.json();
 
@@ -409,6 +445,51 @@ export default function InquiryDetailPage() {
       setSaveError("수정 중 오류가 발생했습니다.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  // "회사 로고"는 파일 첨부라 나머지 텍스트 필드(handleSaveEdit)와 달리 즉시 업로드한다 —
+  // score.ts의 company_logo 체크는 uploadedFiles 중 파일명에 "logo"가 포함된 항목만 인정하므로,
+  // 관리자가 고른 원본 파일명이 이를 만족하지 않으면 업로드 전에 "logo-" 접두사를 붙여 보정한다.
+  async function handleUploadLogo() {
+    if (!logoFile) return;
+
+    setIsUploadingLogo(true);
+    setLogoUploadError(null);
+
+    try {
+      const fileToUpload = /logo/i.test(logoFile.name)
+        ? logoFile
+        : new File([logoFile], `logo-${logoFile.name}`, { type: logoFile.type });
+
+      const uploadBody = new FormData();
+      uploadBody.append("file", fileToUpload);
+      const uploadRes = await fetch("/api/inquiries/upload", { method: "POST", body: uploadBody });
+      const uploadData: { success: boolean; url?: string; error?: string } = await uploadRes.json();
+
+      if (!uploadData.success || !uploadData.url) {
+        setLogoUploadError(uploadData.error ?? "로고 업로드에 실패했습니다.");
+        return;
+      }
+
+      const patchRes = await fetch(`/api/inquiries/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addUploadedFiles: [uploadData.url] }),
+      });
+      const patchData: { success: boolean; inquiry?: InquiryRecord; error?: string } = await patchRes.json();
+
+      if (!patchData.success || !patchData.inquiry) {
+        setLogoUploadError(patchData.error ?? "로고 등록에 실패했습니다.");
+        return;
+      }
+
+      setInquiry(patchData.inquiry);
+      setLogoFile(null);
+    } catch {
+      setLogoUploadError("로고 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingLogo(false);
     }
   }
 
@@ -759,8 +840,22 @@ export default function InquiryDetailPage() {
             {!isEditing && (
               <button
                 onClick={startEdit}
-                className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1.5 text-xs font-semibold transition-colors"
+                className="flex items-center gap-1.5 rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors"
               >
+                <svg
+                  className="h-3.5 w-3.5"
+                  aria-hidden
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"
+                  />
+                </svg>
                 수정
               </button>
             )}
@@ -846,6 +941,57 @@ export default function InquiryDetailPage() {
                 className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
               />
             </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">브랜드 컬러</span>
+              <input
+                value={editForm.brandColor}
+                onChange={(e) => setEditForm({ ...editForm, brandColor: e.target.value })}
+                placeholder="예: #005BAC"
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-gray-500">도메인</span>
+              <input
+                value={editForm.domain}
+                onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })}
+                placeholder="예: cnbiz.kr"
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-gray-500">참고 사이트(줄바꿈 또는 쉼표로 여러 개 입력)</span>
+              <textarea
+                value={editForm.referenceUrls}
+                onChange={(e) => setEditForm({ ...editForm, referenceUrls: e.target.value })}
+                rows={2}
+                placeholder={"https://example.com\nhttps://example2.com"}
+                className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200 outline-none focus:border-blue-600"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-1">
+            <span className="text-sm text-gray-500">회사 로고</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                className="text-sm text-gray-300"
+              />
+              <button
+                onClick={handleUploadLogo}
+                disabled={!logoFile || isUploadingLogo}
+                className="rounded bg-purple-700 hover:bg-purple-600 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {isUploadingLogo ? "업로드 중..." : "로고 업로드"}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              다른 텍스트 필드와 달리 선택 즉시 업로드되어 첨부파일에 추가됩니다(저장 버튼과 무관).
+            </p>
+            {logoUploadError && <StatusMessage tone="error" className="mt-1">{logoUploadError}</StatusMessage>}
           </div>
 
           {saveError && <StatusMessage tone="error" className="mt-4">{saveError}</StatusMessage>}

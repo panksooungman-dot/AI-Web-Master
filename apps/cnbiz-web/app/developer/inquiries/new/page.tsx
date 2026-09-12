@@ -175,10 +175,19 @@ export default function NewInquiryPage() {
   type UploadResponse =
     | { success: true; type: "image" | "file"; url: string; storage: "supabase" | "local" }
     | { success: true; type: "code"; filename: string; content: string }
+    | {
+        success: true;
+        type: "document";
+        url: string;
+        storage: "supabase" | "local";
+        filename: string;
+        content: string;
+      }
     | { success: false; error: string };
 
   /** 파일 하나를 /api/inquiries/upload로 업로드한다 — 이미지/일반 파일은 실제 URL을,
-   *  코드 파일은 텍스트 내용을 그대로 돌려받는다(lib/uploads/storage.ts·
+   *  코드 파일은 텍스트 내용을, DOCX/PPTX/XLSX/PDF("document")는 원본 URL과 추출된
+   *  텍스트를 함께 돌려받는다(lib/uploads/storage.ts·lib/uploads/officeText.ts·
    *  app/api/inquiries/upload/route.ts 참고). */
   async function uploadOne(file: File): Promise<UploadResponse> {
     const body = new FormData();
@@ -212,6 +221,11 @@ export default function NewInquiryPage() {
       }
       if (result.type === "code") {
         codeSnippets.push({ filename: result.filename, content: result.content });
+      } else if (result.type === "document") {
+        uploadedFiles.push(result.url);
+        if (result.content.trim()) {
+          codeSnippets.push({ filename: result.filename, content: result.content });
+        }
       } else {
         uploadedFiles.push(result.url);
       }
@@ -282,7 +296,7 @@ export default function NewInquiryPage() {
       } else if (data.simulated) {
         pushToast(
           "error",
-          "첨부파일에서 정보를 찾지 못했습니다(HWP·오피스 문서·PDF는 아직 자동 인식을 지원하지 않습니다). 직접 입력해주세요.",
+          "첨부파일에서 정보를 찾지 못했습니다(HWP는 아직 자동 인식을 지원하지 않습니다). 직접 입력해주세요.",
         );
       } else {
         pushToast("error", "첨부파일에서 정보를 찾지 못했습니다. 직접 입력해주세요.");
@@ -506,8 +520,8 @@ export default function NewInquiryPage() {
           )}
           {files.length > 0 && (
             <p className="text-xs text-gray-600 mt-1">
-              이미지·텍스트/코드 파일에서 회사명·담당자명·이메일을 찾아 빈 항목만 채웁니다.
-              HWP·오피스 문서·PDF는 아직 지원하지 않습니다.
+              이미지·텍스트/코드 파일·DOCX·PPTX·XLSX·PDF에서 회사명·담당자명·이메일을 찾아
+              빈 항목만 채웁니다. HWP는 아직 지원하지 않습니다.
             </p>
           )}
 

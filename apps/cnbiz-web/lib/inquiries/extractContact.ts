@@ -9,15 +9,16 @@ import {
 /**
  * "파일 안에 정보가 있을텐데 기재 않하고 파일로 대체" (2026-09-12) — 관리자가 첨부파일에
  * 이미 담겨 있는 회사명·담당자명·이메일을 다시 타이핑하지 않도록, 첨부파일 내용에서 이
- * 정보를 실제로 읽어 미리 채워주는 1단계 구현. lib/ai-analysis/vision.ts와 완전히 동일한
- * 원칙(ANTHROPIC_API_KEY 없거나 어떤 단계든 실패하면 항상 빈 결과 — Inquiry 등록 자체를
- * 막지 않고 관리자가 직접 입력하는 기존 흐름으로 조용히 폴백) — 새 Provider 추상화나 CLI
- * 변경 없이 이미지 인코딩 로직을 그대로 재사용한다.
+ * 정보를 실제로 읽어 미리 채워준다. lib/ai-analysis/vision.ts와 완전히 동일한 원칙
+ * (ANTHROPIC_API_KEY 없거나 어떤 단계든 실패하면 항상 빈 결과 — Inquiry 등록 자체를 막지
+ * 않고 관리자가 직접 입력하는 기존 흐름으로 조용히 폴백) — 새 Provider 추상화나 CLI 변경
+ * 없이 이미지 인코딩 로직을 그대로 재사용한다.
  *
- * 1단계 범위: 이미지(로고·명함 사진 등)와 순수 텍스트/코드 파일(codeSnippets — .txt/.md/.js
- * 등, app/api/inquiries/upload/route.ts가 이미 텍스트로 읽어 돌려주는 것들)만 다룬다.
- * HWP/DOCX/XLSX/PPTX/PDF는 서버가 아직 내용을 파싱하지 못해(바이너리 URL만 저장) 이번
- * 범위에 포함하지 않는다 — 파싱 라이브러리 추가가 필요한 2단계 작업으로 남겨둔다.
+ * 다루는 입력: 이미지(로고·명함 사진 등)와 텍스트로 읽히는 첨부파일 전부(codeSnippets —
+ * .txt/.md/.js 같은 순수 텍스트/코드 파일뿐 아니라, app/api/inquiries/upload/route.ts가
+ * lib/uploads/officeText.ts로 텍스트를 뽑아낸 DOCX/PPTX/XLSX/PDF도 동일한 codeSnippets
+ * 형태로 들어온다 — 이 모듈은 출처를 구분하지 않는다). HWP(.hwp/.hwpx)는 검증된 오픈소스
+ * 파서가 사실상 없어(후보 hwp.js는 0.0.3 초기 단계) 여전히 범위 밖이다(2026-09-12 확인).
  */
 
 export interface ExtractedContactInfo {

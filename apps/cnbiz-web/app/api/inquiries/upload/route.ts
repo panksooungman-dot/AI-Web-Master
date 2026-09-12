@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import path from "node:path";
 import { saveUploadedFile } from "@/lib/uploads/storage";
+import { extractOfficeText, OFFICE_TEXT_EXTENSIONS } from "@/lib/uploads/officeText";
 import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
 
 /**
@@ -70,6 +71,23 @@ export async function POST(request: Request) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const saved = await saveUploadedFile({ name: file.name, type: file.type, buffer });
+
+    // "2단계" — DOCX/PPTX/XLSX/PDF는 원본 파일도 그대로 보관하면서(제안서 원본을 나중에
+    // 열어볼 수 있어야 하므로) 동시에 텍스트도 추출해 uploadedFiles + codeSnippets 양쪽에
+    // 다 실릴 수 있게 한다(lib/uploads/officeText.ts). 추출 실패 시 content는 빈 문자열이라
+    // 클라이언트가 codeSnippets에 담지 않고 조용히 건너뛴다(업로드 자체는 항상 성공).
+    if (OFFICE_TEXT_EXTENSIONS.has(ext)) {
+      const content = await extractOfficeText(ext, buffer);
+      return NextResponse.json({
+        success: true,
+        type: "document",
+        url: saved.url,
+        storage: saved.storage,
+        filename: file.name,
+        content,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       type: IMAGE_EXTENSIONS.has(ext) ? "image" : "file",

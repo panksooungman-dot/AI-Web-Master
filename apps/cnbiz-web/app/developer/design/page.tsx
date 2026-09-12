@@ -113,8 +113,13 @@ function DesignRequirementsPageInner() {
     fetch("/api/design/requirements")
       .then((res) => res.json())
       .then((json: PlansResponse) => {
-        setPlans(json.plans ?? []);
-        setSelectedId((current) => current ?? json.plans?.[0]?.id ?? null);
+        const allPlans = json.plans ?? [];
+        setPlans(allPlans);
+        // ?inquiryId=로 들어온 경우, 이 의뢰와 무관한 시스템 전체의 최신 Design Plan을 자동
+        // 선택해 보여주면(예: 완전히 다른 프로젝트의 옛 기록) 이 의뢰의 결과인 것처럼 오인될
+        // 수 있다 — 이 의뢰에 연결된(input.projectId === inquiryId) 기록으로만 범위를 좁힌다.
+        const scoped = inquiryId ? allPlans.filter((plan) => plan.input.projectId === inquiryId) : allPlans;
+        setSelectedId((current) => current ?? scoped[0]?.id ?? null);
       })
       .catch(() => setLoadError("Design Plan 목록을 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -122,6 +127,10 @@ function DesignRequirementsPageInner() {
 
   useEffect(() => {
     queueMicrotask(loadPlans);
+    // loadPlans는 마운트 시 1회만 실행하면 된다. inquiryId(searchParams)는 페이지 진입 시점의
+    // 값으로 고정되어 이후 바뀌지 않으므로(위 inquiryId 로드 effect와 동일한 전제) loadPlans를
+    // 의존성으로 추가해 재실행할 필요가 없다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -198,6 +207,9 @@ function DesignRequirementsPageInner() {
   };
 
   const selected = plans.find((plan) => plan.id === selectedId) ?? null;
+  // History 목록도 위 자동 선택과 동일한 기준으로 범위를 좁힌다 — 그래야 목록에 뜨는 항목과
+  // 자동 선택되는 항목이 항상 일치하고, 의뢰와 무관한 옛 기록이 나열되지 않는다.
+  const historyPlans = inquiryId ? plans.filter((plan) => plan.input.projectId === inquiryId) : plans;
 
   return (
     <div>
@@ -300,7 +312,7 @@ function DesignRequirementsPageInner() {
         </Card>
 
         <Card
-          title="History"
+          title={linkedInquiry ? `History (${linkedInquiry.companyName})` : "History"}
           actions={
             <button onClick={loadPlans} className="text-xs text-blue-400 hover:underline">
               Refresh
@@ -311,11 +323,15 @@ function DesignRequirementsPageInner() {
             <LoadingText />
           ) : loadError ? (
             <StatusMessage tone="error">{loadError}</StatusMessage>
-          ) : plans.length === 0 ? (
-            <p className="text-sm text-gray-500">아직 생성된 Design Plan이 없습니다.</p>
+          ) : historyPlans.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              {linkedInquiry
+                ? "이 의뢰로 아직 생성된 Design Plan이 없습니다. 위에서 Generate를 눌러 만들어보세요."
+                : "아직 생성된 Design Plan이 없습니다."}
+            </p>
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-              {plans.map((plan) => (
+              {historyPlans.map((plan) => (
                 <li key={plan.id}>
                   <button
                     onClick={() => setSelectedId(plan.id)}

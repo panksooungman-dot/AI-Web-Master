@@ -70,7 +70,43 @@
   `NEXT_PUBLIC_SITE_URL` 설정
 - 배포 대상(Vercel 등) 확정 및 Git Commit/Push는 리포지토리 정책상 사용자 승인 후 진행
 
-## 2026-09-08 (5)
+---
+
+## 2026-09-12 (2)
+
+### 수정 (Fixed)
+
+- **`/developer/design?inquiryId=...` — 의뢰와 무관한 시스템 전체의 최신 Design Plan이
+  자동으로 표시되던 버그 수정**: 2026-09-12 이전 세션에서 "Design 시작" 버튼(의뢰 상세
+  페이지)이 `?inquiryId=`로 이 화면에 진입하면 회사명·요구사항 등을 미리 채워주도록
+  구현했으나, 실제로 새 의뢰(사색찬미한정식)로 시도해 보니 폼은 정확히 채워지는 반면 그
+  아래 History·Requirement Analysis·Feature List·Site Map·User Flow·Screen List에는
+  2026-09-07에 만든 완전히 무관한 "테스트"(미용실 예약 사이트) 기록이 그대로 나타나,
+  마치 그것이 새 의뢰의 결과인 것처럼 보이는 문제를 실사용 중 발견(사용자 스크린샷으로
+  재현 확인). 원인은 `app/developer/design/page.tsx`의 `loadPlans()`가 `?inquiryId=` 유무와
+  무관하게 항상 시스템 전체에서 가장 최근에 생성된 Design Plan(`json.plans[0]`)을 자동
+  선택하고, History 목록도 전체 목록을 그대로 나열하고 있었기 때문 — Design Plan 생성 시
+  `input.projectId`에 연결된 의뢰 id가 이미 저장되고 있었음에도(`app/api/design/
+  requirements/route.ts`) 이 화면이 그 값을 전혀 활용하지 않았다
+  - `app/developer/design/page.tsx` — `loadPlans()`의 자동 선택과 History 목록 렌더링을
+    `inquiryId`가 있을 때 `plan.input.projectId === inquiryId`로 필터링한 범위로 한정.
+    의뢰와 무관하게(쿼리 파라미터 없이) 진입하는 기존 사용 방식은 그대로 전체 목록을
+    보여줌(회귀 없음). 이 의뢰로 아직 생성된 기록이 없으면 "이 의뢰로 아직 생성된 Design
+    Plan이 없습니다. 위에서 Generate를 눌러 만들어보세요."로 명확히 안내
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors — `loadPlans`가 `inquiryId`를
+  참조하게 되며 새로 발생한 `react-hooks/exhaustive-deps` 경고 1건은 같은 파일의 기존
+  관례(inquiryId는 진입 시 1회만 반영)와 동일한 사유로 `eslint-disable-next-line` 처리),
+  `npm run build` 통과(변경 없음, 90여 개 라우트 정상 생성)
+- `npx vitest run tests/design`(31 files, 260 tests 중 259 통과 — 실패 1건은
+  `tests/design/review-registry.test.ts`의 같은 밀리초 `createdAt`/`updatedAt` 비교
+  타이밍 플레이크로, `git stash`로 이번 변경을 제거한 상태에서도 동일하게 재현되어 무관함을
+  확인. `docs/01_PMO/CHANGELOG.md`에 여러 차례 이미 문서화된 것과 동일 계열)
+- 이 실행 환경에서는 실제 로그인 세션으로 재현 검증까지는 하지 못했다(개발 서버·로그인
+  계정 구성 없이 코드 레벨로만 원인 규명·수정) — 사용자가 프로덕션(cnbiz.kr)에서 직접
+  재확인 필요
 
 ### 추가 (Added)
 

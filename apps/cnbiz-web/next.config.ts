@@ -57,6 +57,17 @@ const CLI_TRACE_INCLUDES = [
   ...CLI_RUNTIME_DEPS.map((dep) => `../../node_modules/${dep}/**/*`),
 ];
 
+// lib/uploads/officeText.ts의 extractPdfText()가 pdfjs-dist의 표준 폰트/CMap 데이터를
+// require.resolve()로 찾은 런타임 경로에서 직접 fs.readFile()로 읽는다 — 정적 import가
+// 아니라 문자열 조합으로 만든 경로라 파일 트레이싱이 스스로 발견하지 못한다(CLI dist가
+// 겪었던 것과 동일한 종류의 문제). 빠지면 표준 폰트 글리프 폭을 못 구해 pdfjs가 텍스트를
+// 조용히 잘라내거나(2026-09-12 로컬 재현), 한글처럼 CID 폰트를 쓰는 PDF의 텍스트가 깨진다.
+const PDFJS_TRACE_INCLUDES = [
+  "../../node_modules/pdfjs-dist/standard_fonts/**/*",
+  "../../node_modules/pdfjs-dist/cmaps/**/*",
+  "../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+];
+
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@cnbiz/design-system",
@@ -107,6 +118,7 @@ const nextConfig: NextConfig = {
     "/api/metrics": CLI_TRACE_INCLUDES,
     // lib/marketplace/registry.ts shells out to `... dist/index.js marketplace --json`
     "/api/marketplace/**": CLI_TRACE_INCLUDES,
+    "/api/inquiries/upload": PDFJS_TRACE_INCLUDES,
   },
   async redirects() {
     return [{ source: "/request", destination: CNBIZ_AI_URL, permanent: true }];

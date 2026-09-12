@@ -94,7 +94,16 @@ export function validateInquiryInput(input: InquiryInput): InquiryValidationErro
     errors.phone = "올바른 연락처 형식이 아닙니다.";
   }
 
-  if (!input.requirements) errors.requirements = "요구사항 요약이 필요합니다.";
+  // app/developer/inquiries/new/page.tsx의 클라이언트 검증은 "문의 내용 또는 첨부파일 중
+  // 하나는 필수"라고 이미 안내하고 있었는데, 이 함수는 requirements를 무조건 요구해 파일만
+  // 첨부하고 제출하면 서버에서 다시 막히는 불일치가 있었다(2026-09-12 실사용 리포트) —
+  // generateAnalysis()(lib/ai-analysis/analysis.ts)는 requirements가 비어 있어도 첨부
+  // 이미지·코드 파일로 분석을 이어가도록 이미 폴백 문구를 갖추고 있어, 첨부가 있으면
+  // requirements 없이도 안전하게 파이프라인을 시작할 수 있다.
+  const hasAttachment = (input.uploadedFiles?.length ?? 0) > 0 || (input.codeSnippets?.length ?? 0) > 0;
+  if (!input.requirements && !hasAttachment) {
+    errors.requirements = "문의 내용 또는 첨부파일 중 하나는 필수입니다.";
+  }
 
   return errors;
 }

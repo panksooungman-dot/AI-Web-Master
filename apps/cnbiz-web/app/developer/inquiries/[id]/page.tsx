@@ -1719,6 +1719,21 @@ export default function InquiryDetailPage() {
         )}
       </Card>
 
+      <Card title="Design 자동화" className="mb-6">
+        <p className="text-gray-500 text-sm mb-3">
+          Storyboard·Wireframe·Prototype 등 화면 디자인을 만드는 별도 체인입니다. 지금까지는 이
+          의뢰 정보와 연결되지 않아 회사명·요구사항을 매번 다시 입력해야 했습니다 — 아래 버튼을
+          누르면 이 의뢰의 회사명·서비스 유형·상담 요약·브랜드 컬러·도메인·참고 사이트를 미리
+          채운 상태로 Design Plan 생성 화면으로 이동합니다(그 자리에서 자유롭게 수정 가능).
+        </p>
+        <Link
+          href={`/developer/design?inquiryId=${inquiry.id}`}
+          className="inline-block rounded bg-green-700 hover:bg-green-600 px-3 py-1.5 text-xs font-semibold transition-colors"
+        >
+          Design 시작 (Storyboard 만들기) →
+        </Link>
+      </Card>
+
       <Card title="파이프라인 진행 상황" className="mb-6">
         <div className="flex flex-col gap-4 text-sm">
           <div className="flex flex-wrap items-center gap-3">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -8,15 +9,58 @@ import { DesignChainStepper } from "@/components/developer/design/DesignChainSte
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import Link from "next/link";
 import type { DesignPlanRecord } from "@/lib/design/types";
+import type { InquiryRecord } from "@/lib/inquiries/types";
+import { BRAND_COLOR_SURVEY_KEY, DOMAIN_SURVEY_KEY } from "@/lib/inquiries/editPatch";
+import { WEBSITE_TYPES } from "@/lib/websites/types";
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
 }
 
+/**
+ * Inquiry의 상담 요약(requirements)에, 그 화면에서만 확인 가능한 브랜드 컬러·도메인·참고 사이트를
+ * 덧붙인다 — Design Plan 생성 AI는 이 자유 텍스트(customerRequirements)만 읽으므로, 구조화된
+ * 필드로 따로 넘기는 대신 여기서 한 번만 합쳐서 전달한다. 값이 없는 항목은 줄 자체를 만들지
+ * 않는다(지어내지 않음).
+ */
+function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
+  const lines = [inquiry.requirements.trim()];
+
+  const brandColor = inquiry.survey?.[BRAND_COLOR_SURVEY_KEY];
+  if (typeof brandColor === "string" && brandColor.trim()) {
+    lines.push(`브랜드 컬러: ${brandColor.trim()}`);
+  }
+
+  const domain = inquiry.survey?.[DOMAIN_SURVEY_KEY];
+  if (typeof domain === "string" && domain.trim()) {
+    lines.push(`도메인: ${domain.trim()}`);
+  }
+
+  if (inquiry.referenceUrls && inquiry.referenceUrls.length > 0) {
+    lines.push(`참고 사이트: ${inquiry.referenceUrls.join(", ")}`);
+  }
+
+  return lines.filter(Boolean).join("\n");
+}
+
 const inputClass =
   "w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500";
 
+// useSearchParams()(?inquiryId= 읽기용)는 Suspense 경계 없이 쓰면 정적 생성이 실패한다
+// (Next.js "should be wrapped in a suspense boundary") — 실제 폼은 그대로 두고 얇은 래퍼만 추가.
 export default function DesignRequirementsPage() {
+  return (
+    <Suspense fallback={<LoadingText />}>
+      <DesignRequirementsPageInner />
+    </Suspense>
+  );
+}
+
+function DesignRequirementsPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const inquiryId = searchParams.get("inquiryId");
+
   const [plans, setPlans] = useState<DesignPlanRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -29,6 +73,38 @@ export default function DesignRequirementsPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // ?inquiryId=로 들어오면 그 의뢰의 정보로 폼을 미리 채운다(2026-09-12 — Design 체인이 의뢰
+  // 정보와 전혀 연결되지 않아 매번 재입력해야 한다는 지적). 채워진 값은 여전히 자유롭게 수정
+  // 가능하고, projectId로 원본 의뢰를 함께 기록해 어느 의뢰에서 시작됐는지 추적 가능하게 한다.
+  const [linkedInquiry, setLinkedInquiry] = useState<{ id: string; companyName: string } | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [isAutoContinuing, setIsAutoContinuing] = useState(false);
+  const [autoContinueError, setAutoContinueError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!inquiryId) return;
+
+    fetch(`/api/inquiries/${inquiryId}`)
+      .then((res) => res.json())
+      .then((json: { inquiry?: InquiryRecord; error?: string }) => {
+        if (!json.inquiry) {
+          setLinkError(json.error ?? "의뢰를 불러오지 못했습니다.");
+          return;
+        }
+        const inquiry = json.inquiry;
+        const typeLabel = WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType;
+
+        setProjectName(inquiry.companyName || inquiry.contactName);
+        setProjectType(typeLabel);
+        setRequirements(buildRequirementsFromInquiry(inquiry));
+        setLinkedInquiry({ id: inquiry.id, companyName: inquiry.companyName || inquiry.contactName });
+      })
+      .catch(() => setLinkError("의뢰를 불러오지 못했습니다."));
+    // inquiryId는 페이지 진입 시 한 번만 반영하면 되고, 이후 admin이 폼을 수정해도 다시
+    // 덮어쓰지 않아야 하므로 의도적으로 한 번만 실행한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadPlans = () => {
     setIsLoading(true);
@@ -48,6 +124,37 @@ export default function DesignRequirementsPage() {
     queueMicrotask(loadPlans);
   }, []);
 
+  /**
+   * Design Plan에 이어 Storyboard까지 생성하고 그 화면으로 이동한다. 실패해도 방금 만든 Design
+   * Plan은 이미 저장되어 있으므로 되돌리지 않고, 이 화면에 에러만 표시해 admin이 Storyboard
+   * 화면에서 수동으로 다시 시도할 수 있게 한다(자동 연결이 실패했다고 이미 만든 결과물까지
+   * 잃게 하지 않는다).
+   */
+  const autoGenerateStoryboard = async (planId: string) => {
+    setIsAutoContinuing(true);
+    setAutoContinueError(null);
+
+    try {
+      const res = await fetch("/api/design/storyboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+      const json = (await res.json()) as { success: boolean; error?: string };
+
+      if (!json.success) {
+        setAutoContinueError(json.error ?? "Storyboard 자동 생성에 실패했습니다.");
+        return;
+      }
+
+      router.push("/developer/design/storyboard");
+    } catch {
+      setAutoContinueError("Storyboard 자동 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsAutoContinuing(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -57,7 +164,13 @@ export default function DesignRequirementsPage() {
       const res = await fetch("/api/design/requirements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectName, projectType, requirements, targetUsers }),
+        body: JSON.stringify({
+          projectName,
+          projectType,
+          requirements,
+          targetUsers,
+          ...(linkedInquiry ? { projectId: linkedInquiry.id } : {}),
+        }),
       });
       const json = (await res.json()) as { success: boolean; plan?: DesignPlanRecord; error?: string };
 
@@ -68,6 +181,15 @@ export default function DesignRequirementsPage() {
 
       setPlans((prev) => [json.plan!, ...prev]);
       setSelectedId(json.plan.id);
+
+      // 의뢰에서 시작된 흐름이면 Storyboard까지 이어서 만든다("Design 시작" 버튼 하나로
+      // 처음부터 다시 입력하지 않고 Storyboard까지 도달하게 해달라는 요청, 2026-09-12).
+      // 일반적인(의뢰와 무관한) 수동 생성까지 확장하지는 않는다 — 그 경우엔 admin이 이
+      // 화면에 남아 결과를 먼저 검토하고 싶을 수 있어, 기존처럼 수동으로 다음 단계로
+      // 넘어가는 흐름을 유지한다.
+      if (linkedInquiry) {
+        await autoGenerateStoryboard(json.plan.id);
+      }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "요청 실패");
     } finally {
@@ -100,6 +222,14 @@ export default function DesignRequirementsPage() {
           </div>
         }
       />
+
+      {linkedInquiry && (
+        <StatusMessage tone="success" className="mb-6">
+          🔗 의뢰 &quot;{linkedInquiry.companyName}&quot;의 정보로 아래 항목을 미리 채웠습니다. 필요하면
+          자유롭게 수정한 뒤 생성하세요.
+        </StatusMessage>
+      )}
+      {linkError && <StatusMessage tone="error" className="mb-6">{linkError}</StatusMessage>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card title="Generate Design Plan">
@@ -146,13 +276,25 @@ export default function DesignRequirementsPage() {
             </div>
 
             {submitError && <StatusMessage tone="error">{submitError}</StatusMessage>}
+            {autoContinueError && (
+              <StatusMessage tone="error">
+                Design Plan은 생성됐지만 Storyboard 자동 생성에 실패했습니다: {autoContinueError} — 아래
+                History에서 방금 만든 Plan을 확인하고, Storyboard 화면에서 직접 생성해주세요.
+              </StatusMessage>
+            )}
 
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting || !projectName || !requirements}
+              disabled={isSubmitting || isAutoContinuing || !projectName || !requirements}
               className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? "Generating..." : "Generate"}
+              {isSubmitting
+                ? "Generating..."
+                : isAutoContinuing
+                  ? "Storyboard로 이어서 생성 중..."
+                  : linkedInquiry
+                    ? "Generate → Storyboard로 자동 이동"
+                    : "Generate"}
             </button>
           </div>
         </Card>

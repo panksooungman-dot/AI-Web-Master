@@ -3,6 +3,8 @@ import path from "node:path";
 import { saveUploadedFile } from "@/lib/uploads/storage";
 import { extractOfficeText, OFFICE_TEXT_EXTENSIONS } from "@/lib/uploads/officeText";
 import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
+import { recordAuditEvent } from "@/lib/audit/log";
+import { getCurrentActorEmail } from "@/lib/audit/actor";
 
 /**
  * `/developer/inquiries/new`(관리자)와 공개 문의 폼(components/sections/ContactForm.tsx)이
@@ -96,6 +98,22 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[api/inquiries/upload] failed", error);
+    // 2026-09-12 실사용 버그 리포트 — DOCX 첨부가 "파일 업로드에 실패했습니다."로만 실패하고
+    // 실제 원인(예: Supabase Storage 업로드 거부)은 서버 콘솔 로그에만 남아 비개발자 관리자는
+    // 확인할 방법이 없었다. 다른 "말없이 실패하는 프로덕션 문제"와 동일한 해법(2026-08-26 (3)
+    // 참고) — Audit Log에 실제 사유를 남겨 /developer/errors에서 볼 수 있게 한다. 응답 전에
+    // await로 완료를 기다린다 — Vercel 함수는 응답 직후 인스턴스를 얼릴 수 있어, 기다리지
+    // 않으면 이 기록이 저장되기 전에 함수가 종료될 수 있다. 감사 로그 기록 자체가 실패해도
+    // catch로 흡수해 원래 500 응답을 가리지 않는다.
+    const detail = error instanceof Error ? `${error.message}` : String(error);
+    await recordAuditEvent({
+      action: "inquiry.upload_failed",
+      actor: await getCurrentActorEmail().catch(() => null),
+      success: false,
+      detail: `${file.name} (${ext || "no-ext"}, ${file.size}B): ${detail}`,
+    }).catch((auditError) => {
+      console.error("[api/inquiries/upload] audit log failed", auditError);
+    });
     return NextResponse.json({ success: false, error: "파일 업로드에 실패했습니다." }, { status: 500 });
   }
 }

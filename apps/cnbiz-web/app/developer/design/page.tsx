@@ -208,6 +208,14 @@ function DesignRequirementsPageInner() {
     }
   };
 
+  // 필수 항목(Project Name·Customer Requirements)이 비어있으면 버튼이 조용히 비활성화되는데,
+  // 특히 ?inquiryId= 자동 채움 시 원본 의뢰의 요구사항이 비어있으면 placeholder 예시 문구만
+  // 보이고 실제로는 빈 칸이라 사용자가 "버튼이 안 눌린다"고 오인하기 쉽다(2026-09-12 실사용
+  // 보고). 어떤 항목이 비었는지 명시적으로 안내한다.
+  const missingFields = [!projectName && "Project Name", !requirements && "Customer Requirements"].filter(
+    Boolean
+  ) as string[];
+
   const selected = plans.find((plan) => plan.id === selectedId) ?? null;
   // History 목록도 위 자동 선택과 동일한 기준으로 범위를 좁힌다 — 그래야 목록에 뜨는 항목과
   // 자동 선택되는 항목이 항상 일치하고, 의뢰와 무관한 옛 기록이 나열되지 않는다.
@@ -321,6 +329,12 @@ function DesignRequirementsPageInner() {
                 AI가 실제로 내용을 생성하는 중이라 최대 1~2분 정도 걸릴 수 있습니다. 이 화면을
                 벗어나지 말고 잠시 기다려 주세요 — 버튼을 여러 번 누르지 않아도 됩니다.
               </p>
+            )}
+            {!isSubmitting && !isAutoContinuing && missingFields.length > 0 && (
+              <StatusMessage tone="error">
+                {missingFields.join(", ")}이(가) 비어있어 생성할 수 없습니다 — 위 회색 예시 문구는
+                실제 입력값이 아닙니다. 직접 입력해주세요.
+              </StatusMessage>
             )}
           </div>
         </Card>

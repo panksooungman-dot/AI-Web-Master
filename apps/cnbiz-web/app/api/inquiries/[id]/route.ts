@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteInquiry, getInquiry, updateInquiry, updateInquiryStatus } from "@/lib/inquiries/registry";
 import { INQUIRY_STATUSES, type InquiryInput, type InquiryStatus } from "@/lib/inquiries/types";
+import { mergeSurveyPatch, mergeUploadedFiles, pickReferenceUrls } from "@/lib/inquiries/editPatch";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 
@@ -28,7 +29,9 @@ const EDITABLE_FIELDS = [
   "industry",
 ] as const satisfies readonly (keyof InquiryInput)[];
 
-type EditablePatch = Partial<Pick<InquiryInput, (typeof EDITABLE_FIELDS)[number]>>;
+type EditablePatch = Partial<
+  Pick<InquiryInput, (typeof EDITABLE_FIELDS)[number] | "referenceUrls" | "survey" | "uploadedFiles">
+>;
 
 function pickEditablePatch(body: Record<string, unknown>): EditablePatch {
   const patch: EditablePatch = {};
@@ -86,7 +89,21 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ success: true, inquiry: record });
   }
 
+  const current = await getInquiry(id);
+  if (!current) {
+    return NextResponse.json({ success: false, error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
+  }
+
   const patch = pickEditablePatch(body);
+
+  const referenceUrls = pickReferenceUrls(body);
+  if (referenceUrls !== undefined) patch.referenceUrls = referenceUrls;
+
+  const survey = mergeSurveyPatch(current.survey, body);
+  if (survey !== undefined) patch.survey = survey;
+
+  const uploadedFiles = mergeUploadedFiles(current.uploadedFiles, body);
+  if (uploadedFiles !== undefined) patch.uploadedFiles = uploadedFiles;
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ success: false, error: "수정할 필드가 없습니다." }, { status: 400 });

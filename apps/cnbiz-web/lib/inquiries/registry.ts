@@ -47,7 +47,20 @@ export async function createInquiry(
 export async function updateInquiry(
   id: string,
   patch: Partial<
-    Pick<InquiryInput, "companyName" | "contactName" | "email" | "phone" | "siteType" | "requirements" | "budget" | "industry">
+    Pick<
+      InquiryInput,
+      | "companyName"
+      | "contactName"
+      | "email"
+      | "phone"
+      | "siteType"
+      | "requirements"
+      | "budget"
+      | "industry"
+      | "referenceUrls"
+      | "survey"
+      | "uploadedFiles"
+    >
   >,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {

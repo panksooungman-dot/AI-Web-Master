@@ -24,6 +24,8 @@ export interface BuildWebsiteOptions {
   /** `--site-type` 원본 값. 목록에 없거나 생략되면 "website"(범용)로 폴백한다. */
   siteType?: string;
   inputs: WebsiteRawInputs;
+  /** 관리자가 지정한 브랜드 컬러(hex, `#RRGGBB`). 없거나 형식이 올바르지 않으면 siteType 기본 팔레트를 쓴다. */
+  primaryColor?: string;
   /**
    * Design 체인이 만든 DesignDocument. 주어지면 스캐폴딩 직후 React Generator로 변환해
    * 해당 페이지들을 덮어쓴다. 생략하면 기존 동작(고정 템플릿) 그대로다.
@@ -56,7 +58,7 @@ export async function buildWebsite(options: BuildWebsiteOptions): Promise<BuildW
   const siteType = resolveSiteType(options.siteType);
   const outDir = options.outDir ?? path.join(cwd, projectSlug);
 
-  const websiteInputs: WebsiteInputs = { ...inputs, projectSlug, siteType };
+  const websiteInputs: WebsiteInputs = { ...inputs, projectSlug, siteType, primaryColor: options.primaryColor };
 
   await ensureWebsiteAgents(cwd);
   await ensureWebsiteWorkflow(cwd);

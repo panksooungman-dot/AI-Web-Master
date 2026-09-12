@@ -3,6 +3,8 @@ import { resolveCliEntry, resolveCliWorkingDir, resolveGeneratedWebsitesDir } fr
 import { getAiJob } from "./registry";
 import { getWebsiteOrder, addWebsiteToOrder } from "@/lib/websiteOrders/registry";
 import { getClient } from "@/lib/clients/registry";
+import { getInquiry } from "@/lib/inquiries/registry";
+import { BRAND_COLOR_SURVEY_KEY } from "@/lib/inquiries/editPatch";
 import { createWebsiteRecord } from "@/lib/websites/registry";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 
@@ -56,6 +58,13 @@ export async function executeJob(jobId: string): Promise<void> {
   // 가질 수 있어(WebsiteOrderRecord.aiJobIds가 배열) 실행마다 고유 출력 폴더가 필요하다.
   const outDir = resolveGeneratedWebsitesDir(job.id);
 
+  // "의뢰 정보 수정"에서 입력한 브랜드 컬러(inquiry.survey)를 실제 생성에 반영한다 — 지금까지는
+  // Missing Items 체크에만 쓰이고 여기까지 전달되지 않아 입력해도 사이트 디자인이 그대로였다.
+  // 형식이 올바르지 않으면(자유 텍스트 등) CLI(website.ts)가 경고만 남기고 siteType 기본
+  // 팔레트로 폴백하므로 여기서는 값이 있는지만 확인한다.
+  const inquiry = await getInquiry(websiteOrder.inquiryId);
+  const brandColor = inquiry?.survey?.[BRAND_COLOR_SURVEY_KEY];
+
   const args = [
     `"${cliEntry}"`,
     "website",
@@ -67,6 +76,7 @@ export async function executeJob(jobId: string): Promise<void> {
     `--language "${language}"`,
     `--site-type "${siteType}"`,
     `--out "${outDir}"`,
+    ...(typeof brandColor === "string" && brandColor.trim() ? [`--color "${brandColor.trim()}"`] : []),
   ];
 
   const result = await execute(`node ${args.join(" ")}`, { cwd: resolveCliWorkingDir(), category: "development" });

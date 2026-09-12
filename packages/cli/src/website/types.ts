@@ -67,11 +67,39 @@ export const PALETTES: Record<WebsiteType, PaletteTokens> = Object.fromEntries(
   WEBSITE_TYPES.map((type) => [type, { ...BRAND_COLORS[type], ...NEUTRAL }])
 ) as Record<WebsiteType, PaletteTokens>;
 
+export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+/** hex 채널을 percent(0~1)만큼 어둡게 만든다 — primaryDark(호버 등)를 primary 오버라이드로부터 파생시키는 용도. */
+function darkenHex(hex: string, percent: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const scale = (channel: number) => Math.round(channel * (1 - percent)).toString(16).padStart(2, "0");
+  return `#${scale(r)}${scale(g)}${scale(b)}`;
+}
+
+/**
+ * siteType 기본 팔레트를 기준으로 하되, 유효한 hex(`#RRGGBB`) 브랜드 컬러가 주어지면 primary/
+ * primaryDark만 그 색으로 교체한다. secondary·accent·중립 색상은 그대로 둔다 — 실사용자가
+ * 브랜드 컬러 하나만 알려주는 경우가 대부분이라, 팔레트 전체를 재설계하지 않고 최소한만
+ * 바꾸는 쪽이 항상 안전하다. 형식이 올바르지 않으면(빈 문자열·"파란색" 같은 자유 텍스트 등)
+ * 조용히 무시하고 siteType 기본값을 그대로 쓴다 — 잘못된 값으로 생성 자체를 막지 않는다.
+ */
+export function resolvePalette(siteType: WebsiteType, primaryColorOverride?: string): PaletteTokens {
+  const base = PALETTES[siteType];
+  const trimmed = primaryColorOverride?.trim();
+  if (!trimmed || !HEX_COLOR_PATTERN.test(trimmed)) return base;
+
+  return { ...base, primary: trimmed, primaryDark: darkenHex(trimmed, 0.15) };
+}
+
 /** `ai website create`의 입력값 + 파생값(slug, 검증된 siteType)을 함께 담는 공용 타입.
  * website/content.ts·website/scaffold.ts·website/builder.ts가 이 하나의 타입을 공유한다. */
 export interface WebsiteInputs {
   projectName: string;
   projectSlug: string;
+  /** 관리자가 지정한 브랜드 컬러(hex). 없거나 형식이 올바르지 않으면 siteType 기본 팔레트를 쓴다. */
+  primaryColor?: string;
   businessType: string;
   targetAudience: string;
   brand: string;

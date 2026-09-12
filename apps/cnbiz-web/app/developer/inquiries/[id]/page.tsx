@@ -133,6 +133,8 @@ export default function InquiryDetailPage() {
   const [orderUpdateError, setOrderUpdateError] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [isGeneratingSpecification, setIsGeneratingSpecification] = useState(false);
@@ -482,6 +484,31 @@ export default function InquiryDetailPage() {
       setRunError("AI Job 실행 중 오류가 발생했습니다.");
     } finally {
       setRunningJobId(null);
+    }
+  }
+
+  // "새 AI Job 생성" — 이미 Success로 끝난 AiJob은 재실행 버튼이 없고(handleRunJob은 Success
+  // Job을 걸러냄), 생성된 산출물(outDir)도 os.tmpdir() 기준이라 서버리스 인스턴스가 재활용되면
+  // 사라진다(lib/paths/repoRoot.ts). GITHUB_TOKEN/VERCEL_TOKEN을 뒤늦게 설정한 경우처럼, 이미
+  // 끝난 주문을 다시 생성+배포하려면 새 AiJob을 만들어 처음부터 다시 실행해야 한다.
+  async function handleRegenerateWebsite() {
+    if (!websiteOrder) return;
+
+    setIsRegenerating(true);
+    setRegenerateError(null);
+
+    try {
+      const res = await fetch(`/api/website-orders/${websiteOrder.id}/regenerate`, { method: "POST" });
+      const data: { success: boolean; error?: string } = await res.json();
+      if (!data.success) {
+        setRegenerateError(data.error ?? "새 AI Job 생성에 실패했습니다.");
+        return;
+      }
+      load();
+    } catch {
+      setRegenerateError("새 AI Job 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsRegenerating(false);
     }
   }
 
@@ -1562,6 +1589,24 @@ export default function InquiryDetailPage() {
             </div>
           )}
           {runError && <StatusMessage tone="error">{runError}</StatusMessage>}
+
+          {websiteOrder && !aiJobs.some((job) => job.status === "Queued" || job.status === "Running") && (
+            <div>
+              <button
+                onClick={handleRegenerateWebsite}
+                disabled={isRegenerating}
+                className="rounded bg-purple-700 hover:bg-purple-600 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {isRegenerating ? "생성 중..." : "새 AI Job 생성 (재생성)"}
+              </button>
+              <p className="mt-1 text-[11px] text-gray-500">
+                배포 토큰(GITHUB_TOKEN/VERCEL_TOKEN)을 새로 설정했거나, 옛 산출물이 만료되어 다시
+                생성·배포해야 할 때 사용합니다. Queued로 생성되며, 목록에 뜨면 &ldquo;승인 및
+                생성&rdquo;을 눌러 실행하세요.
+              </p>
+              {regenerateError && <StatusMessage tone="error" className="mt-2">{regenerateError}</StatusMessage>}
+            </div>
+          )}
         </div>
       </Card>
 

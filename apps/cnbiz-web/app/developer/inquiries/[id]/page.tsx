@@ -140,6 +140,9 @@ export default function InquiryDetailPage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [isGeneratingLaunchRequest, setIsGeneratingLaunchRequest] = useState(false);
   const [launchRequestError, setLaunchRequestError] = useState<string | null>(null);
+  // 계약서/제안서 카드와 시각적으로 통일하기 위해 항목 선택 체크박스는 기본적으로 접어두고,
+  // "새 정보 요청서 작성" 클릭 시에만 펼친다(2026-09-12 — "제안서처럼만 만들어달라"는 피드백).
+  const [showLaunchRequestPicker, setShowLaunchRequestPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -822,6 +825,13 @@ export default function InquiryDetailPage() {
     );
   }
 
+  function toggleLaunchRequestPicker() {
+    if (!showLaunchRequestPicker && selectedServiceIds.length === 0 && inquiry) {
+      setSelectedServiceIds(getRecommendedServiceIds(inquiry.siteType));
+    }
+    setShowLaunchRequestPicker((prev) => !prev);
+  }
+
   // 정보 요청서 생성 — AI 생성 체인(견적서~제안서)과 달리 AI를 호출하지 않는다. 관리자가 위
   // 체크박스로 고른 서비스만 lib/launchRequests에 저장하고, 실제 API 키 입력·전달은 별도 공개
   // 페이지(app/launch-request/[id])에서 의뢰자가 직접 수행한다(서버에는 저장하지 않음).
@@ -851,6 +861,7 @@ export default function InquiryDetailPage() {
 
       setLaunchRequests((prev) => [data.launchRequest!, ...prev]);
       setSelectedServiceIds([]);
+      setShowLaunchRequestPicker(false);
     } catch {
       setLaunchRequestError("정보 요청서 생성 중 오류가 발생했습니다.");
     } finally {
@@ -1548,60 +1559,75 @@ export default function InquiryDetailPage() {
         {proposalError && <StatusMessage tone="error" className="mt-3">{proposalError}</StatusMessage>}
       </Card>
 
-      <Card title="정보 요청서" className="mb-6">
-        <p className="text-gray-500 text-sm mb-3">
-          개발 착수 후 의뢰자에게 계정 생성·API 키 발급을 요청해야 할 항목을 선택하세요. 선택한
-          항목만 정보 요청서에 포함되며, 실제 키 값은 의뢰자가 아래에서 생성되는 공개 링크에서
-          직접 입력하고 이 시스템에는 저장되지 않습니다.
-        </p>
-        <p className="text-xs text-gray-600 mb-3">
-          {inquiry.siteType
-            ? `"${WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType}" 유형에 맞춰 아래 항목이 미리 체크되어 있습니다 —`
-            : "아래 항목은 기본값(도메인)만 미리 체크되어 있습니다 —"}{" "}
-          실제 필요 여부는 프로젝트마다 다르므로 자유롭게 추가·해제 후 생성하세요.{" "}
+      <Card
+        title="정보 요청서"
+        className="mb-6"
+        actions={
           <button
-            type="button"
-            onClick={() => setSelectedServiceIds(getRecommendedServiceIds(inquiry.siteType))}
-            className="text-purple-400 hover:underline"
+            onClick={toggleLaunchRequestPicker}
+            className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors"
           >
-            추천 항목으로 초기화
+            {showLaunchRequestPicker ? "취소" : "새 정보 요청서 작성"}
           </button>
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-          {LAUNCH_REQUEST_CATALOG.map((item) => (
-            <label
-              key={item.id}
-              className="flex items-start gap-2 rounded border border-gray-800 bg-gray-950 px-3 py-2 text-sm cursor-pointer hover:border-purple-600 transition-colors"
+        }
+      >
+        {showLaunchRequestPicker ? (
+          <>
+            <p className="text-gray-500 text-sm mb-3">
+              개발 착수 후 의뢰자에게 계정 생성·API 키 발급을 요청해야 할 항목을 선택하세요. 선택한
+              항목만 정보 요청서에 포함되며, 실제 키 값은 의뢰자가 아래에서 생성되는 공개 링크에서
+              직접 입력하고 이 시스템에는 저장되지 않습니다.
+            </p>
+            <p className="text-xs text-gray-600 mb-3">
+              {inquiry.siteType
+                ? `"${WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType}" 유형에 맞춰 아래 항목이 미리 체크되어 있습니다 —`
+                : "아래 항목은 기본값(도메인)만 미리 체크되어 있습니다 —"}{" "}
+              실제 필요 여부는 프로젝트마다 다르므로 자유롭게 추가·해제 후 생성하세요.{" "}
+              <button
+                type="button"
+                onClick={() => setSelectedServiceIds(getRecommendedServiceIds(inquiry.siteType))}
+                className="text-purple-400 hover:underline"
+              >
+                추천 항목으로 초기화
+              </button>
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+              {LAUNCH_REQUEST_CATALOG.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-start gap-2 rounded border border-gray-800 bg-gray-950 px-3 py-2 text-sm cursor-pointer hover:border-purple-600 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedServiceIds.includes(item.id)}
+                    onChange={() => toggleLaunchRequestService(item.id)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-semibold text-gray-200">
+                      {item.icon} {item.name}
+                    </span>
+                    <Badge tone={item.defaultRequired ? "warning" : "neutral"} className="ml-2">
+                      {item.defaultRequired ? "필수" : "선택"}
+                    </Badge>
+                    <span className="block text-xs text-gray-500 mt-0.5">{item.summary}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={handleGenerateLaunchRequest}
+              disabled={selectedServiceIds.length === 0 || isGeneratingLaunchRequest}
+              className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
             >
-              <input
-                type="checkbox"
-                checked={selectedServiceIds.includes(item.id)}
-                onChange={() => toggleLaunchRequestService(item.id)}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-semibold text-gray-200">
-                  {item.icon} {item.name}
-                </span>
-                <Badge tone={item.defaultRequired ? "warning" : "neutral"} className="ml-2">
-                  {item.defaultRequired ? "필수" : "선택"}
-                </Badge>
-                <span className="block text-xs text-gray-500 mt-0.5">{item.summary}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <button
-          onClick={handleGenerateLaunchRequest}
-          disabled={selectedServiceIds.length === 0 || isGeneratingLaunchRequest}
-          className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-        >
-          {isGeneratingLaunchRequest ? "생성 중..." : `정보 요청서 생성 (${selectedServiceIds.length}개 항목)`}
-        </button>
-        {launchRequestError && <StatusMessage tone="error" className="mt-3">{launchRequestError}</StatusMessage>}
-
-        {launchRequests.length > 0 && (
-          <div className="flex flex-col gap-2 mt-4">
+              {isGeneratingLaunchRequest ? "생성 중..." : `정보 요청서 생성 (${selectedServiceIds.length}개 항목)`}
+            </button>
+            {launchRequestError && <StatusMessage tone="error" className="mt-3">{launchRequestError}</StatusMessage>}
+          </>
+        ) : launchRequests.length === 0 ? (
+          <p className="text-gray-500 text-sm">아직 생성된 정보 요청서가 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
             {launchRequests.map((lr) => (
               <Link
                 key={lr.id}

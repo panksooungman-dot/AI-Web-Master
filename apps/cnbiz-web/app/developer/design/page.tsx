@@ -113,8 +113,13 @@ function DesignRequirementsPageInner() {
     fetch("/api/design/requirements")
       .then((res) => res.json())
       .then((json: PlansResponse) => {
-        setPlans(json.plans ?? []);
-        setSelectedId((current) => current ?? json.plans?.[0]?.id ?? null);
+        const allPlans = json.plans ?? [];
+        setPlans(allPlans);
+        // ?inquiryId=로 들어온 경우, 이 의뢰와 무관한 시스템 전체의 최신 Design Plan을 자동
+        // 선택해 보여주면(예: 완전히 다른 프로젝트의 옛 기록) 이 의뢰의 결과인 것처럼 오인될
+        // 수 있다 — 이 의뢰에 연결된(input.projectId === inquiryId) 기록으로만 범위를 좁힌다.
+        const scoped = inquiryId ? allPlans.filter((plan) => plan.input.projectId === inquiryId) : allPlans;
+        setSelectedId((current) => current ?? scoped[0]?.id ?? null);
       })
       .catch(() => setLoadError("Design Plan 목록을 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -122,6 +127,10 @@ function DesignRequirementsPageInner() {
 
   useEffect(() => {
     queueMicrotask(loadPlans);
+    // loadPlans는 마운트 시 1회만 실행하면 된다. inquiryId(searchParams)는 페이지 진입 시점의
+    // 값으로 고정되어 이후 바뀌지 않으므로(위 inquiryId 로드 effect와 동일한 전제) loadPlans를
+    // 의존성으로 추가해 재실행할 필요가 없다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -198,6 +207,9 @@ function DesignRequirementsPageInner() {
   };
 
   const selected = plans.find((plan) => plan.id === selectedId) ?? null;
+  // History 목록도 위 자동 선택과 동일한 기준으로 범위를 좁힌다 — 그래야 목록에 뜨는 항목과
+  // 자동 선택되는 항목이 항상 일치하고, 의뢰와 무관한 옛 기록이 나열되지 않는다.
+  const historyPlans = inquiryId ? plans.filter((plan) => plan.input.projectId === inquiryId) : plans;
 
   return (
     <div>
@@ -286,8 +298,14 @@ function DesignRequirementsPageInner() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || isAutoContinuing || !projectName || !requirements}
-              className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
             >
+              {(isSubmitting || isAutoContinuing) && (
+                <span
+                  aria-hidden
+                  className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                />
+              )}
               {isSubmitting
                 ? "Generating..."
                 : isAutoContinuing
@@ -296,11 +314,17 @@ function DesignRequirementsPageInner() {
                     ? "Generate → Storyboard로 자동 이동"
                     : "Generate"}
             </button>
+            {(isSubmitting || isAutoContinuing) && (
+              <p className="text-xs text-gray-500">
+                AI가 실제로 내용을 생성하는 중이라 최대 1~2분 정도 걸릴 수 있습니다. 이 화면을
+                벗어나지 말고 잠시 기다려 주세요 — 버튼을 여러 번 누르지 않아도 됩니다.
+              </p>
+            )}
           </div>
         </Card>
 
         <Card
-          title="History"
+          title={linkedInquiry ? `History (${linkedInquiry.companyName})` : "History"}
           actions={
             <button onClick={loadPlans} className="text-xs text-blue-400 hover:underline">
               Refresh
@@ -311,11 +335,15 @@ function DesignRequirementsPageInner() {
             <LoadingText />
           ) : loadError ? (
             <StatusMessage tone="error">{loadError}</StatusMessage>
-          ) : plans.length === 0 ? (
-            <p className="text-sm text-gray-500">아직 생성된 Design Plan이 없습니다.</p>
+          ) : historyPlans.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              {linkedInquiry
+                ? "이 의뢰로 아직 생성된 Design Plan이 없습니다. 위에서 Generate를 눌러 만들어보세요."
+                : "아직 생성된 Design Plan이 없습니다."}
+            </p>
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-              {plans.map((plan) => (
+              {historyPlans.map((plan) => (
                 <li key={plan.id}>
                   <button
                     onClick={() => setSelectedId(plan.id)}

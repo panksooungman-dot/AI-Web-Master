@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@source "../../../packages/**/*.{ts,tsx}";
+
+/*
+ * 사색찬미한정식 브랜드 톤(기획서 4장): 아이보리·베이지·브라운, 정갈하고 따뜻한 한식당 감성.
+ * @cnbiz/ui의 Button/Card는 --color-primary 등 시맨틱 토큰만 참조하므로, CNBIZ 블루 팔레트
+ * (@cnbiz/design-system)를 가져오지 않고 이 프로젝트 고유 팔레트로 직접 정의한다.
+ */
+:root {
+  --background: #fdfaf5;
+  --foreground: #2b2118;
+  --primary: #8a5a34;
+  --primary-dark: #6b4423;
+  --secondary: #efe3d1;
+  --muted: #7a6a58;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}

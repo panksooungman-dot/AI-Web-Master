@@ -4,7 +4,109 @@
 
 ---
 
-## 2026-09-08 (5)
+## 2026-09-12
+
+### 추가 (Added)
+
+- **`apps/saseokchanmi-web` 신규 — 사색찬미한정식(파주 광탄 한정식 전문점) 공식 홈페이지**:
+  사용자가 전달한 별도 기획서(`사색찬미한정식 Claude Code 개발용 홈페이지 기획서 & 화면
+  스토리보드 v2`, .docx)를 기준으로 완전히 새로운 클라이언트 프로젝트를 구현. CNBIZ와 무관한
+  별도 업체이므로 리포지토리 신규 프로젝트 추가 규칙(`apps/<project-name>/` 아래 생성,
+  `apps/cnbiz-web/lib` 직접 import 금지, packages는 실제 중복 확인 전까지 승격하지 않음)에
+  따라 별도 워크스페이스로 신설하고 `packages/ui`·`packages/layout-primitives`·
+  `packages/utils`(프로젝트 무관 UI/레이아웃/유틸)만 재사용했다. `@cnbiz/design-system`은
+  CNBIZ 블루 브랜드 컬러(#005BAC)가 하드코딩돼 있어 재사용하지 않고, 기획서 4장의 아이보리·
+  베이지·브라운 톤을 이 앱 고유 CSS 변수로 직접 정의해 `@cnbiz/ui`의 Button/Card가 참조하는
+  시맨틱 토큰(`--color-primary` 등)만 갈아끼웠다
+  - Next.js 16 + React 19 + TypeScript + Tailwind 4 — `apps/cnbiz-web`과 동일한 툴체인
+    구성(tsconfig가 루트 `tsconfig.base.json` 확장, eslint-config-next, `next dev -p 4100`으로
+    포트 분리)
+  - 페이지 10종(기획서 5장 사이트맵 그대로): `/`(Hero→Brand→Signature Menu→Food→Soul(솥밥)→
+    Space→Occasion→Local→Tour→Review→Location→Final CTA 12개 스토리보드 섹션),
+    `/about`·`/menu`·`/food`·`/space`·`/occasion`·`/paju`·`/review`·`/location`·`/reservation`
+  - `lib/site-config.ts`·`lib/content.ts` — 기획서에 실제로 확정된 값(주소, 방문 목적 5종,
+    파주 여행 명소 4곳, SEO 키워드 전략 8장 전체)만 사실로 채우고, 매장 확인이 필요한 값
+    (전화번호·영업시간·라스트오더·휴무일·주차 조건·네이버 플레이스 URL·대표 메뉴명/가격·
+    실제 고객 후기)은 지어내지 않고 `null` + `TodoBadge` 컴포넌트로 화면에 명시적으로
+    노출(기획서 13장: "전화번호·주소·영업시간·가격 등 운영 정보를 임의로 추정하지 않는다").
+    확정되면 이 두 파일만 수정하면 전 페이지에 반영되는 구조
+  - `PhotoPlaceholder` 컴포넌트 — 실제 매장·음식 사진 수령 전까지 스톡 이미지로 대체하지
+    않고 "사진 준비중" 라벨이 있는 자리표시자로 명시(기획서 13장 지침)
+  - 예약 문의 기능 — `POST /api/reservation`(신규)이 서버 측 검증(`lib/reservation/
+    validate.ts`, 이름·연락처·방문희망일·시간·인원)·허니팟(`company` 숨김 필드)·IP당
+    10분 5회 rate limit(`lib/reservation/spam.ts`) 후 로컬 JSON(`lib/data/reservations.json`,
+    git 미추적)에 접수 기록. 화면에는 "예약 확정이 아닌 예약 문의 접수"임을 명확히 표시하고
+    전화 문의를 항상 대체 수단으로 함께 제공(기획서 11장)
+  - Header(로고+nav+전화 아이콘)·MobileMenu(`@cnbiz/layout-primitives`의 `MobileDrawer`
+    재사용)·Footer·모바일 하단 고정 CTA(전화/길찾기/예약, `md:hidden`)로 기획서 7장 모바일
+    스토리보드 구현. 네이버 플레이스 URL 미확정 시 주소 기반 네이버 지도 검색 링크로 폴백
+  - SEO — `app/sitemap.ts`(10개 페이지)·`app/robots.ts`, 페이지별 Metadata(canonical·
+    keywords, 기획서 8장 키워드 그룹을 페이지 성격에 맞게 조합), 루트 레이아웃에 Restaurant
+    JSON-LD(상호·주소 등 확인된 사실만 포함, 전화번호·영업시간은 미확정이라 생략)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 10개 페이지 +
+  `/api/reservation`(동적) + `/sitemap.xml` + `/robots.txt` 전부 정상 생성
+- 프로덕션 빌드(`next start -p 4100`)로 실제 기동 후 10개 페이지 + sitemap.xml + robots.txt
+  전부 curl로 200 확인
+- 예약 문의 API 실제 호출로 3가지 경로 확인: 필수값 누락 시 400 + 필드별 오류 메시지,
+  허니팟(`company`) 필드가 채워진 요청은 200을 반환하되 로컬 저장 건너뜀(실제로 저장 파일에
+  기록되지 않음을 확인), 유효한 요청은 200 + 로컬 JSON에 정확한 내용으로 기록됨을 확인
+- 검증에 사용한 프로덕션 서버·테스트 예약 데이터(`lib/data/reservations.json`)는 검증 후
+  전부 종료·삭제
+- `npm install`로 루트 `package-lock.json`에 신규 워크스페이스가 정상 등록됨을 확인
+  (`npm ls --workspace=saseokchanmi-web`로 `@cnbiz/{ui,layout-primitives,utils}` 의존성 해석
+  확인)
+
+### 남은 작업 (매장 확인 필요, 사용자 확인 후 반영 예정)
+
+- 전화번호·영업시간·라스트오더·휴무일·주차 조건·네이버 플레이스 URL(`lib/site-config.ts`의
+  `CONTACT`)
+- 대표 메뉴 3~5개의 실제 메뉴명·가격·사진(`lib/content.ts`의 `SIGNATURE_MENU`)
+- 실제 매장·음식 사진 전반(`public/images/`, 현재 `PhotoPlaceholder`로 대체)
+- 실제 고객 후기(`lib/content.ts`의 `REVIEWS`, 출처·사용 범위 확인 필요)
+- 실제 도메인 확정(`saseokchanmi.com` 등 후보 중 1개) 후 `.env.local`의
+  `NEXT_PUBLIC_SITE_URL` 설정
+- 배포 대상(Vercel 등) 확정 및 Git Commit/Push는 리포지토리 정책상 사용자 승인 후 진행
+
+---
+
+## 2026-09-12 (2)
+
+### 수정 (Fixed)
+
+- **`/developer/design?inquiryId=...` — 의뢰와 무관한 시스템 전체의 최신 Design Plan이
+  자동으로 표시되던 버그 수정**: 2026-09-12 이전 세션에서 "Design 시작" 버튼(의뢰 상세
+  페이지)이 `?inquiryId=`로 이 화면에 진입하면 회사명·요구사항 등을 미리 채워주도록
+  구현했으나, 실제로 새 의뢰(사색찬미한정식)로 시도해 보니 폼은 정확히 채워지는 반면 그
+  아래 History·Requirement Analysis·Feature List·Site Map·User Flow·Screen List에는
+  2026-09-07에 만든 완전히 무관한 "테스트"(미용실 예약 사이트) 기록이 그대로 나타나,
+  마치 그것이 새 의뢰의 결과인 것처럼 보이는 문제를 실사용 중 발견(사용자 스크린샷으로
+  재현 확인). 원인은 `app/developer/design/page.tsx`의 `loadPlans()`가 `?inquiryId=` 유무와
+  무관하게 항상 시스템 전체에서 가장 최근에 생성된 Design Plan(`json.plans[0]`)을 자동
+  선택하고, History 목록도 전체 목록을 그대로 나열하고 있었기 때문 — Design Plan 생성 시
+  `input.projectId`에 연결된 의뢰 id가 이미 저장되고 있었음에도(`app/api/design/
+  requirements/route.ts`) 이 화면이 그 값을 전혀 활용하지 않았다
+  - `app/developer/design/page.tsx` — `loadPlans()`의 자동 선택과 History 목록 렌더링을
+    `inquiryId`가 있을 때 `plan.input.projectId === inquiryId`로 필터링한 범위로 한정.
+    의뢰와 무관하게(쿼리 파라미터 없이) 진입하는 기존 사용 방식은 그대로 전체 목록을
+    보여줌(회귀 없음). 이 의뢰로 아직 생성된 기록이 없으면 "이 의뢰로 아직 생성된 Design
+    Plan이 없습니다. 위에서 Generate를 눌러 만들어보세요."로 명확히 안내
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors — `loadPlans`가 `inquiryId`를
+  참조하게 되며 새로 발생한 `react-hooks/exhaustive-deps` 경고 1건은 같은 파일의 기존
+  관례(inquiryId는 진입 시 1회만 반영)와 동일한 사유로 `eslint-disable-next-line` 처리),
+  `npm run build` 통과(변경 없음, 90여 개 라우트 정상 생성)
+- `npx vitest run tests/design`(31 files, 260 tests 중 259 통과 — 실패 1건은
+  `tests/design/review-registry.test.ts`의 같은 밀리초 `createdAt`/`updatedAt` 비교
+  타이밍 플레이크로, `git stash`로 이번 변경을 제거한 상태에서도 동일하게 재현되어 무관함을
+  확인. `docs/01_PMO/CHANGELOG.md`에 여러 차례 이미 문서화된 것과 동일 계열)
+- 이 실행 환경에서는 실제 로그인 세션으로 재현 검증까지는 하지 못했다(개발 서버·로그인
+  계정 구성 없이 코드 레벨로만 원인 규명·수정) — 사용자가 프로덕션(cnbiz.kr)에서 직접
+  재확인 필요
 
 ### 추가 (Added)
 
@@ -70,7 +172,42 @@
 
 ---
 
-## 2026-09-08 (4)
+## 2026-09-12 (3)
+
+### 수정 (Fixed)
+
+- **`/developer/design`의 "Generate → Storyboard로 자동 이동" 버튼이 탭해도 반응이 없는 것처럼
+  보이던 문제 — 진행 표시 부재 원인 발견·보강**: 사용자가 실제 프로덕션(cnbiz.kr)에서 의뢰
+  연동으로 진입한 뒤 버튼을 눌러도 "안 눌러진다"고 보고. 코드를 추적한 결과 이 버튼 하나가
+  Design Plan 생성(`POST /api/design/requirements`)과 Storyboard 생성
+  (`POST /api/design/storyboard`) **두 번의 AI 호출을 순차로 체이닝**하고 있고, 각 호출은
+  `packages/cli/src/providers/provider.ts`의 `DEFAULT_TIMEOUT_MS`(120초) 기준으로 최대 3회까지
+  재시도할 수 있어(2026-08-09 (2)에서 큰 스키마 호출을 위해 상향된 값) 이론상 수 분간 응답이
+  없을 수 있는 구조였다. 그 대기 시간 동안 화면에 보이는 변화는 버튼 문구가 "Generating..." →
+  "Storyboard로 이어서 생성 중..."으로 바뀌는 것뿐이라, 특히 모바일 화면에서는 눈에 잘 띄지
+  않아 "클릭이 안 먹힌다"로 오인되기 쉬웠다. 이 실행 환경에는 실제 AI Provider 키가 없어
+  (`ANTHROPIC_API_KEY` 미설정) 이 정확한 지연 시간 자체는 재현하지 못했지만, 로컬 재현으로
+  버튼이 실제로 두 개의 무거운 AI 생성 요청을 순차 실행한다는 코드 경로 자체는 확인했다
+  - `apps/cnbiz-web/app/developer/design/page.tsx` — 생성 버튼에 회전 스피너 아이콘
+    (`animate-spin`)을 추가하고, 생성 중(`isSubmitting`·`isAutoContinuing`)에는 버튼 아래에
+    "AI가 실제로 내용을 생성하는 중이라 최대 1~2분 정도 걸릴 수 있습니다 ... 버튼을 여러 번
+    누르지 않아도 됩니다" 안내 문구를 표시. 기존에도 `isSubmitting`/`isAutoContinuing` 동안
+    버튼이 이미 비활성화(disabled)되어 중복 클릭 자체는 안전했으나, 그 사실이 화면에 드러나지
+    않았던 것을 보강
+
+### 검증 (Verified)
+
+- 로컬 dev 서버(`ANTHROPIC_API_KEY` 미설정, 결정론적 폴백 경로)로 developer 계정 로그인 →
+  실제 Inquiry 생성(회사명 "사색찬미한정식") → `POST /api/design/requirements`를 버튼이
+  보내는 것과 동일한 payload(`projectId` 포함)로 직접 호출해 0.47초 만에 정상 응답됨을 확인
+  (이 폴백 경로 자체는 빠르므로, 실제 AI 경로에서만 재현되는 지연 문제라는 점을 재확인)
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(변경 없음,
+  기존 라우트 전부 정상 생성)
+- **미해결로 남긴 부분**: Vercel 함수 자체의 실행 시간 제한(`maxDuration` 미설정, 플랜별 상한이
+  달라 임의로 값을 정하면 배포 자체가 실패할 위험이 있어 이번 범위에서 건드리지 않음)이 실제로
+  두 번째(Storyboard) 호출 도중 요청을 강제 종료시키고 있는지는 이 환경에서 확인하지 못했다.
+  이번 수정 이후에도 "버튼이 안 눌린다"는 현상이 재현되면 Vercel 플랜의 함수 실행 시간
+  상한을 확인해 `export const maxDuration`을 라우트에 명시하는 후속 조치가 필요할 수 있다.
 
 ### 추가 (Added)
 

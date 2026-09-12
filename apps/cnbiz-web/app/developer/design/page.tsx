@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -57,6 +57,7 @@ export default function DesignRequirementsPage() {
 }
 
 function DesignRequirementsPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const inquiryId = searchParams.get("inquiryId");
 
@@ -78,6 +79,8 @@ function DesignRequirementsPageInner() {
   // 가능하고, projectId로 원본 의뢰를 함께 기록해 어느 의뢰에서 시작됐는지 추적 가능하게 한다.
   const [linkedInquiry, setLinkedInquiry] = useState<{ id: string; companyName: string } | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [isAutoContinuing, setIsAutoContinuing] = useState(false);
+  const [autoContinueError, setAutoContinueError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!inquiryId) return;
@@ -121,6 +124,37 @@ function DesignRequirementsPageInner() {
     queueMicrotask(loadPlans);
   }, []);
 
+  /**
+   * Design Plan에 이어 Storyboard까지 생성하고 그 화면으로 이동한다. 실패해도 방금 만든 Design
+   * Plan은 이미 저장되어 있으므로 되돌리지 않고, 이 화면에 에러만 표시해 admin이 Storyboard
+   * 화면에서 수동으로 다시 시도할 수 있게 한다(자동 연결이 실패했다고 이미 만든 결과물까지
+   * 잃게 하지 않는다).
+   */
+  const autoGenerateStoryboard = async (planId: string) => {
+    setIsAutoContinuing(true);
+    setAutoContinueError(null);
+
+    try {
+      const res = await fetch("/api/design/storyboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+      const json = (await res.json()) as { success: boolean; error?: string };
+
+      if (!json.success) {
+        setAutoContinueError(json.error ?? "Storyboard 자동 생성에 실패했습니다.");
+        return;
+      }
+
+      router.push("/developer/design/storyboard");
+    } catch {
+      setAutoContinueError("Storyboard 자동 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsAutoContinuing(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -147,6 +181,15 @@ function DesignRequirementsPageInner() {
 
       setPlans((prev) => [json.plan!, ...prev]);
       setSelectedId(json.plan.id);
+
+      // 의뢰에서 시작된 흐름이면 Storyboard까지 이어서 만든다("Design 시작" 버튼 하나로
+      // 처음부터 다시 입력하지 않고 Storyboard까지 도달하게 해달라는 요청, 2026-09-12).
+      // 일반적인(의뢰와 무관한) 수동 생성까지 확장하지는 않는다 — 그 경우엔 admin이 이
+      // 화면에 남아 결과를 먼저 검토하고 싶을 수 있어, 기존처럼 수동으로 다음 단계로
+      // 넘어가는 흐름을 유지한다.
+      if (linkedInquiry) {
+        await autoGenerateStoryboard(json.plan.id);
+      }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "요청 실패");
     } finally {
@@ -233,13 +276,25 @@ function DesignRequirementsPageInner() {
             </div>
 
             {submitError && <StatusMessage tone="error">{submitError}</StatusMessage>}
+            {autoContinueError && (
+              <StatusMessage tone="error">
+                Design Plan은 생성됐지만 Storyboard 자동 생성에 실패했습니다: {autoContinueError} — 아래
+                History에서 방금 만든 Plan을 확인하고, Storyboard 화면에서 직접 생성해주세요.
+              </StatusMessage>
+            )}
 
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting || !projectName || !requirements}
+              disabled={isSubmitting || isAutoContinuing || !projectName || !requirements}
               className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? "Generating..." : "Generate"}
+              {isSubmitting
+                ? "Generating..."
+                : isAutoContinuing
+                  ? "Storyboard로 이어서 생성 중..."
+                  : linkedInquiry
+                    ? "Generate → Storyboard로 자동 이동"
+                    : "Generate"}
             </button>
           </div>
         </Card>

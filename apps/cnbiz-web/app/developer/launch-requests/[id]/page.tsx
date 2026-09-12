@@ -98,7 +98,7 @@ export default function LaunchRequestDetailPage() {
         </div>
       </Card>
 
-      <Card title={`선택된 항목 (${launchRequest.services.length}개)`}>
+      <Card title={`선택된 항목 (${launchRequest.services.length}개)`} className="mb-6">
         <div className="flex flex-col gap-2">
           {launchRequest.services.map((selection) => {
             const catalogItem = getLaunchRequestCatalogItem(selection.serviceId);
@@ -119,6 +119,19 @@ export default function LaunchRequestDetailPage() {
           })}
         </div>
       </Card>
+
+      {launchRequest.customItems && launchRequest.customItems.length > 0 && (
+        <Card title={`직접 추가한 항목 (${launchRequest.customItems.length}개)`}>
+          <div className="flex flex-col gap-2">
+            {launchRequest.customItems.map((item, index) => (
+              <div key={index} className="rounded border border-gray-800 bg-gray-950 px-3 py-2 text-sm">
+                <span className="font-semibold text-gray-200">{item.name}</span>
+                {item.description && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

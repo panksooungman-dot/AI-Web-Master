@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getInquiry } from "@/lib/inquiries/registry";
 import { createLaunchRequest, listLaunchRequests } from "@/lib/launchRequests/registry";
 import { LAUNCH_REQUEST_CATALOG, getLaunchRequestCatalogItem } from "@/lib/launchRequests/catalog";
-import type { LaunchRequestServiceSelection } from "@/lib/launchRequests/types";
+import type { LaunchRequestCustomItem, LaunchRequestServiceSelection } from "@/lib/launchRequests/types";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
@@ -22,13 +22,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isServiceSelectionArray(value: unknown): value is LaunchRequestServiceSelection[] {
   return (
     Array.isArray(value) &&
-    value.length > 0 &&
     value.every(
       (item) =>
         isRecord(item) &&
         typeof item.serviceId === "string" &&
         Boolean(getLaunchRequestCatalogItem(item.serviceId)) &&
         typeof item.required === "boolean"
+    )
+  );
+}
+
+/** catalog에 없는 프로젝트 고유 요청 항목(선택 필드) — name은 필수, description은 빈 문자열 허용. */
+function isCustomItemArray(value: unknown): value is LaunchRequestCustomItem[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.name === "string" &&
+        item.name.trim().length > 0 &&
+        typeof item.description === "string"
     )
   );
 }
@@ -50,9 +63,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "inquiryId는 필수입니다." }, { status: 400 });
   }
 
-  if (!isServiceSelectionArray(body.services)) {
+  const services = isServiceSelectionArray(body.services) ? body.services : null;
+  if (!services) {
+    return NextResponse.json({ success: false, error: "선택한 서비스 형식이 올바르지 않습니다." }, { status: 400 });
+  }
+
+  const customItemsInput = body.customItems ?? [];
+  if (!isCustomItemArray(customItemsInput)) {
+    return NextResponse.json({ success: false, error: "직접 추가한 항목 형식이 올바르지 않습니다." }, { status: 400 });
+  }
+  const customItems = customItemsInput.map((item) => ({ name: item.name.trim(), description: item.description.trim() }));
+
+  if (services.length === 0 && customItems.length === 0) {
     return NextResponse.json(
-      { success: false, error: "최소 1개 이상의 유효한 서비스를 선택해야 합니다." },
+      { success: false, error: "최소 1개 이상의 서비스 또는 직접 추가한 항목이 필요합니다." },
       { status: 400 }
     );
   }
@@ -67,18 +91,20 @@ export async function POST(request: Request) {
   const record = await createLaunchRequest({
     inquiryId: inquiry.id,
     companyName: inquiry.companyName || inquiry.contactName,
-    services: body.services,
+    services,
+    ...(customItems.length > 0 ? { customItems } : {}),
   });
 
   const actor = await getCurrentActorEmail();
-  const serviceNames = record.services
-    .map((selection) => getLaunchRequestCatalogItem(selection.serviceId)?.name ?? selection.serviceId)
-    .join(", ");
+  const itemNames = [
+    ...record.services.map((selection) => getLaunchRequestCatalogItem(selection.serviceId)?.name ?? selection.serviceId),
+    ...(record.customItems ?? []).map((item) => item.name),
+  ].join(", ");
   await recordAuditEvent({
     action: "launchRequest.generate",
     actor,
     success: true,
-    detail: `정보 요청서 생성: "${record.companyName}" (${serviceNames})`,
+    detail: `정보 요청서 생성: "${record.companyName}" (${itemNames})`,
     metadata: { inquiryId: inquiry.id, launchRequestId: record.id, catalogSize: LAUNCH_REQUEST_CATALOG.length },
   });
   await incrementMetric("launchRequestGenerationCount");

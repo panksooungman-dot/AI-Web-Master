@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Button, Card, Input } from "@cnbiz/ui";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { LAUNCH_REQUEST_CATALOG, type LaunchRequestCatalogItem } from "@/lib/launchRequests/catalog";
-import type { LaunchRequestServiceSelection } from "@/lib/launchRequests/types";
+import type { LaunchRequestCustomItem, LaunchRequestServiceSelection } from "@/lib/launchRequests/types";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 /**
@@ -19,6 +19,7 @@ interface PublicLaunchRequest {
   id: string;
   companyName: string;
   services: LaunchRequestServiceSelection[];
+  customItems?: LaunchRequestCustomItem[];
   createdAt: string;
 }
 
@@ -26,6 +27,11 @@ type FieldValues = Record<string, string>;
 
 function fieldStateKey(serviceId: string, fieldKey: string): string {
   return `${serviceId}.${fieldKey}`;
+}
+
+/** catalog 항목처럼 별도 field가 없는 직접 추가 항목의 응답을 저장하는 키. */
+function customItemStateKey(index: number): string {
+  return `custom.${index}`;
 }
 
 function buildSummaryText(
@@ -45,6 +51,15 @@ function buildSummaryText(
       const value = values[fieldStateKey(item.id, field.key)] ?? "";
       lines.push(`  - ${field.label}: ${value.trim() || "(미입력)"}`);
     }
+    lines.push("");
+  }
+
+  const customItems = launchRequest.customItems ?? [];
+  for (let index = 0; index < customItems.length; index += 1) {
+    const item = customItems[index];
+    const value = values[customItemStateKey(index)] ?? "";
+    lines.push(`■ ${item.name} (직접 요청)`);
+    lines.push(`  - 답변: ${value.trim() || "(미입력)"}`);
     lines.push("");
   }
 
@@ -88,6 +103,10 @@ export default function LaunchRequestPublicPage() {
 
   function handleFieldChange(serviceId: string, fieldKey: string, value: string) {
     setValues((prev) => ({ ...prev, [fieldStateKey(serviceId, fieldKey)]: value }));
+  }
+
+  function handleCustomItemChange(index: number, value: string) {
+    setValues((prev) => ({ ...prev, [customItemStateKey(index)]: value }));
   }
 
   async function handleCopy() {
@@ -207,6 +226,27 @@ export default function LaunchRequestPublicPage() {
               {item.notes && (
                 <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">⚠️ {item.notes}</p>
               )}
+            </Card>
+          ))}
+          {(launchRequest.customItems ?? []).map((item, index) => (
+            <Card key={`custom-${index}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-lg font-bold text-slate-900">📝 {item.name}</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                  직접 요청
+                </span>
+              </div>
+              {item.description && <p className="mt-2 text-sm text-slate-600">{item.description}</p>}
+
+              <div className="mt-4">
+                <Input
+                  id={customItemStateKey(index)}
+                  label="답변"
+                  value={values[customItemStateKey(index)] ?? ""}
+                  onChange={(event) => handleCustomItemChange(index, event.target.value)}
+                  autoComplete="off"
+                />
+              </div>
             </Card>
           ))}
         </div>

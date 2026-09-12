@@ -21,7 +21,7 @@ import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
 import type { ContractRecord } from "@/lib/contracts/types";
 import type { ProposalRecord } from "@/lib/proposals/types";
-import type { LaunchRequestRecord } from "@/lib/launchRequests/types";
+import type { LaunchRequestCustomItem, LaunchRequestRecord } from "@/lib/launchRequests/types";
 import { LAUNCH_REQUEST_CATALOG, getRecommendedServiceIds } from "@/lib/launchRequests/catalog";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 
@@ -140,6 +140,10 @@ export default function InquiryDetailPage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [isGeneratingLaunchRequest, setIsGeneratingLaunchRequest] = useState(false);
   const [launchRequestError, setLaunchRequestError] = useState<string | null>(null);
+  // 카탈로그(catalog.ts)에 없는 프로젝트 고유 요청 항목. "추가" 버튼으로 하나씩 담아두었다가
+  // 정보 요청서 생성 시 함께 전송한다(2026-09-12 — 카탈로그 외 항목도 요청할 수 있어야 한다는 요청).
+  const [customItems, setCustomItems] = useState<LaunchRequestCustomItem[]>([]);
+  const [customItemDraft, setCustomItemDraft] = useState<LaunchRequestCustomItem>({ name: "", description: "" });
   // 계약서/제안서 카드와 시각적으로 통일하기 위해 항목 선택 체크박스는 기본적으로 접어두고,
   // "새 정보 요청서 작성" 클릭 시에만 펼친다(2026-09-12 — "제안서처럼만 만들어달라"는 피드백).
   const [showLaunchRequestPicker, setShowLaunchRequestPicker] = useState(false);
@@ -832,11 +836,23 @@ export default function InquiryDetailPage() {
     setShowLaunchRequestPicker((prev) => !prev);
   }
 
+  function addCustomLaunchRequestItem() {
+    const name = customItemDraft.name.trim();
+    if (!name) return;
+    setCustomItems((prev) => [...prev, { name, description: customItemDraft.description.trim() }]);
+    setCustomItemDraft({ name: "", description: "" });
+  }
+
+  function removeCustomLaunchRequestItem(index: number) {
+    setCustomItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
   // 정보 요청서 생성 — AI 생성 체인(견적서~제안서)과 달리 AI를 호출하지 않는다. 관리자가 위
-  // 체크박스로 고른 서비스만 lib/launchRequests에 저장하고, 실제 API 키 입력·전달은 별도 공개
-  // 페이지(app/launch-request/[id])에서 의뢰자가 직접 수행한다(서버에는 저장하지 않음).
+  // 체크박스로 고른 서비스(+ 직접 추가한 항목)만 lib/launchRequests에 저장하고, 실제 API 키
+  // 입력·전달은 별도 공개 페이지(app/launch-request/[id])에서 의뢰자가 직접 수행한다(서버에는
+  // 저장하지 않음).
   async function handleGenerateLaunchRequest() {
-    if (!inquiry || selectedServiceIds.length === 0) return;
+    if (!inquiry || (selectedServiceIds.length === 0 && customItems.length === 0)) return;
 
     setIsGeneratingLaunchRequest(true);
     setLaunchRequestError(null);
@@ -850,7 +866,7 @@ export default function InquiryDetailPage() {
       const res = await fetch("/api/launch-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inquiryId: inquiry.id, services }),
+        body: JSON.stringify({ inquiryId: inquiry.id, services, customItems }),
       });
       const data: { success: boolean; launchRequest?: LaunchRequestRecord; error?: string } = await res.json();
 
@@ -861,6 +877,7 @@ export default function InquiryDetailPage() {
 
       setLaunchRequests((prev) => [data.launchRequest!, ...prev]);
       setSelectedServiceIds([]);
+      setCustomItems([]);
       setShowLaunchRequestPicker(false);
     } catch {
       setLaunchRequestError("정보 요청서 생성 중 오류가 발생했습니다.");
@@ -1615,12 +1632,72 @@ export default function InquiryDetailPage() {
                 </label>
               ))}
             </div>
+
+            <div className="rounded border border-gray-800 bg-gray-950 p-3 mb-3">
+              <p className="text-sm font-semibold text-gray-200 mb-1">직접 추가</p>
+              <p className="text-xs text-gray-500 mb-2">
+                위 목록에 없는 이 프로젝트만의 요청 사항(예: 네이버 지도 API 키)이 있으면 이름과
+                설명을 적어 추가하세요. 안내 문구·설정 방법은 자동으로 생기지 않고 여기 적은 설명이
+                그대로 의뢰자에게 전달됩니다.
+              </p>
+              {customItems.length > 0 && (
+                <div className="flex flex-col gap-2 mb-2">
+                  {customItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-2 rounded border border-gray-800 bg-gray-900 px-3 py-2 text-sm"
+                    >
+                      <div className="flex-1">
+                        <span className="font-semibold text-gray-200">{item.name}</span>
+                        {item.description && (
+                          <span className="block text-xs text-gray-500 mt-0.5">{item.description}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeCustomLaunchRequestItem(index)}
+                        className="text-xs text-red-400 hover:underline"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  value={customItemDraft.name}
+                  onChange={(e) => setCustomItemDraft((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="항목 이름 (예: 네이버 지도 API)"
+                  className="flex-1 rounded border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-purple-600"
+                />
+                <input
+                  type="text"
+                  value={customItemDraft.description}
+                  onChange={(e) => setCustomItemDraft((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="설명 (선택)"
+                  className="flex-1 rounded border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-purple-600"
+                />
+                <button
+                  type="button"
+                  onClick={addCustomLaunchRequestItem}
+                  disabled={!customItemDraft.name.trim()}
+                  className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  추가
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={handleGenerateLaunchRequest}
-              disabled={selectedServiceIds.length === 0 || isGeneratingLaunchRequest}
+              disabled={(selectedServiceIds.length === 0 && customItems.length === 0) || isGeneratingLaunchRequest}
               className="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
             >
-              {isGeneratingLaunchRequest ? "생성 중..." : `정보 요청서 생성 (${selectedServiceIds.length}개 항목)`}
+              {isGeneratingLaunchRequest
+                ? "생성 중..."
+                : `정보 요청서 생성 (${selectedServiceIds.length + customItems.length}개 항목)`}
             </button>
             {launchRequestError && <StatusMessage tone="error" className="mt-3">{launchRequestError}</StatusMessage>}
           </>
@@ -1634,7 +1711,7 @@ export default function InquiryDetailPage() {
                 href={`/developer/launch-requests/${lr.id}`}
                 className="flex flex-wrap items-center gap-3 rounded border border-gray-800 bg-gray-950 px-3 py-2 hover:border-purple-600 transition-colors"
               >
-                <Badge tone="purple">{lr.services.length}개 항목</Badge>
+                <Badge tone="purple">{lr.services.length + (lr.customItems?.length ?? 0)}개 항목</Badge>
                 <span className="text-xs text-gray-500 ml-auto">{new Date(lr.createdAt).toLocaleString()}</span>
               </Link>
             ))}

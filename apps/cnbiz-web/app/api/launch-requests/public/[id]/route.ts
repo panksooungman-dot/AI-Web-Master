@@ -25,6 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       id: launchRequest.id,
       companyName: launchRequest.companyName,
       services: launchRequest.services,
+      customItems: launchRequest.customItems ?? [],
       createdAt: launchRequest.createdAt,
     },
   });

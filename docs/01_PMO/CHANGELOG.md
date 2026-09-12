@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-09-12
+
+### 추가 (Added)
+
+- **`apps/saseokchanmi-web` 신규 — 사색찬미한정식(파주 광탄 한정식 전문점) 공식 홈페이지**:
+  사용자가 전달한 별도 기획서(`사색찬미한정식 Claude Code 개발용 홈페이지 기획서 & 화면
+  스토리보드 v2`, .docx)를 기준으로 완전히 새로운 클라이언트 프로젝트를 구현. CNBIZ와 무관한
+  별도 업체이므로 리포지토리 신규 프로젝트 추가 규칙(`apps/<project-name>/` 아래 생성,
+  `apps/cnbiz-web/lib` 직접 import 금지, packages는 실제 중복 확인 전까지 승격하지 않음)에
+  따라 별도 워크스페이스로 신설하고 `packages/ui`·`packages/layout-primitives`·
+  `packages/utils`(프로젝트 무관 UI/레이아웃/유틸)만 재사용했다. `@cnbiz/design-system`은
+  CNBIZ 블루 브랜드 컬러(#005BAC)가 하드코딩돼 있어 재사용하지 않고, 기획서 4장의 아이보리·
+  베이지·브라운 톤을 이 앱 고유 CSS 변수로 직접 정의해 `@cnbiz/ui`의 Button/Card가 참조하는
+  시맨틱 토큰(`--color-primary` 등)만 갈아끼웠다
+  - Next.js 16 + React 19 + TypeScript + Tailwind 4 — `apps/cnbiz-web`과 동일한 툴체인
+    구성(tsconfig가 루트 `tsconfig.base.json` 확장, eslint-config-next, `next dev -p 4100`으로
+    포트 분리)
+  - 페이지 10종(기획서 5장 사이트맵 그대로): `/`(Hero→Brand→Signature Menu→Food→Soul(솥밥)→
+    Space→Occasion→Local→Tour→Review→Location→Final CTA 12개 스토리보드 섹션),
+    `/about`·`/menu`·`/food`·`/space`·`/occasion`·`/paju`·`/review`·`/location`·`/reservation`
+  - `lib/site-config.ts`·`lib/content.ts` — 기획서에 실제로 확정된 값(주소, 방문 목적 5종,
+    파주 여행 명소 4곳, SEO 키워드 전략 8장 전체)만 사실로 채우고, 매장 확인이 필요한 값
+    (전화번호·영업시간·라스트오더·휴무일·주차 조건·네이버 플레이스 URL·대표 메뉴명/가격·
+    실제 고객 후기)은 지어내지 않고 `null` + `TodoBadge` 컴포넌트로 화면에 명시적으로
+    노출(기획서 13장: "전화번호·주소·영업시간·가격 등 운영 정보를 임의로 추정하지 않는다").
+    확정되면 이 두 파일만 수정하면 전 페이지에 반영되는 구조
+  - `PhotoPlaceholder` 컴포넌트 — 실제 매장·음식 사진 수령 전까지 스톡 이미지로 대체하지
+    않고 "사진 준비중" 라벨이 있는 자리표시자로 명시(기획서 13장 지침)
+  - 예약 문의 기능 — `POST /api/reservation`(신규)이 서버 측 검증(`lib/reservation/
+    validate.ts`, 이름·연락처·방문희망일·시간·인원)·허니팟(`company` 숨김 필드)·IP당
+    10분 5회 rate limit(`lib/reservation/spam.ts`) 후 로컬 JSON(`lib/data/reservations.json`,
+    git 미추적)에 접수 기록. 화면에는 "예약 확정이 아닌 예약 문의 접수"임을 명확히 표시하고
+    전화 문의를 항상 대체 수단으로 함께 제공(기획서 11장)
+  - Header(로고+nav+전화 아이콘)·MobileMenu(`@cnbiz/layout-primitives`의 `MobileDrawer`
+    재사용)·Footer·모바일 하단 고정 CTA(전화/길찾기/예약, `md:hidden`)로 기획서 7장 모바일
+    스토리보드 구현. 네이버 플레이스 URL 미확정 시 주소 기반 네이버 지도 검색 링크로 폴백
+  - SEO — `app/sitemap.ts`(10개 페이지)·`app/robots.ts`, 페이지별 Metadata(canonical·
+    keywords, 기획서 8장 키워드 그룹을 페이지 성격에 맞게 조합), 루트 레이아웃에 Restaurant
+    JSON-LD(상호·주소 등 확인된 사실만 포함, 전화번호·영업시간은 미확정이라 생략)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과 — 10개 페이지 +
+  `/api/reservation`(동적) + `/sitemap.xml` + `/robots.txt` 전부 정상 생성
+- 프로덕션 빌드(`next start -p 4100`)로 실제 기동 후 10개 페이지 + sitemap.xml + robots.txt
+  전부 curl로 200 확인
+- 예약 문의 API 실제 호출로 3가지 경로 확인: 필수값 누락 시 400 + 필드별 오류 메시지,
+  허니팟(`company`) 필드가 채워진 요청은 200을 반환하되 로컬 저장 건너뜀(실제로 저장 파일에
+  기록되지 않음을 확인), 유효한 요청은 200 + 로컬 JSON에 정확한 내용으로 기록됨을 확인
+- 검증에 사용한 프로덕션 서버·테스트 예약 데이터(`lib/data/reservations.json`)는 검증 후
+  전부 종료·삭제
+- `npm install`로 루트 `package-lock.json`에 신규 워크스페이스가 정상 등록됨을 확인
+  (`npm ls --workspace=saseokchanmi-web`로 `@cnbiz/{ui,layout-primitives,utils}` 의존성 해석
+  확인)
+
+### 남은 작업 (매장 확인 필요, 사용자 확인 후 반영 예정)
+
+- 전화번호·영업시간·라스트오더·휴무일·주차 조건·네이버 플레이스 URL(`lib/site-config.ts`의
+  `CONTACT`)
+- 대표 메뉴 3~5개의 실제 메뉴명·가격·사진(`lib/content.ts`의 `SIGNATURE_MENU`)
+- 실제 매장·음식 사진 전반(`public/images/`, 현재 `PhotoPlaceholder`로 대체)
+- 실제 고객 후기(`lib/content.ts`의 `REVIEWS`, 출처·사용 범위 확인 필요)
+- 실제 도메인 확정(`saseokchanmi.com` 등 후보 중 1개) 후 `.env.local`의
+  `NEXT_PUBLIC_SITE_URL` 설정
+- 배포 대상(Vercel 등) 확정 및 Git Commit/Push는 리포지토리 정책상 사용자 승인 후 진행
+
 ## 2026-09-08 (5)
 
 ### 추가 (Added)

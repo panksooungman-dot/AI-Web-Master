@@ -1,0 +1,30 @@
+{
+  "name": "saseokchanmi-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "사색찬미한정식 공식 홈페이지 — 파주 광탄 한정식 전문점",
+  "scripts": {
+    "dev": "next dev -p 4100",
+    "build": "next build",
+    "start": "next start -p 4100",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@cnbiz/layout-primitives": "*",
+    "@cnbiz/ui": "*",
+    "@cnbiz/utils": "*",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

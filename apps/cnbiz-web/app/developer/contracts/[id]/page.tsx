@@ -587,6 +587,20 @@ export default function ContractDetailPage() {
           </div>
         </div>
       </Card>
+
+      {/* "계약 당사자" 카드가 페이지 상단 저장 버튼과 멀리 떨어져 있어, 여기까지 스크롤해
+          입력한 뒤 저장 버튼을 찾지 못하고 페이지를 벗어나 변경사항이 유실되는 경우가 있었다
+          — 동일한 handleSave를 그대로 재사용하는 저장 버튼을 이 카드 바로 아래에도 둔다. */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+        >
+          {isSaving ? "저장 중..." : "변경사항 저장"}
+        </button>
+        {saveMessage && <StatusMessage tone={saveMessage.tone}>{saveMessage.text}</StatusMessage>}
+      </div>
     </div>
   );
 }

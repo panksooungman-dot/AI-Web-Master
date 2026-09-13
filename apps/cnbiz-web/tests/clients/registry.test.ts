@@ -8,7 +8,8 @@ import {
   addWebsiteOrderToClient,
   createClient,
   findClientByEmail,
-  findOrCreateClientByEmail,
+  findClientsByEmail,
+  findOrCreateClient,
   getClient,
   listClients,
   updateClient,
@@ -47,17 +48,52 @@ describe("Client Registry — lib/clients/registry.ts", () => {
     expect(await findClientByEmail("nobody@example.com", store)).toBeUndefined();
   });
 
-  it("findOrCreateClientByEmail() reuses an existing client instead of duplicating", async () => {
+  it("findClientsByEmail() returns every client sharing that email", async () => {
+    const acme = await createClient(INPUT, store);
+    const other = await createClient({ ...INPUT, companyName: "Other Co" }, store);
+
+    const matches = await findClientsByEmail(INPUT.email, store);
+    expect(matches.map((c) => c.id).sort()).toEqual([acme.id, other.id].sort());
+  });
+
+  it("findOrCreateClient() reuses an existing client when email AND company name match", async () => {
     const created = await createClient(INPUT, store);
-    const found = await findOrCreateClientByEmail(INPUT, store);
+    const found = await findOrCreateClient(INPUT, store);
 
     expect(found.id).toBe(created.id);
     expect((await getClient(created.id, store)) !== undefined).toBe(true);
   });
 
-  it("findOrCreateClientByEmail() creates a new client when no match exists", async () => {
-    const record = await findOrCreateClientByEmail(INPUT, store);
+  it("findOrCreateClient() creates a new client when no match exists", async () => {
+    const record = await findOrCreateClient(INPUT, store);
     expect(record.email).toBe(INPUT.email);
+  });
+
+  it("findOrCreateClient() creates a separate client for the same email with a different company name", async () => {
+    // 실사용 재현: "cnbiz" 담당자가 같은 이메일로 "사색찬미한정식" 일을 문의하면 기존 cnbiz
+    // 고객사에 합쳐지지 않고 별도 고객사가 새로 생겨야 한다.
+    const cnbiz = await createClient({ ...INPUT, companyName: "cnbiz" }, store);
+    const restaurant = await findOrCreateClient({ ...INPUT, companyName: "사색찬미한정식" }, store);
+
+    expect(restaurant.id).not.toBe(cnbiz.id);
+    expect(restaurant.companyName).toBe("사색찬미한정식");
+
+    const all = await findClientsByEmail(INPUT.email, store);
+    expect(all).toHaveLength(2);
+  });
+
+  it("findOrCreateClient() treats blank company names as the same client (no false split)", async () => {
+    const first = await createClient({ ...INPUT, companyName: "" }, store);
+    const second = await findOrCreateClient({ ...INPUT, companyName: "" }, store);
+
+    expect(second.id).toBe(first.id);
+  });
+
+  it("findOrCreateClient() company-name match is case/whitespace insensitive", async () => {
+    const created = await createClient({ ...INPUT, companyName: "Acme" }, store);
+    const found = await findOrCreateClient({ ...INPUT, companyName: "  ACME  " }, store);
+
+    expect(found.id).toBe(created.id);
   });
 
   it("addInquiryToClient()/addWebsiteOrderToClient() append ids without duplicating", async () => {

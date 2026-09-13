@@ -42,7 +42,7 @@ export interface InquiryInput {
 export interface InquiryRecord extends InquiryInput {
   id: string;
   status: InquiryStatus;
-  /** Converted 이전에는 null — findOrCreateClientByEmail/createWebsiteOrder 실행 후 채워짐. */
+  /** Converted 이전에는 null — findOrCreateClient/createWebsiteOrder 실행 후 채워짐. */
   clientId: string | null;
   websiteOrderId: string | null;
   createdAt: string;

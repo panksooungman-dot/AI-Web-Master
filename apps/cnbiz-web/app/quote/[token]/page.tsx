@@ -7,6 +7,8 @@ import { Container, Section } from "@cnbiz/layout-primitives";
 import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
+import type { ContractRecord } from "@/lib/contracts/types";
+import type { ProposalRecord } from "@/lib/proposals/types";
 import { buildDefaultEstimateDocument } from "@/lib/estimates/document";
 import { toKoreanAmountPhrase } from "@/lib/estimates/koreanNumber";
 import { componentMarker } from "@/lib/dev/component-marker";
@@ -18,6 +20,8 @@ interface PublicQuoteResponse {
   estimate?: EstimateRecord | null;
   specification?: SpecificationRecord | null;
   timeline?: TimelineRecord | null;
+  contract?: ContractRecord | null;
+  proposal?: ProposalRecord | null;
   error?: string;
 }
 
@@ -120,7 +124,7 @@ export default function PublicQuotePage() {
     );
   }
 
-  const { companyName, estimate, specification, timeline } = data;
+  const { companyName, estimate, specification, timeline, contract, proposal } = data;
   const doc = estimate ? buildDefaultEstimateDocument(estimate) : null;
 
   return (
@@ -129,7 +133,7 @@ export default function PublicQuotePage() {
         <p className="text-sm font-semibold tracking-widest uppercase text-primary">PROJECT DOCUMENTS</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">{companyName} 프로젝트 문서</h1>
         <p className="mt-4 text-base leading-relaxed text-slate-600">
-          견적서·기능 명세서·프로젝트 일정을 확인하실 수 있습니다. 궁금하신 점은 담당자에게 문의해주세요.
+          견적서·기능 명세서·프로젝트 일정·계약서·제안서를 확인하실 수 있습니다. 궁금하신 점은 담당자에게 문의해주세요.
         </p>
 
         <QuoteDocumentTabs
@@ -137,6 +141,8 @@ export default function PublicQuotePage() {
           hasEstimate={Boolean(estimate)}
           hasSpecification={Boolean(specification)}
           hasTimeline={Boolean(timeline)}
+          hasContract={Boolean(contract)}
+          hasProposal={Boolean(proposal)}
         />
 
         {!estimate && !specification && !timeline && (

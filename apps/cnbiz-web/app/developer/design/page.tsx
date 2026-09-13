@@ -103,18 +103,35 @@ function DesignRequirementsPageInner() {
     siteType?: string;
   } | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [isLoadingLinkedInquiry, setIsLoadingLinkedInquiry] = useState(false);
   const [isAutoContinuing, setIsAutoContinuing] = useState(false);
   const [autoContinueError, setAutoContinueError] = useState<string | null>(null);
 
-  useEffect(() => {
+  /**
+   * 기존엔 실패 이유(네트워크 오류·인증 만료로 인한 HTML 응답·실제 404 등)를 구분하지 않고
+   * 전부 "의뢰를 불러오지 못했습니다."로만 표시해, 실제 원인을 알 수도 재시도할 수도
+   * 없었다(2026-09-14 실사용 보고). res.ok·JSON 파싱 성공 여부를 구분해 더 구체적인
+   * 메시지를 보여주고, 페이지를 벗어나지 않고 다시 시도할 수 있는 버튼을 추가했다.
+   */
+  function loadLinkedInquiry() {
     if (!inquiryId) return;
+    setIsLoadingLinkedInquiry(true);
+    setLinkError(null);
 
     fetch(`/api/inquiries/${inquiryId}`)
-      .then((res) => res.json())
-      .then((json: { inquiry?: InquiryRecord; error?: string }) => {
+      .then(async (res) => {
+        let json: { inquiry?: InquiryRecord; error?: string };
+        try {
+          json = await res.json();
+        } catch {
+          throw new Error(
+            res.ok
+              ? "응답을 해석할 수 없습니다."
+              : `요청이 실패했습니다 (HTTP ${res.status}). 로그인 세션이 만료됐을 수 있습니다.`
+          );
+        }
         if (!json.inquiry) {
-          setLinkError(json.error ?? "의뢰를 불러오지 못했습니다.");
-          return;
+          throw new Error(json.error ?? `의뢰를 찾을 수 없습니다 (HTTP ${res.status}).`);
         }
         const inquiry = json.inquiry;
         const typeLabel = WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType;
@@ -128,9 +145,17 @@ function DesignRequirementsPageInner() {
           siteType: inquiry.siteType,
         });
       })
-      .catch(() => setLinkError("의뢰를 불러오지 못했습니다."));
+      .catch((err) => {
+        setLinkError(err instanceof Error ? err.message : "네트워크 오류로 의뢰를 불러오지 못했습니다.");
+      })
+      .finally(() => setIsLoadingLinkedInquiry(false));
+  }
+
+  useEffect(() => {
+    queueMicrotask(loadLinkedInquiry);
     // inquiryId는 페이지 진입 시 한 번만 반영하면 되고, 이후 admin이 폼을 수정해도 다시
-    // 덮어쓰지 않아야 하므로 의도적으로 한 번만 실행한다.
+    // 덮어쓰지 않아야 하므로 의도적으로 한 번만 실행한다. "다시 시도" 버튼이 이후 재실행을
+    // 담당한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -283,7 +308,19 @@ function DesignRequirementsPageInner() {
           자유롭게 수정한 뒤 생성하세요.
         </StatusMessage>
       )}
-      {linkError && <StatusMessage tone="error" className="mb-6">{linkError}</StatusMessage>}
+      {linkError && (
+        <StatusMessage tone="error" className="mb-6">
+          {linkError}{" "}
+          <button
+            type="button"
+            onClick={loadLinkedInquiry}
+            disabled={isLoadingLinkedInquiry}
+            className="underline hover:no-underline disabled:opacity-50"
+          >
+            {isLoadingLinkedInquiry ? "다시 시도 중..." : "다시 시도"}
+          </button>
+        </StatusMessage>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card title="Generate Design Plan">

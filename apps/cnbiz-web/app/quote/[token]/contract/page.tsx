@@ -278,17 +278,31 @@ export default function PublicContractPage() {
             <div>
               <p className="text-sm font-semibold text-slate-700 mb-2">의뢰자 (을)</p>
               <p className="text-sm text-slate-600">{doc.client.companyName || companyName}</p>
-              {doc.client.contactName && <p className="text-sm text-slate-600">담당 {doc.client.contactName}</p>}
-              {doc.client.phone && <p className="text-sm text-slate-500">{doc.client.phone}</p>}
-
-              {contract.clientSignature ? (
-                <div className="mt-2 flex flex-col gap-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL(캔버스 서명)이라 next/image 대상이 아님 */}
+              {/* 공급자 쪽 "대표 {이름}" 줄에 도장이 나란히 붙는 것과 동일하게, 담당자명 옆에
+                  서명 버튼(미서명) 또는 서명 이미지(서명 완료)를 같은 줄에 배치한다. */}
+              <p className="text-sm text-slate-600 flex items-center gap-2">
+                {doc.client.contactName && <span>담당 {doc.client.contactName}</span>}
+                {contract.clientSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- data URL(캔버스 서명)이라 next/image 대상이 아님
                   <img
                     src={contract.clientSignature.imageDataUrl}
                     alt={`${contract.clientSignature.signerName} 서명`}
-                    className="h-16 w-40 object-contain rounded border border-slate-200 bg-white"
+                    className="h-8 w-16 object-contain"
                   />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openSignatureModal}
+                    className="rounded bg-primary px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
+                  >
+                    서명하기
+                  </button>
+                )}
+              </p>
+              {doc.client.phone && <p className="text-sm text-slate-500">{doc.client.phone}</p>}
+
+              {contract.clientSignature && (
+                <div className="mt-1 flex flex-col gap-1">
                   <p className="text-xs text-slate-500">
                     {contract.clientSignature.signerName} ·{" "}
                     {new Date(contract.clientSignature.signedAt).toLocaleString()} 서명 완료
@@ -296,20 +310,9 @@ export default function PublicContractPage() {
                   <button
                     type="button"
                     onClick={openSignatureModal}
-                    className="mt-1 self-start text-xs text-primary underline hover:text-primary-dark"
+                    className="self-start text-xs text-primary underline hover:text-primary-dark"
                   >
                     서명 다시 하기
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-2 flex flex-col gap-2">
-                  <p className="text-sm text-slate-400">아직 서명하지 않았습니다.</p>
-                  <button
-                    type="button"
-                    onClick={openSignatureModal}
-                    className="self-start rounded bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
-                  >
-                    서명하기
                   </button>
                 </div>
               )}

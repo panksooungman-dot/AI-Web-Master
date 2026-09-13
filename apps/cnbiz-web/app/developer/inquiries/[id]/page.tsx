@@ -169,6 +169,7 @@ export default function InquiryDetailPage() {
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [isCopyingShareLink, setIsCopyingShareLink] = useState(false);
   const [isSplittingClient, setIsSplittingClient] = useState(false);
   const [splitClientError, setSplitClientError] = useState<string | null>(null);
 
@@ -762,6 +763,37 @@ export default function InquiryDetailPage() {
       setShareMessage({ tone: "error", text: "문자 발송 중 오류가 발생했습니다." });
     } finally {
       setIsSharing(false);
+    }
+  }
+
+  // 카카오톡 알림톡 자동 발송은 SOLAPI에 카카오톡 채널·알림톡 템플릿이 사전 등록·검수돼 있어야
+  // 가능해(2026-09-13 확인) 이번 범위에서는 제공하지 않는다. 대신 문자 없이 공유 링크만
+  // 발급해 클립보드에 복사한다 — 관리자가 카카오톡 등 원하는 채널에 직접 붙여넣어 수동으로
+  // 보낼 수 있다. /share와 달리 메시지를 전혀 보내지 않으므로 몇 번을 눌러도 안전하다.
+  async function handleCopyShareLink() {
+    if (!websiteOrder) return;
+
+    setIsCopyingShareLink(true);
+    setShareMessage(null);
+
+    try {
+      const res = await fetch(`/api/website-orders/${websiteOrder.id}/share-link`);
+      const data: { success: boolean; shareUrl?: string; error?: string } = await res.json();
+
+      if (!data.success || !data.shareUrl) {
+        setShareMessage({ tone: "error", text: data.error ?? "링크 생성에 실패했습니다." });
+        return;
+      }
+
+      await navigator.clipboard.writeText(data.shareUrl);
+      setShareMessage({
+        tone: "success",
+        text: `링크가 복사되었습니다. 카카오톡 등에 붙여넣어 보내주세요. (${data.shareUrl})`,
+      });
+    } catch {
+      setShareMessage({ tone: "error", text: "링크 복사 중 오류가 발생했습니다." });
+    } finally {
+      setIsCopyingShareLink(false);
     }
   }
 
@@ -1477,13 +1509,22 @@ export default function InquiryDetailPage() {
         title="고객 공유"
         className="mb-6"
         actions={
-          <button
-            onClick={handleShareWithCustomer}
-            disabled={!websiteOrder || !client?.phone || estimates.length === 0 || isSharing}
-            className="rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-          >
-            {isSharing ? "발송 중..." : "문자로 공유"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopyShareLink}
+              disabled={!websiteOrder || estimates.length === 0 || isCopyingShareLink}
+              className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {isCopyingShareLink ? "복사 중..." : "🔗 링크 복사"}
+            </button>
+            <button
+              onClick={handleShareWithCustomer}
+              disabled={!websiteOrder || !client?.phone || estimates.length === 0 || isSharing}
+              className="rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {isSharing ? "발송 중..." : "문자로 공유"}
+            </button>
+          </div>
         }
       >
         {estimates.length === 0 ? (
@@ -1525,17 +1566,19 @@ export default function InquiryDetailPage() {
           </div>
         ) : !client?.phone ? (
           <p className="text-gray-500 text-sm">
-            고객사 연락처(전화번호)가 없어 문자를 보낼 수 없습니다.{" "}
+            고객사 연락처(전화번호)가 없어 문자는 보낼 수 없지만, &ldquo;🔗 링크 복사&rdquo;로 링크를 복사해
+            카카오톡 등으로 직접 보낼 수는 있습니다.{" "}
             {client && (
               <Link href={`/developer/clients/${client.id}`} className="text-blue-400 hover:underline">
-                고객사 정보에서 입력하기 →
+                고객사 정보에서 연락처 입력하기 →
               </Link>
             )}
           </p>
         ) : (
           <p className="text-gray-500 text-sm">
             {client.companyName || client.contactName}님({client.phone})에게 로그인 없이 열람 가능한 문서 링크를
-            문자로 발송합니다. 견적서·기능 명세서·프로젝트 일정 중 생성된 것만 한 페이지에 표시됩니다.
+            문자로 발송하거나, &ldquo;🔗 링크 복사&rdquo;로 복사해 카카오톡 등에 직접 붙여넣어 보낼 수 있습니다.
+            견적서·기능 명세서·프로젝트 일정·계약서·제안서 중 생성된 것만 한 페이지에 표시됩니다.
           </p>
         )}
         {shareMessage && (

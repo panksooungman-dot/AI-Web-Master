@@ -10,6 +10,7 @@ import {
   findClientByEmail,
   findOrCreateClientByEmail,
   getClient,
+  listClients,
   updateClient,
 } from "../../lib/clients/registry";
 import type { ClientInput } from "../../lib/clients/types";
@@ -86,5 +87,23 @@ describe("Client Registry — lib/clients/registry.ts", () => {
 
   it("updateClient() returns undefined for an unknown id", async () => {
     expect(await updateClient("nonexistent", { phone: "010-0000-0000" }, store)).toBeUndefined();
+  });
+
+  it("listClients() sorts by company name (not registration order)", async () => {
+    // 등록 순서와 이름 순서가 정반대가 되도록 만들어, createdAt 정렬이 남아있으면 실패하게 한다.
+    await createClient({ ...INPUT, companyName: "Zebra Co", email: "z@example.com" }, store);
+    await createClient({ ...INPUT, companyName: "Acme Co", email: "a@example.com" }, store);
+    await createClient({ ...INPUT, companyName: "Mid Co", email: "m@example.com" }, store);
+
+    const names = (await listClients(store)).map((c) => c.companyName);
+    expect(names).toEqual(["Acme Co", "Mid Co", "Zebra Co"]);
+  });
+
+  it("listClients() falls back to contact name when company name is blank", async () => {
+    await createClient({ ...INPUT, companyName: "", contactName: "Zed", email: "zed@example.com" }, store);
+    await createClient({ ...INPUT, companyName: "", contactName: "Amy", email: "amy@example.com" }, store);
+
+    const names = (await listClients(store)).map((c) => c.contactName);
+    expect(names).toEqual(["Amy", "Zed"]);
   });
 });

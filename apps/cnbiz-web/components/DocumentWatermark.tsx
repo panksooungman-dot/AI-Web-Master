@@ -12,9 +12,10 @@ interface DocumentWatermarkProps {
  *
  * 로고 원본이 유채색(핑크·블루)이라 낮은 opacity에서도 색이 도드라져 보였다 — grayscale
  * 필터로 무채색 인상만 남기고, 카드 대비 지나치게 크던 크기도 줄여 일반적인 문서 워터마크
- * 수준으로 조정했다.
+ * 수준으로 조정했다. 2026-09-13 — 실사용 피드백으로 너무 작고 옅어 거의 안 보인다는 요청에
+ * 따라 크기·투명도를 다시 키움(0.05→0.12, 128~176px→192~256px).
  */
-export function DocumentWatermark({ opacity = 0.05 }: DocumentWatermarkProps) {
+export function DocumentWatermark({ opacity = 0.12 }: DocumentWatermarkProps) {
   return (
     <div
       aria-hidden
@@ -23,10 +24,10 @@ export function DocumentWatermark({ opacity = 0.05 }: DocumentWatermarkProps) {
       <Image
         src="/images/logo.png"
         alt=""
-        width={280}
-        height={280}
+        width={320}
+        height={320}
         style={{ opacity, filter: "grayscale(1)" }}
-        className="h-32 w-32 sm:h-44 sm:w-44"
+        className="h-48 w-48 sm:h-64 sm:w-64"
       />
     </div>
   );

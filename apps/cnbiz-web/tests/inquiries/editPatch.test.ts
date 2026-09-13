@@ -4,6 +4,7 @@ import {
   DOMAIN_SURVEY_KEY,
   mergeSurveyPatch,
   mergeUploadedFiles,
+  pickClientMirrorPatch,
   pickReferenceUrls,
 } from "../../lib/inquiries/editPatch";
 
@@ -63,5 +64,26 @@ describe("mergeUploadedFiles() — lib/inquiries/editPatch.ts", () => {
     expect(mergeUploadedFiles(undefined, { addUploadedFiles: ["https://a.com/logo.png"] })).toEqual([
       "https://a.com/logo.png",
     ]);
+  });
+});
+
+describe("pickClientMirrorPatch() — lib/inquiries/editPatch.ts", () => {
+  it("Client에도 있는 연락처 필드(회사명·담당자·이메일·연락처)만 골라낸다", () => {
+    expect(pickClientMirrorPatch({ companyName: "사색찬미한정식", phone: "010-1111-2222" })).toEqual({
+      companyName: "사색찬미한정식",
+      phone: "010-1111-2222",
+    });
+  });
+
+  it("Client에 없는 필드(siteType·requirements 등)는 무시한다", () => {
+    expect(pickClientMirrorPatch({ siteType: "restaurant", requirements: "예약 기능" })).toEqual({});
+  });
+
+  it("아무 연락처 필드도 없으면 빈 객체를 반환한다", () => {
+    expect(pickClientMirrorPatch({})).toEqual({});
+  });
+
+  it("문자열이 아닌 값은 무시한다", () => {
+    expect(pickClientMirrorPatch({ phone: 123 as unknown as string })).toEqual({});
   });
 });

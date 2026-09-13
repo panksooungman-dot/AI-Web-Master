@@ -53,3 +53,21 @@ export function mergeUploadedFiles(current: string[] | undefined, body: Record<s
   }
   return merged;
 }
+
+/** 의뢰와 고객사(Client) 양쪽에 똑같은 이름으로 존재하는 연락처 필드. 의뢰 정보 수정 화면에서
+ * 이 필드를 고치면 연결된 Client에도 그대로 반영해야 한다 — 그렇지 않으면 "문자로 공유" 등
+ * Client 필드를 쓰는 기능이 계속 옛 정보로 실패한다(실사용 재현: 회사명/전화번호를 의뢰
+ * 화면에서 고쳐도 견적서의 "문자로 공유"는 여전히 옛 고객사 전화번호 부재 오류를 냄). */
+export const CLIENT_MIRRORED_FIELDS = ["companyName", "contactName", "email", "phone"] as const;
+
+export type ClientMirrorPatch = Partial<Record<(typeof CLIENT_MIRRORED_FIELDS)[number], string>>;
+
+/** patch에 실제로 포함된 연락처 필드만 골라, 연결된 Client에 그대로 옮겨 적을 부분 패치를 만든다.
+ * 아무 연락처 필드도 바뀌지 않았으면 빈 객체를 반환한다(호출자가 Object.keys().length로 판단). */
+export function pickClientMirrorPatch(patch: Record<string, unknown>): ClientMirrorPatch {
+  const result: ClientMirrorPatch = {};
+  for (const field of CLIENT_MIRRORED_FIELDS) {
+    if (typeof patch[field] === "string") result[field] = patch[field];
+  }
+  return result;
+}

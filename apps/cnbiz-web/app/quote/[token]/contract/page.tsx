@@ -245,19 +245,23 @@ export default function PublicContractPage() {
             <div>
               <p className="text-sm font-semibold text-slate-700 mb-2">공급자 (갑)</p>
               <p className="text-sm text-slate-600">{doc.supplier.companyName}</p>
-              {doc.supplier.ceoName && <p className="text-sm text-slate-600">대표 {doc.supplier.ceoName}</p>}
+              {(doc.supplier.ceoName || doc.supplier.sealImageUrl) && (
+                <p className="text-sm text-slate-600 flex items-center gap-2">
+                  {doc.supplier.ceoName && <span>대표 {doc.supplier.ceoName}</span>}
+                  {doc.supplier.sealImageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- 업로드된 임의 스토리지 URL이라 next/image 대상이 아님
+                    <img
+                      src={doc.supplier.sealImageUrl}
+                      alt="공급자 도장/서명"
+                      className="h-8 w-8 object-contain"
+                    />
+                  )}
+                </p>
+              )}
               {doc.supplier.businessNumber && (
                 <p className="text-sm text-slate-500">사업자번호 {doc.supplier.businessNumber}</p>
               )}
               {doc.supplier.address && <p className="text-sm text-slate-500">{doc.supplier.address}</p>}
-              {doc.supplier.sealImageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element -- 업로드된 임의 스토리지 URL이라 next/image 대상이 아님
-                <img
-                  src={doc.supplier.sealImageUrl}
-                  alt="공급자 도장/서명"
-                  className="mt-2 h-16 w-16 object-contain rounded border border-slate-200 bg-white"
-                />
-              )}
             </div>
 
             <div>

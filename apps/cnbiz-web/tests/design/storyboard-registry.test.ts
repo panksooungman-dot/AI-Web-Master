@@ -55,7 +55,7 @@ describe("Storyboard Registry — lib/design/storyboard.ts", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "design-storyboards.json"), "utf-8"));
     expect(raw).toHaveLength(1);
     expect(raw[0].id).toBe(record.id);
-    expect(raw[0].planId).toBe(PLAN.id);
+    expect(raw[0].data.planId).toBe(PLAN.id);
   });
 
   it("getStoryboard() finds a record by id, null for unknown id", async () => {

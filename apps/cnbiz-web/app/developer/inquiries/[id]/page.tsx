@@ -1488,8 +1488,24 @@ export default function InquiryDetailPage() {
       >
         {estimates.length === 0 ? (
           <p className="text-gray-500 text-sm">기술 견적서를 먼저 생성하면 의뢰자에게 문자로 공유할 수 있습니다.</p>
-        ) : client &&
-          client.companyName.trim().toLowerCase() !== (inquiry.companyName ?? "").trim().toLowerCase() ? (
+        ) : !client ? (
+          <div className="flex flex-col gap-3">
+            <StatusMessage tone="warning">
+              이 의뢰에 연결된 고객사 정보를 찾을 수 없습니다. 데이터 오류로 고객사 연결이 끊어진 것으로 보입니다.
+              복구하면 이 의뢰 자신의 정보로 고객사를 새로 만들어(또는 이미 일치하는 고객사가 있으면 그대로 재사용해)
+              연결합니다.
+            </StatusMessage>
+            <button
+              type="button"
+              onClick={handleSplitClient}
+              disabled={isSplittingClient}
+              className="self-start rounded bg-amber-600 hover:bg-amber-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {isSplittingClient ? "복구 중..." : "고객사 연결 복구"}
+            </button>
+            {splitClientError && <StatusMessage tone="error">{splitClientError}</StatusMessage>}
+          </div>
+        ) : client.companyName.trim().toLowerCase() !== (inquiry.companyName ?? "").trim().toLowerCase() ? (
           <div className="flex flex-col gap-3">
             <StatusMessage tone="warning">
               연결된 고객사(&ldquo;{client.companyName || client.contactName}&rdquo;)가 이 의뢰의 회사명(&ldquo;

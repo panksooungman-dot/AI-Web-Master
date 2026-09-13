@@ -41,10 +41,47 @@ describe("splitInquiryFromClient() — lib/inquiries/splitClient.ts", () => {
     expect(result).toEqual({ success: false, error: "의뢰를 찾을 수 없습니다." });
   });
 
-  it("연결된 고객사가 없으면(clientId가 null) 실패한다", async () => {
+  it("연결된 고객사가 없으면(clientId가 null) 이 의뢰 정보로 새 고객사를 만들어 연결한다", async () => {
     const inquiry = await createInquiry(RESTAURANT_INQUIRY, store);
     const result = await splitInquiryFromClient(inquiry.id, store);
-    expect(result).toEqual({ success: false, error: "연결된 고객사가 없습니다." });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.changed).toBe(true);
+    expect(result.client.companyName).toBe("사색찬미한정식");
+
+    const updatedInquiry = await getInquiry(inquiry.id, store);
+    expect(updatedInquiry?.clientId).toBe(result.client.id);
+  });
+
+  it("clientId는 있는데 그 고객사 레코드가 사라졌으면(경합으로 Client가 삭제된 경우) 새로 만들어 연결한다", async () => {
+    // 실사용 재현(2026-09-13): WebsiteOrder·AiJob·Project Workspace는 정상 생성됐는데
+    // Client만 동시 쓰기 경합으로 사라진 상태 — clientId는 남아있지만 getClient()가 undefined.
+    const inquiry = await createInquiry(RESTAURANT_INQUIRY, store);
+    const order = await createWebsiteOrder(
+      {
+        clientId: "client-does-not-exist",
+        inquiryId: inquiry.id,
+        name: "사색찬미한정식 홈페이지 제작",
+        siteType: "restaurant",
+        requirements: RESTAURANT_INQUIRY.requirements,
+      },
+      store
+    );
+    await linkInquiryToClientAndOrder(inquiry.id, "client-does-not-exist", order.id, store);
+
+    const result = await splitInquiryFromClient(inquiry.id, store);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.changed).toBe(true);
+    expect(result.client.companyName).toBe("사색찬미한정식");
+    expect(result.client.id).not.toBe("client-does-not-exist");
+
+    const updatedInquiry = await getInquiry(inquiry.id, store);
+    expect(updatedInquiry?.clientId).toBe(result.client.id);
+    const updatedOrder = await getWebsiteOrder(order.id, store);
+    expect(updatedOrder?.clientId).toBe(result.client.id);
   });
 
   it("다른 회사 문의와 잘못 합쳐진 의뢰를 별도 고객사로 분리한다(실사용 재현: cnbiz ↔ 사색찬미한정식)", async () => {

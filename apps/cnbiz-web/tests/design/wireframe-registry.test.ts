@@ -69,8 +69,8 @@ describe("Wireframe Registry — lib/design/wireframe.ts", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "design-wireframes.json"), "utf-8"));
     expect(raw).toHaveLength(1);
     expect(raw[0].id).toBe(record.id);
-    expect(raw[0].storyboardId).toBe(STORYBOARD.id);
-    expect(raw[0].planId).toBe(PLAN.id);
+    expect(raw[0].data.storyboardId).toBe(STORYBOARD.id);
+    expect(raw[0].data.planId).toBe(PLAN.id);
   });
 
   it("getWireframe() finds a record by id, null for unknown id", async () => {

@@ -61,11 +61,17 @@ describe("Prompt Library — registry (lib/prompts/registry.ts)", () => {
       JSON.stringify([
         {
           id: "prompt-legacy",
-          name: "Legacy",
-          description: "",
-          versions: [{ version: 1, content: "old", createdAt: "2026-01-01T00:00:00.000Z" }],
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z"
+          // fsStore.ts는 모든 collection을 `{id, data}[]`로 저장한다(2026-09-13, list/replaceAll과
+          // getDoc/setDoc이 같은 파일 포맷을 공유하도록 통일) — legacy 데이터를 흉내낼 때도 이
+          // 포맷을 그대로 따라야 store.list()가 정상적으로 읽는다.
+          data: {
+            id: "prompt-legacy",
+            name: "Legacy",
+            description: "",
+            versions: [{ version: 1, content: "old", createdAt: "2026-01-01T00:00:00.000Z" }],
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z"
+          }
         }
       ]),
       "utf-8"

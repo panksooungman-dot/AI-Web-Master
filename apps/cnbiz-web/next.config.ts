@@ -76,7 +76,17 @@ const PDFJS_TRACE_INCLUDES = [
 // above). One glob over docs/** covers all of them plus any future doc these pages start reading;
 // PROJECT_STATUS.md (root) and REQUEST.md (this app's own directory) are separate since they
 // live outside docs/.
-const DOCS_TRACE_INCLUDES = ["../../PROJECT_STATUS.md", "../../docs/**/*", "REQUEST.md"];
+//
+// ../../package.json is required too, and was missing from the first attempt at this fix
+// (confirmed 2026-09-13 by inspecting .next/server/app/developer/analysis/page.js.nft.json —
+// PROJECT_STATUS.md/docs/REQUEST.md were all present in the trace, but the root package.json
+// was not, even though it looked complete locally). resolveRepoRoot() (lib/paths/repoRoot.ts)
+// reads that file's `workspaces` field to confirm it found the real monorepo root; without it
+// in the bundle, fs.existsSync() on it returns false in production, resolveRepoRoot() falls
+// through its walk-up loop (which hits the same missing-file problem at every level) and back to
+// its process.cwd() fallback (apps/cnbiz-web itself) exactly as before the first fix — which is
+// why that fix alone didn't change anything in production.
+const DOCS_TRACE_INCLUDES = ["../../PROJECT_STATUS.md", "../../docs/**/*", "../../package.json", "REQUEST.md"];
 
 const nextConfig: NextConfig = {
   transpilePackages: [

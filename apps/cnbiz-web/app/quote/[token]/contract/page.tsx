@@ -14,6 +14,7 @@ import { componentMarker } from "@/lib/dev/component-marker";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
 import { QuoteDocumentTabs } from "@/components/quote/QuoteDocumentTabs";
 import { SignaturePad } from "@/components/quote/SignaturePad";
+import { SignatureModal } from "@/components/quote/SignatureModal";
 
 interface PublicQuoteResponse {
   companyName?: string;
@@ -39,7 +40,8 @@ export default function PublicContractPage() {
   const [signerName, setSignerName] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [isSubmittingSignature, setIsSubmittingSignature] = useState(false);
-  const [signatureMessage, setSignatureMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/quote/public/${params.token}`)
@@ -61,7 +63,7 @@ export default function PublicContractPage() {
   async function handleSubmitSignature() {
     if (!signatureDataUrl || !signerName.trim()) return;
     setIsSubmittingSignature(true);
-    setSignatureMessage(null);
+    setSignatureError(null);
 
     try {
       const res = await fetch(`/api/quote/public/${params.token}/contract-signature`, {
@@ -72,13 +74,13 @@ export default function PublicContractPage() {
       const json: { success: boolean; contract?: ContractRecord; error?: string } = await res.json();
 
       if (!json.success || !json.contract) {
-        setSignatureMessage({ tone: "error", text: json.error ?? "서명 제출에 실패했습니다." });
+        setSignatureError(json.error ?? "서명 제출에 실패했습니다.");
         return;
       }
       setData((prev) => (prev ? { ...prev, contract: json.contract } : prev));
-      setSignatureMessage({ tone: "success", text: "서명이 제출되었습니다." });
+      setIsSignatureModalOpen(false);
     } catch {
-      setSignatureMessage({ tone: "error", text: "서명 제출 중 오류가 발생했습니다." });
+      setSignatureError("서명 제출 중 오류가 발생했습니다.");
     } finally {
       setIsSubmittingSignature(false);
     }
@@ -113,6 +115,15 @@ export default function PublicContractPage() {
   const { companyName, contract } = data;
   const { result } = contract;
   const doc = buildDefaultContractDocument(contract);
+
+  function openSignatureModal() {
+    setSignatureDataUrl(null);
+    setSignatureError(null);
+    if (contract.clientSignature) {
+      setSignerName(contract.clientSignature.signerName);
+    }
+    setIsSignatureModalOpen(true);
+  }
 
   return (
     <Section
@@ -282,19 +293,36 @@ export default function PublicContractPage() {
                     {contract.clientSignature.signerName} ·{" "}
                     {new Date(contract.clientSignature.signedAt).toLocaleString()} 서명 완료
                   </p>
+                  <button
+                    type="button"
+                    onClick={openSignatureModal}
+                    className="mt-1 self-start text-xs text-primary underline hover:text-primary-dark"
+                  >
+                    서명 다시 하기
+                  </button>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-400">아직 서명하지 않았습니다.</p>
+                <div className="mt-2 flex flex-col gap-2">
+                  <p className="text-sm text-slate-400">아직 서명하지 않았습니다.</p>
+                  <button
+                    type="button"
+                    onClick={openSignatureModal}
+                    className="self-start rounded bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
+                  >
+                    서명하기
+                  </button>
+                </div>
               )}
             </div>
           </div>
         </Card>
 
         {/* 이 이미지 기반 서명은 공인전자서명이 아닙니다 — 당사자 간 확인 용도로만 사용하세요. */}
-        <Card className="mt-6">
-          <p className="text-sm font-semibold text-slate-900 mb-1">
-            {contract.clientSignature ? "서명 다시 하기" : "전자서명"}
-          </p>
+        <SignatureModal
+          open={isSignatureModalOpen}
+          onClose={() => setIsSignatureModalOpen(false)}
+          title={contract.clientSignature ? "서명 다시 하기" : "전자서명"}
+        >
           <p className="text-xs text-slate-500 mb-4">
             아래에 서명을 그린 뒤 이름을 입력하고 제출해주세요. (공인전자서명이 아닌 서명 이미지 확인 방식입니다)
           </p>
@@ -305,10 +333,10 @@ export default function PublicContractPage() {
             value={signerName}
             onChange={(e) => setSignerName(e.target.value)}
             placeholder="이름을 입력하세요"
-            className="mb-4 w-full max-w-xs rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-primary"
+            className="mb-4 w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-primary"
           />
 
-          <SignaturePad onChange={setSignatureDataUrl} />
+          <SignaturePad onChange={setSignatureDataUrl} width={440} />
 
           <button
             type="button"
@@ -319,14 +347,8 @@ export default function PublicContractPage() {
             {isSubmittingSignature ? "제출 중..." : "서명 제출"}
           </button>
 
-          {signatureMessage && (
-            <p
-              className={`mt-3 text-sm ${signatureMessage.tone === "success" ? "text-emerald-600" : "text-red-600"}`}
-            >
-              {signatureMessage.text}
-            </p>
-          )}
-        </Card>
+          {signatureError && <p className="mt-3 text-sm text-red-600">{signatureError}</p>}
+        </SignatureModal>
       </Container>
     </Section>
   );

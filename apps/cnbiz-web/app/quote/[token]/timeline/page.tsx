@@ -7,6 +7,8 @@ import { Container, Section } from "@cnbiz/layout-primitives";
 import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
+import type { ContractRecord } from "@/lib/contracts/types";
+import type { ProposalRecord } from "@/lib/proposals/types";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
 import { QuoteDocumentTabs } from "@/components/quote/QuoteDocumentTabs";
@@ -16,6 +18,8 @@ interface PublicQuoteResponse {
   estimate?: EstimateRecord | null;
   specification?: SpecificationRecord | null;
   timeline?: TimelineRecord | null;
+  contract?: ContractRecord | null;
+  proposal?: ProposalRecord | null;
   error?: string;
 }
 
@@ -62,6 +66,8 @@ export default function PublicTimelinePage() {
             hasEstimate={Boolean(data?.estimate)}
             hasSpecification={Boolean(data?.specification)}
             hasTimeline={Boolean(data?.timeline)}
+            hasContract={Boolean(data?.contract)}
+            hasProposal={Boolean(data?.proposal)}
           />
           <p className="py-12 text-center text-slate-500">{loadError ?? "프로젝트 일정을 찾을 수 없습니다."}</p>
         </Container>
@@ -85,6 +91,8 @@ export default function PublicTimelinePage() {
           hasEstimate={Boolean(data.estimate)}
           hasSpecification={Boolean(data.specification)}
           hasTimeline={Boolean(data.timeline)}
+          hasContract={Boolean(data.contract)}
+          hasProposal={Boolean(data.proposal)}
         />
 
         <Card className="relative isolate mt-8 overflow-hidden">

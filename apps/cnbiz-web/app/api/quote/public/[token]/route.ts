@@ -4,6 +4,8 @@ import { getClient } from "@/lib/clients/registry";
 import { listEstimatesByInquiry } from "@/lib/estimates/registry";
 import { listSpecificationsByInquiry } from "@/lib/specifications/registry";
 import { listTimelinesByInquiry } from "@/lib/timeline/registry";
+import { listContractsByInquiry } from "@/lib/contracts/registry";
+import { listProposalsByInquiry } from "@/lib/proposals/registry";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -23,11 +25,13 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "문서를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  const [client, estimates, specifications, timelines] = await Promise.all([
+  const [client, estimates, specifications, timelines, contracts, proposals] = await Promise.all([
     getClient(order.clientId),
     listEstimatesByInquiry(order.inquiryId),
     listSpecificationsByInquiry(order.inquiryId),
     listTimelinesByInquiry(order.inquiryId),
+    listContractsByInquiry(order.inquiryId),
+    listProposalsByInquiry(order.inquiryId),
   ]);
 
   return NextResponse.json({
@@ -35,5 +39,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     estimate: estimates[0] ?? null,
     specification: specifications[0] ?? null,
     timeline: timelines[0] ?? null,
+    contract: contracts[0] ?? null,
+    proposal: proposals[0] ?? null,
   });
 }

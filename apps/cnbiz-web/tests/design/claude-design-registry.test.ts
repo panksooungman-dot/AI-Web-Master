@@ -91,8 +91,8 @@ describe("Claude Design Registry — lib/design/claude-design.ts", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "design-claude.json"), "utf-8"));
     expect(raw).toHaveLength(1);
     expect(raw[0].id).toBe(record.id);
-    expect(raw[0].prototypeId).toBe(PROTOTYPE.id);
-    expect(raw[0].planId).toBe(PLAN.id);
+    expect(raw[0].data.prototypeId).toBe(PROTOTYPE.id);
+    expect(raw[0].data.planId).toBe(PLAN.id);
   });
 
   it("getClaudeDesign() finds a record by id, null for unknown id", async () => {

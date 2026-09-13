@@ -80,8 +80,8 @@ describe("Prototype Registry — lib/design/prototype.ts", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "design-prototypes.json"), "utf-8"));
     expect(raw).toHaveLength(1);
     expect(raw[0].id).toBe(record.id);
-    expect(raw[0].wireframeId).toBe(WIREFRAME.id);
-    expect(raw[0].planId).toBe(PLAN.id);
+    expect(raw[0].data.wireframeId).toBe(WIREFRAME.id);
+    expect(raw[0].data.planId).toBe(PLAN.id);
   });
 
   it("createPrototype() auto-increments version per wireframeId, preserving history (no overwrite)", async () => {

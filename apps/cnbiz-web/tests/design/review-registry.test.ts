@@ -46,8 +46,8 @@ describe("Review Registry — lib/design/review-registry.ts", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "design-reviews.json"), "utf-8"));
     expect(raw).toHaveLength(1);
     expect(raw[0].id).toBe(record.id);
-    expect(raw[0].claudeDesignId).toBe("cd-1");
-    expect(raw[0].planId).toBe("plan-1");
+    expect(raw[0].data.claudeDesignId).toBe("cd-1");
+    expect(raw[0].data.planId).toBe("plan-1");
   });
 
   it("createReview() auto-increments version per claudeDesignId, preserving history (no overwrite)", async () => {

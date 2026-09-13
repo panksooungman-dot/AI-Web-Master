@@ -8,10 +8,10 @@ interface RouteParams {
 }
 
 /**
- * findOrCreateClient()가 이메일만으로 판단하던 시절(2026-09-12 수정 이전)에 다른 회사 문의와
- * 잘못 합쳐진 옛 Client를 바로잡는 관리자 액션. 실사용 재현: "사색찬미한정식" 문의가 "cnbiz"
- * Client에 합쳐져, 연락처(전화번호)를 고쳐도 다른 회사와 뒤섞여 있어 "문자로 공유"가 계속
- * 실패함(2026-09-13). 이 의뢰만 자기 정보로 된 새(또는 이미 일치하는) Client로 옮긴다.
+ * 다른 회사 문의와 잘못 합쳐졌거나(findOrCreateClient()가 이메일만으로 판단하던 2026-09-12
+ * 수정 이전 데이터) Client 자체가 사라진(2026-09-13, 서로 다른 서버리스 인스턴스의 동시 쓰기
+ * 경합으로 확인됨) 의뢰를 바로잡는 관리자 액션. 이 의뢰만 자기 정보로 된 새(또는 이미
+ * 일치하는) Client로 옮기거나 새로 연결한다. 자세한 배경은 lib/inquiries/splitClient.ts 참고.
  */
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       action: "inquiry.split_client",
       actor,
       success: true,
-      detail: `"${result.client.companyName || result.client.contactName}" 고객사로 분리`,
+      detail: `고객사 연결을 "${result.client.companyName || result.client.contactName}"(으)로 재설정`,
       metadata: { inquiryId: id, clientId: result.client.id },
     });
   }

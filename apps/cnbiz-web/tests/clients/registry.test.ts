@@ -142,4 +142,48 @@ describe("Client Registry — lib/clients/registry.ts", () => {
     const names = (await listClients(store)).map((c) => c.contactName);
     expect(names).toEqual(["Amy", "Zed"]);
   });
+
+  describe("동시 쓰기 경합 — 서로 다른 서버리스 인스턴스를 흉내낸 재현(2026-09-13)", () => {
+    // 실제 프로덕션 재현: "사색찬미한정식" Client가 WebsiteOrder·AiJob은 정상 생성됐는데
+    // 사라진 채로 발견됨. lib/db/collectionLock.ts의 락은 프로세스 안에서만 순서를 보장하므로,
+    // 같은 baseDir를 가리키되 서로 다른 createFsStore() 인스턴스(= 서로 다른 락 테이블, 서로
+    // 다른 서버리스 인스턴스와 동등)로 시뮬레이션한다.
+    it("setDoc() 기반 createClient()는 동시에 생성된 다른 Client를 지우지 않는다", async () => {
+      const storeA = createFsStore(baseDir);
+      const storeB = createFsStore(baseDir);
+
+      // 두 "인스턴스"가 서로의 쓰기를 보지 못한 채 동시에 각자 새 Client를 만든다.
+      await Promise.all([
+        createClient({ ...INPUT, companyName: "cnbiz", email: "race@example.com" }, storeA),
+        createClient({ ...INPUT, companyName: "사색찬미한정식", email: "race@example.com" }, storeB),
+      ]);
+
+      const all = await findClientsByEmail("race@example.com", store);
+      expect(all.map((c) => c.companyName).sort()).toEqual(["cnbiz", "사색찬미한정식"]);
+    });
+
+    it("(대조군) 옛 list()+replaceAll() 방식이었다면 이 경합에서 실제로 유실됐음을 확인", async () => {
+      // 수정 전 코드가 실제로 이 문제를 일으켰음을 증명하기 위한 대조군 — createClient()가
+      // 아직도 list()+push()+replaceAll()을 쓴다면 이 테스트가 실패해야 정상이다.
+      const storeA = createFsStore(baseDir);
+      const storeB = createFsStore(baseDir);
+
+      async function legacyCreateClient(input: ClientInput, s: ReturnType<typeof createFsStore>) {
+        const records = await s.list<{ id: string } & ClientInput>("clients");
+        // 일부러 그 사이에 다른 인스턴스가 끼어들 시간을 준다.
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        records.push({ id: `client-${input.companyName}`, ...input });
+        await s.replaceAll("clients", records);
+      }
+
+      await Promise.all([
+        legacyCreateClient({ ...INPUT, companyName: "cnbiz", email: "race2@example.com" }, storeA),
+        legacyCreateClient({ ...INPUT, companyName: "사색찬미한정식", email: "race2@example.com" }, storeB),
+      ]);
+
+      const all = await findClientsByEmail("race2@example.com", store);
+      // 늦게 replaceAll()한 쪽이 먼저 쓴 쪽의 스냅샷을 덮어써 하나만 남는다 — 실제 유실 재현.
+      expect(all.length).toBeLessThan(2);
+    });
+  });
 });

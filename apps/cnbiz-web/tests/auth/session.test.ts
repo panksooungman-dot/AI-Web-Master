@@ -40,7 +40,7 @@ describe("Auth — session store (lib/auth/session.ts)", () => {
     // Force expiry directly in the store (createSession() has no custom-TTL param).
     const file = path.join(baseDir, "sessions.json");
     const records = JSON.parse(fs.readFileSync(file, "utf-8"));
-    records[0].expiresAt = new Date(Date.now() - 1000).toISOString();
+    records[0].data.expiresAt = new Date(Date.now() - 1000).toISOString();
     fs.writeFileSync(file, JSON.stringify(records, null, 2), "utf-8");
 
     expect(await getValidSession(session.id, store)).toBeNull();
@@ -67,7 +67,7 @@ describe("Auth — session store (lib/auth/session.ts)", () => {
       const file = path.join(baseDir, "sessions.json");
       const records = JSON.parse(fs.readFileSync(file, "utf-8"));
       const target = records.find((r: { id: string }) => r.id === expiring.id);
-      target.expiresAt = new Date(Date.now() - 1000).toISOString();
+      target.data.expiresAt = new Date(Date.now() - 1000).toISOString();
       fs.writeFileSync(file, JSON.stringify(records, null, 2), "utf-8");
 
       expect(await countActiveSessions(store)).toBe(1);

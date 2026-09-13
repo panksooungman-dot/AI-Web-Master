@@ -72,8 +72,12 @@ describe("Metrics — lib/metrics/registry.ts", () => {
   it("persists counters across separate reads (survives process/module reload semantics)", async () => {
     await incrementMetric("websiteGenerationCount", undefined, store);
 
+    // fsStore.ts는 모든 collection을 `{id, data}[]` 배열로 저장한다(list/replaceAll과
+    // getDoc/setDoc이 같은 파일 포맷을 공유하도록 2026-09-13에 통일) — 이 파일의 "counters"
+    // 문서는 그 배열 안에서 id로 찾는다.
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "metrics.json"), "utf-8"));
-    expect(raw.counters.websiteGenerationCount).toBe(1);
+    const countersEntry = raw.find((entry: { id: string }) => entry.id === "counters");
+    expect(countersEntry.data.websiteGenerationCount).toBe(1);
   });
 
   it("incrementMetric() increments storyboardGenerationCount (Design Automation Phase 2) independently of other counters", async () => {

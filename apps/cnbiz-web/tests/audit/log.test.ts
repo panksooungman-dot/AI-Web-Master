@@ -96,7 +96,7 @@ describe("Audit Log — lib/audit/log.ts", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(baseDir, "audit-log.json"), "utf-8"));
     expect(raw.length).toBe(500);
     // Oldest entries were dropped — the earliest surviving one should be build-5 (0..4 trimmed).
-    expect(raw[0].detail).toBe("build-5");
-    expect(raw[raw.length - 1].detail).toBe("build-504");
+    expect(raw[0].data.detail).toBe("build-5");
+    expect(raw[raw.length - 1].data.detail).toBe("build-504");
   });
 });

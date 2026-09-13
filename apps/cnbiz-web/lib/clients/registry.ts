@@ -9,7 +9,11 @@ export async function listClients(
   store: CollectionStore = getDefaultStore()
 ): Promise<ClientRecord[]> {
   const records = await store.list<ClientRecord>(COLLECTION);
-  return [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // /developer/clients는 등록 순서가 아니라 회사명(비어있으면 담당자명)으로 찾아보는 화면이라
+  // 가나다순으로 정렬한다 — 이전에는 createdAt 내림차순이라 email 순서처럼 뒤죽박죽으로 보였다.
+  return [...records].sort((a, b) =>
+    (a.companyName || a.contactName).localeCompare(b.companyName || b.contactName, "ko")
+  );
 }
 
 export async function getClient(
@@ -98,6 +102,25 @@ export async function addWebsiteOrderToClient(
     };
     await store.replaceAll(COLLECTION, records);
   }
+
+  return records[index];
+}
+
+export async function updateClient(
+  id: string,
+  patch: Partial<ClientInput>,
+  store: CollectionStore = getDefaultStore()
+): Promise<ClientRecord | undefined> {
+  const records = await store.list<ClientRecord>(COLLECTION);
+  const index = records.findIndex((client) => client.id === id);
+  if (index === -1) return undefined;
+
+  records[index] = {
+    ...records[index],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  await store.replaceAll(COLLECTION, records);
 
   return records[index];
 }

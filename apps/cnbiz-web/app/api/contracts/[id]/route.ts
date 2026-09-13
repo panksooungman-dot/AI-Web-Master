@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { deleteContract, getContract } from "@/lib/contracts/registry";
+import { deleteContract, getContract, updateContractResult } from "@/lib/contracts/registry";
+import type { ContractResult } from "@/lib/contracts/types";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 
@@ -16,6 +17,35 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json({ contract });
+}
+
+/** 계약 조항(제목·범위·일정·조건 등) 전체를 관리자가 직접 수정해 저장한다. */
+export async function PATCH(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ success: false, error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
+  }
+
+  const result =
+    typeof body === "object" && body !== null
+      ? ((body as Record<string, unknown>).result as ContractResult | undefined)
+      : undefined;
+
+  if (!result || typeof result !== "object") {
+    return NextResponse.json({ success: false, error: "result 필드가 필요합니다." }, { status: 400 });
+  }
+
+  const record = await updateContractResult(id, result);
+
+  if (!record) {
+    return NextResponse.json({ success: false, error: "계약서를 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  return NextResponse.json({ success: true, contract: record });
 }
 
 export async function DELETE(request: Request, { params }: RouteParams) {

@@ -1,7 +1,7 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
 import { generateId } from "@/lib/id";
-import type { ContractRecord } from "./types";
+import type { ContractRecord, ContractResult } from "./types";
 
 const COLLECTION = "contracts";
 
@@ -47,6 +47,29 @@ export async function createContract(
   await store.setDoc(COLLECTION, record.id, record);
 
   return record;
+}
+
+/**
+ * 관리자가 `/developer/contracts/[id]`에서 계약 조항을 직접 수정해 저장한다. 견적서의
+ * `updateEstimateDocument()`와 달리 별도 "document" 오버레이 필드를 두지 않고 `result` 자체를
+ * 덮어쓴다 — 계약서는 AI 산출물과 별개로 존재하는 "제목·유효기간" 같은 정형 양식이 아니라,
+ * 조항(개요·범위·일정·조건 등) 전체가 곧 계약 내용이라 편집 대상과 표시 대상이 같기 때문이다.
+ * `/quote/[token]/contract`(의뢰자 공개 페이지)도 동일한 `result` 필드를 그대로 읽으므로 이
+ * 함수로 저장한 수정 내용이 별도 배선 없이 그대로 반영된다. setDoc() 기반 upsert라
+ * list+replaceAll 경합(위 createContract() 주석 참고)에서 자유롭다.
+ */
+export async function updateContractResult(
+  id: string,
+  result: ContractResult,
+  store: CollectionStore = getDefaultStore()
+): Promise<ContractRecord | undefined> {
+  const record = await store.getDoc<ContractRecord>(COLLECTION, id);
+  if (!record) return undefined;
+
+  const updated: ContractRecord = { ...record, result };
+  await store.setDoc(COLLECTION, id, updated);
+
+  return updated;
 }
 
 export async function deleteContract(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {

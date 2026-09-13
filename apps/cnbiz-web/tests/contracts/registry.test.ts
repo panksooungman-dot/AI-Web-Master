@@ -3,7 +3,13 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsStore } from "../../lib/db/fsStore";
-import { createContract, getContract, listContracts, listContractsByInquiry } from "../../lib/contracts/registry";
+import {
+  createContract,
+  getContract,
+  listContracts,
+  listContractsByInquiry,
+  updateContractResult,
+} from "../../lib/contracts/registry";
 import type { ContractInput, ContractResult } from "../../lib/contracts/types";
 
 const INPUT: ContractInput = {
@@ -164,5 +170,39 @@ describe("Contract Registry — lib/contracts/registry.ts", () => {
 
     const results = await listContractsByInquiry("inquiry-2", store);
     expect(results.map((r) => r.id)).toEqual([own.id]);
+  });
+
+  it("updateContractResult() overwrites result and preserves everything else", async () => {
+    const record = await createContract(
+      {
+        inquiryId: "inquiry-1",
+        websiteOrderId: "order-1",
+        estimateId: "estimate-1",
+        specificationId: "specification-1",
+        timelineId: "timeline-1",
+        input: INPUT,
+        result: RESULT,
+        simulated: true,
+      },
+      store
+    );
+
+    const editedResult: ContractResult = {
+      ...RESULT,
+      title: "관리자가 수정한 제목",
+      contractAmount: { amount: 2_000_000, currency: "KRW", vatIncluded: true },
+      specialTerms: ["특약 1"],
+    };
+
+    const updated = await updateContractResult(record.id, editedResult, store);
+
+    expect(updated?.result).toEqual(editedResult);
+    expect(updated?.inquiryId).toBe("inquiry-1");
+    expect(updated?.createdAt).toBe(record.createdAt);
+    expect((await getContract(record.id, store))?.result.title).toBe("관리자가 수정한 제목");
+  });
+
+  it("updateContractResult() returns undefined for an unknown id", async () => {
+    expect(await updateContractResult("does-not-exist", RESULT, store)).toBeUndefined();
   });
 });

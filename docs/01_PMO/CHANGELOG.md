@@ -4,6 +4,66 @@
 
 ---
 
+## 2026-09-13 (2)
+
+### 추가 (Added)
+
+- **`/developer/contracts/[id]` — 계약서 조항 전체를 관리자가 직접 수정할 수 있게 변경**:
+  지금까지 계약서 상세 화면은 AI가 생성한 `ContractResult`를 완전히 읽기 전용으로만
+  보여줬다("계약서 부분은 수정할수 있게 만들어 줘" 요청). 견적서(`EstimateRecord.document`)는
+  AI 산출물(`result`)과 별개로 "건명·유효기간·제안금액" 같은 정형 양식 필드를 덧씌우는
+  구조이지만, 계약서는 조항(개요·범위·일정·조건 등) 전체가 곧 문서 내용이라 편집 대상과
+  표시 대상이 동일하다고 판단해 별도 오버레이 필드를 두지 않고 `result` 자체를 저장·수정하는
+  방식으로 구현했다
+  - `lib/contracts/registry.ts` — `updateContractResult(id, result)` 신규 추가.
+    `updateEstimateDocument()`와 동일하게 `setDoc()` 기반 upsert라 list+replaceAll 경합에서
+    자유롭다(`createContract()`의 기존 주석이 이미 설명하는 경합과 동일 계열)
+  - `app/api/contracts/[id]/route.ts` — `PATCH` 핸들러 신규 추가(`{ result }` 받아
+    `updateContractResult()` 호출). `app/api/estimates/[id]/route.ts`의 PATCH와 동일한 검증
+    수준(요청 파싱 실패·`result` 필드 누락 시 400, 존재하지 않는 id면 404)
+  - `app/developer/contracts/[id]/page.tsx` — 전체를 편집 가능한 폼으로 재작성. 제목·계약
+    금액·통화·VAT 포함 여부·프로젝트 개요·계약 목적·개발 일정·유지보수·변경 요청 규정·계약
+    해지 조건·저작권·비밀유지는 입력창/텍스트영역으로, 개발 범위·제외 범위·결제 조건·산출물·
+    검수 조건·기타 특약(문자열 배열 6종)은 신규 `ListEditor` 컴포넌트(항목 추가/삭제/수정)로
+    편집. "변경사항 저장" 버튼으로 PATCH 호출, 저장 전 공백 항목은 `sanitizeResult()`로
+    제거. 별도 미리보기/편집 모드 구분 없이 견적서 페이지와 동일하게 상시 편집 가능한 문서
+    형태로 통일
+  - 의뢰자 공개 페이지(`/quote/[token]/contract`)는 코드 변경 없이 그대로 반영된다 — 이미
+    같은 공개 조회 API(`/api/quote/public/[token]`)를 거쳐 동일한 `contract.result` 필드를
+    읽고 있어, 관리자가 저장한 수정 내용이 별도 배선 없이 바로 노출된다
+  - 테스트(신규 2개): `tests/contracts/registry.test.ts`에 `updateContractResult()`가 result를
+    교체하되 나머지 필드(`inquiryId`·`createdAt` 등)는 보존하는지, 존재하지 않는 id에는
+    `undefined`를 반환하는지 검증하는 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(변경 파일 대상, 0 errors), `npm run build` 통과
+  (`/quote/[token]/contract` 포함 기존 라우트 전부 정상 생성)
+- `npx vitest run tests/contracts`(2 files, 17 tests 전부 통과, 신규 2개 포함)
+- 로컬 dev 서버 + curl로 실제 API 왕복 검증: 계약서 레코드를 로컬 fs 스토어에 직접
+  시딩(테스트 전용 fixture, 실제 AI 생성 아님) → `PATCH /api/contracts/:id`로 제목·계약
+  금액·통화·VAT·개발 범위·기타 특약을 수정 → `GET /api/contracts/:id` 재조회로 저장된 값이
+  정확히 반영됨을 확인 → 클라이언트/`WebsiteOrderRecord`/`shareToken`까지 함께 시딩해
+  `GET /api/quote/public/:token`(의뢰자 공개 조회 API)을 호출한 결과에도 수정된 값이 그대로
+  나타남을 확인(코드 변경 없이 공개 페이지에 반영됨을 실증) → `result` 필드 누락(400)·
+  존재하지 않는 id(404)·비로그인 요청(401, 기존 RBAC 게이팅 정상 유지) 3가지 오류 경로 확인
+  - **부수 발견(이번 범위 밖, 별도 태스크로 분리)**: 검증을 위해 로컬 계정을 만드는 과정에서
+    `scripts/create-auth-user.cjs`가 fs 폴백 저장소에 `User[]`를 평면 배열로 쓰고 있는데,
+    `lib/db/fsStore.ts`는 모든 컬렉션 파일이 `{id, data}[]` 형태여야 한다고 요구해(2026-09-13
+    이전 세션에 문서화된 통일) 이 스크립트로 만든 계정은 로그인 시도 시 매번 500
+    ("Cannot read properties of undefined (reading 'email')")으로 실패하는 기존 버그를
+    재현·확인했다. 이번 계약서 편집 기능과는 무관해 별도 태스크로 분리해 제안만 하고 직접
+    수정하지 않음
+  - 이 실행 환경에는 브라우저 자동화 도구(Playwright)가 없어, 관리자 화면의 실제 입력 필드
+    조작(타이핑·항목 추가/삭제 버튼 클릭)까지는 브라우저로 재현하지 못했다 — API 계층(PATCH가
+    저장하는 정확한 값, 공개 페이지가 그 값을 그대로 읽는 것)까지만 실제 요청으로 검증했고,
+    UI 코드 자체는 이미 동일 패턴으로 검증된 견적서 편집 화면(`/developer/estimates/[id]`)의
+    구조를 그대로 재사용했다
+  - 검증에 사용한 dev 서버·테스트 계정·시딩한 계약서/고객사/주문 레코드는 검증 후 전부
+    종료·삭제(`/tmp` 하위 fs 폴백 데이터, git 미추적)
+
+---
+
 ## 2026-09-13
 
 ### 추가 (Added)

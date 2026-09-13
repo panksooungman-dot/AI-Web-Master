@@ -26,9 +26,25 @@ interface PlansResponse {
  * survey는 브랜드컬러·도메인 두 키만 하드코딩해 골라 쓰던 것을(2026-09-12), 의뢰 상세
  * 페이지가 실제로 표시하는 것과 동일하게 전체를 순회하도록 바꿨다 — "희망 제작물"·"희망 기능"
  * 등 그 이후 추가된 설문 항목이 계속 누락되고 있었다(2026-09-14 실사용 지적).
+ *
+ * AI 분석 결과(inquiry.analysis)는 새로 지어내는 값이 아니라, 의뢰 상세 페이지의 "AI 분석 결과"
+ * 카드가 이미 계산해 저장해 둔 요약·추천 페이지·추천 기능이다 — Design Plan 생성에 실질적으로
+ * 도움이 되는데도 지금까지는 이 화면에 전혀 반영되지 않고 있었다(2026-09-14 실사용 지적).
  */
 function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
   const lines = [inquiry.requirements.trim()];
+
+  if (inquiry.analysis) {
+    if (inquiry.analysis.summary && inquiry.analysis.summary.trim()) {
+      lines.push(`AI 분석 요약: ${inquiry.analysis.summary.trim()}`);
+    }
+    if (inquiry.analysis.recommendedPages.length > 0) {
+      lines.push(`AI 추천 페이지: ${inquiry.analysis.recommendedPages.join(", ")}`);
+    }
+    if (inquiry.analysis.recommendedFunctions.length > 0) {
+      lines.push(`AI 추천 기능: ${inquiry.analysis.recommendedFunctions.join(", ")}`);
+    }
+  }
 
   if (inquiry.survey) {
     for (const [question, answer] of Object.entries(inquiry.survey)) {

@@ -10,7 +10,6 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import Link from "next/link";
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { InquiryRecord } from "@/lib/inquiries/types";
-import { BRAND_COLOR_SURVEY_KEY, DOMAIN_SURVEY_KEY } from "@/lib/inquiries/editPatch";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 
 interface PlansResponse {
@@ -18,26 +17,39 @@ interface PlansResponse {
 }
 
 /**
- * Inquiry의 상담 요약(requirements)에, 그 화면에서만 확인 가능한 브랜드 컬러·도메인·참고 사이트를
- * 덧붙인다 — Design Plan 생성 AI는 이 자유 텍스트(customerRequirements)만 읽으므로, 구조화된
- * 필드로 따로 넘기는 대신 여기서 한 번만 합쳐서 전달한다. 값이 없는 항목은 줄 자체를 만들지
- * 않는다(지어내지 않음).
+ * Inquiry의 상담 요약(requirements)에, 그 화면(/developer/inquiries/[id])에서만 확인 가능한
+ * 상담 설문 전체(브랜드 컬러·도메인·희망 제작물·희망 기능 등, survey에 있는 모든 질문-답변)·
+ * 참고 사이트·예산·첨부 자료를 덧붙인다 — Design Plan 생성 AI는 이 자유 텍스트
+ * (customerRequirements)만 읽으므로, 구조화된 필드로 따로 넘기는 대신 여기서 한 번만 합쳐서
+ * 전달한다. 값이 없는 항목은 줄 자체를 만들지 않는다(지어내지 않음).
+ *
+ * survey는 브랜드컬러·도메인 두 키만 하드코딩해 골라 쓰던 것을(2026-09-12), 의뢰 상세
+ * 페이지가 실제로 표시하는 것과 동일하게 전체를 순회하도록 바꿨다 — "희망 제작물"·"희망 기능"
+ * 등 그 이후 추가된 설문 항목이 계속 누락되고 있었다(2026-09-14 실사용 지적).
  */
 function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
   const lines = [inquiry.requirements.trim()];
 
-  const brandColor = inquiry.survey?.[BRAND_COLOR_SURVEY_KEY];
-  if (typeof brandColor === "string" && brandColor.trim()) {
-    lines.push(`브랜드 컬러: ${brandColor.trim()}`);
-  }
-
-  const domain = inquiry.survey?.[DOMAIN_SURVEY_KEY];
-  if (typeof domain === "string" && domain.trim()) {
-    lines.push(`도메인: ${domain.trim()}`);
+  if (inquiry.survey) {
+    for (const [question, answer] of Object.entries(inquiry.survey)) {
+      if (typeof answer === "string" && answer.trim()) {
+        lines.push(`${question}: ${answer.trim()}`);
+      }
+    }
   }
 
   if (inquiry.referenceUrls && inquiry.referenceUrls.length > 0) {
     lines.push(`참고 사이트: ${inquiry.referenceUrls.join(", ")}`);
+  }
+
+  if (inquiry.budget && inquiry.budget.trim()) {
+    lines.push(`예산: ${inquiry.budget.trim()}`);
+  }
+
+  // 첨부 이미지(로고·사진 등) 자체를 텍스트 프롬프트에 담을 수는 없지만(이 화면의 AI는 이미지를
+  // 보지 않음), 참고할 자료가 있다는 사실만은 넘겨 디자이너/AI가 별도로 확인하도록 안내한다.
+  if (inquiry.uploadedFiles && inquiry.uploadedFiles.length > 0) {
+    lines.push(`첨부 자료: ${inquiry.uploadedFiles.length}건 (의뢰 상세 페이지에서 확인 필요)`);
   }
 
   return lines.filter(Boolean).join("\n");
@@ -135,9 +147,13 @@ function DesignRequirementsPageInner() {
         }
         const inquiry = json.inquiry;
         const typeLabel = WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType;
+        // 의뢰 상세 페이지의 "업종"(industry, 예: "한정식 전문점")은 siteType 라벨(예: "레스토랑")보다
+        // 구체적인 실제 정보라, 있으면 함께 적어 Project Type을 더 정확하게 채운다.
+        const projectTypeValue =
+          inquiry.industry && inquiry.industry.trim() ? `${typeLabel} (${inquiry.industry.trim()})` : typeLabel;
 
         setProjectName(inquiry.companyName || inquiry.contactName);
-        setProjectType(typeLabel);
+        setProjectType(projectTypeValue);
         setRequirements(buildRequirementsFromInquiry(inquiry));
         setLinkedInquiry({
           id: inquiry.id,

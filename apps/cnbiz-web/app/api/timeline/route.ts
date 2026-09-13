@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   const client = websiteOrder ? await getClient(websiteOrder.clientId) : undefined;
 
   const input: TimelineInput = {
-    companyName: client?.companyName || inquiry.companyName || client?.contactName || inquiry.contactName,
+    companyName: inquiry.companyName || client?.companyName || client?.contactName || inquiry.contactName,
     detectedBusinessType: inquiry.analysis.detectedBusinessType,
     requirements: inquiry.requirements,
     pageCount: latestSpecification.result.pages.length,

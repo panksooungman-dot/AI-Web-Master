@@ -147,6 +147,51 @@ export async function updateClient(
   return records[index];
 }
 
+/** 이 Client의 inquiryIds에서 특정 id만 제거한다(splitInquiryFromClient() 전용 — 의뢰를 다른
+ * Client로 옮긴 뒤 예전 Client 쪽 역참조를 정리한다). */
+export async function removeInquiryFromClient(
+  clientId: string,
+  inquiryId: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<ClientRecord | undefined> {
+  const records = await store.list<ClientRecord>(COLLECTION);
+  const index = records.findIndex((client) => client.id === clientId);
+  if (index === -1) return undefined;
+
+  if (records[index].inquiryIds.includes(inquiryId)) {
+    records[index] = {
+      ...records[index],
+      inquiryIds: records[index].inquiryIds.filter((id) => id !== inquiryId),
+      updatedAt: new Date().toISOString(),
+    };
+    await store.replaceAll(COLLECTION, records);
+  }
+
+  return records[index];
+}
+
+/** removeInquiryFromClient()와 동일한 목적, websiteOrderIds용. */
+export async function removeWebsiteOrderFromClient(
+  clientId: string,
+  websiteOrderId: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<ClientRecord | undefined> {
+  const records = await store.list<ClientRecord>(COLLECTION);
+  const index = records.findIndex((client) => client.id === clientId);
+  if (index === -1) return undefined;
+
+  if (records[index].websiteOrderIds.includes(websiteOrderId)) {
+    records[index] = {
+      ...records[index],
+      websiteOrderIds: records[index].websiteOrderIds.filter((id) => id !== websiteOrderId),
+      updatedAt: new Date().toISOString(),
+    };
+    await store.replaceAll(COLLECTION, records);
+  }
+
+  return records[index];
+}
+
 export async function deleteClient(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
   const records = await store.list<ClientRecord>(COLLECTION);
   const next = records.filter((client) => client.id !== id);

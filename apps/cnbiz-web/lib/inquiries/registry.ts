@@ -120,6 +120,24 @@ export async function saveInquiryAnalysis(
   return records[index];
 }
 
+/** splitInquiryFromClient() 전용 — status/websiteOrderId는 건드리지 않고 clientId만 바꾼다
+ * (findOrCreateClient()가 이메일만으로 판단하던 시절 다른 회사 문의가 잘못 합쳐진 것을
+ * 나중에 바로잡을 때 사용). */
+export async function reassignInquiryClient(
+  id: string,
+  clientId: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<InquiryRecord | undefined> {
+  const records = await store.list<InquiryRecord>(COLLECTION);
+  const index = records.findIndex((inquiry) => inquiry.id === id);
+  if (index === -1) return undefined;
+
+  records[index] = { ...records[index], clientId, updatedAt: new Date().toISOString() };
+  await store.replaceAll(COLLECTION, records);
+
+  return records[index];
+}
+
 /** Client/WebsiteOrder 생성 후 호출해 이 Inquiry를 그 둘에 연결하고 상태를 Converted로 옮긴다. */
 export async function linkInquiryToClientAndOrder(
   id: string,

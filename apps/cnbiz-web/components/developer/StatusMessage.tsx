@@ -2,15 +2,21 @@ import type { ReactNode } from "react";
 import { componentMarker } from "@/lib/dev/component-marker";
 
 interface StatusMessageProps {
-  tone: "success" | "error";
+  tone: "success" | "error" | "warning";
   children: ReactNode;
   className?: string;
 }
 
+const TONE_CLASSES: Record<StatusMessageProps["tone"], string> = {
+  success: "text-emerald-400",
+  error: "text-red-500",
+  warning: "text-amber-400",
+};
+
 export function StatusMessage({ tone, children, className }: StatusMessageProps) {
   return (
     <p
-      className={`text-sm ${tone === "success" ? "text-emerald-400" : "text-red-500"} ${className ?? ""}`}
+      className={`text-sm ${TONE_CLASSES[tone]} ${className ?? ""}`}
       {...componentMarker("StatusMessage", "components/developer/StatusMessage.tsx")}
     >
       {children}

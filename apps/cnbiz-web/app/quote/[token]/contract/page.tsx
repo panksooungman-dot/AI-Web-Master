@@ -8,10 +8,12 @@ import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
 import type { ContractRecord } from "@/lib/contracts/types";
+import { buildDefaultContractDocument } from "@/lib/contracts/document";
 import type { ProposalRecord } from "@/lib/proposals/types";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
 import { QuoteDocumentTabs } from "@/components/quote/QuoteDocumentTabs";
+import { SignaturePad } from "@/components/quote/SignaturePad";
 
 interface PublicQuoteResponse {
   companyName?: string;
@@ -34,6 +36,10 @@ export default function PublicContractPage() {
   const [data, setData] = useState<PublicQuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [signerName, setSignerName] = useState("");
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [isSubmittingSignature, setIsSubmittingSignature] = useState(false);
+  const [signatureMessage, setSignatureMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     fetch(`/api/quote/public/${params.token}`)
@@ -48,6 +54,35 @@ export default function PublicContractPage() {
       .catch(() => setLoadError("문서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
   }, [params.token]);
+
+  // 견적서의 accept/reject(POST /api/quote/public/[token]/decision)와 동일한 원칙 — 로그인 없이
+  // 토큰만으로 최신 계약서 1건에 서명을 제출한다. 성공 시 data.contract를 새로 받은 값으로
+  // 교체해 화면에 즉시 서명 완료 상태(재서명 폼 대신 제출된 서명 이미지)가 반영되게 한다.
+  async function handleSubmitSignature() {
+    if (!signatureDataUrl || !signerName.trim()) return;
+    setIsSubmittingSignature(true);
+    setSignatureMessage(null);
+
+    try {
+      const res = await fetch(`/api/quote/public/${params.token}/contract-signature`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: signatureDataUrl, signerName: signerName.trim() }),
+      });
+      const json: { success: boolean; contract?: ContractRecord; error?: string } = await res.json();
+
+      if (!json.success || !json.contract) {
+        setSignatureMessage({ tone: "error", text: json.error ?? "서명 제출에 실패했습니다." });
+        return;
+      }
+      setData((prev) => (prev ? { ...prev, contract: json.contract } : prev));
+      setSignatureMessage({ tone: "success", text: "서명이 제출되었습니다." });
+    } catch {
+      setSignatureMessage({ tone: "error", text: "서명 제출 중 오류가 발생했습니다." });
+    } finally {
+      setIsSubmittingSignature(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -77,6 +112,7 @@ export default function PublicContractPage() {
 
   const { companyName, contract } = data;
   const { result } = contract;
+  const doc = buildDefaultContractDocument(contract);
 
   return (
     <Section
@@ -203,6 +239,88 @@ export default function PublicContractPage() {
                 <li key={i}>{item}</li>
               ))}
             </ul>
+          )}
+
+          <div className="mt-8 border-t border-slate-200 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm font-semibold text-slate-700 mb-2">공급자 (갑)</p>
+              <p className="text-sm text-slate-600">{doc.supplier.companyName}</p>
+              {doc.supplier.ceoName && <p className="text-sm text-slate-600">대표 {doc.supplier.ceoName}</p>}
+              {doc.supplier.businessNumber && (
+                <p className="text-sm text-slate-500">사업자번호 {doc.supplier.businessNumber}</p>
+              )}
+              {doc.supplier.address && <p className="text-sm text-slate-500">{doc.supplier.address}</p>}
+              {doc.supplier.sealImageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- 업로드된 임의 스토리지 URL이라 next/image 대상이 아님
+                <img
+                  src={doc.supplier.sealImageUrl}
+                  alt="공급자 도장/서명"
+                  className="mt-2 h-16 w-16 object-contain rounded border border-slate-200 bg-white"
+                />
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-slate-700 mb-2">의뢰자 (을)</p>
+              <p className="text-sm text-slate-600">{doc.client.companyName || companyName}</p>
+              {doc.client.contactName && <p className="text-sm text-slate-600">담당 {doc.client.contactName}</p>}
+              {doc.client.phone && <p className="text-sm text-slate-500">{doc.client.phone}</p>}
+
+              {contract.clientSignature ? (
+                <div className="mt-2 flex flex-col gap-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL(캔버스 서명)이라 next/image 대상이 아님 */}
+                  <img
+                    src={contract.clientSignature.imageDataUrl}
+                    alt={`${contract.clientSignature.signerName} 서명`}
+                    className="h-16 w-40 object-contain rounded border border-slate-200 bg-white"
+                  />
+                  <p className="text-xs text-slate-500">
+                    {contract.clientSignature.signerName} ·{" "}
+                    {new Date(contract.clientSignature.signedAt).toLocaleString()} 서명 완료
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-400">아직 서명하지 않았습니다.</p>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* 이 이미지 기반 서명은 공인전자서명이 아닙니다 — 당사자 간 확인 용도로만 사용하세요. */}
+        <Card className="mt-6">
+          <p className="text-sm font-semibold text-slate-900 mb-1">
+            {contract.clientSignature ? "서명 다시 하기" : "전자서명"}
+          </p>
+          <p className="text-xs text-slate-500 mb-4">
+            아래에 서명을 그린 뒤 이름을 입력하고 제출해주세요. (공인전자서명이 아닌 서명 이미지 확인 방식입니다)
+          </p>
+
+          <label className="block text-xs text-slate-500 mb-1">서명자 이름</label>
+          <input
+            type="text"
+            value={signerName}
+            onChange={(e) => setSignerName(e.target.value)}
+            placeholder="이름을 입력하세요"
+            className="mb-4 w-full max-w-xs rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+
+          <SignaturePad onChange={setSignatureDataUrl} />
+
+          <button
+            type="button"
+            onClick={handleSubmitSignature}
+            disabled={!signatureDataUrl || !signerName.trim() || isSubmittingSignature}
+            className="mt-4 rounded bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+          >
+            {isSubmittingSignature ? "제출 중..." : "서명 제출"}
+          </button>
+
+          {signatureMessage && (
+            <p
+              className={`mt-3 text-sm ${signatureMessage.tone === "success" ? "text-emerald-600" : "text-red-600"}`}
+            >
+              {signatureMessage.text}
+            </p>
           )}
         </Card>
       </Container>

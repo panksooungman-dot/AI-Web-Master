@@ -4,6 +4,183 @@
 
 ---
 
+## 2026-09-13 (3)
+
+### 추가 (Added)
+
+- **계약서 하단에 "계약 당사자"(공급자·의뢰자 정보 + 전자서명) 섹션 추가**: "계약서는 중요한
+  문서라서 하단에 공급자 정보와 의뢰자정보를 입력하고 전자서명이나 공급자는 싸인하고
+  전자도장이 있는데 활용하는 방법"이라는 요청. 실제 전자계약 서비스(사용자가 이미 쓰고
+  있다고 밝힌 sign.smileedi.com 포함) 연동은 이 샌드박스에서 해당 도메인 접근이 네트워크
+  정책상 차단되어 API 스펙을 확인할 수 없었고, 사용자도 "자체 구현으로 진행"을 확정해 별도
+  계정·API 키 없이 캔버스 서명 + 업로드된 도장 이미지로 구현했다(법적으로는 공인전자서명이
+  아닌 이미지 기반 확인 수준임을 관리자·의뢰자 화면 양쪽에 명시)
+  - `lib/contracts/types.ts` — `ContractPartyInfo`(공급자/의뢰자 공통 6개 필드)·
+    `ContractSupplierInfo`(+ `sealImageUrl`, 공급자는 계약서마다 새로 서명하지 않고 미리
+    업로드해둔 도장/서명 이미지 하나를 재사용하는 실무 관행을 반영)·
+    `ContractDocumentDetails`(supplier/client 오버레이)·`ContractSignature`(의뢰자가 캔버스에
+    그린 서명, `imageDataUrl`/`signerName`/`signedAt`) 신규 추가. `ContractRecord`에
+    `document?`·`clientSignature?` 필드 추가
+  - `lib/contracts/document.ts`(신규) — `buildDefaultContractDocument()`. 공급자 기본값은
+    `lib/estimates/document.ts`의 `buildDefaultEstimateDocument()`와 동일한 실제 CNBIZ
+    정보(회사명·사업자번호·대표자 등)를 재사용 — 같은 회사이므로 견적서·계약서 공급자 정보가
+    서로 다를 이유가 없음
+  - `lib/contracts/registry.ts` — `updateContractDocument()`·`recordContractClientSignature()`
+    신규 추가(둘 다 setDoc 기반 upsert, 기존 `updateContractResult()`와 동일 원칙). 재서명은
+    기존 서명을 그대로 덮어쓰도록 허용(계약 조건이 바뀌어 다시 서명해야 하는 경우 대비)
+  - `lib/contracts/notify.ts`(신규) — `notifyAdminOfContractSignature()`.
+    `lib/estimates/notify.ts`의 `notifyAdminOfEstimateActivity()`와 완전히 동일한 원칙(이메일·
+    Slack·SOLAPI 3채널 재사용, 알림 성공 여부와 무관하게 서명 사실 자체는 항상
+    `success:true`로 Audit Log 기록) — 새 알림 로직을 만들지 않고 그대로 복제
+  - `lib/audit/log.ts`의 `AuditAction`에 `"contract.client_signature"` 추가,
+    `app/developer/{audit-log,errors}/page.tsx` 라벨/톤 갱신
+  - `app/api/contracts/[id]/route.ts`의 `PATCH`를 확장해 `result`·`document`를 각각 독립적으로
+    (또는 함께) 저장 가능하게 함 — 필드 누락 시 400
+  - `app/api/quote/public/[token]/contract-signature/route.ts`(신규) — 의뢰자가 로그인 없이
+    서명을 제출하는 공개 엔드포인트. `/api/quote/public` prefix라 기존 RBAC 예외를 그대로
+    상속(추가 게이팅 변경 없음). `decision`/`message`와 동일한 "토큰이 가리키는 최신 계약서
+    1건에만 적용" 원칙. 서명자 이름·`data:image/png;base64,` 형식·크기 상한(2MB) 검증
+  - `components/quote/SignaturePad.tsx`(신규) — 마우스/터치로 그리는 서명 캔버스. `canvas`
+    내부 드로잉 해상도와 `w-full`로 인해 좁은 화면에서 달라지는 CSS 표시 크기 간 좌표
+    스케일을 보정해 모바일에서도 터치 위치와 선이 어긋나지 않도록 함
+  - `app/developer/contracts/[id]/page.tsx` — "계약 당사자" Card 신규 추가. 공급자·의뢰자
+    정보 6개 필드(`PartyInfoFields` 공용 컴포넌트로 양쪽에 동일하게 재사용) + 공급자 도장/서명
+    이미지 업로드(기존 `POST /api/inquiries/upload` 엔드포인트 재사용, 별도 업로드 백엔드
+    신규 없음) + 의뢰자 서명 표시(제출 전엔 "서명 대기 중" 배지, 제출 후엔 이미지+서명자+
+    시각). "변경사항 저장"이 `result`와 `document`를 함께 PATCH
+  - `app/quote/[token]/contract/page.tsx` — 계약서 본문 하단에 공급자(갑)/의뢰자(을) 정보와
+    도장 이미지를 표시하고, 그 아래 별도 Card로 전자서명 섹션(이름 입력 + `SignaturePad` +
+    제출 버튼) 추가. 이미 서명한 경우 제출된 서명 이미지·서명자·시각을 표시하고 "서명 다시
+    하기"로 재서명 가능. 서명 제출은 `handleSubmitSignature()`가 곧바로
+    `/api/quote/public/[token]/contract-signature`를 호출
+  - 테스트(신규 6개): `tests/contracts/registry.test.ts`에 `updateContractDocument()`·
+    `recordContractClientSignature()`(재서명 덮어쓰기 포함) 검증 4개 추가,
+    `tests/contracts/document.test.ts`(신규 2개) — 기본값 폴백과 저장된 값 우선순위 검증
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(신규
+  `/api/quote/public/[token]/contract-signature` 라우트 포함 기존 라우트 전부 정상 생성)
+- `npx vitest run tests/contracts tests/audit`(4 files, 31 tests 전부 통과, 신규 6개 포함)
+- 로컬 dev 서버 + curl로 실제 API 왕복 전 구간 검증: 계약서·고객사·주문(shareToken) 시딩 →
+  관리자 `PATCH`로 공급자/의뢰자 정보 + 도장 이미지 URL 저장 확인 → 의뢰자 공개 조회
+  API에서 서명 전 `clientSignature: undefined` 확인 → 실제 PNG data URL로
+  `POST .../contract-signature` 제출(로그인 없이) → 관리자 `GET`·의뢰자 공개 `GET` 양쪽에
+  서명자명·서명 이미지가 즉시 반영됨을 확인 → `GET /api/audit?action=contract.client_signature`에
+  `success:true`와 3채널 모두 "환경 변수 미설정으로 건너뜀" 상세가 정확히 기록됨을 확인(알림
+  채널 미설정이 서명이라는 비즈니스 사실 자체를 덮지 않음) → 서명자 이름 누락(400)·잘못된
+  이미지 형식(400)·존재하지 않는 토큰(404)·PATCH에 result/document 둘 다 없음(400) 4가지
+  오류 경로 확인
+  - 이 환경에는 브라우저 자동화 도구가 없어 `SignaturePad`의 실제 마우스/터치 드로잉과
+    좌표 스케일 보정 로직 자체는 코드 리뷰 수준으로만 검증했다 — 서명 제출 API가 받는
+    이미지 데이터가 정확히 저장·전파되는지는 실제 PNG data URL로 API 계층까지는 검증했지만,
+    캔버스에서 그 데이터가 어떻게 만들어지는지는 실제 브라우저 조작으로 재현하지 못했다
+  - smileedi.com 등 외부 전자계약 서비스 연동은 이번 범위에 포함하지 않음 — 사용자가 자체
+    구현으로 진행을 확정했고, 이 환경에서는 해당 도메인 접근이 차단되어 API 스펙 확인
+    자체가 불가능했다. 실제 연동이 필요해지면 이 코드베이스의 기존 provider 추상화 패턴
+    (`lib/contact/email/providers/`, `lib/inquiries/solapi.ts`)과 동일한 방식으로 별도 작업 필요
+  - 검증에 사용한 dev 서버·테스트 계정·시딩한 계약서/고객사/주문 레코드는 검증 후 전부
+    종료·삭제(`/tmp` 하위 fs 폴백 데이터, git 미추적)
+
+---
+
+## 2026-09-13 (2)
+
+### 추가 (Added)
+
+- **`/developer/contracts/[id]` — 계약서 조항 전체를 관리자가 직접 수정할 수 있게 변경**:
+  지금까지 계약서 상세 화면은 AI가 생성한 `ContractResult`를 완전히 읽기 전용으로만
+  보여줬다("계약서 부분은 수정할수 있게 만들어 줘" 요청). 견적서(`EstimateRecord.document`)는
+  AI 산출물(`result`)과 별개로 "건명·유효기간·제안금액" 같은 정형 양식 필드를 덧씌우는
+  구조이지만, 계약서는 조항(개요·범위·일정·조건 등) 전체가 곧 문서 내용이라 편집 대상과
+  표시 대상이 동일하다고 판단해 별도 오버레이 필드를 두지 않고 `result` 자체를 저장·수정하는
+  방식으로 구현했다
+  - `lib/contracts/registry.ts` — `updateContractResult(id, result)` 신규 추가.
+    `updateEstimateDocument()`와 동일하게 `setDoc()` 기반 upsert라 list+replaceAll 경합에서
+    자유롭다(`createContract()`의 기존 주석이 이미 설명하는 경합과 동일 계열)
+  - `app/api/contracts/[id]/route.ts` — `PATCH` 핸들러 신규 추가(`{ result }` 받아
+    `updateContractResult()` 호출). `app/api/estimates/[id]/route.ts`의 PATCH와 동일한 검증
+    수준(요청 파싱 실패·`result` 필드 누락 시 400, 존재하지 않는 id면 404)
+  - `app/developer/contracts/[id]/page.tsx` — 전체를 편집 가능한 폼으로 재작성. 제목·계약
+    금액·통화·VAT 포함 여부·프로젝트 개요·계약 목적·개발 일정·유지보수·변경 요청 규정·계약
+    해지 조건·저작권·비밀유지는 입력창/텍스트영역으로, 개발 범위·제외 범위·결제 조건·산출물·
+    검수 조건·기타 특약(문자열 배열 6종)은 신규 `ListEditor` 컴포넌트(항목 추가/삭제/수정)로
+    편집. "변경사항 저장" 버튼으로 PATCH 호출, 저장 전 공백 항목은 `sanitizeResult()`로
+    제거. 별도 미리보기/편집 모드 구분 없이 견적서 페이지와 동일하게 상시 편집 가능한 문서
+    형태로 통일
+  - 의뢰자 공개 페이지(`/quote/[token]/contract`)는 코드 변경 없이 그대로 반영된다 — 이미
+    같은 공개 조회 API(`/api/quote/public/[token]`)를 거쳐 동일한 `contract.result` 필드를
+    읽고 있어, 관리자가 저장한 수정 내용이 별도 배선 없이 바로 노출된다
+  - 테스트(신규 2개): `tests/contracts/registry.test.ts`에 `updateContractResult()`가 result를
+    교체하되 나머지 필드(`inquiryId`·`createdAt` 등)는 보존하는지, 존재하지 않는 id에는
+    `undefined`를 반환하는지 검증하는 케이스 추가
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint`(변경 파일 대상, 0 errors), `npm run build` 통과
+  (`/quote/[token]/contract` 포함 기존 라우트 전부 정상 생성)
+- `npx vitest run tests/contracts`(2 files, 17 tests 전부 통과, 신규 2개 포함)
+- 로컬 dev 서버 + curl로 실제 API 왕복 검증: 계약서 레코드를 로컬 fs 스토어에 직접
+  시딩(테스트 전용 fixture, 실제 AI 생성 아님) → `PATCH /api/contracts/:id`로 제목·계약
+  금액·통화·VAT·개발 범위·기타 특약을 수정 → `GET /api/contracts/:id` 재조회로 저장된 값이
+  정확히 반영됨을 확인 → 클라이언트/`WebsiteOrderRecord`/`shareToken`까지 함께 시딩해
+  `GET /api/quote/public/:token`(의뢰자 공개 조회 API)을 호출한 결과에도 수정된 값이 그대로
+  나타남을 확인(코드 변경 없이 공개 페이지에 반영됨을 실증) → `result` 필드 누락(400)·
+  존재하지 않는 id(404)·비로그인 요청(401, 기존 RBAC 게이팅 정상 유지) 3가지 오류 경로 확인
+  - **부수 발견(이번 범위 밖, 별도 태스크로 분리)**: 검증을 위해 로컬 계정을 만드는 과정에서
+    `scripts/create-auth-user.cjs`가 fs 폴백 저장소에 `User[]`를 평면 배열로 쓰고 있는데,
+    `lib/db/fsStore.ts`는 모든 컬렉션 파일이 `{id, data}[]` 형태여야 한다고 요구해(2026-09-13
+    이전 세션에 문서화된 통일) 이 스크립트로 만든 계정은 로그인 시도 시 매번 500
+    ("Cannot read properties of undefined (reading 'email')")으로 실패하는 기존 버그를
+    재현·확인했다. 이번 계약서 편집 기능과는 무관해 별도 태스크로 분리해 제안만 하고 직접
+    수정하지 않음
+  - 이 실행 환경에는 브라우저 자동화 도구(Playwright)가 없어, 관리자 화면의 실제 입력 필드
+    조작(타이핑·항목 추가/삭제 버튼 클릭)까지는 브라우저로 재현하지 못했다 — API 계층(PATCH가
+    저장하는 정확한 값, 공개 페이지가 그 값을 그대로 읽는 것)까지만 실제 요청으로 검증했고,
+    UI 코드 자체는 이미 동일 패턴으로 검증된 견적서 편집 화면(`/developer/estimates/[id]`)의
+    구조를 그대로 재사용했다
+  - 검증에 사용한 dev 서버·테스트 계정·시딩한 계약서/고객사/주문 레코드는 검증 후 전부
+    종료·삭제(`/tmp` 하위 fs 폴백 데이터, git 미추적)
+
+---
+
+## 2026-09-13
+
+### 추가 (Added)
+
+- **`/developer/inquiries/[id]` — Kakao Link SDK 기반 "💬 카카오톡 공유" 버튼 추가**: 기존
+  "🔗 링크 복사"·"문자로 공유"(SOLAPI) 두 채널은 카카오톡에 붙여넣어도 일반 링크 미리보기
+  (Open Graph unfurl)만 뜨고 클릭 가능한 버튼이 없다는 한계가 있었다. 카카오톡 링크 미리보기
+  자체는 `og:title`/`og:description`/`og:image` 3가지만 읽는 읽기 전용 렌더링이라 버튼을 넣을
+  방법이 구조적으로 없고, 버튼이 있는 카드를 실제로 보내려면 Kakao Link SDK(발신자가 사이트에서
+  직접 공유 버튼을 눌러야 함)나 카카오 알림톡(별도 채널·템플릿 승인 필요, 2026-09-13 이전 세션에서
+  이미 이번 범위 밖으로 확인됨)이 필요함을 확인한 뒤 전자로 구현
+  - `lib/kakao/share.ts`(신규) — 브라우저에서 Kakao JS SDK(`t1.kakaocdn.net`)를 동적으로 로드하고
+    `Kakao.Share.sendDefault()`로 Feed 템플릿(제목·설명·이미지 + "바로가기" 버튼)을 연다.
+    `lib/inquiries/slack.ts`·`lib/contact/email/providers/resend.ts`와 동일하게 새 npm 의존성
+    없이 순수 `fetch`/DOM API만 사용. `NEXT_PUBLIC_KAKAO_JS_KEY` 미설정 시 SDK를 아예 로드하지
+    않고 명확한 오류를 반환(다른 채널들의 "설정 안 됨" 처리와 동일한 원칙)
+  - `app/developer/inquiries/[id]/page.tsx` — `handleKakaoShare()` 추가. 기존
+    `handleCopyShareLink()`와 동일하게 `GET /api/website-orders/[id]/share-link`로 공유 링크를
+    발급/재사용한 뒤, `shareQuoteLink()`에 회사명(`opengraph-image.tsx`와 동일한 "{회사명}
+    프로젝트 문서" 제목 규칙)과 `${shareUrl}/opengraph-image`(기존 세그먼트 전용 OG 이미지,
+    2026-09-13 이전 세션 구현)를 넘겨 카드 이미지로 재사용. 서버 API를 거치지 않으므로 실패해도
+    링크 복사·SOLAPI 문자 공유에는 영향 없음
+  - `.env.example` — `NEXT_PUBLIC_KAKAO_JS_KEY` 항목 추가, Kakao Developers 콘솔에서
+    앱 생성·JavaScript 키 발급·Web 플랫폼 도메인 등록이 필요함을 명시(코드로 대신할 수 없는
+    수동 설정 단계)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint lib/kakao/share.ts app/developer/inquiries/[id]/page.tsx`
+  (0 errors), `npm run build` 통과(기존 라우트 전부 정상 생성, 회귀 없음)
+- 이 실행 환경에는 실제 Kakao 앱 키가 없어(Kakao Developers 콘솔 계정 필요), 실제 카카오톡
+  공유 시트가 열리고 버튼이 포함된 카드가 정상 발송되는 성공 경로는 검증하지 못했다 — SDK
+  로드·초기화·`sendDefault()` 호출 인자 구성은 Kakao 공식 JS SDK 문서 스펙대로 작성했으나,
+  실제 앱 키 발급 후 사용자가 직접 클릭해 확인 필요
+
+---
+
 ## 2026-09-12
 
 ### 추가 (Added)

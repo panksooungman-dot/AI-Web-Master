@@ -69,6 +69,7 @@ export type AuditAction =
   | "inquiry.analyze"
   | "estimate.client_decision"
   | "estimate.client_message"
+  | "contract.client_signature"
   | "client.update"
   | "client.delete"
   | "estimate.delete"

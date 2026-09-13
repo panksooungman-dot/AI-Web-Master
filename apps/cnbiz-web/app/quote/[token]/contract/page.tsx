@@ -246,14 +246,14 @@ export default function PublicContractPage() {
               <p className="text-sm font-semibold text-slate-700 mb-2">공급자 (갑)</p>
               <p className="text-sm text-slate-600">{doc.supplier.companyName}</p>
               {(doc.supplier.ceoName || doc.supplier.sealImageUrl) && (
-                <p className="text-sm text-slate-600 flex items-center gap-2">
+                <p className="text-sm text-slate-600 flex items-center">
                   {doc.supplier.ceoName && <span>대표 {doc.supplier.ceoName}</span>}
                   {doc.supplier.sealImageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element -- 업로드된 임의 스토리지 URL이라 next/image 대상이 아님
+                    // eslint-disable-next-line @next/next/no-img-element -- 업로드된 임의 스토리지 URL이라 next/image 대상이 아님. 투명 배경 도장이라 이름 끝 글자에 살짝 겹치도록 배치(실제 종이 계약서의 날인 방식 재현).
                     <img
                       src={doc.supplier.sealImageUrl}
                       alt="공급자 도장/서명"
-                      className="h-8 w-8 object-contain"
+                      className="h-10 w-10 object-contain -ml-2"
                     />
                   )}
                 </p>

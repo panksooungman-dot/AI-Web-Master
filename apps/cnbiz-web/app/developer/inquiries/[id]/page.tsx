@@ -169,6 +169,8 @@ export default function InquiryDetailPage() {
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [isSplittingClient, setIsSplittingClient] = useState(false);
+  const [splitClientError, setSplitClientError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -760,6 +762,32 @@ export default function InquiryDetailPage() {
       setShareMessage({ tone: "error", text: "문자 발송 중 오류가 발생했습니다." });
     } finally {
       setIsSharing(false);
+    }
+  }
+
+  // 다른 회사 문의와 잘못 합쳐진 옛 Client에서 이 의뢰만 분리한다(2026-09-13, "사색찬미한정식"
+  // 재현 사례 — findOrCreateClient()가 이메일만 보던 시절에 만들어진 데이터를 관리자가 직접
+  // 바로잡을 수 있도록 함). 성공하면 client/websiteOrder 등 화면 전체를 최신 상태로 다시 불러온다.
+  async function handleSplitClient() {
+    if (!inquiry) return;
+
+    setIsSplittingClient(true);
+    setSplitClientError(null);
+
+    try {
+      const res = await fetch(`/api/inquiries/${inquiry.id}/split-client`, { method: "POST" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setSplitClientError(data.error ?? "고객사 분리에 실패했습니다.");
+        return;
+      }
+
+      load();
+    } catch {
+      setSplitClientError("고객사 분리 중 오류가 발생했습니다.");
+    } finally {
+      setIsSplittingClient(false);
     }
   }
 
@@ -1460,8 +1488,34 @@ export default function InquiryDetailPage() {
       >
         {estimates.length === 0 ? (
           <p className="text-gray-500 text-sm">기술 견적서를 먼저 생성하면 의뢰자에게 문자로 공유할 수 있습니다.</p>
+        ) : client &&
+          client.companyName.trim().toLowerCase() !== (inquiry.companyName ?? "").trim().toLowerCase() ? (
+          <div className="flex flex-col gap-3">
+            <StatusMessage tone="warning">
+              연결된 고객사(&ldquo;{client.companyName || client.contactName}&rdquo;)가 이 의뢰의 회사명(&ldquo;
+              {inquiry.companyName || inquiry.contactName}&rdquo;)과 달라, 다른 회사 문의와 고객사 정보가 함께 묶여
+              있는 것으로 보입니다. 분리하면 이 의뢰만의 새 고객사가 만들어지고, 그 고객사에 연락처(전화번호)를
+              따로 입력할 수 있습니다.
+            </StatusMessage>
+            <button
+              type="button"
+              onClick={handleSplitClient}
+              disabled={isSplittingClient}
+              className="self-start rounded bg-amber-600 hover:bg-amber-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {isSplittingClient ? "분리 중..." : "별도 고객사로 분리"}
+            </button>
+            {splitClientError && <StatusMessage tone="error">{splitClientError}</StatusMessage>}
+          </div>
         ) : !client?.phone ? (
-          <p className="text-gray-500 text-sm">고객사 연락처(전화번호)가 없어 문자를 보낼 수 없습니다.</p>
+          <p className="text-gray-500 text-sm">
+            고객사 연락처(전화번호)가 없어 문자를 보낼 수 없습니다.{" "}
+            {client && (
+              <Link href={`/developer/clients/${client.id}`} className="text-blue-400 hover:underline">
+                고객사 정보에서 입력하기 →
+              </Link>
+            )}
+          </p>
         ) : (
           <p className="text-gray-500 text-sm">
             {client.companyName || client.contactName}님({client.phone})에게 로그인 없이 열람 가능한 문서 링크를

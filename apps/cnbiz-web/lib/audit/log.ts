@@ -64,6 +64,7 @@ export type AuditAction =
   | "customer.login"
   | "customer.view_document"
   | "inquiry.update"
+  | "inquiry.split_client"
   | "inquiry.delete"
   | "inquiry.analyze"
   | "estimate.client_decision"

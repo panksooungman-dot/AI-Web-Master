@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { deleteInquiry, getInquiry, saveInquiryAnalysis, updateInquiry, updateInquiryStatus } from "@/lib/inquiries/registry";
 import { INQUIRY_STATUSES, type InquiryInput, type InquiryStatus } from "@/lib/inquiries/types";
-import { mergeSurveyPatch, mergeUploadedFiles, pickReferenceUrls } from "@/lib/inquiries/editPatch";
+import { mergeSurveyPatch, mergeUploadedFiles, pickClientMirrorPatch, pickReferenceUrls } from "@/lib/inquiries/editPatch";
 import { computeCompleteness } from "@/lib/ai-analysis/score";
+import { updateClient } from "@/lib/clients/registry";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 
@@ -126,6 +127,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   if (!record) {
     return NextResponse.json({ success: false, error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  if (record.clientId) {
+    const clientPatch = pickClientMirrorPatch(patch);
+    if (Object.keys(clientPatch).length > 0) {
+      await updateClient(record.clientId, clientPatch);
+    }
   }
 
   // 완성도 체크리스트(lib/ai-analysis/score.ts)는 AI 호출 없는 순수 규칙 기반 계산이므로,

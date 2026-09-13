@@ -4,6 +4,86 @@
 
 ---
 
+## 2026-09-13 (3)
+
+### 추가 (Added)
+
+- **계약서 하단에 "계약 당사자"(공급자·의뢰자 정보 + 전자서명) 섹션 추가**: "계약서는 중요한
+  문서라서 하단에 공급자 정보와 의뢰자정보를 입력하고 전자서명이나 공급자는 싸인하고
+  전자도장이 있는데 활용하는 방법"이라는 요청. 실제 전자계약 서비스(사용자가 이미 쓰고
+  있다고 밝힌 sign.smileedi.com 포함) 연동은 이 샌드박스에서 해당 도메인 접근이 네트워크
+  정책상 차단되어 API 스펙을 확인할 수 없었고, 사용자도 "자체 구현으로 진행"을 확정해 별도
+  계정·API 키 없이 캔버스 서명 + 업로드된 도장 이미지로 구현했다(법적으로는 공인전자서명이
+  아닌 이미지 기반 확인 수준임을 관리자·의뢰자 화면 양쪽에 명시)
+  - `lib/contracts/types.ts` — `ContractPartyInfo`(공급자/의뢰자 공통 6개 필드)·
+    `ContractSupplierInfo`(+ `sealImageUrl`, 공급자는 계약서마다 새로 서명하지 않고 미리
+    업로드해둔 도장/서명 이미지 하나를 재사용하는 실무 관행을 반영)·
+    `ContractDocumentDetails`(supplier/client 오버레이)·`ContractSignature`(의뢰자가 캔버스에
+    그린 서명, `imageDataUrl`/`signerName`/`signedAt`) 신규 추가. `ContractRecord`에
+    `document?`·`clientSignature?` 필드 추가
+  - `lib/contracts/document.ts`(신규) — `buildDefaultContractDocument()`. 공급자 기본값은
+    `lib/estimates/document.ts`의 `buildDefaultEstimateDocument()`와 동일한 실제 CNBIZ
+    정보(회사명·사업자번호·대표자 등)를 재사용 — 같은 회사이므로 견적서·계약서 공급자 정보가
+    서로 다를 이유가 없음
+  - `lib/contracts/registry.ts` — `updateContractDocument()`·`recordContractClientSignature()`
+    신규 추가(둘 다 setDoc 기반 upsert, 기존 `updateContractResult()`와 동일 원칙). 재서명은
+    기존 서명을 그대로 덮어쓰도록 허용(계약 조건이 바뀌어 다시 서명해야 하는 경우 대비)
+  - `lib/contracts/notify.ts`(신규) — `notifyAdminOfContractSignature()`.
+    `lib/estimates/notify.ts`의 `notifyAdminOfEstimateActivity()`와 완전히 동일한 원칙(이메일·
+    Slack·SOLAPI 3채널 재사용, 알림 성공 여부와 무관하게 서명 사실 자체는 항상
+    `success:true`로 Audit Log 기록) — 새 알림 로직을 만들지 않고 그대로 복제
+  - `lib/audit/log.ts`의 `AuditAction`에 `"contract.client_signature"` 추가,
+    `app/developer/{audit-log,errors}/page.tsx` 라벨/톤 갱신
+  - `app/api/contracts/[id]/route.ts`의 `PATCH`를 확장해 `result`·`document`를 각각 독립적으로
+    (또는 함께) 저장 가능하게 함 — 필드 누락 시 400
+  - `app/api/quote/public/[token]/contract-signature/route.ts`(신규) — 의뢰자가 로그인 없이
+    서명을 제출하는 공개 엔드포인트. `/api/quote/public` prefix라 기존 RBAC 예외를 그대로
+    상속(추가 게이팅 변경 없음). `decision`/`message`와 동일한 "토큰이 가리키는 최신 계약서
+    1건에만 적용" 원칙. 서명자 이름·`data:image/png;base64,` 형식·크기 상한(2MB) 검증
+  - `components/quote/SignaturePad.tsx`(신규) — 마우스/터치로 그리는 서명 캔버스. `canvas`
+    내부 드로잉 해상도와 `w-full`로 인해 좁은 화면에서 달라지는 CSS 표시 크기 간 좌표
+    스케일을 보정해 모바일에서도 터치 위치와 선이 어긋나지 않도록 함
+  - `app/developer/contracts/[id]/page.tsx` — "계약 당사자" Card 신규 추가. 공급자·의뢰자
+    정보 6개 필드(`PartyInfoFields` 공용 컴포넌트로 양쪽에 동일하게 재사용) + 공급자 도장/서명
+    이미지 업로드(기존 `POST /api/inquiries/upload` 엔드포인트 재사용, 별도 업로드 백엔드
+    신규 없음) + 의뢰자 서명 표시(제출 전엔 "서명 대기 중" 배지, 제출 후엔 이미지+서명자+
+    시각). "변경사항 저장"이 `result`와 `document`를 함께 PATCH
+  - `app/quote/[token]/contract/page.tsx` — 계약서 본문 하단에 공급자(갑)/의뢰자(을) 정보와
+    도장 이미지를 표시하고, 그 아래 별도 Card로 전자서명 섹션(이름 입력 + `SignaturePad` +
+    제출 버튼) 추가. 이미 서명한 경우 제출된 서명 이미지·서명자·시각을 표시하고 "서명 다시
+    하기"로 재서명 가능. 서명 제출은 `handleSubmitSignature()`가 곧바로
+    `/api/quote/public/[token]/contract-signature`를 호출
+  - 테스트(신규 6개): `tests/contracts/registry.test.ts`에 `updateContractDocument()`·
+    `recordContractClientSignature()`(재서명 덮어쓰기 포함) 검증 4개 추가,
+    `tests/contracts/document.test.ts`(신규 2개) — 기본값 폴백과 저장된 값 우선순위 검증
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npm run lint`(0 errors), `npm run build` 통과(신규
+  `/api/quote/public/[token]/contract-signature` 라우트 포함 기존 라우트 전부 정상 생성)
+- `npx vitest run tests/contracts tests/audit`(4 files, 31 tests 전부 통과, 신규 6개 포함)
+- 로컬 dev 서버 + curl로 실제 API 왕복 전 구간 검증: 계약서·고객사·주문(shareToken) 시딩 →
+  관리자 `PATCH`로 공급자/의뢰자 정보 + 도장 이미지 URL 저장 확인 → 의뢰자 공개 조회
+  API에서 서명 전 `clientSignature: undefined` 확인 → 실제 PNG data URL로
+  `POST .../contract-signature` 제출(로그인 없이) → 관리자 `GET`·의뢰자 공개 `GET` 양쪽에
+  서명자명·서명 이미지가 즉시 반영됨을 확인 → `GET /api/audit?action=contract.client_signature`에
+  `success:true`와 3채널 모두 "환경 변수 미설정으로 건너뜀" 상세가 정확히 기록됨을 확인(알림
+  채널 미설정이 서명이라는 비즈니스 사실 자체를 덮지 않음) → 서명자 이름 누락(400)·잘못된
+  이미지 형식(400)·존재하지 않는 토큰(404)·PATCH에 result/document 둘 다 없음(400) 4가지
+  오류 경로 확인
+  - 이 환경에는 브라우저 자동화 도구가 없어 `SignaturePad`의 실제 마우스/터치 드로잉과
+    좌표 스케일 보정 로직 자체는 코드 리뷰 수준으로만 검증했다 — 서명 제출 API가 받는
+    이미지 데이터가 정확히 저장·전파되는지는 실제 PNG data URL로 API 계층까지는 검증했지만,
+    캔버스에서 그 데이터가 어떻게 만들어지는지는 실제 브라우저 조작으로 재현하지 못했다
+  - smileedi.com 등 외부 전자계약 서비스 연동은 이번 범위에 포함하지 않음 — 사용자가 자체
+    구현으로 진행을 확정했고, 이 환경에서는 해당 도메인 접근이 차단되어 API 스펙 확인
+    자체가 불가능했다. 실제 연동이 필요해지면 이 코드베이스의 기존 provider 추상화 패턴
+    (`lib/contact/email/providers/`, `lib/inquiries/solapi.ts`)과 동일한 방식으로 별도 작업 필요
+  - 검증에 사용한 dev 서버·테스트 계정·시딩한 계약서/고객사/주문 레코드는 검증 후 전부
+    종료·삭제(`/tmp` 하위 fs 폴백 데이터, git 미추적)
+
+---
+
 ## 2026-09-13 (2)
 
 ### 추가 (Added)

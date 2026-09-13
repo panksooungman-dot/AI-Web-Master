@@ -7,7 +7,8 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
-import type { ContractRecord, ContractResult } from "@/lib/contracts/types";
+import type { ContractDocumentDetails, ContractPartyInfo, ContractRecord, ContractResult } from "@/lib/contracts/types";
+import { buildDefaultContractDocument } from "@/lib/contracts/document";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
 
 interface ContractResponse {
@@ -145,15 +146,52 @@ function ListEditor({ label, items, onChange, placeholder }: ListEditorProps) {
   );
 }
 
+const PARTY_FIELDS: ReadonlyArray<{ key: keyof ContractPartyInfo; label: string }> = [
+  { key: "companyName", label: "회사명" },
+  { key: "businessNumber", label: "사업자번호" },
+  { key: "ceoName", label: "대표자" },
+  { key: "contactName", label: "담당자" },
+  { key: "phone", label: "전화" },
+  { key: "address", label: "주소" },
+];
+
+/** 공급자·의뢰자 정보 6개 필드를 동일한 레이아웃으로 편집한다(견적서 공급자 정보 UI와 동일 패턴). */
+function PartyInfoFields({
+  value,
+  onChange,
+}: {
+  value: ContractPartyInfo;
+  onChange: (value: ContractPartyInfo) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-3">
+      {PARTY_FIELDS.map(({ key, label }) => (
+        <label key={key} className="flex items-center gap-2 text-xs text-gray-400">
+          <span className="w-20 shrink-0">{label}</span>
+          <input
+            type="text"
+            value={value[key] ?? ""}
+            onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+            className={inputClass}
+          />
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export default function ContractDetailPage() {
   const params = useParams<{ id: string }>();
 
   const [contract, setContract] = useState<ContractRecord | null>(null);
   const [result, setResult] = useState<ContractResult | null>(null);
+  const [document, setDocument] = useState<Required<ContractDocumentDetails> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [isUploadingSeal, setIsUploadingSeal] = useState(false);
+  const [sealUploadError, setSealUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -170,13 +208,14 @@ export default function ContractDetailPage() {
         }
         setContract(data.contract);
         setResult(data.contract.result);
+        setDocument(buildDefaultContractDocument(data.contract));
       })
       .catch(() => setLoadError("계약서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
   }, [params.id]);
 
   async function handleSave() {
-    if (!contract || !result) return;
+    if (!contract || !result || !document) return;
     setIsSaving(true);
     setSaveMessage(null);
 
@@ -185,7 +224,7 @@ export default function ContractDetailPage() {
       const res = await fetch(`/api/contracts/${contract.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ result: sanitized }),
+        body: JSON.stringify({ result: sanitized, document }),
       });
       const data: { success: boolean; contract?: ContractRecord; error?: string } = await res.json();
 
@@ -195,6 +234,7 @@ export default function ContractDetailPage() {
       }
       setContract(data.contract);
       setResult(data.contract.result);
+      setDocument(buildDefaultContractDocument(data.contract));
       setSaveMessage({ tone: "success", text: "저장되었습니다." });
     } catch {
       setSaveMessage({ tone: "error", text: "저장 중 오류가 발생했습니다." });
@@ -203,9 +243,34 @@ export default function ContractDetailPage() {
     }
   }
 
+  /** 견적서 첨부 업로드와 동일한 공용 엔드포인트(app/api/inquiries/upload)를 재사용해 공급자
+   *  도장/서명 이미지를 업로드한다 — 별도 업로드 백엔드를 새로 만들지 않는다. */
+  async function handleSealUpload(file: File) {
+    if (!document) return;
+    setIsUploadingSeal(true);
+    setSealUploadError(null);
+
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/inquiries/upload", { method: "POST", body });
+      const data: { success: boolean; url?: string; error?: string } = await res.json();
+
+      if (!data.success || !data.url) {
+        setSealUploadError(data.error ?? "이미지 업로드에 실패했습니다.");
+        return;
+      }
+      setDocument({ ...document, supplier: { ...document.supplier, sealImageUrl: data.url } });
+    } catch {
+      setSealUploadError("이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingSeal(false);
+    }
+  }
+
   if (isLoading) return <LoadingText />;
 
-  if (loadError || !contract || !result) {
+  if (loadError || !contract || !result || !document) {
     return (
       <div>
         <StatusMessage tone="error">{loadError ?? "계약서를 찾을 수 없습니다."}</StatusMessage>
@@ -454,6 +519,70 @@ export default function ContractDetailPage() {
           items={result.specialTerms}
           onChange={(items) => setResult({ ...result, specialTerms: items })}
         />
+      </Card>
+
+      {/* 계약 당사자 — 공급자(CNBIZ)는 미리 업로드해둔 도장/서명 이미지를 계속 재사용하고,
+          의뢰자는 /quote/[token]/contract에서 직접 그린 서명이 도착하면 여기에 표시된다. */}
+      <Card title="계약 당사자" className="mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <p className="text-sm font-semibold text-gray-300 mb-2">공급자</p>
+            <PartyInfoFields
+              value={document.supplier}
+              onChange={(value) => setDocument({ ...document, supplier: { ...document.supplier, ...value } })}
+            />
+            <div className="mt-3">
+              <p className="text-xs text-gray-400 mb-1">도장/서명 이미지</p>
+              {document.supplier.sealImageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- 업로드된 임의 외부/스토리지 URL이라 next/image의 정적 도메인 allowlist와 맞지 않음
+                <img
+                  src={document.supplier.sealImageUrl}
+                  alt="공급자 도장/서명"
+                  className="h-16 w-16 object-contain rounded border border-gray-700 bg-white mb-2"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={isUploadingSeal}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleSealUpload(file);
+                  e.target.value = "";
+                }}
+                className="text-xs text-gray-400 file:mr-3 file:rounded file:border-0 file:bg-gray-700 file:px-3 file:py-1.5 file:text-xs file:text-white hover:file:bg-gray-600"
+              />
+              {isUploadingSeal && <p className="text-xs text-gray-500 mt-1">업로드 중...</p>}
+              {sealUploadError && <StatusMessage tone="error" className="mt-1">{sealUploadError}</StatusMessage>}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-gray-300 mb-2">의뢰자</p>
+            <PartyInfoFields
+              value={document.client}
+              onChange={(value) => setDocument({ ...document, client: { ...document.client, ...value } })}
+            />
+            <div className="mt-3">
+              <p className="text-xs text-gray-400 mb-1">전자서명</p>
+              {contract.clientSignature ? (
+                <div className="flex flex-col gap-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL(캔버스 서명)이라 next/image 대상이 아님 */}
+                  <img
+                    src={contract.clientSignature.imageDataUrl}
+                    alt={`${contract.clientSignature.signerName} 서명`}
+                    className="h-16 w-40 object-contain rounded border border-gray-700 bg-white"
+                  />
+                  <p className="text-xs text-gray-500">
+                    {contract.clientSignature.signerName} · {new Date(contract.clientSignature.signedAt).toLocaleString()}
+                  </p>
+                </div>
+              ) : (
+                <Badge tone="neutral">서명 대기 중</Badge>
+              )}
+            </div>
+          </div>
+        </div>
       </Card>
     </div>
   );

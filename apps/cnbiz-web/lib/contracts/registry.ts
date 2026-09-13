@@ -1,7 +1,7 @@
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
 import { generateId } from "@/lib/id";
-import type { ContractRecord, ContractResult } from "./types";
+import type { ContractDocumentDetails, ContractRecord, ContractResult, ContractSignature } from "./types";
 
 const COLLECTION = "contracts";
 
@@ -67,6 +67,44 @@ export async function updateContractResult(
   if (!record) return undefined;
 
   const updated: ContractRecord = { ...record, result };
+  await store.setDoc(COLLECTION, id, updated);
+
+  return updated;
+}
+
+/**
+ * 관리자가 계약서 하단 "계약 당사자"(공급자·의뢰자 정보, 공급자 도장/서명 이미지 URL)를
+ * 저장한다. `updateContractResult()`와 별도 필드(`document`)를 쓰는 이유는 result와 달리
+ * 이 정보가 AI 판단 대상이 아니라 순수 정형 데이터이기 때문 — lib/estimates/registry.ts의
+ * `updateEstimateDocument()`와 동일한 원칙.
+ */
+export async function updateContractDocument(
+  id: string,
+  document: ContractDocumentDetails,
+  store: CollectionStore = getDefaultStore()
+): Promise<ContractRecord | undefined> {
+  const record = await store.getDoc<ContractRecord>(COLLECTION, id);
+  if (!record) return undefined;
+
+  const updated: ContractRecord = { ...record, document };
+  await store.setDoc(COLLECTION, id, updated);
+
+  return updated;
+}
+
+/**
+ * 의뢰자가 `/quote/[token]/contract`에서 캔버스에 그려 제출한 서명을 저장한다. 재서명(계약
+ * 조건이 바뀌어 다시 서명해야 하는 경우)을 허용하기 위해 기존 값이 있어도 그대로 덮어쓴다.
+ */
+export async function recordContractClientSignature(
+  id: string,
+  signature: ContractSignature,
+  store: CollectionStore = getDefaultStore()
+): Promise<ContractRecord | undefined> {
+  const record = await store.getDoc<ContractRecord>(COLLECTION, id);
+  if (!record) return undefined;
+
+  const updated: ContractRecord = { ...record, clientSignature: signature };
   await store.setDoc(COLLECTION, id, updated);
 
   return updated;

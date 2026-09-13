@@ -8,9 +8,11 @@ import {
   getContract,
   listContracts,
   listContractsByInquiry,
+  recordContractClientSignature,
+  updateContractDocument,
   updateContractResult,
 } from "../../lib/contracts/registry";
-import type { ContractInput, ContractResult } from "../../lib/contracts/types";
+import type { ContractDocumentDetails, ContractInput, ContractResult, ContractSignature } from "../../lib/contracts/types";
 
 const INPUT: ContractInput = {
   companyName: "브라이트 카페",
@@ -204,5 +206,81 @@ describe("Contract Registry — lib/contracts/registry.ts", () => {
 
   it("updateContractResult() returns undefined for an unknown id", async () => {
     expect(await updateContractResult("does-not-exist", RESULT, store)).toBeUndefined();
+  });
+
+  it("updateContractDocument() sets document and preserves result untouched", async () => {
+    const record = await createContract(
+      {
+        inquiryId: "inquiry-1",
+        websiteOrderId: "order-1",
+        estimateId: "estimate-1",
+        specificationId: "specification-1",
+        timelineId: "timeline-1",
+        input: INPUT,
+        result: RESULT,
+        simulated: true,
+      },
+      store
+    );
+
+    const document: ContractDocumentDetails = {
+      supplier: { companyName: "씨엔비즈", sealImageUrl: "https://example.com/seal.png" },
+      client: { companyName: "브라이트 카페", contactName: "홍길동" },
+    };
+
+    const updated = await updateContractDocument(record.id, document, store);
+
+    expect(updated?.document).toEqual(document);
+    expect(updated?.result).toEqual(RESULT);
+    expect((await getContract(record.id, store))?.document?.supplier?.sealImageUrl).toBe(
+      "https://example.com/seal.png"
+    );
+  });
+
+  it("updateContractDocument() returns undefined for an unknown id", async () => {
+    expect(await updateContractDocument("does-not-exist", {}, store)).toBeUndefined();
+  });
+
+  it("recordContractClientSignature() sets clientSignature and allows overwriting on re-sign", async () => {
+    const record = await createContract(
+      {
+        inquiryId: "inquiry-1",
+        websiteOrderId: "order-1",
+        estimateId: "estimate-1",
+        specificationId: "specification-1",
+        timelineId: "timeline-1",
+        input: INPUT,
+        result: RESULT,
+        simulated: true,
+      },
+      store
+    );
+
+    const firstSignature: ContractSignature = {
+      imageDataUrl: "data:image/png;base64,AAA",
+      signerName: "홍길동",
+      signedAt: "2026-09-13T00:00:00.000Z",
+    };
+    const firstUpdate = await recordContractClientSignature(record.id, firstSignature, store);
+    expect(firstUpdate?.clientSignature).toEqual(firstSignature);
+
+    const resignature: ContractSignature = {
+      imageDataUrl: "data:image/png;base64,BBB",
+      signerName: "홍길동",
+      signedAt: "2026-09-14T00:00:00.000Z",
+    };
+    const secondUpdate = await recordContractClientSignature(record.id, resignature, store);
+    expect(secondUpdate?.clientSignature).toEqual(resignature);
+    expect((await getContract(record.id, store))?.clientSignature).toEqual(resignature);
+  });
+
+  it("recordContractClientSignature() returns undefined for an unknown id", async () => {
+    expect(
+      await recordContractClientSignature(
+        "does-not-exist",
+        { imageDataUrl: "data:image/png;base64,AAA", signerName: "홍길동", signedAt: "2026-09-13T00:00:00.000Z" },
+        store
+      )
+    ).toBeUndefined();
   });
 });

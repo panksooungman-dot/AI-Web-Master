@@ -36,6 +36,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
   return NextResponse.json({
     companyName: client?.companyName || order.name,
+    clientContact: client ? { contactName: client.contactName, phone: client.phone } : null,
     estimate: estimates[0] ?? null,
     specification: specifications[0] ?? null,
     timeline: timelines[0] ?? null,

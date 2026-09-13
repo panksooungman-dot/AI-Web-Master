@@ -8,11 +8,12 @@ import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import type { ContractDocumentDetails, ContractPartyInfo, ContractRecord, ContractResult } from "@/lib/contracts/types";
-import { buildDefaultContractDocument } from "@/lib/contracts/document";
+import { buildDefaultContractDocument, type ContractClientDefaults } from "@/lib/contracts/document";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
 
 interface ContractResponse {
   contract?: ContractRecord;
+  clientContact?: ContractClientDefaults | null;
   error?: string;
 }
 
@@ -186,6 +187,7 @@ export default function ContractDetailPage() {
   const [contract, setContract] = useState<ContractRecord | null>(null);
   const [result, setResult] = useState<ContractResult | null>(null);
   const [document, setDocument] = useState<Required<ContractDocumentDetails> | null>(null);
+  const [clientContact, setClientContact] = useState<ContractClientDefaults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -208,7 +210,8 @@ export default function ContractDetailPage() {
         }
         setContract(data.contract);
         setResult(data.contract.result);
-        setDocument(buildDefaultContractDocument(data.contract));
+        setClientContact(data.clientContact ?? null);
+        setDocument(buildDefaultContractDocument(data.contract, data.clientContact ?? undefined));
       })
       .catch(() => setLoadError("계약서를 불러오지 못했습니다."))
       .finally(() => setIsLoading(false));
@@ -234,7 +237,7 @@ export default function ContractDetailPage() {
       }
       setContract(data.contract);
       setResult(data.contract.result);
-      setDocument(buildDefaultContractDocument(data.contract));
+      setDocument(buildDefaultContractDocument(data.contract, clientContact ?? undefined));
       setSaveMessage({ tone: "success", text: "저장되었습니다." });
     } catch {
       setSaveMessage({ tone: "error", text: "저장 중 오류가 발생했습니다." });

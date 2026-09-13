@@ -207,7 +207,7 @@ export default function PublicQuotePage() {
               </table>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <p className="text-sm font-semibold text-slate-700 mb-1">참고사항</p>
                 <p className="text-xs text-slate-500 whitespace-pre-wrap">{doc.notes}</p>
@@ -216,6 +216,34 @@ export default function PublicQuotePage() {
                 <p className="text-sm font-semibold text-slate-700 mb-1">대금지불방법</p>
                 <p className="text-xs text-slate-500 whitespace-pre-wrap">{doc.paymentTerms}</p>
               </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-2">공급자 정보</p>
+              <table className="w-full text-xs border border-slate-200">
+                <tbody>
+                  <tr className="border-b border-slate-200">
+                    <th className="w-24 bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">회사명</th>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.companyName || "(미기재)"}</td>
+                    <th className="w-24 bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      사업자등록번호
+                    </th>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.businessNumber || "(미기재)"}</td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">대표자</th>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.ceoName || "(미기재)"}</td>
+                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">담당자</th>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.contactName || "(미기재)"}</td>
+                  </tr>
+                  <tr>
+                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">연락처</th>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.phone || "(미기재)"}</td>
+                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">주소</th>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.address || "(미기재)"}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </Card>
         )}

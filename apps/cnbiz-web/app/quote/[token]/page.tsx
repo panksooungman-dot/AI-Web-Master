@@ -223,23 +223,43 @@ export default function PublicQuotePage() {
               <table className="w-full text-xs border border-slate-200">
                 <tbody>
                   <tr className="border-b border-slate-200">
-                    <th className="w-24 bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">회사명</th>
-                    <td className="px-3 py-2 text-slate-800">{doc.supplier.companyName || "(미기재)"}</td>
-                    <th className="w-24 bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
-                      사업자등록번호
+                    <th className="w-28 whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      회사명
                     </th>
-                    <td className="px-3 py-2 text-slate-800">{doc.supplier.businessNumber || "(미기재)"}</td>
+                    <td className="px-3 py-2 text-slate-800">{doc.supplier.companyName || "(미기재)"}</td>
                   </tr>
                   <tr className="border-b border-slate-200">
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">대표자</th>
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      사업자등록번호
+                    </th>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-800">
+                      {doc.supplier.businessNumber || "(미기재)"}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      대표자
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{doc.supplier.ceoName || "(미기재)"}</td>
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">담당자</th>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      담당자
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{doc.supplier.contactName || "(미기재)"}</td>
                   </tr>
+                  <tr className="border-b border-slate-200">
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      연락처
+                    </th>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-800">
+                      {doc.supplier.phone || "(미기재)"}
+                    </td>
+                  </tr>
                   <tr>
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">연락처</th>
-                    <td className="px-3 py-2 text-slate-800">{doc.supplier.phone || "(미기재)"}</td>
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">주소</th>
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      주소
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{doc.supplier.address || "(미기재)"}</td>
                   </tr>
                 </tbody>

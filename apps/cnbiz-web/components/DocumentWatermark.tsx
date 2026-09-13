@@ -14,7 +14,9 @@ interface DocumentWatermarkProps {
  * 필터로 무채색 인상만 남기고 일반적인 문서 워터마크 수준으로 조정했다.
  * 2026-09-13 — 카드 전체를 채우는 반복 타일 패턴(CSS background-repeat)으로 한 차례 변경했으나,
  * 실제로 확인해보니 로고가 벽지처럼 빽빽하게 깔려 공문서치고 과하다는 피드백을 받아 되돌림 —
- * 가운데 로고 하나만 큼직하게 두는 형태를 유지하고, 투명도(opacity)는 그대로 둔다.
+ * 가운데 로고 하나만 두는 형태를 유지하고, 투명도(opacity)는 그대로 둔다. 크기는 카드 폭에 비례한
+ * 퍼센트(고정 px 아님)로 지정해 "꽉 찬" 느낌을 주면서도 카드 폭이 다른 페이지(견적서·기능명세서·
+ * 프로젝트 일정)에서 항상 카드를 가득 채우는 크기로 자연스럽게 맞춰진다.
  */
 export function DocumentWatermark({ opacity = 0.12 }: DocumentWatermarkProps) {
   return (
@@ -27,8 +29,7 @@ export function DocumentWatermark({ opacity = 0.12 }: DocumentWatermarkProps) {
         alt=""
         width={320}
         height={320}
-        style={{ opacity, filter: "grayscale(1)" }}
-        className="h-48 w-48 sm:h-64 sm:w-64"
+        style={{ opacity, filter: "grayscale(1)", width: "70%", height: "auto", maxWidth: "480px" }}
       />
     </div>
   );

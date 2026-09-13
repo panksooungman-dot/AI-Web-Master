@@ -68,6 +68,16 @@ const PDFJS_TRACE_INCLUDES = [
   "../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
 ];
 
+// app/developer/{analysis,planning,deployment,ui-map}/page.tsx read existing repo docs at
+// request time via fs.existsSync()/readFileSync() (lib/docs/readDocEntry.ts) — dynamically
+// joined paths, not static imports, so file tracing doesn't discover them on its own and they
+// were missing from the Vercel bundle (confirmed 2026-09-13: every doc on these 4 pages showed
+// "파일 없음" in production despite existing in the repo — same class of bug as CLI_TRACE_INCLUDES
+// above). One glob over docs/** covers all of them plus any future doc these pages start reading;
+// PROJECT_STATUS.md (root) and REQUEST.md (this app's own directory) are separate since they
+// live outside docs/.
+const DOCS_TRACE_INCLUDES = ["../../PROJECT_STATUS.md", "../../docs/**/*", "REQUEST.md"];
+
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@cnbiz/design-system",
@@ -119,6 +129,10 @@ const nextConfig: NextConfig = {
     // lib/marketplace/registry.ts shells out to `... dist/index.js marketplace --json`
     "/api/marketplace/**": CLI_TRACE_INCLUDES,
     "/api/inquiries/upload": PDFJS_TRACE_INCLUDES,
+    "/developer/analysis": DOCS_TRACE_INCLUDES,
+    "/developer/planning": DOCS_TRACE_INCLUDES,
+    "/developer/deployment": DOCS_TRACE_INCLUDES,
+    "/developer/ui-map": DOCS_TRACE_INCLUDES,
   },
   async redirects() {
     return [{ source: "/request", destination: CNBIZ_AI_URL, permanent: true }];

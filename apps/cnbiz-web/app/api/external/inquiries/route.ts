@@ -4,7 +4,7 @@ import { parseInquiryInput, validateInquiryInput } from "@/lib/inquiries/validat
 import { createInquiry, linkInquiryToClientAndOrder, saveInquiryAnalysis } from "@/lib/inquiries/registry";
 import { getClientIp, isRateLimited } from "@/lib/inquiries/spam";
 import { notifyAdminOfNewInquiry } from "@/lib/inquiries/notify";
-import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClientByEmail } from "@/lib/clients/registry";
+import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClient } from "@/lib/clients/registry";
 import { addAiJobToWebsiteOrder, createWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { createAiJob } from "@/lib/aiJobs/registry";
 import { processJob } from "@/lib/aiJobs/worker";
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     console.error("[external-inquiries] AI analysis failed", error);
   }
 
-  const client = await findOrCreateClientByEmail({
+  const client = await findOrCreateClient({
     companyName: input.companyName,
     contactName: input.contactName,
     email: input.email,

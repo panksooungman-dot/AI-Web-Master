@@ -5,8 +5,9 @@
  * 전용으로 호출해 고객이 보기 좋은 형태로 조합한다(lib/customerProjects/summary.ts가 과거에
  * 썼던 것과 동일한 "순수 읽기 전용 join" 원칙 — 그 파일도 별도 Domain으로 취급되지 않았다).
  *
- * 권한 경계도 이 파일 안에서 강제한다: `findClientByEmail(email)`로 찾은 Client의
- * `websiteOrderIds`에 없는 orderId는 존재 여부와 무관하게 null을 반환한다(다른 고객의
+ * 권한 경계도 이 파일 안에서 강제한다: `findClientsByEmail(email)`로 찾은 모든 Client(같은
+ * 담당자가 회사명이 다른 여러 Client를 가질 수 있다 — findOrCreateClient() 참고) 중 어느
+ * 하나의 `websiteOrderIds`에도 없는 orderId는 존재 여부와 무관하게 null을 반환한다(다른 고객의
  * orderId를 시도해도 404로만 보이고, "존재하지만 내 것이 아님"과 "존재하지 않음"을 구분해
  * 알려주지 않는다 — lib/auth/auth.ts의 로그인 오류 메시지가 "미가입 이메일"과 "잘못된 비밀번호"를
  * 구분하지 않는 것과 동일한 정보 노출 최소화 원칙).
@@ -17,7 +18,8 @@
  */
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
-import { findClientByEmail } from "@/lib/clients/registry";
+import { findClientsByEmail } from "@/lib/clients/registry";
+import type { ClientRecord } from "@/lib/clients/types";
 import { getInquiry } from "@/lib/inquiries/registry";
 import { getWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { getWebsite, type DeploymentStatus } from "@/lib/websites/registry";
@@ -157,20 +159,30 @@ async function resolveDocumentFlags(
   };
 }
 
-/** `/customer/dashboard`·`/customer/orders` 목록 화면 — 로그인 이메일과 일치하는 Client의 주문만. */
+/** `/customer/dashboard`·`/customer/orders` 목록 화면 — 로그인 이메일과 일치하는 Client의 주문만.
+ * 같은 이메일로 회사명이 다른 여러 Client가 있을 수 있어(findOrCreateClient() 참고) 전부 모아서
+ * 보여준다 — 하나만 골랐다면 그 담당자의 다른 회사 주문이 조용히 누락되는 문제가 생긴다. */
 export async function findCustomerOrders(
   email: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<CustomerOrderSummary[]> {
-  const client = await findClientByEmail(email, store);
-  if (!client) return [];
+  const clients = await findClientsByEmail(email, store);
+  if (clients.length === 0) return [];
 
-  const orders = (await Promise.all(client.websiteOrderIds.map((id) => getWebsiteOrder(id, store)))).filter(
-    (order): order is WebsiteOrderRecord => Boolean(order)
-  );
+  const ownerByOrderId = new Map<string, ClientRecord>();
+  for (const client of clients) {
+    for (const orderId of client.websiteOrderIds) {
+      ownerByOrderId.set(orderId, client);
+    }
+  }
+
+  const orders = (
+    await Promise.all([...ownerByOrderId.keys()].map((id) => getWebsiteOrder(id, store)))
+  ).filter((order): order is WebsiteOrderRecord => Boolean(order));
 
   const summaries = await Promise.all(
     orders.map(async (order) => {
+      const owner = ownerByOrderId.get(order.id)!;
       const inquiry = await getInquiry(order.inquiryId, store);
       const [flags, deployment] = await Promise.all([
         resolveDocumentFlags(order.inquiryId, Boolean(inquiry?.analysis), store),
@@ -180,7 +192,7 @@ export async function findCustomerOrders(
       const summary: CustomerOrderSummary = {
         websiteOrderId: order.id,
         inquiryId: order.inquiryId,
-        companyName: client.companyName,
+        companyName: owner.companyName,
         siteType: order.siteType,
         status: order.status,
         createdAt: order.createdAt,
@@ -203,8 +215,9 @@ export async function getCustomerOrderDetail(
   websiteOrderId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<CustomerOrderDetail | null> {
-  const client = await findClientByEmail(email, store);
-  if (!client || !client.websiteOrderIds.includes(websiteOrderId)) {
+  const clients = await findClientsByEmail(email, store);
+  const client = clients.find((c) => c.websiteOrderIds.includes(websiteOrderId));
+  if (!client) {
     return null;
   }
 

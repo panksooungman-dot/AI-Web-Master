@@ -322,6 +322,46 @@ describe("Customer Portal — lib/customerPortal/view.ts", () => {
       expect(ordersB).toHaveLength(1);
       expect(ordersA[0].websiteOrderId).not.toBe(ordersB[0].websiteOrderId);
     });
+
+    it("aggregates orders across multiple Clients that share one email but have different company names", async () => {
+      // findOrCreateClient()가 이메일+회사명으로 나뉘어 만드는 실제 상황 재현 — 같은 담당자가
+      // 서로 다른 회사 일로 두 번 문의하면 Client가 2개가 되지만, 로그인은 이메일 하나뿐이라
+      // 두 회사의 주문을 모두 볼 수 있어야 한다.
+      const email = "same-contact@example.com";
+      const clientA = await createClient(
+        { companyName: "cnbiz", contactName: "박성만", email, phone: "010-0000-0000" },
+        store
+      );
+      const clientB = await createClient(
+        { companyName: "사색찬미한정식", contactName: "박성만", email, phone: "010-0000-0000" },
+        store
+      );
+      const inquiryA = await createInquiry(
+        { source: "manual", companyName: "cnbiz", contactName: "박성만", email, phone: "010-0000-0000", siteType: "corporate", requirements: "..." },
+        store
+      );
+      const inquiryB = await createInquiry(
+        { source: "manual", companyName: "사색찬미한정식", contactName: "박성만", email, phone: "010-0000-0000", siteType: "restaurant", requirements: "예약 문의가 필요합니다." },
+        store
+      );
+      const orderA = await createWebsiteOrder(
+        { clientId: clientA.id, inquiryId: inquiryA.id, name: "cnbiz 홈페이지", siteType: "corporate", requirements: "..." },
+        store
+      );
+      await addWebsiteOrderToClient(clientA.id, orderA.id, store);
+      const orderB = await createWebsiteOrder(
+        { clientId: clientB.id, inquiryId: inquiryB.id, name: "사색찬미한정식 홈페이지", siteType: "restaurant", requirements: "예약 문의가 필요합니다." },
+        store
+      );
+      await addWebsiteOrderToClient(clientB.id, orderB.id, store);
+
+      const orders = await findCustomerOrders(email, store);
+
+      expect(orders).toHaveLength(2);
+      const byOrderId = new Map(orders.map((o) => [o.websiteOrderId, o]));
+      expect(byOrderId.get(orderA.id)?.companyName).toBe("cnbiz");
+      expect(byOrderId.get(orderB.id)?.companyName).toBe("사색찬미한정식");
+    });
   });
 
   describe("getCustomerOrderDetail() — authorization boundary", () => {
@@ -336,6 +376,41 @@ describe("Customer Portal — lib/customerPortal/view.ts", () => {
 
       const result = await getCustomerOrderDetail("customer-b@example.com", orderA.id, store);
       expect(result).toBeNull();
+    });
+
+    it("resolves an order to its own owning Client when the same email has multiple Clients", async () => {
+      const email = "same-contact@example.com";
+      await createClient({ companyName: "cnbiz", contactName: "박성만", email, phone: "010-0000-0000" }, store);
+      const clientB = await createClient(
+        { companyName: "사색찬미한정식", contactName: "박성만", email, phone: "010-0000-0000" },
+        store
+      );
+      const inquiryB = await createInquiry(
+        {
+          source: "manual",
+          companyName: "사색찬미한정식",
+          contactName: "박성만",
+          email,
+          phone: "010-0000-0000",
+          siteType: "restaurant",
+          requirements: "예약 문의가 필요합니다.",
+        },
+        store
+      );
+      const orderB = await createWebsiteOrder(
+        {
+          clientId: clientB.id,
+          inquiryId: inquiryB.id,
+          name: "사색찬미한정식 홈페이지",
+          siteType: "restaurant",
+          requirements: "예약 문의가 필요합니다.",
+        },
+        store
+      );
+      await addWebsiteOrderToClient(clientB.id, orderB.id, store);
+
+      const detail = await getCustomerOrderDetail(email, orderB.id, store);
+      expect(detail?.companyName).toBe("사색찬미한정식");
     });
 
     it("returns null for an email with no matching Client at all", async () => {

@@ -12,7 +12,7 @@ import {
   notifyAdminOfNewInquirySlack,
   notifyAdminOfNewInquirySolapi,
 } from "@/lib/inquiries/notify";
-import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClientByEmail } from "@/lib/clients/registry";
+import { addInquiryToClient, addWebsiteOrderToClient, findOrCreateClient } from "@/lib/clients/registry";
 import { addAiJobToWebsiteOrder, createWebsiteOrder } from "@/lib/websiteOrders/registry";
 import { createAiJob } from "@/lib/aiJobs/registry";
 import { generateAnalysis } from "@/lib/ai-analysis/analysis";
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     console.error("[api/inquiries] AI analysis failed", error);
   }
 
-  const client = await findOrCreateClientByEmail({
+  const client = await findOrCreateClient({
     companyName: input.companyName,
     contactName: input.contactName,
     email: input.email,

@@ -28,8 +28,13 @@ interface PlansResponse {
  * 등 그 이후 추가된 설문 항목이 계속 누락되고 있었다(2026-09-14 실사용 지적).
  *
  * AI 분석 결과(inquiry.analysis)는 새로 지어내는 값이 아니라, 의뢰 상세 페이지의 "AI 분석 결과"
- * 카드가 이미 계산해 저장해 둔 요약·추천 페이지·추천 기능이다 — Design Plan 생성에 실질적으로
- * 도움이 되는데도 지금까지는 이 화면에 전혀 반영되지 않고 있었다(2026-09-14 실사용 지적).
+ * 카드가 이미 계산해 저장해 둔 요약·추천 페이지·추천 기능·Missing Items다 — Design Plan 생성에
+ * 실질적으로 도움이 되는데도 지금까지는 이 화면에 전혀 반영되지 않고 있었다(2026-09-14 실사용 지적).
+ *
+ * 첨부된 코드 파일(codeSnippets)의 실제 내용은 넣지 않는다 — Design Plan은 화면/UX 설계용이라
+ * 원본 코드를 읽어도 도움이 안 되고, 파일당 최대 2000자까지 들어갈 수 있어 프롬프트만 불필요하게
+ * 길어진다(2026-09-14 논의). 첨부 자료(uploadedFiles)와 동일하게 "몇 건 있다"는 사실과 확인
+ * 위치만 안내한다.
  */
 function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
   const lines = [inquiry.requirements.trim()];
@@ -43,6 +48,12 @@ function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
     }
     if (inquiry.analysis.recommendedFunctions.length > 0) {
       lines.push(`AI 추천 기능: ${inquiry.analysis.recommendedFunctions.join(", ")}`);
+    }
+    if (inquiry.analysis.missingItems.length > 0) {
+      const items = inquiry.analysis.missingItems
+        .map((item) => `${item.title}(${item.required ? "필수" : "권장"})`)
+        .join(", ");
+      lines.push(`AI 분석 미비 항목: ${items}`);
     }
   }
 
@@ -66,6 +77,11 @@ function buildRequirementsFromInquiry(inquiry: InquiryRecord): string {
   // 보지 않음), 참고할 자료가 있다는 사실만은 넘겨 디자이너/AI가 별도로 확인하도록 안내한다.
   if (inquiry.uploadedFiles && inquiry.uploadedFiles.length > 0) {
     lines.push(`첨부 자료: ${inquiry.uploadedFiles.length}건 (의뢰 상세 페이지에서 확인 필요)`);
+  }
+
+  // 코드 파일 내용 자체는 담지 않는다(위 doc-comment 참고) — 건수와 확인 위치만 안내.
+  if (inquiry.codeSnippets && inquiry.codeSnippets.length > 0) {
+    lines.push(`첨부 코드 파일: ${inquiry.codeSnippets.length}건 (의뢰 상세 페이지에서 확인 필요)`);
   }
 
   return lines.filter(Boolean).join("\n");

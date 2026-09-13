@@ -10,6 +10,7 @@ import {
   findClientByEmail,
   findOrCreateClientByEmail,
   getClient,
+  updateClient,
 } from "../../lib/clients/registry";
 import type { ClientInput } from "../../lib/clients/types";
 
@@ -67,5 +68,23 @@ describe("Client Registry — lib/clients/registry.ts", () => {
 
     const withOrder = await addWebsiteOrderToClient(created.id, "website-order-1", store);
     expect(withOrder?.websiteOrderIds).toEqual(["website-order-1"]);
+  });
+
+  it("updateClient() applies a partial patch and bumps updatedAt", async () => {
+    const created = await createClient(INPUT, store);
+    const originalUpdatedAt = created.updatedAt;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const updated = await updateClient(created.id, { phone: "010-9999-8888" }, store);
+
+    expect(updated?.phone).toBe("010-9999-8888");
+    // 다른 필드는 그대로 유지되어야 한다 (부분 수정).
+    expect(updated?.companyName).toBe(INPUT.companyName);
+    expect(updated?.email).toBe(INPUT.email);
+    expect(updated?.updatedAt).not.toBe(originalUpdatedAt);
+  });
+
+  it("updateClient() returns undefined for an unknown id", async () => {
+    expect(await updateClient("nonexistent", { phone: "010-0000-0000" }, store)).toBeUndefined();
   });
 });

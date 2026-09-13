@@ -102,6 +102,25 @@ export async function addWebsiteOrderToClient(
   return records[index];
 }
 
+export async function updateClient(
+  id: string,
+  patch: Partial<ClientInput>,
+  store: CollectionStore = getDefaultStore()
+): Promise<ClientRecord | undefined> {
+  const records = await store.list<ClientRecord>(COLLECTION);
+  const index = records.findIndex((client) => client.id === id);
+  if (index === -1) return undefined;
+
+  records[index] = {
+    ...records[index],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  await store.replaceAll(COLLECTION, records);
+
+  return records[index];
+}
+
 export async function deleteClient(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
   const records = await store.list<ClientRecord>(COLLECTION);
   const next = records.filter((client) => client.id !== id);

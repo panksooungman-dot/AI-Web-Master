@@ -15,6 +15,14 @@ interface ClientResponse {
   error?: string;
 }
 
+interface ClientUpdateResponse {
+  success: boolean;
+  client?: ClientRecord;
+  error?: string;
+}
+
+const EMPTY_FORM = { companyName: "", contactName: "", email: "", phone: "" };
+
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
 
@@ -25,6 +33,11 @@ export default function ClientDetailPage() {
   // 원본 의뢰(Inquiry) 상세로 연결한다 — orderId만으로는 inquiryId를 알 수 없어 각 주문을
   // 개별 조회해 매핑을 만든다.
   const [orderInquiryMap, setOrderInquiryMap] = useState<Record<string, string>>({});
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -65,6 +78,49 @@ export default function ClientDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
+  function startEditing() {
+    if (!client) return;
+    setForm({
+      companyName: client.companyName,
+      contactName: client.contactName,
+      email: client.email,
+      phone: client.phone,
+    });
+    setSaveError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setIsEditing(false);
+    setSaveError(null);
+  }
+
+  async function saveEditing() {
+    if (!client) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data: ClientUpdateResponse = await res.json();
+
+      if (!data.success || !data.client) {
+        setSaveError(data.error ?? "저장에 실패했습니다.");
+        return;
+      }
+      setClient(data.client);
+      setIsEditing(false);
+    } catch {
+      setSaveError("저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (isLoading) {
     return <LoadingText />;
   }
@@ -89,29 +145,110 @@ export default function ClientDetailPage() {
       <PageHeader title={client.companyName} description={`${client.contactName} · ${client.email}`} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card title="연락처 정보" className="lg:col-span-1">
-          <dl className="flex flex-col gap-3 text-sm">
-            <div>
-              <dt className="text-gray-500">담당자</dt>
-              <dd className="text-gray-200">{client.contactName}</dd>
+        <Card
+          title="연락처 정보"
+          className="lg:col-span-1"
+          actions={
+            !isEditing && (
+              <button
+                type="button"
+                onClick={startEditing}
+                className="text-xs text-blue-400 hover:underline"
+              >
+                정보 수정
+              </button>
+            )
+          }
+        >
+          {isEditing ? (
+            <div className="flex flex-col gap-3 text-sm">
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-500">회사명</span>
+                <input
+                  type="text"
+                  value={form.companyName}
+                  onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                  className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-500">담당자</span>
+                <input
+                  type="text"
+                  value={form.contactName}
+                  onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                  className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-500">이메일</span>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-500">연락처</span>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="010-1234-5678"
+                  className="rounded border border-gray-700 bg-gray-950 px-3 py-2 text-gray-200"
+                />
+              </label>
+
+              {saveError && <StatusMessage tone="error">{saveError}</StatusMessage>}
+
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={saveEditing}
+                  disabled={isSaving}
+                  className="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                >
+                  {isSaving ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={isSaving}
+                  className="rounded border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-gray-500 disabled:opacity-50"
+                >
+                  취소
+                </button>
+              </div>
             </div>
-            <div>
-              <dt className="text-gray-500">이메일</dt>
-              <dd className="text-gray-200">{client.email}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">연락처</dt>
-              <dd className="text-gray-200">{client.phone}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">최초 등록일</dt>
-              <dd className="text-gray-200">{new Date(client.createdAt).toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">최근 갱신일</dt>
-              <dd className="text-gray-200">{new Date(client.updatedAt).toLocaleString()}</dd>
-            </div>
-          </dl>
+          ) : (
+            <dl className="flex flex-col gap-3 text-sm">
+              <div>
+                <dt className="text-gray-500">회사명</dt>
+                <dd className="text-gray-200">{client.companyName}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">담당자</dt>
+                <dd className="text-gray-200">{client.contactName}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">이메일</dt>
+                <dd className="text-gray-200">{client.email}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">연락처</dt>
+                <dd className="text-gray-200">{client.phone || "(미기재)"}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">최초 등록일</dt>
+                <dd className="text-gray-200">{new Date(client.createdAt).toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">최근 갱신일</dt>
+                <dd className="text-gray-200">{new Date(client.updatedAt).toLocaleString()}</dd>
+              </div>
+            </dl>
+          )}
         </Card>
 
         <Card title="연결된 문의(Inquiry)" className="lg:col-span-1">

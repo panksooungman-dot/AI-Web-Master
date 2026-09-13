@@ -3,11 +3,20 @@ import { deleteContract, getContract, updateContractDocument, updateContractResu
 import type { ContractDocumentDetails, ContractResult } from "@/lib/contracts/types";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
+import { getWebsiteOrder } from "@/lib/websiteOrders/registry";
+import { getClient } from "@/lib/clients/registry";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+/**
+ * 계약서 조회 시 연결된 Client(문의 접수 시 이미 실제로 입력된 담당자명·연락처)도 함께
+ * 내려준다 — `/developer/contracts/[id]`가 "계약 당사자" 편집 폼의 의뢰자 기본값을 매번
+ * 수동으로 다시 입력하지 않고 자동으로 채우기 위함(`buildDefaultContractDocument()`의
+ * clientDefaults 인자로 전달됨). 사업자번호·대표자명·주소는 Client 레코드에 아예 없어(문의
+ * 흐름에서 수집한 적이 없음) 여기서도 내려줄 수 없다 — 계속 관리자가 직접 입력해야 한다.
+ */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const contract = await getContract(id);
@@ -16,7 +25,11 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "계약서를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  return NextResponse.json({ contract });
+  const order = await getWebsiteOrder(contract.websiteOrderId);
+  const client = order ? await getClient(order.clientId) : undefined;
+  const clientContact = client ? { contactName: client.contactName, phone: client.phone } : null;
+
+  return NextResponse.json({ contract, clientContact });
 }
 
 /**

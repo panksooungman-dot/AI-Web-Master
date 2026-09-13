@@ -8,7 +8,7 @@ import type { EstimateRecord } from "@/lib/estimates/types";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 import type { TimelineRecord } from "@/lib/timeline/types";
 import type { ContractRecord } from "@/lib/contracts/types";
-import { buildDefaultContractDocument } from "@/lib/contracts/document";
+import { buildDefaultContractDocument, type ContractClientDefaults } from "@/lib/contracts/document";
 import type { ProposalRecord } from "@/lib/proposals/types";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { DocumentWatermark } from "@/components/DocumentWatermark";
@@ -18,6 +18,7 @@ import { SignatureModal } from "@/components/quote/SignatureModal";
 
 interface PublicQuoteResponse {
   companyName?: string;
+  clientContact?: ContractClientDefaults | null;
   estimate?: EstimateRecord | null;
   specification?: SpecificationRecord | null;
   timeline?: TimelineRecord | null;
@@ -114,7 +115,7 @@ export default function PublicContractPage() {
 
   const { companyName, contract } = data;
   const { result } = contract;
-  const doc = buildDefaultContractDocument(contract);
+  const doc = buildDefaultContractDocument(contract, data.clientContact ?? undefined);
 
   function openSignatureModal() {
     setSignatureDataUrl(null);

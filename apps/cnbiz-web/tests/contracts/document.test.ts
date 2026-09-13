@@ -79,4 +79,29 @@ describe("buildDefaultContractDocument() — lib/contracts/document.ts", () => {
     expect(doc.client.companyName).toBe("저장된 고객사명");
     expect(doc.client.contactName).toBe("홍길동");
   });
+
+  it("falls back to clientDefaults(연결된 Client 레코드) for contactName/phone when document has no client info", () => {
+    const doc = buildDefaultContractDocument(makeContract(), {
+      contactName: "박성만",
+      phone: "010-1234-5678",
+    });
+
+    expect(doc.client.contactName).toBe("박성만");
+    expect(doc.client.phone).toBe("010-1234-5678");
+    // Client 레코드에 없는 필드는 여전히 관리자가 직접 입력해야 하므로 빈 값 그대로 유지.
+    expect(doc.client.businessNumber).toBe("");
+    expect(doc.client.ceoName).toBe("");
+    expect(doc.client.address).toBe("");
+  });
+
+  it("saved document values still win over clientDefaults", () => {
+    const doc = buildDefaultContractDocument(
+      makeContract({ document: { client: { contactName: "관리자가 직접 입력한 이름" } } }),
+      { contactName: "박성만", phone: "010-1234-5678" }
+    );
+
+    expect(doc.client.contactName).toBe("관리자가 직접 입력한 이름");
+    // 저장된 document에 없는 필드는 clientDefaults로 채워진다.
+    expect(doc.client.phone).toBe("010-1234-5678");
+  });
 });

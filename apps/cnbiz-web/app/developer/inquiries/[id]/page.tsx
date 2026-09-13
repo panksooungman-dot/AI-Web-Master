@@ -24,6 +24,7 @@ import type { ProposalRecord } from "@/lib/proposals/types";
 import type { LaunchRequestCustomItem, LaunchRequestRecord } from "@/lib/launchRequests/types";
 import { LAUNCH_REQUEST_CATALOG, getRecommendedServiceIds } from "@/lib/launchRequests/catalog";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
+import { shareQuoteLink } from "@/lib/kakao/share";
 
 const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   New: "신규",
@@ -170,6 +171,7 @@ export default function InquiryDetailPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [isCopyingShareLink, setIsCopyingShareLink] = useState(false);
+  const [isKakaoSharing, setIsKakaoSharing] = useState(false);
   const [isSplittingClient, setIsSplittingClient] = useState(false);
   const [splitClientError, setSplitClientError] = useState<string | null>(null);
 
@@ -794,6 +796,44 @@ export default function InquiryDetailPage() {
       setShareMessage({ tone: "error", text: "링크 복사 중 오류가 발생했습니다." });
     } finally {
       setIsCopyingShareLink(false);
+    }
+  }
+
+  // Kakao Link SDK — 브라우저에서 직접 카카오톡 공유 시트를 열어 버튼("바로가기")이 포함된
+  // 카드로 /quote/[token] 링크를 보낸다. NEXT_PUBLIC_KAKAO_JS_KEY 미설정 시 shareQuoteLink()가
+  // 명확한 오류를 던진다(lib/kakao/share.ts 참고) — 링크 복사/문자 공유와 달리 서버 API를
+  // 거치지 않으므로 실패해도 다른 두 채널에는 영향 없음.
+  async function handleKakaoShare() {
+    if (!websiteOrder) return;
+
+    setIsKakaoSharing(true);
+    setShareMessage(null);
+
+    try {
+      const res = await fetch(`/api/website-orders/${websiteOrder.id}/share-link`);
+      const data: { success: boolean; shareUrl?: string; error?: string } = await res.json();
+
+      if (!data.success || !data.shareUrl) {
+        setShareMessage({ tone: "error", text: data.error ?? "링크 생성에 실패했습니다." });
+        return;
+      }
+
+      const companyName = client?.companyName || client?.contactName || null;
+      const title = companyName ? `${companyName} 프로젝트 문서` : "프로젝트 문서";
+
+      await shareQuoteLink({
+        title,
+        description: "견적서 · 기능명세서 · 프로젝트 일정 · 계약서 · 제안서를 로그인 없이 확인하실 수 있습니다.",
+        shareUrl: data.shareUrl,
+        imageUrl: `${data.shareUrl}/opengraph-image`,
+      });
+    } catch (err) {
+      setShareMessage({
+        tone: "error",
+        text: err instanceof Error ? err.message : "카카오톡 공유 중 오류가 발생했습니다.",
+      });
+    } finally {
+      setIsKakaoSharing(false);
     }
   }
 
@@ -1518,6 +1558,13 @@ export default function InquiryDetailPage() {
               {isCopyingShareLink ? "복사 중..." : "🔗 링크 복사"}
             </button>
             <button
+              onClick={handleKakaoShare}
+              disabled={!websiteOrder || estimates.length === 0 || isKakaoSharing}
+              className="rounded bg-yellow-400 hover:bg-yellow-300 text-gray-900 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {isKakaoSharing ? "여는 중..." : "💬 카카오톡 공유"}
+            </button>
+            <button
               onClick={handleShareWithCustomer}
               disabled={!websiteOrder || !client?.phone || estimates.length === 0 || isSharing}
               className="rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
@@ -1566,8 +1613,8 @@ export default function InquiryDetailPage() {
           </div>
         ) : !client?.phone ? (
           <p className="text-gray-500 text-sm">
-            고객사 연락처(전화번호)가 없어 문자는 보낼 수 없지만, &ldquo;🔗 링크 복사&rdquo;로 링크를 복사해
-            카카오톡 등으로 직접 보낼 수는 있습니다.{" "}
+            고객사 연락처(전화번호)가 없어 문자는 보낼 수 없지만, &ldquo;💬 카카오톡 공유&rdquo;로 버튼이 포함된
+            카드를 바로 보내거나 &ldquo;🔗 링크 복사&rdquo;로 링크를 복사해 직접 보낼 수는 있습니다.{" "}
             {client && (
               <Link href={`/developer/clients/${client.id}`} className="text-blue-400 hover:underline">
                 고객사 정보에서 연락처 입력하기 →
@@ -1577,7 +1624,8 @@ export default function InquiryDetailPage() {
         ) : (
           <p className="text-gray-500 text-sm">
             {client.companyName || client.contactName}님({client.phone})에게 로그인 없이 열람 가능한 문서 링크를
-            문자로 발송하거나, &ldquo;🔗 링크 복사&rdquo;로 복사해 카카오톡 등에 직접 붙여넣어 보낼 수 있습니다.
+            문자로 발송하거나, &ldquo;💬 카카오톡 공유&rdquo;로 버튼이 포함된 카드를 바로 보내거나,
+            &ldquo;🔗 링크 복사&rdquo;로 복사해 직접 붙여넣어 보낼 수 있습니다.
             견적서·기능 명세서·프로젝트 일정·계약서·제안서 중 생성된 것만 한 페이지에 표시됩니다.
           </p>
         )}

@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-09-13
+
+### 추가 (Added)
+
+- **`/developer/inquiries/[id]` — Kakao Link SDK 기반 "💬 카카오톡 공유" 버튼 추가**: 기존
+  "🔗 링크 복사"·"문자로 공유"(SOLAPI) 두 채널은 카카오톡에 붙여넣어도 일반 링크 미리보기
+  (Open Graph unfurl)만 뜨고 클릭 가능한 버튼이 없다는 한계가 있었다. 카카오톡 링크 미리보기
+  자체는 `og:title`/`og:description`/`og:image` 3가지만 읽는 읽기 전용 렌더링이라 버튼을 넣을
+  방법이 구조적으로 없고, 버튼이 있는 카드를 실제로 보내려면 Kakao Link SDK(발신자가 사이트에서
+  직접 공유 버튼을 눌러야 함)나 카카오 알림톡(별도 채널·템플릿 승인 필요, 2026-09-13 이전 세션에서
+  이미 이번 범위 밖으로 확인됨)이 필요함을 확인한 뒤 전자로 구현
+  - `lib/kakao/share.ts`(신규) — 브라우저에서 Kakao JS SDK(`t1.kakaocdn.net`)를 동적으로 로드하고
+    `Kakao.Share.sendDefault()`로 Feed 템플릿(제목·설명·이미지 + "바로가기" 버튼)을 연다.
+    `lib/inquiries/slack.ts`·`lib/contact/email/providers/resend.ts`와 동일하게 새 npm 의존성
+    없이 순수 `fetch`/DOM API만 사용. `NEXT_PUBLIC_KAKAO_JS_KEY` 미설정 시 SDK를 아예 로드하지
+    않고 명확한 오류를 반환(다른 채널들의 "설정 안 됨" 처리와 동일한 원칙)
+  - `app/developer/inquiries/[id]/page.tsx` — `handleKakaoShare()` 추가. 기존
+    `handleCopyShareLink()`와 동일하게 `GET /api/website-orders/[id]/share-link`로 공유 링크를
+    발급/재사용한 뒤, `shareQuoteLink()`에 회사명(`opengraph-image.tsx`와 동일한 "{회사명}
+    프로젝트 문서" 제목 규칙)과 `${shareUrl}/opengraph-image`(기존 세그먼트 전용 OG 이미지,
+    2026-09-13 이전 세션 구현)를 넘겨 카드 이미지로 재사용. 서버 API를 거치지 않으므로 실패해도
+    링크 복사·SOLAPI 문자 공유에는 영향 없음
+  - `.env.example` — `NEXT_PUBLIC_KAKAO_JS_KEY` 항목 추가, Kakao Developers 콘솔에서
+    앱 생성·JavaScript 키 발급·Web 플랫폼 도메인 등록이 필요함을 명시(코드로 대신할 수 없는
+    수동 설정 단계)
+
+### 검증 (Verified)
+
+- `npx tsc --noEmit`(0 errors), `npx eslint lib/kakao/share.ts app/developer/inquiries/[id]/page.tsx`
+  (0 errors), `npm run build` 통과(기존 라우트 전부 정상 생성, 회귀 없음)
+- 이 실행 환경에는 실제 Kakao 앱 키가 없어(Kakao Developers 콘솔 계정 필요), 실제 카카오톡
+  공유 시트가 열리고 버튼이 포함된 카드가 정상 발송되는 성공 경로는 검증하지 못했다 — SDK
+  로드·초기화·`sendDefault()` 호출 인자 구성은 Kakao 공식 JS SDK 문서 스펙대로 작성했으나,
+  실제 앱 키 발급 후 사용자가 직접 클릭해 확인 필요
+
+---
+
 ## 2026-09-12
 
 ### 추가 (Added)

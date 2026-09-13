@@ -10,20 +10,36 @@ import path from "path";
  * there). Falls back to `process.cwd()` if no workspace root is found (keeps callers non-fatal;
  * they already handle a missing target file, e.g. `packages/cli/dist/index.js` not existing).
  */
+function isWorkspaceRoot(dir: string): boolean {
+  const packageJsonPath = path.join(dir, "package.json");
+  if (!fs.existsSync(packageJsonPath)) return false;
+  try {
+    const pkg: unknown = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+    return !!(pkg && typeof pkg === "object" && "workspaces" in pkg);
+  } catch {
+    return false;
+  }
+}
+
 export function resolveRepoRoot(startDir: string = process.cwd()): string {
+  // apps/cnbiz-web is always exactly two directories below the monorepo root, both locally and
+  // inside the deployed Vercel bundle (process.cwd() reliably equals apps/cnbiz-web's own
+  // directory at runtime — see resolveCliEntry()'s doc comment below for the confirmed production
+  // investigation). The walk-up loop below never finds the real root inside that bundle, because
+  // nothing statically imports the monorepo root's package.json so file tracing never includes
+  // it — every caller of resolveRepoRoot() silently got apps/cnbiz-web itself back instead
+  // (confirmed 2026-09-13: app/developer/{analysis,planning,deployment,ui-map}/page.tsx all read
+  // existing docs through this path and showed "파일 없음" in production despite the files
+  // existing in the repo). Try this already-proven two-levels-up path first; fall back to the
+  // walk-up only if it doesn't check out (e.g. invoked from an unusual startDir in a script/test).
+  const fastCandidate = path.join(startDir, "..", "..");
+  if (isWorkspaceRoot(fastCandidate)) return fastCandidate;
+
   let dir = path.resolve(startDir);
 
   while (true) {
-    const packageJsonPath = path.join(dir, "package.json");
-    if (fs.existsSync(packageJsonPath)) {
-      try {
-        const pkg: unknown = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-        if (pkg && typeof pkg === "object" && "workspaces" in pkg) {
-          return dir;
-        }
-      } catch {
-        // ignore malformed package.json and keep walking up
-      }
+    if (isWorkspaceRoot(dir)) {
+      return dir;
     }
 
     const parent = path.dirname(dir);

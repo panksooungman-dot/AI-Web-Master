@@ -279,11 +279,10 @@ export default function PublicContractPage() {
             <div>
               <p className="text-sm font-semibold text-slate-700 mb-2">의뢰자 (을)</p>
               <p className="text-sm text-slate-600">{doc.client.companyName || companyName}</p>
-              {doc.client.ceoName && <p className="text-sm text-slate-600">대표 {doc.client.ceoName}</p>}
-              {/* 공급자 쪽 "대표 {이름}" 줄에 도장이 나란히 붙는 것과 동일하게, 담당자명 옆에
+              {/* 공급자 쪽 "대표 {이름}" 줄에 도장이 나란히 붙는 것과 동일하게, 대표자명 옆에
                   서명 버튼(미서명) 또는 서명 이미지(서명 완료)를 같은 줄에 배치한다. */}
               <p className="text-sm text-slate-600 flex items-center gap-2">
-                {doc.client.contactName && <span>담당 {doc.client.contactName}</span>}
+                {doc.client.ceoName && <span>대표 {doc.client.ceoName}</span>}
                 {contract.clientSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element -- data URL(캔버스 서명)이라 next/image 대상이 아님
                   <img
@@ -301,13 +300,14 @@ export default function PublicContractPage() {
                   </button>
                 )}
               </p>
+              {doc.client.contactName && <p className="text-sm text-slate-600">담당 {doc.client.contactName}</p>}
               {doc.client.businessNumber && (
                 <p className="text-sm text-slate-500">사업자번호 {doc.client.businessNumber}</p>
               )}
               {doc.client.phone && <p className="text-sm text-slate-500">{doc.client.phone}</p>}
               {doc.client.address && <p className="text-sm text-slate-500">{doc.client.address}</p>}
 
-              {contract.clientSignature && (
+              {contract.clientSignature ? (
                 <div className="mt-1 flex flex-col gap-1">
                   <p className="text-xs text-slate-500">
                     {contract.clientSignature.signerName} ·{" "}
@@ -321,6 +321,10 @@ export default function PublicContractPage() {
                     서명 다시 하기
                   </button>
                 </div>
+              ) : (
+                <p className="mt-2 rounded bg-amber-50 px-2 py-1.5 text-xs font-medium text-amber-700">
+                  ⚠ 아직 서명이 완료되지 않았습니다. 계약을 확정하려면 서명해주세요.
+                </p>
               )}
             </div>
           </div>

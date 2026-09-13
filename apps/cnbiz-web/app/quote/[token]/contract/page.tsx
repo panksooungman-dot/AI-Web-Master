@@ -279,6 +279,7 @@ export default function PublicContractPage() {
             <div>
               <p className="text-sm font-semibold text-slate-700 mb-2">의뢰자 (을)</p>
               <p className="text-sm text-slate-600">{doc.client.companyName || companyName}</p>
+              {doc.client.ceoName && <p className="text-sm text-slate-600">대표 {doc.client.ceoName}</p>}
               {/* 공급자 쪽 "대표 {이름}" 줄에 도장이 나란히 붙는 것과 동일하게, 담당자명 옆에
                   서명 버튼(미서명) 또는 서명 이미지(서명 완료)를 같은 줄에 배치한다. */}
               <p className="text-sm text-slate-600 flex items-center gap-2">
@@ -300,7 +301,11 @@ export default function PublicContractPage() {
                   </button>
                 )}
               </p>
+              {doc.client.businessNumber && (
+                <p className="text-sm text-slate-500">사업자번호 {doc.client.businessNumber}</p>
+              )}
               {doc.client.phone && <p className="text-sm text-slate-500">{doc.client.phone}</p>}
+              {doc.client.address && <p className="text-sm text-slate-500">{doc.client.address}</p>}
 
               {contract.clientSignature && (
                 <div className="mt-1 flex flex-col gap-1">

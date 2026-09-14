@@ -6,6 +6,7 @@ import { Button, Card, Textarea } from "@cnbiz/ui";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { ScreenFlowDiagram } from "@/components/design-review/ScreenFlowDiagram";
+import { ScreenWireframeMockup, type MockupBreakpoint, type MockupScreen } from "@/components/design-review/ScreenWireframeMockup";
 
 /**
  * "디자인쪽에서 수정할 게 있으면 실제 화면으로 봐야지 개발을 하는 거 아냐" (2026-09-11) —
@@ -67,6 +68,8 @@ interface LoadedData {
   share: PublicShare;
   projectName: string;
   storyboard: PublicStoryboard;
+  /** Phase 3(Wireframe)이 아직 생성되지 않은 Storyboard도 있을 수 있어 null 가능. */
+  wireframeLayouts: MockupScreen[] | null;
 }
 
 export default function DesignReviewPublicPage() {
@@ -77,6 +80,7 @@ export default function DesignReviewPublicPage() {
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState<"approved" | "revision_requested" | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [mockupBreakpoint, setMockupBreakpoint] = useState<MockupBreakpoint>("desktop");
 
   function load() {
     setIsLoading(true);
@@ -184,6 +188,23 @@ export default function DesignReviewPublicPage() {
               />
             </div>
           </div>
+
+          {data.wireframeLayouts && data.wireframeLayouts.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">화면 시각적 목업</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                각 화면 안에 실제로 어떤 요소가 어떻게 배치되는지 간단한 스케치로 보여드립니다. 색상·이미지·문구는
+                아직 적용되지 않은 구조 확인용이며, Desktop·Tablet·Mobile 화면 크기를 바꿔가며 확인할 수 있습니다.
+              </p>
+              <div className="mt-3">
+                <ScreenWireframeMockup
+                  screens={data.wireframeLayouts}
+                  breakpoint={mockupBreakpoint}
+                  onBreakpointChange={setMockupBreakpoint}
+                />
+              </div>
+            </div>
+          )}
 
           <Card>
             <h2 className="text-lg font-bold text-slate-900">화면 구성 (Screen Flow)</h2>

@@ -9,6 +9,7 @@ import { DesignChainStepper } from "@/components/developer/design/DesignChainSte
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import Link from "next/link";
 import type { DesignPlanRecord } from "@/lib/design/types";
+import type { DesignPlanJobRecord } from "@/lib/design/generationJob";
 import type { InquiryRecord } from "@/lib/inquiries/types";
 import { WEBSITE_TYPES } from "@/lib/websites/types";
 
@@ -384,14 +385,68 @@ function DesignRequirementsPageInner() {
     }
   };
 
+  /**
+   * Job이 Success/Failed에 도달할 때까지 몇 초 간격으로 상태를 확인한다. POST .../jobs/[id]/run
+   * 자체가 오래 걸리는 요청이라 브라우저 쪽에서 끊기기 쉬운데(모바일 와이파이 전환, 탭 전환
+   * 등), 그 fetch가 실패해도 서버는 이미 시작한 생성을 계속 진행하므로 이 폴링이 최종 결과를
+   * 그대로 회수한다 — 연속으로 여러 번 폴링 자체가 안 될 때만("정말 네트워크가 끊겼다") 포기한다.
+   */
+  async function pollDesignPlanJob(
+    jobId: string
+  ): Promise<{ status: "Success"; plan: DesignPlanRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: DesignPlanJobRecord; plan?: DesignPlanRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/requirements/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 History에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.plan) {
+        return { status: "Success", plan: json.plan };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "생성에 실패했습니다." };
+      }
+      // Queued/Running — 계속 폴링한다.
+    }
+  }
+
+  /**
+   * 요청 즉시 응답하는 Job 생성(POST .../jobs) → 실제 생성을 수행하는 별도 요청(POST
+   * .../jobs/[id]/run, 최대 270초 소요 가능) → 폴링(GET .../jobs/[id])으로 결과 회수, 3단계로
+   * 나눈 구조. 예전에는 이 전체를 하나의 fetch로 처리해, Vercel 함수 실행 시간 제한이나 그
+   * 사이의 네트워크 끊김이 그대로 "생성 실패"로 이어졌다(2026-09-14 실사용 — Customer
+   * Requirements가 아주 긴 입력에서 "네트워크 연결이 끊겼거나 서버 응답 시간이 초과됐습니다"
+   * 반복 발생). run 요청은 실패해도 무시한다(catch로 삼킴) — 서버가 이미 처리를 시작했다면
+   * 폴링이 최종 결과를 그대로 가져온다.
+   */
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const json = await fetchAndParseJson<{ success: boolean; plan?: DesignPlanRecord; error?: string }>(
-        "/api/design/requirements",
+      const createJson = await fetchAndParseJson<{ success: boolean; job?: DesignPlanJobRecord; error?: string }>(
+        "/api/design/requirements/jobs",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -403,16 +458,28 @@ function DesignRequirementsPageInner() {
             ...(linkedInquiry ? { projectId: linkedInquiry.id } : {}),
           }),
         },
-        "네트워크 연결이 끊겼거나 서버 응답 시간이 초과됐습니다. 입력 내용이 길면 시간이 더 걸릴 수 있습니다 — 잠시 후 다시 시도해주세요."
+        "네트워크 연결이 끊겼거나 서버 응답 시간이 초과됐습니다. 잠시 후 다시 시도해주세요."
       );
 
-      if (!json.success || !json.plan) {
-        setSubmitError(json.error ?? "생성 실패");
+      if (!createJson.success || !createJson.job) {
+        setSubmitError(createJson.error ?? "생성 실패");
         return;
       }
 
-      setPlans((prev) => [json.plan!, ...prev]);
-      setSelectedId(json.plan.id);
+      const jobId = createJson.job.id;
+      fetch(`/api/design/requirements/jobs/${jobId}/run`, { method: "POST" }).catch(() => {
+        // 무시한다 — 이 요청이 끊겨도 서버 쪽 처리는 계속되고, 아래 폴링이 최종 결과를 가져온다.
+      });
+
+      const result = await pollDesignPlanJob(jobId);
+      if (result.status === "Failed") {
+        setSubmitError(result.error);
+        return;
+      }
+
+      const plan = result.plan;
+      setPlans((prev) => [plan, ...prev]);
+      setSelectedId(plan.id);
 
       // 의뢰에서 시작된 흐름이면 Storyboard까지 이어서 만든다("Design 시작" 버튼 하나로
       // 처음부터 다시 입력하지 않고 Storyboard까지 도달하게 해달라는 요청, 2026-09-12).
@@ -420,7 +487,7 @@ function DesignRequirementsPageInner() {
       // 화면에 남아 결과를 먼저 검토하고 싶을 수 있어, 기존처럼 수동으로 다음 단계로
       // 넘어가는 흐름을 유지한다.
       if (linkedInquiry) {
-        await autoGenerateStoryboard(json.plan.id);
+        await autoGenerateStoryboard(plan.id);
       }
     } catch (err) {
       console.error("[design/requirements] generate failed", err);

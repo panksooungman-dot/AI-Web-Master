@@ -6,6 +6,7 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { TimelineRecord } from "@/lib/timeline/types";
 
 interface TimelinesResponse {
@@ -24,6 +25,7 @@ export default function TimelinesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -112,6 +114,9 @@ export default function TimelinesPage() {
                 <Badge tone="purple">총 {timeline.result.totalDurationWeeks}주</Badge>
                 <span className="text-xs text-gray-400">Phase {timeline.result.phases.length}개</span>
                 {timeline.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(timeline.inquiryId), timeline.input.companyName) && (
+                  <Badge tone="warning">⚠ 현재 의뢰명: {inquiryCompanyNames.get(timeline.inquiryId)}</Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, timeline)}

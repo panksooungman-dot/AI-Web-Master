@@ -6,6 +6,7 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { EstimateRecord } from "@/lib/estimates/types";
 
 interface EstimatesResponse {
@@ -23,6 +24,7 @@ export default function EstimatesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -113,6 +115,9 @@ export default function EstimatesPage() {
                 </Badge>
                 <span className="text-xs text-gray-400">{estimate.result.timelineWeeks}주</span>
                 {estimate.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(estimate.inquiryId), estimate.input.companyName) && (
+                  <Badge tone="warning">⚠ 현재 의뢰명: {inquiryCompanyNames.get(estimate.inquiryId)}</Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, estimate)}

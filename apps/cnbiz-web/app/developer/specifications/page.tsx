@@ -6,6 +6,7 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 
 interface SpecificationsResponse {
@@ -24,6 +25,7 @@ export default function SpecificationsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -112,6 +114,11 @@ export default function SpecificationsPage() {
                 <Badge tone="purple">페이지 {specification.result.pages.length}종</Badge>
                 <span className="text-xs text-gray-400">기능 {specification.result.features.length}종</span>
                 {specification.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(specification.inquiryId), specification.input.companyName) && (
+                  <Badge tone="warning">
+                    ⚠ 현재 의뢰명: {inquiryCompanyNames.get(specification.inquiryId)}
+                  </Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, specification)}

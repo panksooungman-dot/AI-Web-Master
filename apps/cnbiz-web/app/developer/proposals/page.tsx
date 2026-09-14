@@ -6,6 +6,7 @@ import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { ProposalRecord } from "@/lib/proposals/types";
 
 interface ProposalsResponse {
@@ -24,6 +25,7 @@ export default function ProposalsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -114,6 +116,9 @@ export default function ProposalsPage() {
                   {proposal.result.cost.currency}
                 </Badge>
                 {proposal.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(proposal.inquiryId), proposal.input.companyName) && (
+                  <Badge tone="warning">⚠ 현재 의뢰명: {inquiryCompanyNames.get(proposal.inquiryId)}</Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, proposal)}

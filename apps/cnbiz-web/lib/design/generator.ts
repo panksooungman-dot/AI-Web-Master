@@ -1,4 +1,4 @@
-import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { chatViaCli, LARGE_GENERATION_CHAT_OPTIONS, type ChatResult } from "@/lib/ai/bridge";
 import type {
   DesignPlanContent,
   DesignPlanInput,
@@ -230,9 +230,12 @@ export interface GenerateDesignPlanResult {
  */
 export async function generateDesignPlan(
   input: DesignPlanInput,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (
+    message: string,
+    options?: { system?: string; provider?: string; timeoutMs?: number; retries?: number }
+  ) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateDesignPlanResult> {
-  const result = await chatFn(buildUserPrompt(input), { system: SYSTEM_PROMPT });
+  const result = await chatFn(buildUserPrompt(input), { system: SYSTEM_PROMPT, ...LARGE_GENERATION_CHAT_OPTIONS });
 
   if (result.success && result.content) {
     const parsed = parseDesignPlanContent(result.content);

@@ -91,11 +91,17 @@ export function createAnthropicProvider(config: ProviderConfig): AIProvider {
 
       const model = request.model ?? DEFAULT_MODEL;
 
-      const data = (await providerFetchJson("anthropic", `${BASE_URL}/messages`, {
-        method: "POST",
-        headers: headers(),
-        body: buildBody(request, model, false)
-      })) as {
+      const data = (await providerFetchJson(
+        "anthropic",
+        `${BASE_URL}/messages`,
+        {
+          method: "POST",
+          headers: headers(),
+          body: buildBody(request, model, false)
+        },
+        request.timeoutMs,
+        { retries: request.retries }
+      )) as {
         content?: { type: string; text?: string }[];
         usage?: { input_tokens?: number; output_tokens?: number };
       };

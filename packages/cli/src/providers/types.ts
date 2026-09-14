@@ -8,6 +8,19 @@ export interface ChatRequest {
   messages: ChatMessage[];
   temperature?: number;
   maxTokens?: number;
+  /**
+   * 이 호출 하나에만 적용할 타임아웃(ms)/재시도 횟수 override — 기본값(provider.ts의
+   * DEFAULT_TIMEOUT_MS=120000, DEFAULT_RETRIES=2, 즉 최악의 경우 3회 × 120초 ≈ 360초)은
+   * 일반 대화형 호출에는 맞지만, Vercel 서버리스 함수의 실행 시간 제한(예: maxDuration=300)
+   * 안에서 큰 JSON을 생성하는 호출(Design Plan/Storyboard/Wireframe 등)에는 "느리지만 정상
+   * 진행 중인 응답"을 중간에 끊고 처음부터 재시도하게 만들어, 누적 재시도 시간이 오히려
+   * maxDuration을 넘겨버리는 역효과를 낸다(2026-09-14 실사용 — Customer Requirements에
+   * 문서 전문을 붙여넣은 긴 입력에서 재현). 이런 호출은 재시도 횟수를 줄이고 단일 시도의
+   * 타임아웃을 늘려(예: retries:0, timeoutMs:270000) maxDuration 안에서 한 번의 시도가
+   * 끝까지 진행되도록 해야 한다. 지정하지 않으면 기존 기본값 그대로 동작한다(하위 호환).
+   */
+  timeoutMs?: number;
+  retries?: number;
 }
 
 export interface ChatResponse {

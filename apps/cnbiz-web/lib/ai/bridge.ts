@@ -11,6 +11,20 @@ export interface ChatResult {
   error?: string;
 }
 
+/**
+ * lib/design/*-generator.ts 5개(Design Plan/Storyboard/Wireframe/Claude Design/Prototype)가
+ * 공유하는 chatViaCli() 호출 옵션 — 전부 큰 JSON을 한 번에 생성하고, 각자의 API 라우트가
+ * Vercel maxDuration=300으로 실행 시간 제한을 받는다(app/api/design 하위 각 라우트 참고). 기본
+ * 재시도 정책(최대 3회 × 120초 ≈ 360초, packages/cli/src/providers/provider.ts)은 "느리지만
+ * 정상 진행 중인 응답"을 중간에 끊고 처음부터 재시도하게 만들어, 누적 재시도 시간이 오히려
+ * maxDuration을 넘겨버리는 역효과를 낸다(2026-09-14 실사용 — Customer Requirements에 문서
+ * 전문을 붙여넣은 긴 입력에서 재현: "네트워크 연결이 끊겼거나 서버 응답 시간이 초과됐습니다").
+ * 재시도 없이 단일 시도에 270초(=maxDuration 300초에서 subprocess spawn 등 오버헤드 여유 30초를
+ * 뺀 값)를 온전히 쓰도록 override한다 — 입력을 요약해서 줄이라고 안내하는 대신, 큰 입력을
+ * 그대로 받아들이면서 시간 예산만 재배분하는 방식.
+ */
+export const LARGE_GENERATION_CHAT_OPTIONS = { timeoutMs: 270000, retries: 0 } as const;
+
 export interface ProviderSummary {
   id: string;
   name: string;
@@ -101,7 +115,7 @@ async function runAiCli(args: (string | undefined)[], cwd: string = resolveCliWo
 
 export async function chatViaCli(
   message: string,
-  options: { system?: string; provider?: string } = {}
+  options: { system?: string; provider?: string; timeoutMs?: number; retries?: number } = {}
 ): Promise<ChatResult> {
   const result = await runAiCli([
     "chat",
@@ -110,6 +124,10 @@ export async function chatViaCli(
     options.system,
     options.provider ? "--provider" : undefined,
     options.provider,
+    options.timeoutMs !== undefined ? "--timeout" : undefined,
+    options.timeoutMs !== undefined ? String(options.timeoutMs) : undefined,
+    options.retries !== undefined ? "--retries" : undefined,
+    options.retries !== undefined ? String(options.retries) : undefined,
   ]);
 
   return {

@@ -401,13 +401,25 @@ function DesignRequirementsPageInner() {
     }
   };
 
-  // 필수 항목(Project Name·Customer Requirements)이 비어있으면 버튼이 조용히 비활성화되는데,
-  // 특히 ?inquiryId= 자동 채움 시 원본 의뢰의 요구사항이 비어있으면 placeholder 예시 문구만
-  // 보이고 실제로는 빈 칸이라 사용자가 "버튼이 안 눌린다"고 오인하기 쉽다(2026-09-12 실사용
-  // 보고). 어떤 항목이 비었는지 명시적으로 안내한다.
-  const missingFields = [!projectName && "Project Name", !requirements && "Customer Requirements"].filter(
-    Boolean
-  ) as string[];
+  // 필수 항목이 비어있으면 버튼이 조용히 비활성화되는데, 특히 ?inquiryId= 자동 채움 시 원본
+  // 의뢰의 요구사항이 비어있으면 placeholder 예시 문구만 보이고 실제로는 빈 칸이라 사용자가
+  // "버튼이 안 눌린다"고 오인하기 쉽다(2026-09-12 실사용 보고). 어떤 항목이 비었는지 명시적으로
+  // 안내한다.
+  //
+  // 서버(app/api/design/requirements/route.ts)는 projectName·projectType·requirements·
+  // targetUsers 4개를 전부 필수로 요구하는데, 이 목록은 원래 2개(Project Name·Customer
+  // Requirements)만 검사하고 있었다 — loadLinkedInquiry()가 Target Users는 애초에 자동 채우지
+  // 않는데도(그 자리엔 항상 placeholder 예시 문구만 보임) 버튼은 활성 상태로 남아있어, 클릭하면
+  // "projectName, projectType, requirements, targetUsers는 모두 필수입니다"라는 서버의 일반
+  // 오류만 뜨고 실제로 무엇이 비어있는지는 알 수 없었다(2026-09-14 실사용 재현 — 사색찬미한정식
+  // 의뢰로 자동 채움 후 Generate를 눌렀을 때 재현). 서버가 실제로 요구하는 4개 필드 전부를
+  // 여기서도 검사해 버튼을 미리 막고, 정확히 무엇이 비었는지 안내한다.
+  const missingFields = [
+    !projectName && "Project Name",
+    !projectType && "Project Type",
+    !requirements && "Customer Requirements",
+    !targetUsers && "Target Users",
+  ].filter(Boolean) as string[];
 
   const requirementsPlaceholder = linkedInquiry?.siteType
     ? (REQUIREMENTS_EXAMPLE_BY_SITE_TYPE[linkedInquiry.siteType] ?? DEFAULT_REQUIREMENTS_EXAMPLE)
@@ -587,7 +599,7 @@ function DesignRequirementsPageInner() {
 
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting || isAutoContinuing || !projectName || !requirements}
+              disabled={isSubmitting || isAutoContinuing || missingFields.length > 0}
               className="flex items-center justify-center gap-2 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
             >
               {(isSubmitting || isAutoContinuing) && (

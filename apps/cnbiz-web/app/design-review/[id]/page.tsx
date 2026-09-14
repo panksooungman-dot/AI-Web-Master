@@ -13,7 +13,7 @@ import { ScreenFlowDiagram } from "@/components/design-review/ScreenFlowDiagram"
  * 요청할 수 있게 하는 공개 페이지. app/launch-request/[id]/page.tsx와 동일하게 로그인 없이
  * 링크로 열린다. 실제 화면 디자인(색상·이미지 등)은 아직 이 단계(Storyboard)에서 만들어지지
  * 않으므로(Design Automation Phase 2, 텍스트 기획 문서), 여기서 보여주는 것도 화면 구성·
- * 흐름·순서다 — "예뿈 시안"이 아니라 "이 순서·구성이 맞는지"를 확인받는 용도.
+ * 흐름·순서다 — "예쁜 시안"이 아니라 "이 순서·구성이 맞는지"를 확인받는 용도.
  */
 
 interface ScreenFlowNode {

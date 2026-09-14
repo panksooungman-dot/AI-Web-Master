@@ -22,16 +22,16 @@ interface Rect {
 /**
  * Storyboard(Screen Flow·Navigation Flow, 둘 다 텍스트 목록)를 화면 박스 + 화살표로 시각화한
  * 간단한 흐름도. AI가 생성하는 임의의 그래프(하나의 화면이 여러 화면에서 참조될 수 있음, 트리가
- * 아님)를 다륨야 해서, 각 화면의 레벨을 "루트(진입 화면)로부터의 최장 경로 길이"로 계산해
+ * 아님)를 다뤄야 해서, 각 화면의 레벨을 "루트(진입 화면)로부터의 최장 경로 길이"로 계산해
  * 위에서 아래로 층을 나눈다(Sugiyama 스타일 레이어링의 단순화 버전) — 같은 레벨 안에서는 순서를
  * 보장하지 않고 원본 배열 순서를 그대로 유지한다.
  *
  * 정확한 좌표 계산 없이 CSS만으로는 "이 화살표가 정확히 이 박스에서 저 박스로 간다"는 것을 보여줄
- * 수 없어, 실제 DOM에 렌더링된 박스 위치를 측정해(`getBoundingClientRect`) SVG로 그 사이를 있는
- * 곱선을 그린다. 레이어링이 화살표의 방향을 항상 "아래로" 보장하므로(level[to] > level[from]),
+ * 수 없어, 실제 DOM에 렌더링된 박스 위치를 측정해(`getBoundingClientRect`) SVG로 그 사이를 잇는
+ * 곡선을 그린다. 레이어링이 화살표의 방향을 항상 "아래로" 보장하므로(level[to] > level[from]),
  * 시작점은 항상 박스 하단 중앙, 끝점은 항상 박스 상단 중앙을 쓴다 — 다만 실제로 생성된 데이터에
- * 순환이 섮여 있는 예외 상황까지 대비해, 그 보장이 깨진 화살표(끝점이 시작점보다 위)는 그리지
- * 않고 조용히 건너똂다.
+ * 순환이 섞여 있는 예외 상황까지 대비해, 그 보장이 깨진 화살표(끝점이 시작점보다 위)는 그리지
+ * 않고 조용히 건너뛴다.
  */
 export function ScreenFlowDiagram({ screens, edges }: { screens: FlowNode[]; edges: FlowEdge[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,6 +59,20 @@ export function ScreenFlowDiagram({ screens, edges }: { screens: FlowNode[]; edg
     }
 
     measure();
+
+    // 각 레벨(행)을 justify-center로 독립적으로 가운데 정렬하다 보니, 레벨 0(진입 화면)처럼
+    // 노드가 적은 행은 가장 넓은 행 기준 전체 너비의 시각적 "가운데"쯤에 위치하게 된다.
+    // 다이어그램이 뷰포트보다 넓어져 가로 스크롤이 생기면, 브라우저 기본 스크롤 위치
+    // (scrollLeft=0, 맨 왼쪽)로는 그 가운데에 있는 진입 화면이 초기 화면 밖으로 벗어나 보이지
+    // 않는 문제가 실사용에서 확인됐다(2026-09-14 — "이 그림이야" 스크린샷에서 HOME 박스가
+    // 안 보이고 화살표만 화면 밖에서 들어오는 것으로 재현). 다이어그램이 새로 그려질 때(마운트,
+    // 또는 다른 Storyboard 선택으로 levels가 바뀔 때)만 가로 스크롤을 가운데로 맞춘다 — 이후
+    // 창 크기 변경(resize) 시에는 사용자가 이미 스크롤해 둔 위치를 그대로 존중한다.
+    const container = containerRef.current;
+    if (container) {
+      container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+    }
+
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [levels]);

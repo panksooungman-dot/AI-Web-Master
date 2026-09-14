@@ -91,22 +91,37 @@ const inputClass =
   "w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500";
 
 /**
- * fetch 응답을 JSON으로 안전하게 파싱한다. 서버가 정상 JSON 대신 플랫폼 오류 페이지(예: Vercel
- * 서버리스 함수 실행 시간 초과 — 이 화면의 Generate/Storyboard 자동 생성은 AI 호출이 최대 2분
- * 걸릴 수 있는데(providers/provider.ts), app/api/design/{requirements,storyboard}/route.ts의
- * maxDuration은 Vercel 모든 플랜이 지원하는 상한인 60초로 고정돼 있어, AI 응답이 그보다 오래
- * 걸리면 함수 자체가 강제 종료되어 JSON이 아닌 오류 페이지가 반환된다)를 반환하면 res.json()이
- * "Unexpected token 'A', "An error o"... is not valid JSON" 같은 원시 JS 파싱 오류를 그대로
- * 던져, 관리자에게 원인을 전혀 알 수 없는 메시지로 노출되고 있었다(2026-09-14 실사용 보고 —
- * 입력이 긴 의뢰에서 재현). res.ok 여부로 원인을 구분해 더 명확한 안내로 바꾼다 — 근본적인
- * 시간 제한 자체를 늘리는 수정은 아니다(Vercel 요금제에 따라 그 상한 자체가 60초로 고정돼
- * 있을 수 있음).
+ * fetch 요청부터 JSON 파싱까지 안전하게 처리한다. 이 화면의 Generate/Storyboard 자동 생성은 AI
+ * 호출이 최대 2분 걸릴 수 있는데(providers/provider.ts), app/api/design/{requirements,
+ * storyboard}/route.ts의 maxDuration은 Vercel 모든 플랜이 지원하는 상한인 60초로 고정돼 있어
+ * 실패할 수 있는 지점이 두 곳이다.
+ *
+ * 1) fetch() 자체가 예외를 던지는 경우 — 서버가 아직 응답조차 하지 못한 채 네트워크 연결이
+ *    끊기거나(모바일에서 흔함) 요청이 중단된 경우로, 브라우저가 "Failed to fetch" 같은 원시
+ *    메시지를 던진다. 서버 오류 페이지 문제(2)를 fetch()-throw 시 res 자체가 없어 구분하지
+ *    못해 res.json() 파싱 실패만 다루던 이전 버전에서는 이 경로가 그대로 새어나가고 있었다
+ *    (2026-09-14 실사용 보고 — Generate 버튼 클릭 후 "Failed to fetch"가 그대로 노출된 사례,
+ *    앞선 "Unexpected token..." 수정과 같은 날 발견된 별개 지점).
+ * 2) fetch()는 성공했지만 응답이 정상 JSON이 아닌 경우(Vercel 함수 실행 시간 초과로 인한
+ *    플랫폼 오류 페이지 등) — res.json()이 "Unexpected token 'A', "An error o"... is not
+ *    valid JSON" 같은 원시 JS 파싱 오류를 던진다.
+ *
+ * 두 경우 모두 관리자에게 원인을 전혀 알 수 없는 메시지로 노출되고 있었으므로, 하나의 헬퍼로
+ * 묶어 동일한 안내 메시지로 통일한다 — 근본적인 시간 제한 자체를 늘리는 수정은 아니다(Vercel
+ * 요금제에 따라 그 상한 자체가 60초로 고정돼 있을 수 있음).
  */
-async function parseJsonOrThrow<T>(res: Response, notOkMessage: string): Promise<T> {
+async function fetchAndParseJson<T>(url: string, init: RequestInit | undefined, failureMessage: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch {
+    throw new Error(failureMessage);
+  }
+
   try {
     return (await res.json()) as T;
   } catch {
-    throw new Error(res.ok ? "응답을 해석할 수 없습니다." : notOkMessage);
+    throw new Error(res.ok ? "응답을 해석할 수 없습니다." : failureMessage);
   }
 }
 
@@ -208,14 +223,14 @@ function DesignRequirementsPageInner() {
     setIsLoadingLinkedInquiry(true);
     setLinkError(null);
 
-    fetch(`/api/inquiries/${id}`)
-      .then(async (res) => {
-        const json = await parseJsonOrThrow<{ inquiry?: InquiryRecord; error?: string }>(
-          res,
-          `요청이 실패했습니다 (HTTP ${res.status}). 로그인 세션이 만료됐을 수 있습니다.`
-        );
+    fetchAndParseJson<{ inquiry?: InquiryRecord; error?: string }>(
+      `/api/inquiries/${id}`,
+      undefined,
+      "요청이 실패했습니다. 네트워크 연결을 확인하거나, 로그인 세션이 만료됐을 수 있습니다."
+    )
+      .then((json) => {
         if (!json.inquiry) {
-          throw new Error(json.error ?? `의뢰를 찾을 수 없습니다 (HTTP ${res.status}).`);
+          throw new Error(json.error ?? "의뢰를 찾을 수 없습니다.");
         }
         const inquiry = json.inquiry;
         const typeLabel = WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType;
@@ -313,14 +328,14 @@ function DesignRequirementsPageInner() {
     setAutoContinueError(null);
 
     try {
-      const res = await fetch("/api/design/storyboard", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
-      });
-      const json = await parseJsonOrThrow<{ success: boolean; error?: string }>(
-        res,
-        `서버 응답 시간이 초과됐거나 오류가 발생했습니다 (HTTP ${res.status}). 잠시 후 Storyboard 화면에서 다시 시도해주세요.`
+      const json = await fetchAndParseJson<{ success: boolean; error?: string }>(
+        "/api/design/storyboard",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planId }),
+        },
+        "네트워크 연결이 끊겼거나 서버 응답 시간이 초과됐습니다. 잠시 후 Storyboard 화면에서 다시 시도해주세요."
       );
 
       if (!json.success) {
@@ -331,7 +346,10 @@ function DesignRequirementsPageInner() {
       router.push("/developer/design/storyboard");
     } catch (err) {
       console.error("[design/storyboard] auto-generate failed", err);
-      setAutoContinueError("Storyboard 자동 생성 중 오류가 발생했습니다.");
+      // 예전에는 parseJsonOrThrow/fetchAndParseJson이 던진 구체적인 안내 메시지를 무시하고
+      // 항상 이 고정 문구만 보여줬다 — handleSubmit()의 기존 패턴(err.message 우선 사용)과
+      // 통일한다.
+      setAutoContinueError(err instanceof Error ? err.message : "Storyboard 자동 생성 중 오류가 발생했습니다.");
     } finally {
       setIsAutoContinuing(false);
     }
@@ -343,20 +361,20 @@ function DesignRequirementsPageInner() {
     setSubmitError(null);
 
     try {
-      const res = await fetch("/api/design/requirements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectName,
-          projectType,
-          requirements,
-          targetUsers,
-          ...(linkedInquiry ? { projectId: linkedInquiry.id } : {}),
-        }),
-      });
-      const json = await parseJsonOrThrow<{ success: boolean; plan?: DesignPlanRecord; error?: string }>(
-        res,
-        `서버 응답 시간이 초과됐거나 오류가 발생했습니다 (HTTP ${res.status}). 입력 내용이 길면 시간이 더 걸릴 수 있습니다 — 잠시 후 다시 시도해주세요.`
+      const json = await fetchAndParseJson<{ success: boolean; plan?: DesignPlanRecord; error?: string }>(
+        "/api/design/requirements",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectName,
+            projectType,
+            requirements,
+            targetUsers,
+            ...(linkedInquiry ? { projectId: linkedInquiry.id } : {}),
+          }),
+        },
+        "네트워크 연결이 끊겼거나 서버 응답 시간이 초과됐습니다. 입력 내용이 길면 시간이 더 걸릴 수 있습니다 — 잠시 후 다시 시도해주세요."
       );
 
       if (!json.success || !json.plan) {

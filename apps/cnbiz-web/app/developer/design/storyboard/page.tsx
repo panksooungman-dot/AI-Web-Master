@@ -84,6 +84,9 @@ export default function StoryboardPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const [shares, setShares] = useState<Record<string, StoryboardShareRecord>>({});
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -166,6 +169,33 @@ export default function StoryboardPage() {
       setIsGenerating(false);
     }
   };
+
+  /** History 목록의 "삭제" 버튼. app/developer/design/page.tsx의 handleDeletePlan()과 동일한 패턴. */
+  async function handleDeleteStoryboard(storyboard: StoryboardRecord) {
+    if (!window.confirm("이 Storyboard를 삭제할까요? 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    setDeletingId(storyboard.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/design/storyboard/${storyboard.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setStoryboards((prev) => prev.filter((item) => item.id !== storyboard.id));
+      setSelectedStoryboardId((current) => (current === storyboard.id ? null : current));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const selectedStoryboard = storyboards.find((s) => s.id === selectedStoryboardId) ?? null;
   const linkedPlan = selectedStoryboard ? plans.find((p) => p.id === selectedStoryboard.planId) ?? null : null;
@@ -280,6 +310,11 @@ export default function StoryboardPage() {
             </button>
           }
         >
+          {deleteError && (
+            <StatusMessage tone="error" className="mb-2">
+              {deleteError}
+            </StatusMessage>
+          )}
           {isLoading ? (
             <LoadingText />
           ) : loadError ? (
@@ -291,13 +326,13 @@ export default function StoryboardPage() {
               {storyboards.map((sb) => {
                 const plan = plans.find((p) => p.id === sb.planId);
                 return (
-                  <li key={sb.id}>
+                  <li key={sb.id} className="flex items-stretch gap-2">
                     <button
                       onClick={() => {
                         setSelectedStoryboardId(sb.id);
                         scrollToResults();
                       }}
-                      className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
+                      className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                         selectedStoryboardId === sb.id
                           ? "bg-blue-600/20 border border-blue-600"
                           : "bg-gray-800 hover:bg-gray-700"
@@ -308,6 +343,13 @@ export default function StoryboardPage() {
                         {sb.simulated && <Badge tone="warning">Simulated</Badge>}
                       </div>
                       <span className="text-xs text-gray-500">{new Date(sb.createdAt).toLocaleString()}</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStoryboard(sb)}
+                      disabled={deletingId === sb.id}
+                      className="shrink-0 self-center rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                    >
+                      {deletingId === sb.id ? "삭제 중..." : "삭제"}
                     </button>
                   </li>
                 );

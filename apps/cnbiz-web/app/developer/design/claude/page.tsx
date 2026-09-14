@@ -79,6 +79,9 @@ export default function ClaudeDesignPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -147,6 +150,33 @@ export default function ClaudeDesignPage() {
     const name = planForPrototype(prototypeId)?.input.projectName ?? prototypeId;
     return proto ? `${name} (v${proto.version})` : name;
   };
+
+  /** History 목록의 "삭제" 버튼. app/developer/design/page.tsx의 handleDeletePlan()과 동일한 패턴. */
+  async function handleDeleteClaudeDesign(claudeDesign: ClaudeDesignRecord) {
+    if (!window.confirm("이 Claude Design 프롬프트를 삭제할까요? 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    setDeletingId(claudeDesign.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/design/claude/${claudeDesign.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setClaudeDesigns((prev) => prev.filter((item) => item.id !== claudeDesign.id));
+      setSelectedClaudeDesignId((current) => (current === claudeDesign.id ? null : current));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const selectedClaudeDesign = claudeDesigns.find((c) => c.id === selectedClaudeDesignId) ?? null;
   const selectedPrototype = selectedClaudeDesign
@@ -237,6 +267,11 @@ export default function ClaudeDesignPage() {
             </button>
           }
         >
+          {deleteError && (
+            <StatusMessage tone="error" className="mb-2">
+              {deleteError}
+            </StatusMessage>
+          )}
           {isLoading ? (
             <LoadingText />
           ) : loadError ? (
@@ -246,10 +281,10 @@ export default function ClaudeDesignPage() {
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {claudeDesigns.map((cd) => (
-                <li key={cd.id}>
+                <li key={cd.id} className="flex items-stretch gap-2">
                   <button
                     onClick={() => setSelectedClaudeDesignId(cd.id)}
-                    className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
+                    className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedClaudeDesignId === cd.id
                         ? "bg-blue-600/20 border border-blue-600"
                         : "bg-gray-800 hover:bg-gray-700"
@@ -260,6 +295,13 @@ export default function ClaudeDesignPage() {
                       {cd.simulated && <Badge tone="warning">Simulated</Badge>}
                     </div>
                     <span className="text-xs text-gray-500">{new Date(cd.createdAt).toLocaleString()}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClaudeDesign(cd)}
+                    disabled={deletingId === cd.id}
+                    className="shrink-0 self-center rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === cd.id ? "삭제 중..." : "삭제"}
                   </button>
                 </li>
               ))}

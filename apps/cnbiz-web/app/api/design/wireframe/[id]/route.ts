@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getWireframe, updateWireframeContent, type WireframeContent } from "@/lib/design/wireframe";
+import { deleteWireframe, getWireframe, updateWireframeContent, type WireframeContent } from "@/lib/design/wireframe";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 
@@ -81,4 +81,27 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   });
 
   return NextResponse.json({ success: true, wireframe: updated });
+}
+
+/** History 목록의 삭제 버튼. app/api/design/requirements/[id]/route.ts의 DELETE와 동일한 패턴. */
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+  const record = await getWireframe(id);
+
+  if (!record) {
+    return NextResponse.json({ success: false, error: `Wireframe "${id}"을(를) 찾을 수 없습니다.` }, { status: 404 });
+  }
+
+  await deleteWireframe(id);
+
+  const actor = await getCurrentActorEmail();
+  await recordAuditEvent({
+    action: "design.wireframe.delete",
+    actor,
+    success: true,
+    detail: `Wireframe "${id}" 삭제`,
+    metadata: { wireframeId: id, storyboardId: record.storyboardId },
+  });
+
+  return NextResponse.json({ success: true });
 }

@@ -101,7 +101,12 @@ export function ScreenWireframeMockup({
   );
 }
 
-function ScreenFrame({
+/**
+ * "번호매긴 플로우 밴드 + 폰프레임" 요청(2026-09-14)으로 UserJourneyFlow.tsx도 화면 하나의
+ * 폰 프레임 스케치를 재사용해야 해서 export한다 — 로직 중복 없이 같은 프레임 렌더링을
+ * User Journey 단계별 카드에서도 그대로 쓴다.
+ */
+export function ScreenFrame({
   screen,
   breakpoint,
   pageNames,

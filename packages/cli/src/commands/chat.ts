@@ -12,6 +12,9 @@ export interface ChatOptions {
    *  재시도 누적 타임아웃을 피하려고 override할 때 쓴다. */
   timeout?: number;
   retries?: number;
+  /** 큰 JSON 스키마를 요구하는 호출자가 기본값(16000, anthropic.ts)으로도 출력이 잘릴 때
+   *  override한다. */
+  maxTokens?: number;
 }
 
 const DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant inside AI Business OS.";
@@ -45,7 +48,8 @@ export async function chatCommand(message: string | undefined, options: ChatOpti
       userPrompt: message,
       fallbackLabel: `Chat: "${message.slice(0, 60)}"`,
       timeoutMs: options.timeout,
-      retries: options.retries
+      retries: options.retries,
+      maxTokens: options.maxTokens
     });
 
     await recordTask(cwd, {

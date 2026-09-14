@@ -115,7 +115,14 @@ async function runAiCli(args: (string | undefined)[], cwd: string = resolveCliWo
 
 export async function chatViaCli(
   message: string,
-  options: { system?: string; provider?: string; timeoutMs?: number; retries?: number } = {}
+  options: {
+    system?: string;
+    provider?: string;
+    timeoutMs?: number;
+    retries?: number;
+    /** 큰 JSON 스키마 호출자가 기본값(16000, anthropic.ts)으로도 출력이 잘릴 때 override한다. */
+    maxTokens?: number;
+  } = {}
 ): Promise<ChatResult> {
   const result = await runAiCli([
     "chat",
@@ -128,6 +135,8 @@ export async function chatViaCli(
     options.timeoutMs !== undefined ? String(options.timeoutMs) : undefined,
     options.retries !== undefined ? "--retries" : undefined,
     options.retries !== undefined ? String(options.retries) : undefined,
+    options.maxTokens !== undefined ? "--max-tokens" : undefined,
+    options.maxTokens !== undefined ? String(options.maxTokens) : undefined,
   ]);
 
   return {

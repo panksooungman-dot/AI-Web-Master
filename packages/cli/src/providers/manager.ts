@@ -208,7 +208,12 @@ export class ProviderManager {
 
     try {
       const provider = await this.getProvider(resolvedProviderId);
-      const response = await provider.chat({ messages, timeoutMs: options.timeoutMs, retries: options.retries });
+      const response = await provider.chat({
+        messages,
+        timeoutMs: options.timeoutMs,
+        retries: options.retries,
+        maxTokens: options.maxTokens
+      });
 
       await recordUsage(this.cwd, {
         provider: response.provider,
@@ -330,6 +335,10 @@ export interface CompleteOptions {
    *  실행 시간 제한 안에서 재시도로 인한 누적 타임아웃을 피하도록 override할 때 사용한다. */
   timeoutMs?: number;
   retries?: number;
+  /** ChatRequest.maxTokens로 그대로 전달된다(현재 anthropic.ts만 사용, 생략 시 16000) — 화면
+   *  수가 많은 프로젝트의 Wireframe처럼 기본값으로도 출력이 잘릴 수 있는 대형 스키마 호출이
+   *  override할 때 사용한다. */
+  maxTokens?: number;
 }
 
 export interface CompleteResult {

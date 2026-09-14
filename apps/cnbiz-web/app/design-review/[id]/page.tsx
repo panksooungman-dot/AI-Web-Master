@@ -194,8 +194,10 @@ export default function DesignReviewPublicPage() {
             <div>
               <h2 className="text-lg font-bold text-slate-900">화면 시각적 목업</h2>
               <p className="mt-1 text-sm text-slate-500">
-                각 화면 안에 실제로 어떤 요소가 어떻게 배치되는지 간단한 스케치로 보여드립니다. 색상·이미지·문구는
-                아직 적용되지 않은 구조 확인용이며, Desktop·Tablet·Mobile 화면 크기를 바꿔가며 확인할 수 있습니다.
+                각 화면 안에 실제로 어떤 요소가 어떻게 배치되는지 라벨이 붙은 스케치로 보여드립니다. 메뉴
+                항목은 실제 화면 이름을 그대로 반영했습니다. 다만 클릭해서 이동해 보는 프로토타입은 아니며,
+                색상·이미지·실제 문구는 아직 적용되지 않은 구조 확인용입니다. Desktop·Tablet·Mobile 화면
+                크기를 바꿔가며 확인할 수 있습니다.
               </p>
               <div className="mt-3">
                 <ScreenWireframeMockup

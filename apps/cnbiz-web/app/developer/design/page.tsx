@@ -151,18 +151,44 @@ function DesignRequirementsPageInner() {
   const [isAutoContinuing, setIsAutoContinuing] = useState(false);
   const [autoContinueError, setAutoContinueError] = useState<string | null>(null);
 
+  // 사이드바 "디자인 → Design" 메뉴는 특정 의뢰와 연결되지 않은 범용 경로(/developer/design,
+  // inquiryId 없음)라 지금까지는 이 화면에서 의뢰를 고를 방법이 전혀 없었다 — 자동 채움을
+  // 쓰려면 반드시 의뢰 상세 페이지의 "Design 시작" 버튼을 거쳐야 했다(2026-09-14 실사용 지적:
+  // "디자인 부분에서도 정보추출이 가능해야지 직관적으로 사용할 수 있으면 편할 것 같다"). 이
+  // 화면 자체에서 의뢰를 검색·선택할 수 있는 목록을 추가해, 어느 경로로 들어와도 동일하게
+  // 자동 채움을 쓸 수 있게 한다.
+  const [inquiryOptions, setInquiryOptions] = useState<InquiryRecord[]>([]);
+  const [isLoadingInquiryOptions, setIsLoadingInquiryOptions] = useState(false);
+  const [inquiryOptionsError, setInquiryOptionsError] = useState<string | null>(null);
+  const [inquirySearch, setInquirySearch] = useState("");
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setIsLoadingInquiryOptions(true);
+      setInquiryOptionsError(null);
+      fetch("/api/inquiries")
+        .then((res) => res.json())
+        .then((json: { inquiries?: InquiryRecord[] }) => setInquiryOptions(json.inquiries ?? []))
+        .catch(() => setInquiryOptionsError("의뢰 목록을 불러오지 못했습니다."))
+        .finally(() => setIsLoadingInquiryOptions(false));
+    });
+    // 목록은 마운트 시 1회만 불러오면 된다 — 새로 접수된 의뢰까지 반영하려면 페이지를 새로고침.
+  }, []);
+
   /**
    * 기존엔 실패 이유(네트워크 오류·인증 만료로 인한 HTML 응답·실제 404 등)를 구분하지 않고
    * 전부 "의뢰를 불러오지 못했습니다."로만 표시해, 실제 원인을 알 수도 재시도할 수도
    * 없었다(2026-09-14 실사용 보고). res.ok·JSON 파싱 성공 여부를 구분해 더 구체적인
    * 메시지를 보여주고, 페이지를 벗어나지 않고 다시 시도할 수 있는 버튼을 추가했다.
+   *
+   * id를 인자로 받도록 바꿔(기존엔 URL의 inquiryId만 읽음) 위 의뢰 선택 목록에서 클릭한
+   * 의뢰도 동일한 로직으로 불러올 수 있게 했다.
    */
-  function loadLinkedInquiry() {
-    if (!inquiryId) return;
+  function loadLinkedInquiry(id: string) {
     setIsLoadingLinkedInquiry(true);
     setLinkError(null);
 
-    fetch(`/api/inquiries/${inquiryId}`)
+    fetch(`/api/inquiries/${id}`)
       .then(async (res) => {
         let json: { inquiry?: InquiryRecord; error?: string };
         try {
@@ -200,12 +226,29 @@ function DesignRequirementsPageInner() {
   }
 
   useEffect(() => {
-    queueMicrotask(loadLinkedInquiry);
+    if (!inquiryId) return;
+    queueMicrotask(() => loadLinkedInquiry(inquiryId));
     // inquiryId는 페이지 진입 시 한 번만 반영하면 되고, 이후 admin이 폼을 수정해도 다시
     // 덮어쓰지 않아야 하므로 의도적으로 한 번만 실행한다. "다시 시도" 버튼이 이후 재실행을
     // 담당한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** 아래 "의뢰에서 정보 불러오기" 목록에서 클릭했을 때 — URL도 함께 갱신해(History 범위·
+   * placeholder 등 searchParams 기반 값이 전부 자연스럽게 새 의뢰 기준으로 바뀌도록) "Design
+   * 시작" 버튼으로 들어온 것과 동일한 상태로 만든다. */
+  function handlePickInquiry(id: string) {
+    router.replace(`/developer/design?inquiryId=${id}`, { scroll: false });
+    loadLinkedInquiry(id);
+  }
+
+  /** "다른 의뢰 선택"— 이미 채워진 값은 지우지 않는다(비교하거나 새 의뢰로 덮어쓰고 싶을 수
+   * 있어서). 목록만 다시 펼친다. */
+  function handleUnlinkInquiry() {
+    setLinkedInquiry(null);
+    setLinkError(null);
+    router.replace("/developer/design", { scroll: false });
+  }
 
   const loadPlans = () => {
     setIsLoading(true);
@@ -351,23 +394,94 @@ function DesignRequirementsPageInner() {
       />
 
       {linkedInquiry && (
+        // StatusMessage는 <p>로 렌더링되므로(HTML은 <p> 안에 블록 요소를 허용하지 않음) 내부에
+        // <div>를 두면 하이드레이션 오류가 난다 — 전부 인라인 요소(span/button)로만 구성한다.
         <StatusMessage tone="success" className="mb-6">
-          🔗 의뢰 &quot;{linkedInquiry.companyName}&quot;의 정보로 아래 항목을 미리 채웠습니다. 필요하면
-          자유롭게 수정한 뒤 생성하세요.
+          <span className="mr-3">
+            🔗 의뢰 &quot;{linkedInquiry.companyName}&quot;의 정보로 아래 항목을 미리 채웠습니다. 필요하면
+            자유롭게 수정한 뒤 생성하세요.
+          </span>
+          <button type="button" onClick={handleUnlinkInquiry} className="text-xs underline hover:no-underline">
+            다른 의뢰 선택
+          </button>
         </StatusMessage>
       )}
       {linkError && (
         <StatusMessage tone="error" className="mb-6">
           {linkError}{" "}
-          <button
-            type="button"
-            onClick={loadLinkedInquiry}
-            disabled={isLoadingLinkedInquiry}
-            className="underline hover:no-underline disabled:opacity-50"
-          >
-            {isLoadingLinkedInquiry ? "다시 시도 중..." : "다시 시도"}
-          </button>
+          {inquiryId && (
+            <button
+              type="button"
+              onClick={() => loadLinkedInquiry(inquiryId)}
+              disabled={isLoadingLinkedInquiry}
+              className="underline hover:no-underline disabled:opacity-50"
+            >
+              {isLoadingLinkedInquiry ? "다시 시도 중..." : "다시 시도"}
+            </button>
+          )}
         </StatusMessage>
+      )}
+
+      {!linkedInquiry && (
+        <Card title="🔗 의뢰에서 정보 불러오기 (선택)" className="mb-6">
+          <p className="text-xs text-gray-500 mb-3">
+            의뢰를 선택하면 회사명·유형·상담 내용·AI 분석 결과가 아래 항목에 자동으로 채워집니다.
+            건너뛰고 직접 입력해도 됩니다.
+          </p>
+          <input
+            type="text"
+            value={inquirySearch}
+            onChange={(e) => setInquirySearch(e.target.value)}
+            placeholder="회사명 또는 담당자명 검색"
+            className={`${inputClass} mb-3`}
+          />
+          {isLoadingInquiryOptions ? (
+            <LoadingText />
+          ) : inquiryOptionsError ? (
+            <StatusMessage tone="error">{inquiryOptionsError}</StatusMessage>
+          ) : (
+            (() => {
+              const query = inquirySearch.trim().toLowerCase();
+              const matches = (
+                query
+                  ? inquiryOptions.filter((inquiry) =>
+                      `${inquiry.companyName} ${inquiry.contactName}`.toLowerCase().includes(query)
+                    )
+                  : inquiryOptions
+              ).slice(0, 20);
+
+              if (matches.length === 0) {
+                return (
+                  <p className="text-sm text-gray-500">
+                    {query ? "검색 결과가 없습니다." : "등록된 의뢰가 없습니다."}
+                  </p>
+                );
+              }
+
+              return (
+                <ul className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                  {matches.map((inquiry) => (
+                    <li key={inquiry.id}>
+                      <button
+                        type="button"
+                        onClick={() => handlePickInquiry(inquiry.id)}
+                        className="w-full text-left rounded px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 transition-colors"
+                      >
+                        <span className="font-semibold text-gray-200">
+                          {inquiry.companyName || inquiry.contactName}
+                        </span>{" "}
+                        <span className="text-xs text-gray-500">
+                          {WEBSITE_TYPES.find((t) => t.id === inquiry.siteType)?.label ?? inquiry.siteType} ·{" "}
+                          {new Date(inquiry.createdAt).toLocaleDateString()}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()
+          )}
+        </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

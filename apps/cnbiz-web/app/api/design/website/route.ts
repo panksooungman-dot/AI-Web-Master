@@ -14,6 +14,12 @@ import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
 import { resolveCliEntry, resolveCliWorkingDir, resolveGeneratedWebsitesDir } from "@/lib/paths/repoRoot";
 
+// app/api/design/requirements/route.ts와 동일한 이유 — 실제 Website Builder CLI 실행(다수
+// 페이지의 콘텐츠를 생성하는 여러 AI 호출 포함)은 다른 Design 체인 단계보다도 오래 걸릴 수
+// 있다. maxDuration 미설정 시 Vercel 기본 상한에 걸려 조용히 실패할 수 있어 Vercel Pro 기본
+// 상한인 300초로 설정(2026-09-14).
+export const maxDuration = 300;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

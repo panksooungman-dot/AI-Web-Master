@@ -6,6 +6,10 @@ import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
 
+// app/api/design/requirements/route.ts와 동일한 이유 — maxDuration 미설정 시 Vercel 기본
+// 상한에 걸려 조용히 실패할 수 있어 Vercel Pro 기본 상한인 300초로 설정(2026-09-14).
+export const maxDuration = 300;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

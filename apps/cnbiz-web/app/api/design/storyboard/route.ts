@@ -6,10 +6,11 @@ import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
 
-// requirements 라우트와 동일한 이유 — AI 호출이 최대 2분까지 걸릴 수 있어 Vercel 기본 실행
-// 시간 제한을 넘기면 타임아웃 에러 페이지가 반환돼 클라이언트가 조용히 실패한다. 모든 Vercel
-// 플랜(Hobby 포함)에서 지원하는 상한인 60초로 상향.
-export const maxDuration = 60;
+// requirements 라우트와 동일한 이유 — AI 호출이 최대 2분까지 걸릴 수 있어 Vercel 실행 시간
+// 제한을 넘기면 타임아웃 에러 페이지가 반환돼 클라이언트가 실패한다. 이 프로젝트가 Pro
+// 플랜임을 확인해(2026-09-14) requirements 라우트와 동일하게 Vercel Pro 기본 상한인 300초로
+// 상향(app/api/design/requirements/route.ts의 doc-comment 참고).
+export const maxDuration = 300;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

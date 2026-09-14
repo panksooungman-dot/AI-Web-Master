@@ -7,6 +7,7 @@ import { Container, Section } from "@cnbiz/layout-primitives";
 import { componentMarker } from "@/lib/dev/component-marker";
 import { ScreenFlowDiagram } from "@/components/design-review/ScreenFlowDiagram";
 import { ScreenWireframeMockup, type MockupBreakpoint, type MockupScreen } from "@/components/design-review/ScreenWireframeMockup";
+import { UserJourneyFlow } from "@/components/design-review/UserJourneyFlow";
 
 /**
  * "디자인쪽에서 수정할 게 있으면 실제 화면으로 봐야지 개발을 하는 거 아냐" (2026-09-11) —
@@ -144,6 +145,11 @@ export default function DesignReviewPublicPage() {
   }
 
   const { share, projectName, storyboard } = data;
+  // User Journey 각 단계(step.screen)의 실제 Wireframe 폰 프레임을 붙이기 위한 조회용 맵 —
+  // Wireframe이 아직 없으면(data.wireframeLayouts === null) 빈 맵이 되어 UserJourneyFlow가
+  // 프레임 없이 "화면 구성 데이터 없음" placeholder로 정상 표시된다(필수 전제조건 아님).
+  const wireframeByScreen = Object.fromEntries((data.wireframeLayouts ?? []).map((s) => [s.screen, s]));
+  const pageNames = (data.wireframeLayouts ?? []).map((s) => s.screen);
 
   return (
     <Section
@@ -235,17 +241,15 @@ export default function DesignReviewPublicPage() {
           </Card>
 
           {storyboard.userJourneys.map((journey) => (
-            <Card key={journey.persona}>
-              <h2 className="text-lg font-bold text-slate-900">사용자 시나리오 — {journey.persona}</h2>
-              <p className="text-sm text-slate-500">목표: {journey.goal}</p>
-              <ol className="mt-3 flex flex-col gap-1.5 text-sm text-slate-600">
-                {journey.steps.map((step) => (
-                  <li key={step.step}>
-                    {step.step}. {step.screen} — {step.goal}
-                  </li>
-                ))}
-              </ol>
-            </Card>
+            <UserJourneyFlow
+              key={journey.persona}
+              persona={journey.persona}
+              goal={journey.goal}
+              steps={journey.steps}
+              wireframeByScreen={wireframeByScreen}
+              pageNames={pageNames}
+              breakpoint={mockupBreakpoint}
+            />
           ))}
 
           <Card>

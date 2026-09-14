@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
+import { InquiryGeneratePicker } from "@/components/developer/InquiryGeneratePicker";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
@@ -14,9 +15,11 @@ interface EstimatesResponse {
 }
 
 /**
- * 기술 견적서 목록 — 읽기 전용 히스토리 화면. 생성은 이 페이지가 아니라
- * /developer/inquiries/[id]의 "기술 견적서" 카드에서 수행한다(AI Analysis Engine의
- * inquiry.analysis가 있어야 생성 가능하므로, 자유 입력 폼을 별도로 두지 않는다).
+ * 기술 견적서 목록. 생성은 여전히 AI Analysis Engine의 inquiry.analysis에 의존하는 100% 자동
+ * 산출물이라 자유 입력 폼은 두지 않지만(핵심은 그대로 유지), 매번 /developer/inquiries/[id]
+ * 상세 화면까지 가야 했던 불편을 줄이기 위해 이 화면에서도 의뢰를 검색·선택해 곧바로 생성할 수
+ * 있게 했다(2026-09-14, Design 화면의 "의뢰에서 정보 불러오기" 패턴을 다른 문서 생성 화면에도
+ * 확대해달라는 요청 — InquiryGeneratePicker로 그 검색·선택 UI를 공용화해 재사용).
  */
 export default function EstimatesPage() {
   const [estimates, setEstimates] = useState<EstimateRecord[]>([]);
@@ -74,9 +77,9 @@ export default function EstimatesPage() {
       <PageHeader
         icon="💰"
         title="기술 견적서"
-        description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기술 견적서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기술 견적서 목록입니다."
         help={[
-          "생성 버튼은 이 화면이 아니라 'AI 의뢰 관리' 상세 화면에 있습니다.",
+          "아래에서 의뢰를 검색·선택해 바로 생성하거나, 'AI 의뢰 관리' 상세 화면에서도 생성할 수 있습니다.",
           "수정 기능은 없습니다 — 새로 생성만 가능합니다.",
         ]}
         actions={
@@ -84,6 +87,24 @@ export default function EstimatesPage() {
             Refresh
           </button>
         }
+      />
+
+      <InquiryGeneratePicker
+        title="🔗 의뢰 선택 후 견적서 생성"
+        description="의뢰를 선택하면 AI 분석 결과를 기반으로 기술 견적서를 바로 생성합니다."
+        generateLabel="견적서 생성"
+        onGenerate={async (inquiryId) => {
+          const res = await fetch("/api/estimates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inquiryId }),
+          });
+          const data: { success: boolean; estimate?: EstimateRecord; error?: string } = await res.json();
+          if (data.success && data.estimate) {
+            setEstimates((prev) => [data.estimate!, ...prev]);
+          }
+          return { success: data.success, error: data.error };
+        }}
       />
 
       {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}

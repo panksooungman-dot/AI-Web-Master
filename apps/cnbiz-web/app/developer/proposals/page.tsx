@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
+import { InquiryGeneratePicker } from "@/components/developer/InquiryGeneratePicker";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
 import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
@@ -14,10 +15,11 @@ interface ProposalsResponse {
 }
 
 /**
- * 제안서 목록 — 읽기 전용 히스토리 화면. 생성은 이 페이지가 아니라 /developer/inquiries/[id]의
- * "제안서" 카드에서 수행한다(기술 견적서·기능 명세서·프로젝트 일정·계약서가 먼저 있어야 생성
- * 가능하므로, 자유 입력 폼을 별도로 두지 않는다). app/developer/{estimates,specifications,
- * timeline,contracts}/page.tsx와 완전히 동일한 패턴.
+ * 제안서 목록. 기술 견적서·기능 명세서·프로젝트 일정·계약서 4종이 먼저 있어야 생성 가능하다는
+ * 전제는 그대로 유지되며, InquiryGeneratePicker로 의뢰를 선택했을 때 그 전제가 충족되지 않으면
+ * POST /api/proposals가 이미 반환하는 안내 메시지가 그대로 표시된다.
+ * app/developer/{estimates,specifications,timeline,contracts}/page.tsx와 완전히 동일한
+ * 패턴(2026-09-14).
  */
 export default function ProposalsPage() {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
@@ -75,16 +77,34 @@ export default function ProposalsPage() {
       <PageHeader
         icon="📊"
         title="제안서"
-        description="기술 견적서·기능 명세서·프로젝트 일정·계약서를 기반으로 자동 생성된 제안서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        description="기술 견적서·기능 명세서·프로젝트 일정·계약서를 기반으로 자동 생성된 제안서 목록입니다."
         help={[
           "견적서·명세서·일정·계약서 4종이 모두 있어야 생성할 수 있는, 자동 문서화 체인의 마지막 단계입니다.",
-          "생성은 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
+          "아래에서 의뢰를 검색·선택해 바로 생성하거나 'AI 의뢰 관리' 상세 화면에서도 생성할 수 있습니다.",
         ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh
           </button>
         }
+      />
+
+      <InquiryGeneratePicker
+        title="🔗 의뢰 선택 후 제안서 생성"
+        description="의뢰를 선택하면 기존 기술 견적서·기능 명세서·프로젝트 일정·계약서를 기반으로 제안서를 바로 생성합니다. 하나라도 없으면 안내 메시지가 표시됩니다."
+        generateLabel="제안서 생성"
+        onGenerate={async (inquiryId) => {
+          const res = await fetch("/api/proposals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inquiryId }),
+          });
+          const data: { success: boolean; proposal?: ProposalRecord; error?: string } = await res.json();
+          if (data.success && data.proposal) {
+            setProposals((prev) => [data.proposal!, ...prev]);
+          }
+          return { success: data.success, error: data.error };
+        }}
       />
 
       {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}

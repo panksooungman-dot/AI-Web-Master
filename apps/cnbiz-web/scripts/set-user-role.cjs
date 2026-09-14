@@ -10,6 +10,10 @@
  *
  * fs fallback targets os.tmpdir()/cnbiz-web/data (matches lib/db/fsStore.ts's
  * DEFAULT_BASE_DIR, not lib/data — see create-auth-user.cjs's header comment).
+ *
+ * fsStore.ts stores each collection file as `{id, data}[]`, not a flat array of raw records
+ * (see create-auth-user.cjs's header comment for the bug this shape mismatch caused — fixed
+ * here 2026-09-14 the same way).
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- standalone CommonJS script, see screenshot.cjs for the same precedent */
 const fs = require("fs");
@@ -57,23 +61,23 @@ function setRoleViaFs(normalizedEmail, role) {
     process.exit(1);
   }
 
-  let users;
+  let entries;
   try {
-    users = JSON.parse(fs.readFileSync(usersFile, "utf-8"));
+    entries = JSON.parse(fs.readFileSync(usersFile, "utf-8"));
   } catch {
     console.error(`${usersFile}을(를) 읽을 수 없습니다.`);
     process.exit(1);
   }
 
-  const index = users.findIndex((user) => user.email === normalizedEmail);
+  const index = entries.findIndex((entry) => entry.data && entry.data.email === normalizedEmail);
   if (index === -1) {
     console.error(`등록되지 않은 이메일입니다: ${normalizedEmail}`);
     process.exit(1);
   }
 
-  const previousRole = users[index].role ?? "user";
-  users[index] = { ...users[index], role };
-  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2), "utf-8");
+  const previousRole = entries[index].data.role ?? "user";
+  entries[index] = { ...entries[index], data: { ...entries[index].data, role } };
+  fs.writeFileSync(usersFile, JSON.stringify(entries, null, 2), "utf-8");
 
   console.log(`[fs] 역할이 변경되었습니다: ${normalizedEmail} (${previousRole} → ${role})`);
 }

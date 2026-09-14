@@ -167,38 +167,80 @@ export default function PublicQuotePage() {
               </p>
             </div>
 
+            {/*
+              모바일(390px)에서 한 행에 th/td 2쌍(4칸)을 욱여넣으면 "개발기간"·"유지보수기간"
+              값 칸("2개월"·"6개월")이 남는 공간을 거의 못 받아 한 글자씩 세로로 줄바꿈되는
+              문제가 있었다(2026-09-14 실사용 스크린샷 확인) — 필드마다 한 행(라벨 1칸 + 값
+              1칸)만 쓰도록 바꿔, "공급자 정보" 테이블(아래)과 동일한 패턴으로 통일했다.
+              한 필드당 값 칸이 항상 테이블 전체 너비를 쓸 수 있어 좁은 화면에서도 줄바꿈이
+              자연스럽다.
+            */}
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm border border-slate-200">
                 <tbody>
                   <tr className="border-b border-slate-200">
-                    <th className="w-28 bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">건명</th>
-                    <td className="px-3 py-2 text-slate-800" colSpan={3}>
-                      {doc.projectTitle}
-                    </td>
+                    <th className="w-28 whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      건명
+                    </th>
+                    <td className="px-3 py-2 text-slate-800">{doc.projectTitle}</td>
                   </tr>
                   <tr className="border-b border-slate-200">
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">개발기간</th>
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      개발기간
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{doc.developmentPeriod}</td>
-                    <th className="w-24 bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">유효기간</th>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      유효기간
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{doc.validityPeriod}</td>
                   </tr>
-                  <tr>
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">유지보수기간</th>
+                  <tr className="border-b border-slate-200">
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      유지보수기간
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{doc.maintenancePeriod}</td>
-                    <th className="bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">작성일</th>
+                  </tr>
+                  <tr>
+                    <th className="whitespace-nowrap bg-slate-50 text-slate-500 text-left px-3 py-2 font-semibold">
+                      작성일
+                    </th>
                     <td className="px-3 py-2 text-slate-800">{new Date(estimate.createdAt).toLocaleDateString()}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div className="overflow-x-auto mb-6">
+            {/*
+              데스크탑에서 잘 맞던 3열(구성/세부항목/예상 소요시간) 표가, 모바일(390px)에서는
+              "구성"(줄바꿈 없음)·"예상 소요시간"(고정 폭)이 먼저 공간을 차지해 "세부항목" 설명이
+              한두 글자씩만 들어가는 좁은 칸으로 밀려 알아보기 어려웠다(2026-09-14 실사용
+              스크린샷 확인). 표 자체를 좁히는 대신, 좁은 화면에서는 항목당 카드 1개(제목+시간을
+              한 줄에, 설명은 그 아래 전체 폭으로)로 쌓아 보여주고, 표는 공간이 넉넉한 `sm:`
+              이상에서만 그대로 유지한다.
+            */}
+            <div className="mb-6 flex flex-col gap-2 sm:hidden">
+              {estimate.result.lineItems.map((item, i) => (
+                <div key={i} className="rounded border border-slate-200 px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="font-semibold text-slate-700">{item.name}</p>
+                    <p className="shrink-0 text-sm text-slate-600">{item.estimatedHours}h</p>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto mb-6 sm:block">
               <table className="w-full text-sm border border-slate-200">
                 <thead>
                   <tr className="bg-slate-50 text-slate-600">
                     <th className="px-3 py-2 text-left border-b border-slate-200">구성</th>
                     <th className="px-3 py-2 text-left border-b border-slate-200">세부항목</th>
-                    <th className="px-3 py-2 text-right border-b border-slate-200 w-28">예상 소요시간</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right border-b border-slate-200 w-28">
+                      예상 소요시간
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

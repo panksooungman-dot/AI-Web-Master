@@ -164,6 +164,8 @@ function DesignRequirementsPageInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [projectName, setProjectName] = useState("");
   const [projectType, setProjectType] = useState("");
@@ -316,6 +318,33 @@ function DesignRequirementsPageInner() {
     // 의존성으로 추가해 재실행할 필요가 없다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** History 목록의 "삭제" 버튼. app/developer/proposals/page.tsx의 handleDelete()와 동일한 패턴. */
+  async function handleDeletePlan(plan: DesignPlanRecord) {
+    if (!window.confirm(`"${plan.input.projectName}" Design Plan을 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingId(plan.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/design/requirements/${plan.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setPlans((prev) => prev.filter((item) => item.id !== plan.id));
+      setSelectedId((current) => (current === plan.id ? null : current));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   /**
    * Design Plan에 이어 Storyboard까지 생성하고 그 화면으로 이동한다. 실패해도 방금 만든 Design
@@ -639,6 +668,11 @@ function DesignRequirementsPageInner() {
             </button>
           }
         >
+          {deleteError && (
+            <StatusMessage tone="error" className="mb-2">
+              {deleteError}
+            </StatusMessage>
+          )}
           {isLoading ? (
             <LoadingText />
           ) : loadError ? (
@@ -652,10 +686,10 @@ function DesignRequirementsPageInner() {
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {historyPlans.map((plan) => (
-                <li key={plan.id}>
+                <li key={plan.id} className="flex items-stretch gap-2">
                   <button
                     onClick={() => setSelectedId(plan.id)}
-                    className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
+                    className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedId === plan.id ? "bg-blue-600/20 border border-blue-600" : "bg-gray-800 hover:bg-gray-700"
                     }`}
                   >
@@ -664,6 +698,13 @@ function DesignRequirementsPageInner() {
                       {plan.simulated && <Badge tone="warning">Simulated</Badge>}
                     </div>
                     <span className="text-xs text-gray-500">{new Date(plan.createdAt).toLocaleString()}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeletePlan(plan)}
+                    disabled={deletingId === plan.id}
+                    className="shrink-0 self-center rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === plan.id ? "삭제 중..." : "삭제"}
                   </button>
                 </li>
               ))}

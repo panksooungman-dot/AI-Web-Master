@@ -81,6 +81,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "contract.delete": "계약서 삭제",
   "proposal.delete": "제안서 삭제",
   "launchRequest.delete": "정보 요청서 삭제",
+  "design.plan.delete": "Design Plan 삭제",
 };
 
 /**

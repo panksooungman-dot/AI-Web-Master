@@ -52,3 +52,13 @@ export async function getDesignPlan(
   const records = await store.list<DesignPlanRecord>(COLLECTION);
   return records.find((record) => record.id === id) ?? null;
 }
+
+/** lib/proposals/registry.ts의 deleteProposal()과 동일한 패턴 — list+filter+replaceAll. */
+export async function deleteDesignPlan(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<DesignPlanRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

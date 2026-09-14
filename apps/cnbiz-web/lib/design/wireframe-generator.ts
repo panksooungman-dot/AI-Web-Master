@@ -1,4 +1,4 @@
-import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { chatViaCli, LARGE_GENERATION_CHAT_OPTIONS, type ChatResult } from "@/lib/ai/bridge";
 import type { StoryboardRecord } from "./storyboard";
 import { storyboardToWireframeSource, type WireframeSource } from "./wireframe-document-adapter";
 import {
@@ -294,10 +294,13 @@ export interface GenerateWireframeResult {
  */
 export async function generateWireframe(
   storyboard: StoryboardRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (
+    message: string,
+    options?: { system?: string; provider?: string; timeoutMs?: number; retries?: number }
+  ) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateWireframeResult> {
   const source = storyboardToWireframeSource(storyboard);
-  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT, ...LARGE_GENERATION_CHAT_OPTIONS });
 
   if (result.success && result.content) {
     const parsed = parseWireframeContent(result.content);

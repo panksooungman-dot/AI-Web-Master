@@ -8,6 +8,10 @@ export interface ChatOptions {
   provider?: string;
   json?: boolean;
   stream?: boolean;
+  /** ms 단위. 큰 JSON을 생성하는 호출자(Design 체인 등)가 서버리스 실행 시간 제한 안에서
+   *  재시도 누적 타임아웃을 피하려고 override할 때 쓴다. */
+  timeout?: number;
+  retries?: number;
 }
 
 const DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant inside AI Business OS.";
@@ -39,7 +43,9 @@ export async function chatCommand(message: string | undefined, options: ChatOpti
       providerId: options.provider,
       systemPrompt,
       userPrompt: message,
-      fallbackLabel: `Chat: "${message.slice(0, 60)}"`
+      fallbackLabel: `Chat: "${message.slice(0, 60)}"`,
+      timeoutMs: options.timeout,
+      retries: options.retries
     });
 
     await recordTask(cwd, {

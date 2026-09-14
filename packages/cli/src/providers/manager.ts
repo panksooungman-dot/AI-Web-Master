@@ -208,7 +208,7 @@ export class ProviderManager {
 
     try {
       const provider = await this.getProvider(resolvedProviderId);
-      const response = await provider.chat({ messages });
+      const response = await provider.chat({ messages, timeoutMs: options.timeoutMs, retries: options.retries });
 
       await recordUsage(this.cwd, {
         provider: response.provider,
@@ -326,6 +326,10 @@ export interface CompleteOptions {
   userPrompt: string;
   /** provider가 없거나 실패했을 때 [simulated] 메시지에 포함되는 설명. */
   fallbackLabel: string;
+  /** ChatRequest.timeoutMs/retries로 그대로 전달된다 — 큰 JSON을 생성하는 호출이 서버리스
+   *  실행 시간 제한 안에서 재시도로 인한 누적 타임아웃을 피하도록 override할 때 사용한다. */
+  timeoutMs?: number;
+  retries?: number;
 }
 
 export interface CompleteResult {

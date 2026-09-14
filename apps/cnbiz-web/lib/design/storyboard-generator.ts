@@ -1,4 +1,4 @@
-import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { chatViaCli, LARGE_GENERATION_CHAT_OPTIONS, type ChatResult } from "@/lib/ai/bridge";
 import type { CollectionStore } from "@/lib/db/collectionStore";
 import { getDefaultStore } from "@/lib/db";
 import type { DesignPlanRecord } from "./types";
@@ -210,7 +210,10 @@ export interface GenerateStoryboardResult {
  */
 export async function generateStoryboard(
   plan: DesignPlanRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli,
+  chatFn: (
+    message: string,
+    options?: { system?: string; provider?: string; timeoutMs?: number; retries?: number }
+  ) => Promise<ChatResult> = chatViaCli,
   store: CollectionStore = getDefaultStore()
 ): Promise<GenerateStoryboardResult> {
   // Design JSON Standardization Phase 10.5 — plan.document가 이미 있으면(Planning이 이미 채워
@@ -225,7 +228,7 @@ export async function generateStoryboard(
     : { ...plan, document: await getOrBuildDesignDocumentForPlan(plan, store) };
 
   const source = planToStoryboardSource(planForSource);
-  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT, ...LARGE_GENERATION_CHAT_OPTIONS });
 
   if (result.success && result.content) {
     const parsed = parseStoryboardContent(result.content);

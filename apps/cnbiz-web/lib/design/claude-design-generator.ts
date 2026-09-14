@@ -1,4 +1,4 @@
-import { chatViaCli, type ChatResult } from "@/lib/ai/bridge";
+import { chatViaCli, LARGE_GENERATION_CHAT_OPTIONS, type ChatResult } from "@/lib/ai/bridge";
 import type { PrototypeRecord } from "./prototype";
 import type { ClaudeDesignContent } from "./claude-design";
 import { prototypeToClaudeDesignSource, type ClaudeDesignSource } from "./claude-design-document-adapter";
@@ -160,10 +160,13 @@ export interface GenerateClaudeDesignResult {
  */
 export async function generateClaudeDesign(
   prototype: PrototypeRecord,
-  chatFn: (message: string, options?: { system?: string; provider?: string }) => Promise<ChatResult> = chatViaCli
+  chatFn: (
+    message: string,
+    options?: { system?: string; provider?: string; timeoutMs?: number; retries?: number }
+  ) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateClaudeDesignResult> {
   const source = prototypeToClaudeDesignSource(prototype);
-  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT });
+  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT, ...LARGE_GENERATION_CHAT_OPTIONS });
 
   if (result.success && result.content) {
     const parsed = parseClaudeDesignContent(result.content);

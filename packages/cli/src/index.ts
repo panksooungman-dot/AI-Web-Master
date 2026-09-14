@@ -112,11 +112,24 @@ program
   .option("--provider <id>", "LLM provider (anthropic|openai|gemini|ollama|openrouter). 생략 시 기본 provider")
   .option("--json", "JSON 형식으로 출력")
   .option("--stream", "지원하는 provider(openai/anthropic)에서 응답을 실시간 스트리밍으로 출력")
+  .option(
+    "--timeout <ms>",
+    "이 호출 1회의 타임아웃(ms) override. 생략 시 기본값(120000ms) 사용 — 큰 JSON을 생성하는 호출이 서버리스 실행 시간 제한 안에서 재시도 누적 타임아웃을 피하려고 쓴다",
+    (value) => parseInt(value, 10)
+  )
+  .option("--retries <n>", "이 호출 1회의 재시도 횟수 override. 생략 시 기본값(2) 사용", (value) => parseInt(value, 10))
   .description("AI Provider와 1회성 대화를 실행 (ProviderManager.complete()/streamComplete() 재사용)")
   .action(
     async (
       message: string | undefined,
-      options: { system?: string; provider?: string; json?: boolean; stream?: boolean }
+      options: {
+        system?: string;
+        provider?: string;
+        json?: boolean;
+        stream?: boolean;
+        timeout?: number;
+        retries?: number;
+      }
     ) => {
       await chatCommand(message, options);
     }

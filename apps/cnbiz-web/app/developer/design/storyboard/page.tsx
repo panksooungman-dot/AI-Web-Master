@@ -10,6 +10,7 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { StoryboardRecord } from "@/lib/design/storyboard";
 import type { StoryboardShareRecord } from "@/lib/design/storyboard-share";
+import type { StoryboardJobRecord } from "@/lib/design/storyboardJob";
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
@@ -142,26 +143,77 @@ export default function StoryboardPage() {
       });
   }, [selectedStoryboardId, shares]);
 
+  // app/developer/design/page.tsx의 pollDesignPlanJob()과 동일한 패턴 — AI 생성이 최대
+  // 270초까지 걸릴 수 있어 브라우저 fetch 하나를 그대로 붙잡는 대신, Job 생성 즉시 응답 →
+  // 별도 실행(run)이 브라우저 쪽에서 끊겨도 서버는 계속 처리 → 짧은 간격 폴링으로 결과 회수
+  // 구조로 바꿨다(2026-09-14 실사용 — Storyboard 생성이 "Generating..."에서 멈춤 재현).
+  async function pollStoryboardJob(
+    jobId: string
+  ): Promise<{ status: "Success"; storyboard: StoryboardRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: StoryboardJobRecord; storyboard?: StoryboardRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/storyboard/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 History에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.storyboard) {
+        return { status: "Success", storyboard: json.storyboard };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "생성에 실패했습니다." };
+      }
+    }
+  }
+
   const handleGenerate = async () => {
     if (isGenerating || !selectedPlanId) return;
     setIsGenerating(true);
     setGenerateError(null);
 
     try {
-      const res = await fetch("/api/design/storyboard", {
+      const createRes = await fetch("/api/design/storyboard/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId: selectedPlanId }),
       });
-      const json = (await res.json()) as { success: boolean; storyboard?: StoryboardRecord; error?: string };
+      const createJson = (await createRes.json()) as { success: boolean; job?: StoryboardJobRecord; error?: string };
 
-      if (!json.success || !json.storyboard) {
-        setGenerateError(json.error ?? "생성 실패");
+      if (!createJson.success || !createJson.job) {
+        setGenerateError(createJson.error ?? "생성 실패");
         return;
       }
 
-      setStoryboards((prev) => [json.storyboard!, ...prev]);
-      setSelectedStoryboardId(json.storyboard.id);
+      const jobId = createJson.job.id;
+      fetch(`/api/design/storyboard/jobs/${jobId}/run`, { method: "POST" }).catch(() => {});
+
+      const result = await pollStoryboardJob(jobId);
+      if (result.status === "Failed") {
+        setGenerateError(result.error);
+        return;
+      }
+
+      setStoryboards((prev) => [result.storyboard, ...prev]);
+      setSelectedStoryboardId(result.storyboard.id);
       scrollToResults();
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "요청 실패");

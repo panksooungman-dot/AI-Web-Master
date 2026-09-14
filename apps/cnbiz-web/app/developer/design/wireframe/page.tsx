@@ -12,6 +12,8 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { StoryboardRecord } from "@/lib/design/storyboard";
 import type { ScreenLayout, WireframeRecord } from "@/lib/design/wireframe";
+import type { WireframeJobRecord } from "@/lib/design/wireframeJob";
+import type { StoryboardJobRecord } from "@/lib/design/storyboardJob";
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
@@ -93,6 +95,13 @@ function WireframePageInner() {
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string>("");
   const [selectedWireframeId, setSelectedWireframeId] = useState<string | null>(null);
 
+  // "Storyboard로 다시 가서 재생성하는 게 비효율적" — 이미 만든 Storyboard가 있으면 그대로
+  // 골라 쓰는 기존 방식과, Design Plan만 고르면 Storyboard가 없을 때 자동으로 만들어 이어서
+  // Wireframe까지 생성하는 방식을 토글로 함께 제공한다(2026-09-14 요청).
+  const [generationSource, setGenerationSource] = useState<"storyboard" | "plan">("storyboard");
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [generateStage, setGenerateStage] = useState<"storyboard" | "wireframe" | null>(null);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
@@ -131,6 +140,7 @@ function WireframePageInner() {
         setSelectedStoryboardId(
           (current) => current || (linkedIsValid ? linkedStoryboardId! : loadedStoryboards[0]?.id || "")
         );
+        setSelectedPlanId((current) => current || loadedPlans[0]?.id || "");
         setSelectedWireframeId((current) => current ?? loadedWireframes[0]?.id ?? null);
       })
       .catch(() => setLoadError("Wireframe 데이터를 불러오지 못했습니다."))
@@ -142,26 +152,147 @@ function WireframePageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // app/developer/design/page.tsx의 pollDesignPlanJob()과 동일한 패턴 — 화면당 desktop/
+  // tablet/mobile 레이아웃을 한 번에 생성해 특히 느린 Wireframe 생성이 브라우저 fetch 하나를
+  // 그대로 붙잡고 있었다(2026-08-09 실측 최악 약 135초). Job 생성 즉시 응답 → 별도 실행이
+  // 브라우저 쪽에서 끊겨도 서버는 계속 처리 → 짧은 간격 폴링으로 결과 회수 구조로 바꿨다.
+  async function pollWireframeJob(
+    jobId: string
+  ): Promise<{ status: "Success"; wireframe: WireframeRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: WireframeJobRecord; wireframe?: WireframeRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/wireframe/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 History에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.wireframe) {
+        return { status: "Success", wireframe: json.wireframe };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "생성에 실패했습니다." };
+      }
+    }
+  }
+
+  // Storyboard 페이지(app/developer/design/storyboard/page.tsx)의 pollStoryboardJob()과
+  // 동일한 패턴 — Design Plan에서 바로 생성할 때 Storyboard가 없으면 이 페이지에서도 그
+  // 생성을 직접 체이닝해야 하므로 동일한 폴링 로직을 이 파일에도 둔다.
+  async function pollStoryboardJobForChain(
+    jobId: string
+  ): Promise<{ status: "Success"; storyboard: StoryboardRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: StoryboardJobRecord; storyboard?: StoryboardRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/storyboard/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 Storyboard 화면에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.storyboard) {
+        return { status: "Success", storyboard: json.storyboard };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "생성에 실패했습니다." };
+      }
+    }
+  }
+
+  /** Job 생성 → run(fire-and-forget) → 폴링까지 한 번에 수행. handleGenerate()와
+   * handleGenerateFromPlan() 양쪽에서 재사용한다. */
+  async function generateStoryboardJob(
+    planId: string
+  ): Promise<{ status: "Success"; storyboard: StoryboardRecord } | { status: "Failed"; error: string }> {
+    const createRes = await fetch("/api/design/storyboard/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planId }),
+    });
+    const createJson = (await createRes.json()) as { success: boolean; job?: StoryboardJobRecord; error?: string };
+
+    if (!createJson.success || !createJson.job) {
+      return { status: "Failed", error: createJson.error ?? "생성 실패" };
+    }
+
+    const jobId = createJson.job.id;
+    fetch(`/api/design/storyboard/jobs/${jobId}/run`, { method: "POST" }).catch(() => {});
+
+    return pollStoryboardJobForChain(jobId);
+  }
+
+  /** 위와 동일한 이유로 Wireframe Job 생성도 재사용 가능한 함수로 분리. */
+  async function generateWireframeJob(
+    storyboardId: string
+  ): Promise<{ status: "Success"; wireframe: WireframeRecord } | { status: "Failed"; error: string }> {
+    const createRes = await fetch("/api/design/wireframe/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storyboardId }),
+    });
+    const createJson = (await createRes.json()) as { success: boolean; job?: WireframeJobRecord; error?: string };
+
+    if (!createJson.success || !createJson.job) {
+      return { status: "Failed", error: createJson.error ?? "생성 실패" };
+    }
+
+    const jobId = createJson.job.id;
+    fetch(`/api/design/wireframe/jobs/${jobId}/run`, { method: "POST" }).catch(() => {});
+
+    return pollWireframeJob(jobId);
+  }
+
   const handleGenerate = async () => {
     if (isGenerating || !selectedStoryboardId) return;
     setIsGenerating(true);
     setGenerateError(null);
+    setGenerateStage("wireframe");
 
     try {
-      const res = await fetch("/api/design/wireframe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storyboardId: selectedStoryboardId }),
-      });
-      const json = (await res.json()) as { success: boolean; wireframe?: WireframeRecord; error?: string };
-
-      if (!json.success || !json.wireframe) {
-        setGenerateError(json.error ?? "생성 실패");
+      const result = await generateWireframeJob(selectedStoryboardId);
+      if (result.status === "Failed") {
+        setGenerateError(result.error);
         return;
       }
 
-      setWireframes((prev) => [json.wireframe!, ...prev]);
-      setSelectedWireframeId(json.wireframe.id);
+      setWireframes((prev) => [result.wireframe, ...prev]);
+      setSelectedWireframeId(result.wireframe.id);
       setEditingLayouts(null);
       setSaveError(null);
       scrollToResults();
@@ -169,6 +300,55 @@ function WireframePageInner() {
       setGenerateError(err instanceof Error ? err.message : "요청 실패");
     } finally {
       setIsGenerating(false);
+      setGenerateStage(null);
+    }
+  };
+
+  /**
+   * Storyboard 화면으로 갔다가 다시 Wireframe으로 돌아오는 왕복이 비효율적이라는 실사용
+   * 피드백(2026-09-14)에 따라, Design Plan만 고르면 그 Plan에 이미 만들어둔 Storyboard가
+   * 있으면 재사용하고 없으면 자동으로 만든 뒤 곧바로 이어서 Wireframe까지 생성한다.
+   * storyboards는 GET /api/design/storyboard가 항상 최신순으로 내려주므로(listStoryboards()의
+   * 계약, lib/design/storyboard.ts) find()가 그 Plan의 가장 최근 Storyboard를 정확히 찾는다.
+   */
+  const handleGenerateFromPlan = async () => {
+    if (isGenerating || !selectedPlanId) return;
+    setIsGenerating(true);
+    setGenerateError(null);
+
+    try {
+      let storyboardId = storyboards.find((sb) => sb.planId === selectedPlanId)?.id ?? null;
+
+      if (!storyboardId) {
+        setGenerateStage("storyboard");
+        const sbResult = await generateStoryboardJob(selectedPlanId);
+        if (sbResult.status === "Failed") {
+          setGenerateError(`Storyboard 생성 실패: ${sbResult.error}`);
+          return;
+        }
+        setStoryboards((prev) => [sbResult.storyboard, ...prev]);
+        storyboardId = sbResult.storyboard.id;
+      }
+
+      setSelectedStoryboardId(storyboardId);
+      setGenerateStage("wireframe");
+
+      const wfResult = await generateWireframeJob(storyboardId);
+      if (wfResult.status === "Failed") {
+        setGenerateError(`Wireframe 생성 실패: ${wfResult.error}`);
+        return;
+      }
+
+      setWireframes((prev) => [wfResult.wireframe, ...prev]);
+      setSelectedWireframeId(wfResult.wireframe.id);
+      setEditingLayouts(null);
+      setSaveError(null);
+      scrollToResults();
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "요청 실패");
+    } finally {
+      setIsGenerating(false);
+      setGenerateStage(null);
     }
   };
 
@@ -284,36 +464,109 @@ function WireframePageInner() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card title="Generate Wireframe">
           <div className="flex flex-col gap-3">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Storyboard</label>
-              <select
-                value={selectedStoryboardId}
-                onChange={(e) => setSelectedStoryboardId(e.target.value)}
-                className="w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500"
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setGenerationSource("storyboard")}
+                disabled={isGenerating}
+                className={`rounded px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  generationSource === "storyboard"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                }`}
               >
-                {storyboards.length === 0 && <option value="">Storyboard가 없습니다</option>}
-                {storyboards.map((sb) => (
-                  <option key={sb.id} value={sb.id}>
-                    {projectNameForStoryboard(sb.id)} — {new Date(sb.createdAt).toLocaleString()}
-                  </option>
-                ))}
-              </select>
+                기존 Storyboard 선택
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenerationSource("plan")}
+                disabled={isGenerating}
+                className={`rounded px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  generationSource === "plan"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                }`}
+              >
+                Design Plan에서 바로 생성
+              </button>
             </div>
+
+            {generationSource === "storyboard" ? (
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Storyboard</label>
+                <select
+                  value={selectedStoryboardId}
+                  onChange={(e) => setSelectedStoryboardId(e.target.value)}
+                  className="w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500"
+                >
+                  {storyboards.length === 0 && <option value="">Storyboard가 없습니다</option>}
+                  {storyboards.map((sb) => (
+                    <option key={sb.id} value={sb.id}>
+                      {projectNameForStoryboard(sb.id)} — {new Date(sb.createdAt).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Design Plan</label>
+                <select
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  className="w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500"
+                >
+                  {plans.length === 0 && <option value="">Design Plan이 없습니다</option>}
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.input.projectName}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  이 Plan에 이미 만들어둔 Storyboard가 있으면 그대로 재사용하고, 없으면 자동으로 만든
+                  뒤 이어서 Wireframe까지 생성합니다 — Storyboard 화면을 따로 거치지 않아도 됩니다.
+                </p>
+              </div>
+            )}
 
             {generateError && <StatusMessage tone="error">{generateError}</StatusMessage>}
 
             <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedStoryboardId}
-              className="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+              onClick={generationSource === "plan" ? handleGenerateFromPlan : handleGenerate}
+              disabled={isGenerating || (generationSource === "plan" ? !selectedPlanId : !selectedStoryboardId)}
+              className="flex items-center justify-center gap-2 rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {isGenerating ? "Generating..." : "Generate Wireframe"}
+              {isGenerating && (
+                <span
+                  aria-hidden
+                  className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                />
+              )}
+              {isGenerating
+                ? generationSource === "plan"
+                  ? generateStage === "storyboard"
+                    ? "1/2 Storyboard 생성 중..."
+                    : "2/2 Wireframe 생성 중..."
+                  : "Generating..."
+                : "Generate Wireframe"}
             </button>
+            {isGenerating && (
+              <p className="text-xs text-gray-500">
+                AI가 실제로 생성하는 중이라 단계마다 최대 1~2분 정도 걸릴 수 있습니다. 이 화면을
+                벗어나지 말고 잠시 기다려 주세요 — 버튼을 여러 번 누르지 않아도 됩니다.
+              </p>
+            )}
 
-            {storyboards.length === 0 && (
+            {generationSource === "storyboard" && storyboards.length === 0 && (
               <p className="text-xs text-gray-500">
                 먼저 <Link href="/developer/design/storyboard" className="text-blue-400 hover:underline">Storyboard</Link>를
                 생성하세요.
+              </p>
+            )}
+            {generationSource === "plan" && plans.length === 0 && (
+              <p className="text-xs text-gray-500">
+                먼저 <Link href="/developer/design" className="text-blue-400 hover:underline">Requirements</Link>에서
+                Design Plan을 생성하세요.
               </p>
             )}
           </div>

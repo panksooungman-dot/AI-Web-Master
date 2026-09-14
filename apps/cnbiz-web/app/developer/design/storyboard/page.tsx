@@ -120,6 +120,25 @@ export default function StoryboardPage() {
     queueMicrotask(load);
   }, []);
 
+  // "Website Build 연결(승인 후 실제 화면 생성)"(2026-09-14) — 관리자가 "공유" 버튼을 다시
+  // 누르지 않아도, 의뢰자가 이미 승인/수정요청했다면 그 상태를 화면에 바로 보여줘야 "다음 단계
+  // 시작" CTA가 뜬다. 아직 공유된 적 없는 Storyboard까지 공유 레코드를 만들지 않도록
+  // 조회 전용 GET만 호출한다(이미 shares 캐시에 있으면 재조회하지 않음).
+  useEffect(() => {
+    if (!selectedStoryboardId || shares[selectedStoryboardId]) return;
+
+    fetch(`/api/design/storyboard/${selectedStoryboardId}/share`)
+      .then((res) => res.json() as Promise<{ share: StoryboardShareRecord | null }>)
+      .then((json) => {
+        if (json.share) {
+          setShares((prev) => ({ ...prev, [selectedStoryboardId]: json.share! }));
+        }
+      })
+      .catch(() => {
+        // 조회 실패는 조용히 무시한다 — "공유" 버튼으로 언제든 다시 확인할 수 있다.
+      });
+  }, [selectedStoryboardId, shares]);
+
   const handleGenerate = async () => {
     if (isGenerating || !selectedPlanId) return;
     setIsGenerating(true);
@@ -354,6 +373,19 @@ export default function StoryboardPage() {
               </div>
               {activeShare.comment && (
                 <p className="mt-2 text-xs text-gray-400">의뢰자 의견: &ldquo;{activeShare.comment}&rdquo;</p>
+              )}
+              {activeShare.status === "approved" && (
+                <div className="mt-3 flex flex-wrap items-center gap-3 rounded border border-emerald-700 bg-emerald-900/20 p-3">
+                  <p className="text-sm text-emerald-300">
+                    ✅ 의뢰자가 승인했습니다 — 이제 실제 화면 생성을 이어서 진행할 수 있습니다.
+                  </p>
+                  <Link
+                    href={`/developer/design/wireframe?storyboardId=${selectedStoryboard.id}`}
+                    className="rounded bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
+                  >
+                    Wireframe부터 이어서 진행 →
+                  </Link>
+                </div>
               )}
             </Card>
           )}

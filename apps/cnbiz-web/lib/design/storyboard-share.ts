@@ -59,6 +59,21 @@ export async function getStoryboardShare(
   return records.find((record) => record.id === id);
 }
 
+/**
+ * 이미 만들어 둔 공유 링크가 있으면 그대로 반환하고, 없으면 `undefined`(생성하지 않음) —
+ * "Website Build 연결(승인 후 실제 화면 생성)"(2026-09-14) 요청으로 관리자 Storyboard 화면이
+ * 페이지 진입만으로 승인 상태를 확인해야 해서 분리했다. `getOrCreateStoryboardShare()`는 관리자가
+ * "의뢰자에게 공유" 버튼을 실제로 눌렀을 때만 호출되어야 하므로(누르지 않은 Storyboard에 공유
+ * 레코드가 생기면 안 됨), 조회 전용 이 함수를 별도로 둔다.
+ */
+export async function getStoryboardShareByStoryboardId(
+  storyboardId: string,
+  store: CollectionStore = getDefaultStore()
+): Promise<StoryboardShareRecord | undefined> {
+  const records = await store.list<StoryboardShareRecord>(COLLECTION);
+  return records.find((record) => record.storyboardId === storyboardId);
+}
+
 /** 이미 만들어 둔 공유 링크가 있으면 재사용하고, 없으면 새로 만든다(같은 Storyboard를 여러 번
  *  "공유" 눌러도 링크가 계속 늘어나지 않게 함). */
 export async function getOrCreateStoryboardShare(

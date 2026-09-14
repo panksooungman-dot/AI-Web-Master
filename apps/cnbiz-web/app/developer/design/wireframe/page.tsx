@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
 import { PageHeader } from "@/components/developer/PageHeader";
@@ -68,7 +69,21 @@ function toMarkdown(projectName: string, wireframe: WireframeRecord): string {
   return lines.join("\n");
 }
 
+// useSearchParams()(?storyboardId= 읽기용, "Website Build 연결(승인 후 실제 화면 생성)"
+// 2026-09-14 — Storyboard 관리 화면의 "Wireframe부터 이어서 진행" 버튼이 넘겨준다)는 Suspense
+// 경계 없이 쓰면 정적 생성이 실패한다(app/developer/design/page.tsx의 ?inquiryId=와 동일한 이유).
 export default function WireframePage() {
+  return (
+    <Suspense fallback={<LoadingText />}>
+      <WireframePageInner />
+    </Suspense>
+  );
+}
+
+function WireframePageInner() {
+  const searchParams = useSearchParams();
+  const linkedStoryboardId = searchParams.get("storyboardId");
+
   const [plans, setPlans] = useState<DesignPlanRecord[]>([]);
   const [storyboards, setStoryboards] = useState<StoryboardRecord[]>([]);
   const [wireframes, setWireframes] = useState<WireframeRecord[]>([]);
@@ -109,7 +124,10 @@ export default function WireframePage() {
         setPlans(loadedPlans);
         setStoryboards(loadedStoryboards);
         setWireframes(loadedWireframes);
-        setSelectedStoryboardId((current) => current || loadedStoryboards[0]?.id || "");
+        const linkedIsValid = linkedStoryboardId && loadedStoryboards.some((s) => s.id === linkedStoryboardId);
+        setSelectedStoryboardId(
+          (current) => current || (linkedIsValid ? linkedStoryboardId! : loadedStoryboards[0]?.id || "")
+        );
         setSelectedWireframeId((current) => current ?? loadedWireframes[0]?.id ?? null);
       })
       .catch(() => setLoadError("Wireframe 데이터를 불러오지 못했습니다."))
@@ -118,6 +136,7 @@ export default function WireframePage() {
 
   useEffect(() => {
     queueMicrotask(load);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGenerate = async () => {

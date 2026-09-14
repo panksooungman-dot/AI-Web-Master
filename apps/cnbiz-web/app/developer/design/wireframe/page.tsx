@@ -12,6 +12,7 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { StoryboardRecord } from "@/lib/design/storyboard";
 import type { ScreenLayout, WireframeRecord } from "@/lib/design/wireframe";
+import type { WireframeJobRecord } from "@/lib/design/wireframeJob";
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
@@ -142,26 +143,77 @@ function WireframePageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // app/developer/design/page.tsx의 pollDesignPlanJob()과 동일한 패턴 — 화면당 desktop/
+  // tablet/mobile 레이아웃을 한 번에 생성해 특히 느린 Wireframe 생성이 브라우저 fetch 하나를
+  // 그대로 붙잡고 있었다(2026-08-09 실측 최악 약 135초). Job 생성 즉시 응답 → 별도 실행이
+  // 브라우저 쪽에서 끊겨도 서버는 계속 처리 → 짧은 간격 폴링으로 결과 회수 구조로 바꿨다.
+  async function pollWireframeJob(
+    jobId: string
+  ): Promise<{ status: "Success"; wireframe: WireframeRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: WireframeJobRecord; wireframe?: WireframeRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/wireframe/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 History에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.wireframe) {
+        return { status: "Success", wireframe: json.wireframe };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "생성에 실패했습니다." };
+      }
+    }
+  }
+
   const handleGenerate = async () => {
     if (isGenerating || !selectedStoryboardId) return;
     setIsGenerating(true);
     setGenerateError(null);
 
     try {
-      const res = await fetch("/api/design/wireframe", {
+      const createRes = await fetch("/api/design/wireframe/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storyboardId: selectedStoryboardId }),
       });
-      const json = (await res.json()) as { success: boolean; wireframe?: WireframeRecord; error?: string };
+      const createJson = (await createRes.json()) as { success: boolean; job?: WireframeJobRecord; error?: string };
 
-      if (!json.success || !json.wireframe) {
-        setGenerateError(json.error ?? "생성 실패");
+      if (!createJson.success || !createJson.job) {
+        setGenerateError(createJson.error ?? "생성 실패");
         return;
       }
 
-      setWireframes((prev) => [json.wireframe!, ...prev]);
-      setSelectedWireframeId(json.wireframe.id);
+      const jobId = createJson.job.id;
+      fetch(`/api/design/wireframe/jobs/${jobId}/run`, { method: "POST" }).catch(() => {});
+
+      const result = await pollWireframeJob(jobId);
+      if (result.status === "Failed") {
+        setGenerateError(result.error);
+        return;
+      }
+
+      setWireframes((prev) => [result.wireframe, ...prev]);
+      setSelectedWireframeId(result.wireframe.id);
       setEditingLayouts(null);
       setSaveError(null);
       scrollToResults();

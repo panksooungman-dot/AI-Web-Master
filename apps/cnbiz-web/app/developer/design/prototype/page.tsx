@@ -11,6 +11,7 @@ import type { DesignPlanRecord } from "@/lib/design/types";
 import type { StoryboardRecord } from "@/lib/design/storyboard";
 import type { WireframeRecord } from "@/lib/design/wireframe";
 import type { PrototypeRecord } from "@/lib/design/prototype";
+import type { PrototypeJobRecord } from "@/lib/design/prototypeJob";
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
@@ -156,26 +157,76 @@ export default function PrototypePage() {
     queueMicrotask(load);
   }, []);
 
+  // app/developer/design/page.tsx의 pollDesignPlanJob()과 동일한 패턴 — AI 생성이 최대 270초까지
+  // 걸릴 수 있어 브라우저 fetch 하나를 그대로 붙잡는 대신, Job 생성 즉시 응답 → 별도 실행이
+  // 브라우저 쪽에서 끊겨도 서버는 계속 처리 → 짧은 간격 폴링으로 결과 회수 구조로 바꿨다.
+  async function pollPrototypeJob(
+    jobId: string
+  ): Promise<{ status: "Success"; prototype: PrototypeRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: PrototypeJobRecord; prototype?: PrototypeRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/prototype/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 History에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.prototype) {
+        return { status: "Success", prototype: json.prototype };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "생성에 실패했습니다." };
+      }
+    }
+  }
+
   const handleGenerate = async () => {
     if (isGenerating || !selectedWireframeId) return;
     setIsGenerating(true);
     setGenerateError(null);
 
     try {
-      const res = await fetch("/api/design/prototype", {
+      const createRes = await fetch("/api/design/prototype/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wireframeId: selectedWireframeId }),
       });
-      const json = (await res.json()) as { success: boolean; prototype?: PrototypeRecord; error?: string };
+      const createJson = (await createRes.json()) as { success: boolean; job?: PrototypeJobRecord; error?: string };
 
-      if (!json.success || !json.prototype) {
-        setGenerateError(json.error ?? "생성 실패");
+      if (!createJson.success || !createJson.job) {
+        setGenerateError(createJson.error ?? "생성 실패");
         return;
       }
 
-      setPrototypes((prev) => [json.prototype!, ...prev]);
-      setSelectedPrototypeId(json.prototype.id);
+      const jobId = createJson.job.id;
+      fetch(`/api/design/prototype/jobs/${jobId}/run`, { method: "POST" }).catch(() => {});
+
+      const result = await pollPrototypeJob(jobId);
+      if (result.status === "Failed") {
+        setGenerateError(result.error);
+        return;
+      }
+
+      setPrototypes((prev) => [result.prototype, ...prev]);
+      setSelectedPrototypeId(result.prototype.id);
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "요청 실패");
     } finally {

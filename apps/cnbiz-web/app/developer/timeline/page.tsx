@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
+import { InquiryGeneratePicker } from "@/components/developer/InquiryGeneratePicker";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { TimelineRecord } from "@/lib/timeline/types";
 
 interface TimelinesResponse {
@@ -13,10 +15,11 @@ interface TimelinesResponse {
 }
 
 /**
- * 프로젝트 일정 목록 — 읽기 전용 히스토리 화면. 생성은 이 페이지가 아니라
- * /developer/inquiries/[id]의 "프로젝트 일정" 카드에서 수행한다(기술 견적서·기능 명세서가
- * 먼저 있어야 생성 가능하므로, 자유 입력 폼을 별도로 두지 않는다). app/developer/estimates/
- * page.tsx·app/developer/specifications/page.tsx와 완전히 동일한 패턴.
+ * 프로젝트 일정 목록. 기술 견적서·기능 명세서가 먼저 있어야 생성 가능하다는 전제는 그대로
+ * 유지되며, InquiryGeneratePicker로 의뢰를 선택했을 때 그 전제가 충족되지 않으면
+ * POST /api/timeline이 이미 반환하는 안내 메시지("먼저 기술 견적서를 생성하세요." 등, 이
+ * 화면에서 새로 만들지 않음)가 그대로 표시된다. app/developer/estimates/page.tsx·
+ * app/developer/specifications/page.tsx와 완전히 동일한 패턴(2026-09-14).
  */
 export default function TimelinesPage() {
   const [timelines, setTimelines] = useState<TimelineRecord[]>([]);
@@ -24,6 +27,7 @@ export default function TimelinesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -73,16 +77,34 @@ export default function TimelinesPage() {
       <PageHeader
         icon="🗓️"
         title="프로젝트 일정"
-        description="기술 견적서·기능 명세서를 기반으로 자동 생성된 프로젝트 일정 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        description="기술 견적서·기능 명세서를 기반으로 자동 생성된 프로젝트 일정 목록입니다."
         help={[
           "기술 견적서·기능 명세서가 둘 다 있어야 생성할 수 있습니다 — 하나라도 없으면 생성 요청이 거부됩니다.",
-          "생성은 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
+          "아래에서 의뢰를 검색·선택해 바로 생성하거나, 'AI 의뢰 관리' 상세 화면에서도 생성할 수 있습니다.",
         ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh
           </button>
         }
+      />
+
+      <InquiryGeneratePicker
+        title="🔗 의뢰 선택 후 프로젝트 일정 생성"
+        description="의뢰를 선택하면 기존 기술 견적서·기능 명세서를 기반으로 프로젝트 일정을 바로 생성합니다. 둘 중 하나라도 없으면 안내 메시지가 표시됩니다."
+        generateLabel="일정 생성"
+        onGenerate={async (inquiryId) => {
+          const res = await fetch("/api/timeline", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inquiryId }),
+          });
+          const data: { success: boolean; timeline?: TimelineRecord; error?: string } = await res.json();
+          if (data.success && data.timeline) {
+            setTimelines((prev) => [data.timeline!, ...prev]);
+          }
+          return { success: data.success, error: data.error };
+        }}
       />
 
       {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
@@ -112,6 +134,9 @@ export default function TimelinesPage() {
                 <Badge tone="purple">총 {timeline.result.totalDurationWeeks}주</Badge>
                 <span className="text-xs text-gray-400">Phase {timeline.result.phases.length}개</span>
                 {timeline.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(timeline.inquiryId), timeline.input.companyName) && (
+                  <Badge tone="warning">⚠ 현재 의뢰명: {inquiryCompanyNames.get(timeline.inquiryId)}</Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, timeline)}

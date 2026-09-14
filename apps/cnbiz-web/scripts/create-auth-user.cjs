@@ -17,6 +17,14 @@
  * os.tmpdir()/cnbiz-web/data, NOT lib/data — the local fallback moved off process.cwd() in
  * commit 0954f09 so it never tries to write into a read-only bundle path; this script must
  * target the same directory or the account it creates is invisible to the running app).
+ *
+ * fsStore.ts stores every collection file as a `{id, data}[]` array (matching Supabase's
+ * app_collections table shape, collection/id/data columns) — NOT a flat array of raw records.
+ * This script used to write a flat `User[]` here, which fsStore.ts's `list()` reads back as
+ * `entry.data` (always undefined for a flat entry), so every account created via this fs
+ * fallback failed to log in with "Cannot read properties of undefined (reading 'email')"
+ * (found and fixed 2026-09-14 — every prior local-fs test account had to be manually patched
+ * to this shape before it worked, e.g. in this session's own verification runs).
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- standalone CommonJS script, see screenshot.cjs for the same precedent */
 const fs = require("fs");
@@ -73,23 +81,23 @@ function createViaFs(record, normalizedEmail) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  let users = [];
+  let entries = [];
   if (fs.existsSync(usersFile)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(usersFile, "utf-8"));
-      users = Array.isArray(parsed) ? parsed : [];
+      entries = Array.isArray(parsed) ? parsed : [];
     } catch {
-      users = [];
+      entries = [];
     }
   }
 
-  if (users.some((user) => user.email === normalizedEmail)) {
+  if (entries.some((entry) => entry.data && entry.data.email === normalizedEmail)) {
     console.error(`이미 등록된 이메일입니다: ${normalizedEmail}`);
     process.exit(1);
   }
 
-  users.push(record);
-  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2), "utf-8");
+  entries.push({ id: record.id, data: record });
+  fs.writeFileSync(usersFile, JSON.stringify(entries, null, 2), "utf-8");
   console.log(`[fs] 계정이 생성되었습니다: ${normalizedEmail} (role: ${record.role})`);
 }
 

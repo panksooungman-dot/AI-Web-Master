@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
+import { InquiryGeneratePicker } from "@/components/developer/InquiryGeneratePicker";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { SpecificationRecord } from "@/lib/specifications/types";
 
 interface SpecificationsResponse {
@@ -13,10 +15,8 @@ interface SpecificationsResponse {
 }
 
 /**
- * 기능 명세서 목록 — 읽기 전용 히스토리 화면. 생성은 이 페이지가 아니라
- * /developer/inquiries/[id]의 "기능 명세서" 카드에서 수행한다(AI Analysis Engine의
- * inquiry.analysis가 있어야 생성 가능하므로, 자유 입력 폼을 별도로 두지 않는다).
- * app/developer/estimates/page.tsx와 완전히 동일한 패턴.
+ * 기능 명세서 목록. app/developer/estimates/page.tsx와 완전히 동일한 패턴 —
+ * InquiryGeneratePicker로 의뢰를 검색·선택해 바로 생성 가능(2026-09-14).
  */
 export default function SpecificationsPage() {
   const [specifications, setSpecifications] = useState<SpecificationRecord[]>([]);
@@ -24,6 +24,7 @@ export default function SpecificationsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -73,9 +74,9 @@ export default function SpecificationsPage() {
       <PageHeader
         icon="📋"
         title="기능 명세서"
-        description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기능 명세서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        description="AI Analysis Engine의 분석 결과를 기반으로 자동 생성된 기능 명세서 목록입니다."
         help={[
-          "생성은 이 화면이 아니라 'AI 의뢰 관리' 상세 화면에서 수행합니다.",
+          "아래에서 의뢰를 검색·선택해 바로 생성하거나, 'AI 의뢰 관리' 상세 화면에서도 생성할 수 있습니다.",
           "수정 기능은 없습니다.",
         ]}
         actions={
@@ -83,6 +84,24 @@ export default function SpecificationsPage() {
             Refresh
           </button>
         }
+      />
+
+      <InquiryGeneratePicker
+        title="🔗 의뢰 선택 후 기능 명세서 생성"
+        description="의뢰를 선택하면 AI 분석 결과를 기반으로 기능 명세서를 바로 생성합니다."
+        generateLabel="명세서 생성"
+        onGenerate={async (inquiryId) => {
+          const res = await fetch("/api/specifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inquiryId }),
+          });
+          const data: { success: boolean; specification?: SpecificationRecord; error?: string } = await res.json();
+          if (data.success && data.specification) {
+            setSpecifications((prev) => [data.specification!, ...prev]);
+          }
+          return { success: data.success, error: data.error };
+        }}
       />
 
       {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
@@ -112,6 +131,11 @@ export default function SpecificationsPage() {
                 <Badge tone="purple">페이지 {specification.result.pages.length}종</Badge>
                 <span className="text-xs text-gray-400">기능 {specification.result.features.length}종</span>
                 {specification.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(specification.inquiryId), specification.input.companyName) && (
+                  <Badge tone="warning">
+                    ⚠ 현재 의뢰명: {inquiryCompanyNames.get(specification.inquiryId)}
+                  </Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, specification)}

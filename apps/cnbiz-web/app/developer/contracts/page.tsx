@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/developer/Badge";
 import { Card } from "@/components/developer/Card";
+import { InquiryGeneratePicker } from "@/components/developer/InquiryGeneratePicker";
 import { PageHeader } from "@/components/developer/PageHeader";
 import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage";
+import { isCompanyNameStale, useInquiryCompanyNames } from "@/lib/hooks/useInquiryCompanyNames";
 import type { ContractRecord } from "@/lib/contracts/types";
 
 interface ContractsResponse {
@@ -13,10 +15,10 @@ interface ContractsResponse {
 }
 
 /**
- * 계약서 목록 — 읽기 전용 히스토리 화면. 생성은 이 페이지가 아니라 /developer/inquiries/[id]의
- * "계약서" 카드에서 수행한다(기술 견적서·기능 명세서·프로젝트 일정이 먼저 있어야 생성 가능하므로,
- * 자유 입력 폼을 별도로 두지 않는다). app/developer/{estimates,specifications,timeline}/page.tsx와
- * 완전히 동일한 패턴.
+ * 계약서 목록. 기술 견적서·기능 명세서·프로젝트 일정 3종이 먼저 있어야 생성 가능하다는 전제는
+ * 그대로 유지되며, InquiryGeneratePicker로 의뢰를 선택했을 때 그 전제가 충족되지 않으면
+ * POST /api/contracts가 이미 반환하는 안내 메시지가 그대로 표시된다.
+ * app/developer/{estimates,specifications,timeline}/page.tsx와 완전히 동일한 패턴(2026-09-14).
  */
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
@@ -24,6 +26,7 @@ export default function ContractsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const inquiryCompanyNames = useInquiryCompanyNames();
 
   const load = () => {
     setIsLoading(true);
@@ -73,16 +76,34 @@ export default function ContractsPage() {
       <PageHeader
         icon="📄"
         title="계약서"
-        description="기술 견적서·기능 명세서·프로젝트 일정을 기반으로 자동 생성된 계약서 목록입니다. 생성은 AI 의뢰 상세 화면에서 수행합니다."
+        description="기술 견적서·기능 명세서·프로젝트 일정을 기반으로 자동 생성된 계약서 목록입니다."
         help={[
           "견적서·명세서·일정 3종이 모두 있어야 생성할 수 있습니다.",
-          "생성은 'AI 의뢰 관리' 상세 화면에서 수행하며, PDF 출력·전자서명 기능은 아직 없습니다.",
+          "아래에서 의뢰를 검색·선택해 바로 생성하거나 'AI 의뢰 관리' 상세 화면에서도 생성할 수 있으며, PDF 출력·전자서명 기능은 아직 없습니다.",
         ]}
         actions={
           <button onClick={load} className="rounded bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm transition-colors">
             Refresh
           </button>
         }
+      />
+
+      <InquiryGeneratePicker
+        title="🔗 의뢰 선택 후 계약서 생성"
+        description="의뢰를 선택하면 기존 기술 견적서·기능 명세서·프로젝트 일정을 기반으로 계약서를 바로 생성합니다. 하나라도 없으면 안내 메시지가 표시됩니다."
+        generateLabel="계약서 생성"
+        onGenerate={async (inquiryId) => {
+          const res = await fetch("/api/contracts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inquiryId }),
+          });
+          const data: { success: boolean; contract?: ContractRecord; error?: string } = await res.json();
+          if (data.success && data.contract) {
+            setContracts((prev) => [data.contract!, ...prev]);
+          }
+          return { success: data.success, error: data.error };
+        }}
       />
 
       {deleteError && <StatusMessage tone="error" className="mb-4">{deleteError}</StatusMessage>}
@@ -114,6 +135,9 @@ export default function ContractsPage() {
                   {contract.result.contractAmount.currency}
                 </Badge>
                 {contract.simulated && <Badge tone="warning">Simulated</Badge>}
+                {isCompanyNameStale(inquiryCompanyNames.get(contract.inquiryId), contract.input.companyName) && (
+                  <Badge tone="warning">⚠ 현재 의뢰명: {inquiryCompanyNames.get(contract.inquiryId)}</Badge>
+                )}
 
                 <button
                   onClick={(e) => handleDelete(e, contract)}

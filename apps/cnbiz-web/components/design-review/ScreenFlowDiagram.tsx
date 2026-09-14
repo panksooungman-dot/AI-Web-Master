@@ -37,6 +37,11 @@ export function ScreenFlowDiagram({ screens, edges }: { screens: FlowNode[]; edg
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
   const [rects, setRects] = useState<Record<string, Rect>>({});
+  // 화면 수가 많아 다이어그램이 뷰포트보다 넓어지면 가로 스크롤이 필요한데, 스크롤 가능하다는
+  // 시각적 표시가 전혀 없어 의뢰자가 오른쪽에 화면이 더 있다는 것을 모르고 지나칠 수 있다
+  // (2026-09-14 실사용 지적 — "의뢰자한테 이대로 보여주면 이해하겠어?"). 실제로 스크롤이
+  // 필요한 경우에만 안내 문구를 보여준다.
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   const levels = useMemo(() => computeLevels(screens, edges), [screens, edges]);
 
@@ -56,6 +61,7 @@ export function ScreenFlowDiagram({ screens, edges }: { screens: FlowNode[]; edg
         next[screen] = { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height };
       }
       setRects(next);
+      setHasOverflow(container.scrollWidth > container.clientWidth + 1);
     }
 
     measure();
@@ -80,54 +86,61 @@ export function ScreenFlowDiagram({ screens, edges }: { screens: FlowNode[]; edg
   if (screens.length === 0) return null;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-6">
-      <div ref={containerRef} className="relative flex min-w-max flex-col items-stretch gap-10">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-          <defs>
-            <marker id="screen-flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#60a5fa" />
-            </marker>
-          </defs>
-          {validEdges.map((edge, i) => {
-            const from = rects[edge.from];
-            const to = rects[edge.to];
-            if (!from || !to) return null;
-            const startX = from.x + from.width / 2;
-            const startY = from.y + from.height;
-            const endX = to.x + to.width / 2;
-            const endY = to.y;
-            if (endY <= startY) return null;
-            const midY = (startY + endY) / 2;
-            return (
-              <path
-                key={`${edge.from}->${edge.to}-${i}`}
-                d={`M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`}
-                fill="none"
-                stroke="#93c5fd"
-                strokeWidth={1.5}
-                markerEnd="url(#screen-flow-arrow)"
-              />
-            );
-          })}
-        </svg>
+    <div>
+      {hasOverflow && (
+        <p className="mb-2 flex items-center gap-1 text-xs font-medium text-primary">
+          <span aria-hidden>↔</span> 화면이 많아 다이어그램을 좌우로 스크롤하면 더 볼 수 있습니다.
+        </p>
+      )}
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-6">
+        <div ref={containerRef} className="relative flex min-w-max flex-col items-stretch gap-10">
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+            <defs>
+              <marker id="screen-flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#60a5fa" />
+              </marker>
+            </defs>
+            {validEdges.map((edge, i) => {
+              const from = rects[edge.from];
+              const to = rects[edge.to];
+              if (!from || !to) return null;
+              const startX = from.x + from.width / 2;
+              const startY = from.y + from.height;
+              const endX = to.x + to.width / 2;
+              const endY = to.y;
+              if (endY <= startY) return null;
+              const midY = (startY + endY) / 2;
+              return (
+                <path
+                  key={`${edge.from}->${edge.to}-${i}`}
+                  d={`M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`}
+                  fill="none"
+                  stroke="#93c5fd"
+                  strokeWidth={1.5}
+                  markerEnd="url(#screen-flow-arrow)"
+                />
+              );
+            })}
+          </svg>
 
-        {levels.map((levelScreens, levelIndex) => (
-          <div key={levelIndex} className="relative z-10 flex flex-wrap justify-center gap-4">
-            {levelScreens.map((node) => (
-              <div
-                key={node.screen}
-                ref={(el) => {
-                  if (el) nodeRefs.current.set(node.screen, el);
-                  else nodeRefs.current.delete(node.screen);
-                }}
-                className="min-w-[140px] max-w-[220px] rounded-lg border border-primary/30 bg-white px-4 py-2.5 text-center shadow-sm"
-              >
-                <p className="text-sm font-semibold text-slate-900">{node.screen}</p>
-                <p className="mt-0.5 truncate font-mono text-xs text-slate-400">{node.path}</p>
-              </div>
-            ))}
-          </div>
-        ))}
+          {levels.map((levelScreens, levelIndex) => (
+            <div key={levelIndex} className="relative z-10 flex flex-wrap justify-center gap-4">
+              {levelScreens.map((node) => (
+                <div
+                  key={node.screen}
+                  ref={(el) => {
+                    if (el) nodeRefs.current.set(node.screen, el);
+                    else nodeRefs.current.delete(node.screen);
+                  }}
+                  className="min-w-[140px] max-w-[220px] rounded-lg border border-primary/30 bg-white px-4 py-2.5 text-center shadow-sm"
+                >
+                  <p className="text-sm font-semibold text-slate-900">{node.screen}</p>
+                  <p className="mt-0.5 truncate font-mono text-xs text-slate-400">{node.path}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

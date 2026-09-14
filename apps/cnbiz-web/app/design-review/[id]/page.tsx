@@ -174,8 +174,9 @@ export default function DesignReviewPublicPage() {
           <div>
             <h2 className="text-lg font-bold text-slate-900">화면 흐름도</h2>
             <p className="mt-1 text-sm text-slate-500">
-              위에서 아래로 이동하며 화면을 확인해 보세요. 정확한 이동 조건은 아래 &ldquo;화면 이동
-              흐름&rdquo; 목록에 자세히 적혀 있습니다.
+              위에서 아래로 이동하며 화면을 확인해 보세요. 화면이 많으면 다이어그램을 좌우로도
+              스크롤할 수 있습니다. 정확한 이동 조건은 아래 &ldquo;화면 이동 흐름&rdquo; 목록에
+              자세히 적혀 있습니다.
             </p>
             <div className="mt-3">
               <ScreenFlowDiagram

@@ -17,10 +17,18 @@ export async function getInquiry(
   id: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  return records.find((inquiry) => inquiry.id === id);
+  const record = await store.getDoc<InquiryRecord>(COLLECTION, id);
+  return record ?? undefined;
 }
 
+/**
+ * lib/clients/registry.ts의 createClient()와 동일한 이유(2026-09-13 실사용 재현, 커밋 #83
+ * 참고)로 list()+push()+replaceAll() 대신 setDoc()으로 이 Inquiry 한 건만 upsert한다 —
+ * 이 컬렉션도 똑같이 "새 문의를 배열에 push한 뒤 통째로 다시 쓰는" 구조라, 챗봇에서 거의 동시에
+ * 여러 문의가 들어오면(Vercel의 다른 서버리스 인스턴스일 수 있음) 같은 경합으로 방금 만든
+ * Inquiry가 사라질 수 있었다. deleteInquiry는 clients/registry.ts의 deleteClient와 동일한
+ * 이유로 list()+replaceAll() 방식을 유지한다(행 단위 delete가 없고, 드물게 누르는 액션).
+ */
 export async function createInquiry(
   input: InquiryInput,
   store: CollectionStore = getDefaultStore()
@@ -36,9 +44,7 @@ export async function createInquiry(
     updatedAt: now,
   };
 
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  records.push(record);
-  await store.replaceAll(COLLECTION, records);
+  await store.setDoc(COLLECTION, record.id, record);
 
   return record;
 }
@@ -64,14 +70,13 @@ export async function updateInquiry(
   >,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  const index = records.findIndex((inquiry) => inquiry.id === id);
-  if (index === -1) return undefined;
+  const inquiry = await store.getDoc<InquiryRecord>(COLLECTION, id);
+  if (!inquiry) return undefined;
 
-  records[index] = { ...records[index], ...patch, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: InquiryRecord = { ...inquiry, ...patch, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 export async function deleteInquiry(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
@@ -88,14 +93,13 @@ export async function updateInquiryStatus(
   status: InquiryStatus,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  const index = records.findIndex((inquiry) => inquiry.id === id);
-  if (index === -1) return undefined;
+  const inquiry = await store.getDoc<InquiryRecord>(COLLECTION, id);
+  if (!inquiry) return undefined;
 
-  records[index] = { ...records[index], status, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: InquiryRecord = { ...inquiry, status, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 /**
@@ -109,15 +113,14 @@ export async function saveInquiryAnalysis(
   analysis: AIAnalysisResult,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  const index = records.findIndex((inquiry) => inquiry.id === id);
-  if (index === -1) return undefined;
+  const inquiry = await store.getDoc<InquiryRecord>(COLLECTION, id);
+  if (!inquiry) return undefined;
 
   const now = new Date().toISOString();
-  records[index] = { ...records[index], analysis, analyzedAt: now, updatedAt: now };
-  await store.replaceAll(COLLECTION, records);
+  const updated: InquiryRecord = { ...inquiry, analysis, analyzedAt: now, updatedAt: now };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 /** splitInquiryFromClient() 전용 — status/websiteOrderId는 건드리지 않고 clientId만 바꾼다
@@ -128,14 +131,13 @@ export async function reassignInquiryClient(
   clientId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  const index = records.findIndex((inquiry) => inquiry.id === id);
-  if (index === -1) return undefined;
+  const inquiry = await store.getDoc<InquiryRecord>(COLLECTION, id);
+  if (!inquiry) return undefined;
 
-  records[index] = { ...records[index], clientId, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: InquiryRecord = { ...inquiry, clientId, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 /** Client/WebsiteOrder 생성 후 호출해 이 Inquiry를 그 둘에 연결하고 상태를 Converted로 옮긴다. */
@@ -145,18 +147,17 @@ export async function linkInquiryToClientAndOrder(
   websiteOrderId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<InquiryRecord | undefined> {
-  const records = await store.list<InquiryRecord>(COLLECTION);
-  const index = records.findIndex((inquiry) => inquiry.id === id);
-  if (index === -1) return undefined;
+  const inquiry = await store.getDoc<InquiryRecord>(COLLECTION, id);
+  if (!inquiry) return undefined;
 
-  records[index] = {
-    ...records[index],
+  const updated: InquiryRecord = {
+    ...inquiry,
     clientId,
     websiteOrderId,
     status: "Converted",
     updatedAt: new Date().toISOString(),
   };
-  await store.replaceAll(COLLECTION, records);
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }

@@ -9,6 +9,7 @@ import {
   createWebsiteOrder,
   ensureWebsiteOrderShareToken,
   getWebsiteOrderByShareToken,
+  listWebsiteOrders,
   listWebsiteOrdersByClient,
   updateWebsiteOrderStatus,
 } from "../../lib/websiteOrders/registry";
@@ -88,5 +89,43 @@ describe("Website Order Registry — lib/websiteOrders/registry.ts", () => {
 
     expect((await getWebsiteOrderByShareToken(token!, store))?.id).toBe(created.id);
     expect(await getWebsiteOrderByShareToken("does-not-exist", store)).toBeUndefined();
+  });
+
+  // lib/clients/registry.ts의 createClient() 동시 쓰기 경합 수정(2026-09-13, 커밋 #83)과 동일한
+  // 원인이 createWebsiteOrder()에도 있었다(둘 다 list()+push()+replaceAll()). setDoc() 기반으로
+  // 함께 수정했다(2026-09-14).
+  describe("동시 쓰기 경합 — 서로 다른 서버리스 인스턴스를 흉내낸 재현(2026-09-14)", () => {
+    it("setDoc() 기반 createWebsiteOrder()는 동시에 생성된 다른 주문을 지우지 않는다", async () => {
+      const storeA = createFsStore(baseDir);
+      const storeB = createFsStore(baseDir);
+
+      await Promise.all([
+        createWebsiteOrder({ ...INPUT, name: "A 홈페이지" }, storeA),
+        createWebsiteOrder({ ...INPUT, name: "B 홈페이지" }, storeB),
+      ]);
+
+      const all = await listWebsiteOrders(store);
+      expect(all.map((r) => r.name).sort()).toEqual(["A 홈페이지", "B 홈페이지"]);
+    });
+
+    it("(대조군) 옛 list()+replaceAll() 방식이었다면 이 경합에서 실제로 유실됐음을 확인", async () => {
+      const storeA = createFsStore(baseDir);
+      const storeB = createFsStore(baseDir);
+
+      async function legacyCreateOrder(input: WebsiteOrderInput, s: ReturnType<typeof createFsStore>) {
+        const records = await s.list<{ id: string } & WebsiteOrderInput>("website-orders");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        records.push({ id: `order-${input.name}`, ...input });
+        await s.replaceAll("website-orders", records);
+      }
+
+      await Promise.all([
+        legacyCreateOrder({ ...INPUT, name: "A 홈페이지" }, storeA),
+        legacyCreateOrder({ ...INPUT, name: "B 홈페이지" }, storeB),
+      ]);
+
+      const all = await store.list<{ name: string }>("website-orders");
+      expect(all.length).toBeLessThan(2);
+    });
   });
 });

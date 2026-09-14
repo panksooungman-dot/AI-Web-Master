@@ -69,4 +69,42 @@ describe("Inquiry Registry — lib/inquiries/registry.ts", () => {
     expect(linked?.clientId).toBe("client-1");
     expect(linked?.websiteOrderId).toBe("website-order-1");
   });
+
+  // lib/clients/registry.ts의 createClient() 동시 쓰기 경합 수정(2026-09-13, 커밋 #83)과 동일한
+  // 원인이 createInquiry()에도 있었다(둘 다 list()+push()+replaceAll()). 실사용 재현(2026-09-14,
+  // 챗봇에서 거의 동시에 여러 문의가 들어온 것으로 추정)으로 setDoc() 기반으로 함께 수정했다.
+  describe("동시 쓰기 경합 — 서로 다른 서버리스 인스턴스를 흉내낸 재현(2026-09-14)", () => {
+    it("setDoc() 기반 createInquiry()는 동시에 생성된 다른 Inquiry를 지우지 않는다", async () => {
+      const storeA = createFsStore(baseDir);
+      const storeB = createFsStore(baseDir);
+
+      await Promise.all([
+        createInquiry({ ...INPUT, companyName: "cnbiz" }, storeA),
+        createInquiry({ ...INPUT, companyName: "사색찬미한정식" }, storeB),
+      ]);
+
+      const all = await listInquiries(store);
+      expect(all.map((r) => r.companyName).sort()).toEqual(["cnbiz", "사색찬미한정식"]);
+    });
+
+    it("(대조군) 옛 list()+replaceAll() 방식이었다면 이 경합에서 실제로 유실됐음을 확인", async () => {
+      const storeA = createFsStore(baseDir);
+      const storeB = createFsStore(baseDir);
+
+      async function legacyCreateInquiry(input: InquiryInput, s: ReturnType<typeof createFsStore>) {
+        const records = await s.list<{ id: string } & InquiryInput>("inquiries");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        records.push({ id: `inquiry-${input.companyName}`, ...input });
+        await s.replaceAll("inquiries", records);
+      }
+
+      await Promise.all([
+        legacyCreateInquiry({ ...INPUT, companyName: "cnbiz" }, storeA),
+        legacyCreateInquiry({ ...INPUT, companyName: "사색찬미한정식" }, storeB),
+      ]);
+
+      const all = await store.list<{ companyName: string }>("inquiries");
+      expect(all.length).toBeLessThan(2);
+    });
+  });
 });

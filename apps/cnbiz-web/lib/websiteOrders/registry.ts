@@ -16,8 +16,8 @@ export async function getWebsiteOrder(
   id: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  return records.find((order) => order.id === id);
+  const record = await store.getDoc<WebsiteOrderRecord>(COLLECTION, id);
+  return record ?? undefined;
 }
 
 export async function listWebsiteOrdersByClient(
@@ -28,6 +28,15 @@ export async function listWebsiteOrdersByClient(
   return records.filter((order) => order.clientId === clientId);
 }
 
+/**
+ * lib/clients/registry.ts의 createClient()와 동일한 이유(2026-09-13 실사용 재현, 커밋 #83
+ * 참고)로 list()+push()+replaceAll() 대신 setDoc()으로 이 WebsiteOrder 한 건만 upsert한다 —
+ * 이 컬렉션도 똑같이 "새 주문을 배열에 push한 뒤 통째로 다시 쓰는" 구조라, 거의 동시에 여러
+ * 주문이 생성되면(Vercel의 다른 서버리스 인스턴스일 수 있음) 같은 경합으로 방금 만든
+ * WebsiteOrder가 사라질 수 있었다. 아래 update·add·reassign·set·ensure 계열도 전부 같은 이유로
+ * getDoc()/setDoc()으로 이 주문 한 건만 읽고 쓴다 — 다른 주문 행에는 손대지 않으므로 동시에
+ * 다른 주문이 생성·수정되는 것과 경합하지 않는다.
+ */
 export async function createWebsiteOrder(
   input: WebsiteOrderInput,
   store: CollectionStore = getDefaultStore()
@@ -43,9 +52,7 @@ export async function createWebsiteOrder(
     updatedAt: now,
   };
 
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  records.push(record);
-  await store.replaceAll(COLLECTION, records);
+  await store.setDoc(COLLECTION, record.id, record);
 
   return record;
 }
@@ -55,14 +62,13 @@ export async function updateWebsiteOrderStatus(
   status: WebsiteOrderStatus,
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  const index = records.findIndex((order) => order.id === id);
-  if (index === -1) return undefined;
+  const order = await store.getDoc<WebsiteOrderRecord>(COLLECTION, id);
+  if (!order) return undefined;
 
-  records[index] = { ...records[index], status, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: WebsiteOrderRecord = { ...order, status, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 export async function addAiJobToWebsiteOrder(
@@ -70,20 +76,20 @@ export async function addAiJobToWebsiteOrder(
   jobId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  const index = records.findIndex((order) => order.id === orderId);
-  if (index === -1) return undefined;
+  const order = await store.getDoc<WebsiteOrderRecord>(COLLECTION, orderId);
+  if (!order) return undefined;
 
-  if (!records[index].aiJobIds.includes(jobId)) {
-    records[index] = {
-      ...records[index],
-      aiJobIds: [...records[index].aiJobIds, jobId],
+  if (!order.aiJobIds.includes(jobId)) {
+    const updated: WebsiteOrderRecord = {
+      ...order,
+      aiJobIds: [...order.aiJobIds, jobId],
       updatedAt: new Date().toISOString(),
     };
-    await store.replaceAll(COLLECTION, records);
+    await store.setDoc(COLLECTION, orderId, updated);
+    return updated;
   }
 
-  return records[index];
+  return order;
 }
 
 /** splitInquiryFromClient() 전용 — 잘못 합쳐진 옛 Client에서 분리한 주문을 새 Client로 옮긴다. */
@@ -92,14 +98,13 @@ export async function reassignWebsiteOrderClient(
   clientId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  const index = records.findIndex((order) => order.id === id);
-  if (index === -1) return undefined;
+  const order = await store.getDoc<WebsiteOrderRecord>(COLLECTION, id);
+  if (!order) return undefined;
 
-  records[index] = { ...records[index], clientId, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: WebsiteOrderRecord = { ...order, clientId, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 /** Development OS Project Manager 자동 연결 — lib/aiJobs/worker.ts::triggerWorkspaceProvisioning() 전용. */
@@ -108,14 +113,13 @@ export async function setWebsiteOrderProject(
   projectId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  const index = records.findIndex((order) => order.id === id);
-  if (index === -1) return undefined;
+  const order = await store.getDoc<WebsiteOrderRecord>(COLLECTION, id);
+  if (!order) return undefined;
 
-  records[index] = { ...records[index], projectId, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: WebsiteOrderRecord = { ...order, projectId, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
-  return records[index];
+  return updated;
 }
 
 /**
@@ -127,17 +131,16 @@ export async function ensureWebsiteOrderShareToken(
   id: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<string | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  const index = records.findIndex((order) => order.id === id);
-  if (index === -1) return undefined;
+  const order = await store.getDoc<WebsiteOrderRecord>(COLLECTION, id);
+  if (!order) return undefined;
 
-  if (records[index].shareToken) {
-    return records[index].shareToken as string;
+  if (order.shareToken) {
+    return order.shareToken;
   }
 
   const shareToken = generateId("quote");
-  records[index] = { ...records[index], shareToken, updatedAt: new Date().toISOString() };
-  await store.replaceAll(COLLECTION, records);
+  const updated: WebsiteOrderRecord = { ...order, shareToken, updatedAt: new Date().toISOString() };
+  await store.setDoc(COLLECTION, id, updated);
 
   return shareToken;
 }
@@ -164,18 +167,18 @@ export async function addWebsiteToOrder(
   websiteId: string,
   store: CollectionStore = getDefaultStore()
 ): Promise<WebsiteOrderRecord | undefined> {
-  const records = await store.list<WebsiteOrderRecord>(COLLECTION);
-  const index = records.findIndex((order) => order.id === orderId);
-  if (index === -1) return undefined;
+  const order = await store.getDoc<WebsiteOrderRecord>(COLLECTION, orderId);
+  if (!order) return undefined;
 
-  if (!records[index].websiteIds.includes(websiteId)) {
-    records[index] = {
-      ...records[index],
-      websiteIds: [...records[index].websiteIds, websiteId],
+  if (!order.websiteIds.includes(websiteId)) {
+    const updated: WebsiteOrderRecord = {
+      ...order,
+      websiteIds: [...order.websiteIds, websiteId],
       updatedAt: new Date().toISOString(),
     };
-    await store.replaceAll(COLLECTION, records);
+    await store.setDoc(COLLECTION, orderId, updated);
+    return updated;
   }
 
-  return records[index];
+  return order;
 }

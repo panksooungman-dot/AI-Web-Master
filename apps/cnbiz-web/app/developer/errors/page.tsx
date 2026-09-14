@@ -82,6 +82,13 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "proposal.delete": "제안서 삭제",
   "launchRequest.delete": "정보 요청서 삭제",
   "design.plan.delete": "Design Plan 삭제",
+  "design.storyboard.delete": "Storyboard 삭제",
+  "design.wireframe.delete": "Wireframe 삭제",
+  "design.prototype.delete": "Prototype 삭제",
+  "design.claude.delete": "Claude Design 삭제",
+  "design.review.delete": "Review 삭제",
+  "design.sync.delete": "Sync 삭제",
+  "design.website.delete": "Website Build 삭제",
 };
 
 /**

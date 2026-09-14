@@ -70,6 +70,9 @@ export default function DesignWebsiteBuilderPage() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -151,6 +154,33 @@ export default function DesignWebsiteBuilderPage() {
       setIsBuilding(false);
     }
   };
+
+  /** History 목록의 "삭제" 버튼. app/developer/design/page.tsx의 handleDeletePlan()과 동일한 패턴. */
+  async function handleDeleteBuild(build: WebsiteBuildRecord) {
+    if (!window.confirm("이 Website Build 기록을 삭제할까요? 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    setDeletingId(build.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/design/website/${build.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setBuilds((prev) => prev.filter((item) => item.id !== build.id));
+      setSelectedBuildId((current) => (current === build.id ? null : current));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const selectedBuild = builds.find((b) => b.id === selectedBuildId) ?? null;
   const selectedPlanForBuild = selectedBuild ? plans.find((p) => p.id === selectedBuild.planId) ?? null : null;
@@ -244,6 +274,11 @@ export default function DesignWebsiteBuilderPage() {
             </button>
           }
         >
+          {deleteError && (
+            <StatusMessage tone="error" className="mb-2">
+              {deleteError}
+            </StatusMessage>
+          )}
           {isLoading ? (
             <LoadingText />
           ) : loadError ? (
@@ -253,10 +288,10 @@ export default function DesignWebsiteBuilderPage() {
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {builds.map((build) => (
-                <li key={build.id}>
+                <li key={build.id} className="flex items-stretch gap-2">
                   <button
                     onClick={() => setSelectedBuildId(build.id)}
-                    className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
+                    className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedBuildId === build.id
                         ? "bg-blue-600/20 border border-blue-600"
                         : "bg-gray-800 hover:bg-gray-700"
@@ -272,6 +307,13 @@ export default function DesignWebsiteBuilderPage() {
                       {build.siteType}
                       {build.simulatedContent ? " · simulated" : ""}
                     </span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteBuild(build)}
+                    disabled={deletingId === build.id}
+                    className="shrink-0 self-center rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === build.id ? "삭제 중..." : "삭제"}
                   </button>
                 </li>
               ))}

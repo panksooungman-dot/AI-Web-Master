@@ -82,6 +82,13 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "proposal.delete": "제안서 삭제",
   "launchRequest.delete": "정보 요청서 삭제",
   "design.plan.delete": "Design Plan 삭제",
+  "design.storyboard.delete": "Storyboard 삭제",
+  "design.wireframe.delete": "Wireframe 삭제",
+  "design.prototype.delete": "Prototype 삭제",
+  "design.claude.delete": "Claude Design 삭제",
+  "design.review.delete": "Review 삭제",
+  "design.sync.delete": "Sync 삭제",
+  "design.website.delete": "Website Build 삭제",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -155,6 +162,13 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "proposal.delete": "danger",
   "launchRequest.delete": "danger",
   "design.plan.delete": "danger",
+  "design.storyboard.delete": "danger",
+  "design.wireframe.delete": "danger",
+  "design.prototype.delete": "danger",
+  "design.claude.delete": "danger",
+  "design.review.delete": "danger",
+  "design.sync.delete": "danger",
+  "design.website.delete": "danger",
 };
 
 // ACTION_LABELS에 새 AuditAction이 추가될 때마다 이 목록을 별도로 손으로 갱신해야 했던 것이

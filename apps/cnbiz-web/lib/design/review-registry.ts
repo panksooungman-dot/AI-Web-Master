@@ -83,6 +83,21 @@ export async function listReviewsForClaudeDesign(
 }
 
 /**
+ * lib/design/registry.ts의 deleteDesignPlan()과 동일한 패턴 — "Archived"(archiveReview(), 상태만
+ * 바꾸고 보존)와 달리 레코드 자체를 목록에서 완전히 제거한다. Sync/Website Build가 이 Review의
+ * id를 참조하고 있어도 그 레코드는 함께 지우지 않는다(Design Plan 삭제와 동일한 정책 — 연쇄
+ * 삭제는 이번 범위 밖).
+ */
+export async function deleteReview(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<ReviewRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}
+
+/**
  * 댓글을 추가한다(Auto Save 요구사항 "Save comments") — 댓글도 히스토리 항목으로 함께
  * 기록되어 History 타임라인에서 "언제 누가 무슨 코멘트를 남겼는지"를 그대로 재구성할 수 있다.
  * 대상 리뷰가 없으면 null을 반환한다(호출자가 404로 변환).

@@ -83,6 +83,16 @@ export async function getLatestWebsiteBuildForReview(
   return records[0] ?? null;
 }
 
+/** lib/design/registry.ts의 deleteDesignPlan()과 동일한 패턴. */
+export async function deleteWebsiteBuild(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<WebsiteBuildRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}
+
 export interface RecordWebsiteBuildEntry {
   reviewId: string;
   planId: string;

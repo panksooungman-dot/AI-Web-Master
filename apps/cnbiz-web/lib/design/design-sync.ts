@@ -135,6 +135,16 @@ export async function getLatestSyncForReview(
   return records[0] ?? null;
 }
 
+/** lib/design/registry.ts의 deleteDesignPlan()과 동일한 패턴. */
+export async function deleteSyncRecord(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<SyncRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}
+
 export interface RecordSyncEntry {
   reviewId: string;
   planId: string;

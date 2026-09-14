@@ -100,6 +100,9 @@ function WireframePageInner() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // 페이지가 뷰포트보다 훨씬 길어(Desktop/Tablet/Mobile 화면별 상세까지 포함) 생성 직후에는
   // "History"/"Export" 버튼만 보이고 실제 결과(Component Layout 등)는 한참 스크롤해야 나온다는
   // 혼동이 반복 확인되어(2026-09-11), 결과가 준비되면 그 지점으로 자동 스크롤한다.
@@ -172,6 +175,37 @@ function WireframePageInner() {
   const projectNameForStoryboard = (storyboardId: string): string =>
     plans.find((p) => p.id === storyboards.find((s) => s.id === storyboardId)?.planId)?.input.projectName ??
     storyboardId;
+
+  /** History 목록의 "삭제" 버튼. app/developer/design/page.tsx의 handleDeletePlan()과 동일한 패턴. */
+  async function handleDeleteWireframe(wireframe: WireframeRecord) {
+    if (!window.confirm("이 Wireframe을 삭제할까요? 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    setDeletingId(wireframe.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/design/wireframe/${wireframe.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setWireframes((prev) => prev.filter((item) => item.id !== wireframe.id));
+      setSelectedWireframeId((current) => (current === wireframe.id ? null : current));
+      if (selectedWireframeId === wireframe.id) {
+        setEditingLayouts(null);
+        setSaveError(null);
+      }
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const selectedWireframe = wireframes.find((w) => w.id === selectedWireframeId) ?? null;
   const projectName = selectedWireframe ? projectNameForStoryboard(selectedWireframe.storyboardId) : "";
@@ -293,6 +327,11 @@ function WireframePageInner() {
             </button>
           }
         >
+          {deleteError && (
+            <StatusMessage tone="error" className="mb-2">
+              {deleteError}
+            </StatusMessage>
+          )}
           {isLoading ? (
             <LoadingText />
           ) : loadError ? (
@@ -302,7 +341,7 @@ function WireframePageInner() {
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {wireframes.map((wf) => (
-                <li key={wf.id}>
+                <li key={wf.id} className="flex items-stretch gap-2">
                   <button
                     onClick={() => {
                       setSelectedWireframeId(wf.id);
@@ -310,7 +349,7 @@ function WireframePageInner() {
                       setSaveError(null);
                       scrollToResults();
                     }}
-                    className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
+                    className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedWireframeId === wf.id
                         ? "bg-blue-600/20 border border-blue-600"
                         : "bg-gray-800 hover:bg-gray-700"
@@ -321,6 +360,13 @@ function WireframePageInner() {
                       {wf.simulated && <Badge tone="warning">Simulated</Badge>}
                     </div>
                     <span className="text-xs text-gray-500">{new Date(wf.createdAt).toLocaleString()}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteWireframe(wf)}
+                    disabled={deletingId === wf.id}
+                    className="shrink-0 self-center rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === wf.id ? "삭제 중..." : "삭제"}
                   </button>
                 </li>
               ))}

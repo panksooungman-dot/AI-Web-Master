@@ -84,3 +84,13 @@ export async function listClaudeDesignsForPrototype(
   const records = await listClaudeDesigns(store);
   return records.filter((record) => record.prototypeId === prototypeId);
 }
+
+/** lib/design/registry.ts의 deleteDesignPlan()과 동일한 패턴. */
+export async function deleteClaudeDesign(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<ClaudeDesignRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

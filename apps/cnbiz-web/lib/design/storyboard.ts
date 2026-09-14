@@ -115,3 +115,13 @@ export async function listStoryboardsForPlan(
   const records = await listStoryboards(store);
   return records.filter((record) => record.planId === planId);
 }
+
+/** lib/design/registry.ts의 deleteDesignPlan()과 동일한 패턴. */
+export async function deleteStoryboard(id: string, store: CollectionStore = getDefaultStore()): Promise<boolean> {
+  const records = await store.list<StoryboardRecord>(COLLECTION);
+  const next = records.filter((record) => record.id !== id);
+  if (next.length === records.length) return false;
+
+  await store.replaceAll(COLLECTION, next);
+  return true;
+}

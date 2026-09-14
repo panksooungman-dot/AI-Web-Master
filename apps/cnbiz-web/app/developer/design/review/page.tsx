@@ -155,6 +155,9 @@ export default function CustomerReviewPage() {
   const [pendingAction, setPendingAction] = useState<ApprovalAction | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -232,6 +235,33 @@ export default function CustomerReviewPage() {
       setIsCreating(false);
     }
   };
+
+  /** History 목록의 "삭제" 버튼. app/developer/design/page.tsx의 handleDeletePlan()과 동일한 패턴. */
+  async function handleDeleteReview(review: ReviewRecord) {
+    if (!window.confirm("이 Review를 삭제할까요? 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    setDeletingId(review.id);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/design/review/${review.id}`, { method: "DELETE" });
+      const data: { success: boolean; error?: string } = await res.json();
+
+      if (!data.success) {
+        setDeleteError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+
+      setReviews((prev) => prev.filter((item) => item.id !== review.id));
+      setSelectedReviewId((current) => (current === review.id ? null : current));
+    } catch {
+      setDeleteError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const selectedReview = reviews.find((r) => r.id === selectedReviewId) ?? null;
   const selectedClaudeDesign = selectedReview
@@ -392,6 +422,11 @@ export default function CustomerReviewPage() {
             </button>
           }
         >
+          {deleteError && (
+            <StatusMessage tone="error" className="mb-2">
+              {deleteError}
+            </StatusMessage>
+          )}
           {isLoading ? (
             <LoadingText />
           ) : loadError ? (
@@ -401,10 +436,10 @@ export default function CustomerReviewPage() {
           ) : (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {reviews.map((review) => (
-                <li key={review.id}>
+                <li key={review.id} className="flex items-stretch gap-2">
                   <button
                     onClick={() => setSelectedReviewId(review.id)}
-                    className={`w-full text-left rounded px-3 py-2 text-sm transition-colors ${
+                    className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedReviewId === review.id
                         ? "bg-blue-600/20 border border-blue-600"
                         : "bg-gray-800 hover:bg-gray-700"
@@ -417,6 +452,13 @@ export default function CustomerReviewPage() {
                       <Badge tone={STATUS_TONES[review.status]}>{STATUS_LABELS[review.status]}</Badge>
                     </div>
                     <span className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleString()}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteReview(review)}
+                    disabled={deletingId === review.id}
+                    className="shrink-0 self-center rounded bg-red-900/60 hover:bg-red-900 text-red-200 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === review.id ? "삭제 중..." : "삭제"}
                   </button>
                 </li>
               ))}

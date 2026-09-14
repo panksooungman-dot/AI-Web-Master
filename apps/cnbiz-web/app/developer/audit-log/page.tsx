@@ -81,6 +81,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "contract.delete": "계약서 삭제",
   "proposal.delete": "제안서 삭제",
   "launchRequest.delete": "정보 요청서 삭제",
+  "design.plan.delete": "Design Plan 삭제",
 };
 
 const ACTION_TONES: Record<AuditAction, BadgeTone> = {
@@ -153,6 +154,7 @@ const ACTION_TONES: Record<AuditAction, BadgeTone> = {
   "contract.delete": "danger",
   "proposal.delete": "danger",
   "launchRequest.delete": "danger",
+  "design.plan.delete": "danger",
 };
 
 // ACTION_LABELS에 새 AuditAction이 추가될 때마다 이 목록을 별도로 손으로 갱신해야 했던 것이

@@ -159,7 +159,15 @@ export async function processJob(
   } catch (error) {
     console.error(`AI Job ${jobId} failed`, error);
 
-    // Failed
-    await updateAiJobStatus(jobId, "Failed", {}, store);
+    // Failed — 실패 사유를 AiJobRecord.error에 함께 남긴다. 예전에는 빈 patch({})만 넘겨
+    // console.error로만 남고 레코드에는 실패 이유가 전혀 기록되지 않아, 콘솔 로그 접근 권한이
+    // 없는 관리자는 "왜 실패했는지" 화면에서 전혀 알 수 없었다(관측성 결함, 2026-08-07 발견·
+    // 2026-09-14 수정).
+    await updateAiJobStatus(
+      jobId,
+      "Failed",
+      { error: error instanceof Error ? error.message : String(error) },
+      store
+    );
   }
 }

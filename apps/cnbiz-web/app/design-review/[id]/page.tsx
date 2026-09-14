@@ -73,6 +73,68 @@ interface LoadedData {
   wireframeLayouts: MockupScreen[] | null;
 }
 
+/**
+ * Storyboard(Phase 2)와 Wireframe(Phase 3)은 서로 다른 AI 호출로 독립 생성되어, 같은 화면을
+ * 가리켜도 "screen" 문자열이 완전히 동일하지 않을 수 있다(예: userJourneys 쪽은
+ * "OCCASION - 상견례·가족모임·생신·단체"인데 Wireframe 쪽은 "OCCASION"만 반환하는 식) —
+ * 실사용(2026-09-14)에서 대부분의 단계가 "화면 구성 데이터 없음"으로 나오는 것으로 재현됨.
+ * 정확히 같은 문자열이 아니어도 매칭되도록, 설명 접미사(" - ..." 이후)를 잘라내고 공백·기호를
+ * 제거한 키로 비교한다.
+ */
+function normalizeScreenKey(raw: string): string {
+  return raw
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/\s*[-–—:]\s*.*$/, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+function normalizePath(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed.length <= 1) return trimmed;
+  return trimmed.replace(/\/+$/, "");
+}
+
+/**
+ * userJourneys[].steps[].screen 값을 실제 Wireframe 화면에 매칭한다. 1) 정규화된 이름으로 먼저
+ * 시도하고, 2) 실패하면 Storyboard 자신의 screenDescriptions에서 같은 이름의 path를 찾아 그
+ * path로 Wireframe을 다시 찾는다(이름은 갈렸어도 path는 두 Phase 모두 같은 Design Document
+ * 페이지 목록에서 나온 값이라 더 안정적이다).
+ */
+function buildWireframeByScreen(
+  storyboard: PublicStoryboard,
+  wireframeLayouts: MockupScreen[] | null
+): Record<string, MockupScreen> {
+  const wireframes = wireframeLayouts ?? [];
+  if (wireframes.length === 0) return {};
+
+  const byNormalizedName = new Map(wireframes.map((s) => [normalizeScreenKey(s.screen), s]));
+  const byNormalizedPath = new Map(wireframes.map((s) => [normalizePath(s.path), s]));
+  const pathByScreenName = new Map(
+    storyboard.screenDescriptions.map((s) => [normalizeScreenKey(s.screen), s.path])
+  );
+
+  const result: Record<string, MockupScreen> = {};
+  for (const journey of storyboard.userJourneys) {
+    for (const step of journey.steps) {
+      if (result[step.screen]) continue;
+
+      const normalizedName = normalizeScreenKey(step.screen);
+      const matched =
+        byNormalizedName.get(normalizedName) ??
+        (() => {
+          const path = pathByScreenName.get(normalizedName);
+          return path ? byNormalizedPath.get(normalizePath(path)) : undefined;
+        })();
+
+      if (matched) result[step.screen] = matched;
+    }
+  }
+
+  return result;
+}
+
 export default function DesignReviewPublicPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<LoadedData | null>(null);
@@ -147,8 +209,9 @@ export default function DesignReviewPublicPage() {
   const { share, projectName, storyboard } = data;
   // User Journey 각 단계(step.screen)의 실제 Wireframe 폰 프레임을 붙이기 위한 조회용 맵 —
   // Wireframe이 아직 없으면(data.wireframeLayouts === null) 빈 맵이 되어 UserJourneyFlow가
-  // 프레임 없이 "화면 구성 데이터 없음" placeholder로 정상 표시된다(필수 전제조건 아님).
-  const wireframeByScreen = Object.fromEntries((data.wireframeLayouts ?? []).map((s) => [s.screen, s]));
+  // 프레임 없이 "화면 구성 데이터 없음" placeholder로 정상 표시된다(필수 전제조건 아님). 이름이
+  // 정확히 일치하지 않는 경우까지 흡수하는 매칭은 buildWireframeByScreen()이 담당한다.
+  const wireframeByScreen = buildWireframeByScreen(storyboard, data.wireframeLayouts);
   const pageNames = (data.wireframeLayouts ?? []).map((s) => s.screen);
 
   return (

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Button, Card, Textarea } from "@cnbiz/ui";
 import { Container, Section } from "@cnbiz/layout-primitives";
 import { componentMarker } from "@/lib/dev/component-marker";
+import { ScreenFlowDiagram } from "@/components/design-review/ScreenFlowDiagram";
 
 /**
  * "디자인쪽에서 수정할 게 있으면 실제 화면으로 봐야지 개발을 하는 거 아냐" (2026-09-11) —
@@ -12,7 +13,7 @@ import { componentMarker } from "@/lib/dev/component-marker";
  * 요청할 수 있게 하는 공개 페이지. app/launch-request/[id]/page.tsx와 동일하게 로그인 없이
  * 링크로 열린다. 실제 화면 디자인(색상·이미지 등)은 아직 이 단계(Storyboard)에서 만들어지지
  * 않으므로(Design Automation Phase 2, 텍스트 기획 문서), 여기서 보여주는 것도 화면 구성·
- * 흐름·순서다 — "예쁜 시안"이 아니라 "이 순서·구성이 맞는지"를 확인받는 용도.
+ * 흐름·순서다 — "예뿈 시안"이 아니라 "이 순서·구성이 맞는지"를 확인받는 용도.
  */
 
 interface ScreenFlowNode {
@@ -170,6 +171,20 @@ export default function DesignReviewPublicPage() {
         )}
 
         <div className="mt-8 flex flex-col gap-6">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">화면 흐름도</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              위에서 아래로 이동하며 화면을 확인해 보세요. 정확한 이동 조건은 아래 &ldquo;화면 이동
+              흐름&rdquo; 목록에 자세히 적혀 있습니다.
+            </p>
+            <div className="mt-3">
+              <ScreenFlowDiagram
+                screens={storyboard.screenFlow.map((n) => ({ screen: n.screen, path: n.path }))}
+                edges={storyboard.navigationFlow}
+              />
+            </div>
+          </div>
+
           <Card>
             <h2 className="text-lg font-bold text-slate-900">화면 구성 (Screen Flow)</h2>
             <ul className="mt-3 flex flex-col gap-3">

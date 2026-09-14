@@ -6,6 +6,12 @@ import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
 
+// app/api/design/requirements/route.ts와 동일한 이유 — Wireframe 생성은 Design 체인 중에서도
+// 화면별 desktop/tablet/mobile 레이아웃을 한 번에 생성해 특히 느리다(최악의 경우 약 135초,
+// 2026-08-09 실측). maxDuration 미설정 시 Vercel 기본 상한에 걸려 조용히 실패할 수 있어
+// requirements 라우트와 동일하게 Vercel Pro 기본 상한인 300초로 설정(2026-09-14).
+export const maxDuration = 300;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

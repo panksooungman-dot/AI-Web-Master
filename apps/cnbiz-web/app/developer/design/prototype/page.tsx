@@ -467,6 +467,16 @@ export default function PrototypePage() {
             ))}
           </Card>
 
+          <Card title="Navigation Flow">
+            <ul className="flex flex-col gap-1 text-sm text-gray-300">
+              {selectedPrototype.content.navigationFlow.map((edge, i) => (
+                <li key={i}>
+                  {edge.from} → {edge.to} <span className="text-xs text-gray-500">({edge.trigger})</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
           <Card title="Interaction Flow">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {selectedPrototype.content.interactionMap.map((map, i) => (
@@ -505,6 +515,19 @@ export default function PrototypePage() {
                 </li>
               ))}
             </ul>
+          </Card>
+
+          <Card title="Animation Preview">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {selectedPrototype.content.animationPreviews.map((anim, i) => (
+                <div key={i} className="rounded border border-gray-800 p-3">
+                  <p className="text-sm font-semibold text-gray-200">{anim.screen}</p>
+                  <p className="text-xs text-gray-400">
+                    {anim.animation} <span className="text-gray-500">({anim.trigger}, {anim.durationMs}ms)</span>
+                  </p>
+                </div>
+              ))}
+            </div>
           </Card>
 
           <Card title="Journey">

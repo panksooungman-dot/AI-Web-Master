@@ -118,6 +118,11 @@ program
     (value) => parseInt(value, 10)
   )
   .option("--retries <n>", "이 호출 1회의 재시도 횟수 override. 생략 시 기본값(2) 사용", (value) => parseInt(value, 10))
+  .option(
+    "--max-tokens <n>",
+    "이 호출 1회의 max_tokens override(현재 anthropic만 사용). 생략 시 기본값(16000) 사용 — 화면 수가 많은 프로젝트의 Wireframe처럼 기본값으로도 출력이 잘리는 대형 스키마 호출에 쓴다",
+    (value) => parseInt(value, 10)
+  )
   .description("AI Provider와 1회성 대화를 실행 (ProviderManager.complete()/streamComplete() 재사용)")
   .action(
     async (
@@ -129,6 +134,7 @@ program
         stream?: boolean;
         timeout?: number;
         retries?: number;
+        maxTokens?: number;
       }
     ) => {
       await chatCommand(message, options);

@@ -288,6 +288,18 @@ export interface GenerateWireframeResult {
 }
 
 /**
+ * anthropic.ts의 max_tokens 기본값(16000)은 화면 수가 적은 사이트 기준으로 확인된 값이다
+ * (2026-08-09, 당시 8192→16000으로 올린 근거는 "desktop/tablet/mobile layouts for every
+ * screen"). Wireframe은 이 5개 생성기 중 화면 수에 가장 선형적으로 비례해 커지는 출력을
+ * 만든다(화면 수 × 3 breakpoint × 섹션) — 화면이 십수 개를 넘는 프로젝트(예: 17개 화면)에서는
+ * 16000에서도 다시 잘려 파싱 실패 → 결정론적 기본값(모든 화면이 Header+Hero+Footer로 동일)로
+ * 폴백하는 것을 실사용으로 확인(2026-09-15, "화면 구성이 다 똑같아서 이상해"). 이전 이력과
+ * 동일한 배수(대략 2배)로 32000까지 여유를 준다 — 화면 수가 적은 프로젝트는 원래도 16000에
+ * 한참 못 미쳐 끝나므로 비용·지연에 영향 없다.
+ */
+const WIREFRAME_MAX_TOKENS = 32000;
+
+/**
  * Resolve(Provider 호출) → parse → 실패 시 결정론적 기본값 폴백. `chatFn`은 기본값이 실제
  * lib/ai/bridge.ts의 chatViaCli()이며, 테스트에서는 가짜 함수를 주입해 실제 CLI 서브프로세스
  * 없이 빠르게 검증한다(Phase 1·2와 동일한 DI 패턴).
@@ -296,11 +308,15 @@ export async function generateWireframe(
   storyboard: StoryboardRecord,
   chatFn: (
     message: string,
-    options?: { system?: string; provider?: string; timeoutMs?: number; retries?: number }
+    options?: { system?: string; provider?: string; timeoutMs?: number; retries?: number; maxTokens?: number }
   ) => Promise<ChatResult> = chatViaCli
 ): Promise<GenerateWireframeResult> {
   const source = storyboardToWireframeSource(storyboard);
-  const result = await chatFn(buildUserPrompt(source), { system: SYSTEM_PROMPT, ...LARGE_GENERATION_CHAT_OPTIONS });
+  const result = await chatFn(buildUserPrompt(source), {
+    system: SYSTEM_PROMPT,
+    ...LARGE_GENERATION_CHAT_OPTIONS,
+    maxTokens: WIREFRAME_MAX_TOKENS,
+  });
 
   if (result.success && result.content) {
     const parsed = parseWireframeContent(result.content);

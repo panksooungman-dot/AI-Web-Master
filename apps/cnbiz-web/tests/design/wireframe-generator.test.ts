@@ -199,4 +199,21 @@ describe("Wireframe Generator — generateWireframe()", () => {
     expect(result.simulated).toBe(true);
     expect(result.content).toEqual(buildDefaultWireframe(STORYBOARD));
   });
+
+  // 화면 수가 많은 프로젝트(예: 17개 화면)에서 anthropic.ts의 기본 max_tokens(16000)로도
+  // 응답이 잘려 파싱 실패 → 모든 화면이 Header+Hero+Footer로 동일해지는 결정론적 폴백으로
+  // 떨어지는 것을 실사용으로 확인(2026-09-15). Wireframe만은 기본값보다 높은 maxTokens를
+  // 명시적으로 요청해야 한다.
+  it("requests a higher maxTokens than the anthropic.ts default (16000) to avoid truncation on large sites", async () => {
+    let receivedOptions: { maxTokens?: number } | undefined;
+    const fakeChat = async (_message: string, options?: { maxTokens?: number }): Promise<ChatResult> => {
+      receivedOptions = options;
+      return { success: true, content: JSON.stringify(VALID_CONTENT) };
+    };
+
+    await generateWireframe(STORYBOARD, fakeChat);
+
+    expect(receivedOptions?.maxTokens).toBeDefined();
+    expect(receivedOptions!.maxTokens!).toBeGreaterThan(16000);
+  });
 });

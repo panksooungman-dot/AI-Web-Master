@@ -91,6 +91,26 @@ const inputClass =
   "w-full rounded bg-gray-800 border border-gray-700 px-3 py-2 text-sm outline-none focus:border-green-500";
 
 /**
+ * fetch 응답을 JSON으로 안전하게 파싱한다. 서버가 정상 JSON 대신 플랫폼 오류 페이지(예: Vercel
+ * 서버리스 함수 실행 시간 초과 — 이 화면의 Generate/Storyboard 자동 생성은 AI 호출이 최대 2분
+ * 걸릴 수 있는데(providers/provider.ts), app/api/design/{requirements,storyboard}/route.ts의
+ * maxDuration은 Vercel 모든 플랜이 지원하는 상한인 60초로 고정돼 있어, AI 응답이 그보다 오래
+ * 걸리면 함수 자체가 강제 종료되어 JSON이 아닌 오류 페이지가 반환된다)를 반환하면 res.json()이
+ * "Unexpected token 'A', "An error o"... is not valid JSON" 같은 원시 JS 파싱 오류를 그대로
+ * 던져, 관리자에게 원인을 전혀 알 수 없는 메시지로 노출되고 있었다(2026-09-14 실사용 보고 —
+ * 입력이 긴 의뢰에서 재현). res.ok 여부로 원인을 구분해 더 명확한 안내로 바꾼다 — 근본적인
+ * 시간 제한 자체를 늘리는 수정은 아니다(Vercel 요금제에 따라 그 상한 자체가 60초로 고정돼
+ * 있을 수 있음).
+ */
+async function parseJsonOrThrow<T>(res: Response, notOkMessage: string): Promise<T> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new Error(res.ok ? "응답을 해석할 수 없습니다." : notOkMessage);
+  }
+}
+
+/**
  * 의뢰의 siteType별 Customer Requirements 예시 문구(placeholder). 실제 사실이 아닌, 그 업종에서
  * 흔히 나오는 요구사항 카테고리 예시일 뿐이다 — 특정 의뢰의 실제 요구사항을 지어내는 것이 아님
  * (2026-09-12, "치과" 예시가 레스토랑 의뢰에도 항상 그대로 뜨던 문제 개선).
@@ -190,16 +210,10 @@ function DesignRequirementsPageInner() {
 
     fetch(`/api/inquiries/${id}`)
       .then(async (res) => {
-        let json: { inquiry?: InquiryRecord; error?: string };
-        try {
-          json = await res.json();
-        } catch {
-          throw new Error(
-            res.ok
-              ? "응답을 해석할 수 없습니다."
-              : `요청이 실패했습니다 (HTTP ${res.status}). 로그인 세션이 만료됐을 수 있습니다.`
-          );
-        }
+        const json = await parseJsonOrThrow<{ inquiry?: InquiryRecord; error?: string }>(
+          res,
+          `요청이 실패했습니다 (HTTP ${res.status}). 로그인 세션이 만료됐을 수 있습니다.`
+        );
         if (!json.inquiry) {
           throw new Error(json.error ?? `의뢰를 찾을 수 없습니다 (HTTP ${res.status}).`);
         }
@@ -236,10 +250,21 @@ function DesignRequirementsPageInner() {
 
   /** 아래 "의뢰에서 정보 불러오기" 목록에서 클릭했을 때 — URL도 함께 갱신해(History 범위·
    * placeholder 등 searchParams 기반 값이 전부 자연스럽게 새 의뢰 기준으로 바뀌도록) "Design
-   * 시작" 버튼으로 들어온 것과 동일한 상태로 만든다. */
+   * 시작" 버튼으로 들어온 것과 동일한 상태로 만든다.
+   *
+   * `selectedId`도 새 의뢰 기준으로 다시 계산한다 — 이 화면은 URL만 바뀌고(같은 경로,
+   * searchParams만 변경) 컴포넌트 자체는 리마운트되지 않으므로, 이전에 선택돼 있던 완전히
+   * 무관한 의뢰의 Design Plan이 `selectedId`에 그대로 남아있었다. 그 결과 History 카드는
+   * "이 의뢰로 생성된 Plan 없음"을 정확히 보여주면서도, 바로 아래 Requirement Analysis 등에는
+   * 이전 의뢰(예: 전혀 다른 업종의 테스트 기록)의 내용이 계속 표시되는 버그가 있었다(2026-09-14
+   * 실사용 보고 — "사색찬미한정식"을 선택했는데 무관한 업종의 예전 기록이 뜬 사례).
+   * loadPlans()의 최초 마운트 시 선택 로직과 동일한 기준(scoped[0] 우선, 없으면 null)을 쓴다.
+   */
   function handlePickInquiry(id: string) {
     router.replace(`/developer/design?inquiryId=${id}`, { scroll: false });
     loadLinkedInquiry(id);
+    const scoped = plans.filter((plan) => plan.input.projectId === id);
+    setSelectedId(scoped[0]?.id ?? null);
   }
 
   /** "다른 의뢰 선택"— 이미 채워진 값은 지우지 않는다(비교하거나 새 의뢰로 덮어쓰고 싶을 수
@@ -293,7 +318,10 @@ function DesignRequirementsPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId }),
       });
-      const json = (await res.json()) as { success: boolean; error?: string };
+      const json = await parseJsonOrThrow<{ success: boolean; error?: string }>(
+        res,
+        `서버 응답 시간이 초과됐거나 오류가 발생했습니다 (HTTP ${res.status}). 잠시 후 Storyboard 화면에서 다시 시도해주세요.`
+      );
 
       if (!json.success) {
         setAutoContinueError(json.error ?? "Storyboard 자동 생성에 실패했습니다.");
@@ -326,7 +354,10 @@ function DesignRequirementsPageInner() {
           ...(linkedInquiry ? { projectId: linkedInquiry.id } : {}),
         }),
       });
-      const json = (await res.json()) as { success: boolean; plan?: DesignPlanRecord; error?: string };
+      const json = await parseJsonOrThrow<{ success: boolean; plan?: DesignPlanRecord; error?: string }>(
+        res,
+        `서버 응답 시간이 초과됐거나 오류가 발생했습니다 (HTTP ${res.status}). 입력 내용이 길면 시간이 더 걸릴 수 있습니다 — 잠시 후 다시 시도해주세요.`
+      );
 
       if (!json.success || !json.plan) {
         setSubmitError(json.error ?? "생성 실패");

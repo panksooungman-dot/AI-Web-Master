@@ -184,6 +184,10 @@ export async function runDeploymentPipeline(
     // 열림). 특히 의뢰자 공유 화면(app/preview-review/[id])의 iframe은 그 로그인 확인
     // 페이지 자체가 프레이밍을 거부해 완전히 빈 화면으로 보인다(2026-09-17 실사용 재현).
     // 실패해도(플랜 제약 등) 파이프라인을 막지 않는다 — 로그만 남기고 계속 진행한다.
+    // Audit Log에도 남긴다 — 이 함수의 반환값(logs 배열)은 호출부(app/api/design/website/
+    // route.ts)가 실제로 저장·노출하지 않아, 실패해도 관리자가 원인을 확인할 방법이 전혀
+    // 없었다(2026-09-17 — 실사용 중 이 단계가 조용히 실패하고 있음을 발견, PR #130 자체의
+    // 사각지대). Audit Log 페이지(/developer/audit-log)에서 액션별로 조회 가능하다.
     const ssoResult = await deps.disableDeploymentProtection(vercelProject.id);
     pushLog(
       logs,
@@ -191,6 +195,13 @@ export async function runDeploymentPipeline(
       ssoResult.success,
       ssoResult.success ? "Deployment Protection 해제됨" : (ssoResult.error ?? "Deployment Protection 해제 실패")
     );
+    await recordAuditEvent({
+      action: "deployment.vercel.disable_protection",
+      actor: null,
+      success: ssoResult.success,
+      detail: ssoResult.success ? "Deployment Protection 해제됨" : (ssoResult.error ?? "Deployment Protection 해제 실패"),
+      metadata: { websiteId: input.websiteId, projectId: vercelProject.id },
+    });
 
     // 6. GitHub Repository 연결
     const linkResult = await deps.linkGitRepository(vercelProject.id, repository.fullName);

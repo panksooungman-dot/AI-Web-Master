@@ -15,6 +15,8 @@ export interface WebsiteRawInputs {
   targetAudience: string;
   brand: string;
   language: string;
+  /** Design 체인에서 넘어온 상세 기획 내용(있으면) — WebsiteInputs.additionalContext로 그대로 전달된다. */
+  additionalContext?: string;
 }
 
 export interface BuildWebsiteOptions {

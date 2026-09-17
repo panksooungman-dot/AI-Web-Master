@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildDefaultContent, generateSiteContent } from "../../packages/cli/src/website/content.js";
+import { buildContentSystemPrompt, buildDefaultContent, generateSiteContent } from "../../packages/cli/src/website/content.js";
 import { WEBSITE_TYPES, type WebsiteInputs } from "../../packages/cli/src/website/types.js";
 
 const BASE_INPUTS: WebsiteInputs = {
@@ -55,6 +55,38 @@ describe("Website Builder v2 — Content Generator (packages/cli/src/website/con
       expect(content.home.features).toHaveLength(3);
       expect(content.services.items).toHaveLength(4);
       expect(content.pricing.plans).toHaveLength(3);
+    });
+  });
+
+  describe("buildContentSystemPrompt() — additionalContext (2026-09-17, Design 체인↔Content Engine 연결)", () => {
+    it("does not change the prompt when additionalContext is absent", () => {
+      const withoutContext = buildContentSystemPrompt(BASE_INPUTS);
+      const withUndefined = buildContentSystemPrompt({ ...BASE_INPUTS, additionalContext: undefined });
+      expect(withoutContext).toBe(withUndefined);
+      expect(withoutContext).not.toContain("Additional project context");
+    });
+
+    it("does not change the prompt when additionalContext is empty/whitespace", () => {
+      const prompt = buildContentSystemPrompt({ ...BASE_INPUTS, additionalContext: "   " });
+      expect(prompt).toBe(buildContentSystemPrompt(BASE_INPUTS));
+    });
+
+    it("appends the real planning details verbatim when additionalContext is provided", () => {
+      const context =
+        "대표 메뉴: 사색찬미 정식(28,000원, 제철 나물과 정갈한 밑반찬, 갓 지은 솥밥). " +
+        "소개: 사계절 담은 정성으로 지역 주민과 함께 성장해온 정통 한정식 전문점.";
+      const prompt = buildContentSystemPrompt({ ...BASE_INPUTS, additionalContext: context });
+
+      expect(prompt).toContain("Additional project context");
+      expect(prompt).toContain(context);
+      // 기존 프롬프트 뒤에 그대로 이어붙는지(기존 지시문이 손상되지 않는지) 확인.
+      expect(prompt.indexOf(context)).toBeGreaterThan(prompt.indexOf('"blogPosts"'));
+    });
+
+    it("trims surrounding whitespace before appending", () => {
+      const prompt = buildContentSystemPrompt({ ...BASE_INPUTS, additionalContext: "  실제 정보  \n" });
+      expect(prompt).toContain("실제 정보");
+      expect(prompt).not.toContain("실제 정보  \n");
     });
   });
 

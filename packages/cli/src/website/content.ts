@@ -416,6 +416,37 @@ Write in {{language}}. Return ONLY a single JSON object (no markdown fences, no 
   "blogPosts": [{"title": string, "excerpt": string}] (exactly 3)
 }`;
 
+const ADDITIONAL_CONTEXT_BLOCK = `
+
+Additional project context gathered during planning (real details — specific menu items,
+prices, services, brand story, features — use these instead of generic language wherever
+relevant; do not invent facts beyond what is given here):
+{{additionalContext}}`;
+
+/**
+ * Content Writer 프롬프트를 조립한다. `inputs.additionalContext`(Design 체인의 Requirement
+ * Analysis·Feature List·Customer Requirements 원문)가 있으면 그 내용을 프롬프트 끝에 그대로
+ * 덧붙인다 — 지금까지는 businessType/targetAudience 같은 짧은 값만 AI에게 전달되어, 기획
+ * 단계에서 아무리 상세히 분석해도(실제 메뉴명·가격·브랜드 스토리 등) 최종 콘텐츠에는 전혀
+ * 반영되지 않는 단절이 있었다(2026-09-17). 값이 없으면(빠른 생성 경로 등) 기존과 동일한
+ * 프롬프트를 그대로 사용한다.
+ */
+export function buildContentSystemPrompt(inputs: WebsiteInputs): string {
+  const base = renderPromptTemplate(CONTENT_SYSTEM_PROMPT, {
+    projectName: inputs.projectName,
+    businessType: inputs.businessType,
+    targetAudience: inputs.targetAudience,
+    brand: inputs.brand,
+    language: inputs.language,
+    siteTypeLabel: SITE_TYPE_COPY[inputs.siteType].label
+  });
+
+  const context = inputs.additionalContext?.trim();
+  if (!context) return base;
+
+  return base + renderPromptTemplate(ADDITIONAL_CONTEXT_BLOCK, { additionalContext: context });
+}
+
 /**
  * Provider Layer(Requirement 6)를 재사용해 콘텐츠를 생성한다.
  * Prompt Engine(renderPromptTemplate)으로 변수 치환을 하고, ProviderManager.complete()
@@ -429,15 +460,7 @@ export async function generateSiteContent(
   providerId?: string
 ): Promise<{ content: SiteContent; simulated: boolean; simulatedReason?: string; provider?: string; model?: string }> {
   const defaults = buildDefaultContent(inputs);
-
-  const systemPrompt = renderPromptTemplate(CONTENT_SYSTEM_PROMPT, {
-    projectName: inputs.projectName,
-    businessType: inputs.businessType,
-    targetAudience: inputs.targetAudience,
-    brand: inputs.brand,
-    language: inputs.language,
-    siteTypeLabel: SITE_TYPE_COPY[inputs.siteType].label
-  });
+  const systemPrompt = buildContentSystemPrompt(inputs);
 
   const manager = getProviderManager(cwd);
   const completion = await manager.complete({

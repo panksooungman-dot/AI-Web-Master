@@ -162,6 +162,18 @@ export async function POST(request: Request) {
   const documentPath = path.join(resolveCliWorkingDir(), `design-document-${review.id}.json`);
   await fs.writeFile(documentPath, JSON.stringify(hybridSource.document), "utf-8");
 
+  // Requirement Analysis·Feature List·Customer Requirements 원문(inputs.additionalContext,
+  // website-build-adapter.ts의 buildAdditionalContext())을 Content Engine에 전달하는 지점.
+  // 지금까지는 이 상세 기획 내용이 DesignDocument(구조)에만 쓰이고 실제 문구를 쓰는 단계에는
+  // 전혀 전달되지 않아, 기획을 아무리 자세히 해도 최종 콘텐츠는 businessType/audience 같은
+  // 짧은 값만 보고 일반적으로 써졌다(2026-09-17, 실사용 중 발견). documentPath와 동일하게
+  // 임시 파일로 전달한다 — 이 텍스트는 관리자가 자유롭게 입력한 값이라 따옴표·줄바꿈 등을
+  // 포함할 수 있어, 셸 문자열에 직접 삽입하면 명령이 깨지거나 이스케이프 문제가 생길 수 있다.
+  const contextPath = inputs.additionalContext
+    ? path.join(resolveCliWorkingDir(), `design-context-${review.id}.txt`)
+    : undefined;
+  if (contextPath) await fs.writeFile(contextPath, inputs.additionalContext ?? "", "utf-8");
+
   // 같은 Review로 재시도하면 outDir(design-${slug})가 항상 동일한 경로로 계산되는데,
   // generateFromTemplate()(packages/cli)은 대상 폴더가 이미 있으면 "Target already exists"로
   // 거부한다. Vercel의 warm 서버리스 컨테이너는 여러 요청에 걸쳐 같은 /tmp를 재사용하므로,
@@ -185,6 +197,7 @@ export async function POST(request: Request) {
     `--site-type "${inputs.siteType}"`,
     `--out "${outDir}"`,
     `--design-document "${documentPath}"`,
+    ...(contextPath ? [`--context-file "${contextPath}"`] : []),
   ];
 
   let result;
@@ -193,6 +206,7 @@ export async function POST(request: Request) {
   } finally {
     // 생성 성공 여부와 무관하게 임시 문서는 남기지 않는다.
     await fs.rm(documentPath, { force: true }).catch(() => {});
+    if (contextPath) await fs.rm(contextPath, { force: true }).catch(() => {});
   }
 
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);

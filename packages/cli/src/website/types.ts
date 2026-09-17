@@ -105,6 +105,14 @@ export interface WebsiteInputs {
   brand: string;
   language: string;
   siteType: WebsiteType;
+  /**
+   * Design 체인(Requirement Analysis·Feature List·Customer Requirements)에서 넘어온 상세
+   * 기획 내용(자유 텍스트, 있으면). Content Engine(content.ts)이 이 값을 프롬프트에 포함시켜,
+   * businessType/targetAudience 같은 짧은 값만으로는 알 수 없는 실제 메뉴명·가격·브랜드
+   * 스토리 등을 콘텐츠에 반영할 수 있게 한다. 없으면(예: 빠른 생성 경로) 기존과 동일하게
+   * businessType/targetAudience만으로 콘텐츠를 생성한다.
+   */
+  additionalContext?: string;
 }
 
 export interface SiteTypeCopy {

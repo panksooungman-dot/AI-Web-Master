@@ -23,6 +23,7 @@ export interface WebsiteCreateOptions {
   provider?: string;
   designDocument?: string;
   color?: string;
+  contextFile?: string;
 }
 
 /**
@@ -53,6 +54,22 @@ async function readDesignDocument(filePath: string): Promise<DesignDocument> {
   }
 
   return parsed;
+}
+
+/**
+ * `--context-file`로 넘어온 상세 기획 내용을 읽는다. 이건 필수 입력이 아니라 콘텐츠 품질을
+ * 높이는 보조 정보라, `readDesignDocument()`와 달리 읽기 실패해도 생성을 막지 않고 경고만
+ * 남긴 뒤 그 없이 진행한다("AI 연결 여부와 무관하게 항상 빌드 가능"과 동일한 원칙).
+ */
+async function readContextFile(filePath: string): Promise<string | undefined> {
+  try {
+    const raw = await fs.readFile(filePath, "utf-8");
+    return raw.trim() || undefined;
+  } catch (error) {
+    console.log(chalk.yellow(`⚠ Could not read --context-file "${filePath}" — continuing without additional context.`));
+    console.error(chalk.yellow(error instanceof Error ? error.message : String(error)));
+    return undefined;
+  }
 }
 
 const SITE_TYPE_LIST = WEBSITE_TYPES.join(", ");
@@ -101,10 +118,11 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
   }
 
   const designDocument = options.designDocument ? await readDesignDocument(options.designDocument) : undefined;
+  const additionalContext = options.contextFile ? await readContextFile(options.contextFile) : undefined;
 
   try {
     const result = await buildWebsite({
-      inputs,
+      inputs: { ...inputs, additionalContext },
       siteType: siteTypeInput,
       providerId: options.provider,
       outDir: options.out,
@@ -195,6 +213,10 @@ export function buildWebsiteCommand(): Command {
     .option(
       "--design-document <path>",
       "DesignDocument JSON 경로. 지정하면 React Generator로 변환해 해당 페이지를 스캐폴딩 위에 덮어쓴다"
+    )
+    .option(
+      "--context-file <path>",
+      "Design 체인의 상세 기획 내용(텍스트 파일) 경로. 지정하면 Content Engine이 이 내용을 참고해 콘텐츠를 생성한다"
     )
     .action(async (options: WebsiteCreateOptions) => {
       await websiteCreateCommand(options);

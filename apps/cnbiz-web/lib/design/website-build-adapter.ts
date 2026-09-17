@@ -17,6 +17,37 @@ export interface WebsiteBuildInputs {
   brand: string;
   language: string;
   siteType: WebsiteTypeId;
+  /**
+   * Requirement Analysis·Feature List·Customer Requirements 원문을 Content Engine에 전달할
+   * 수 있는 형태로 정리한 것(있으면). 지금까지는 Design Plan의 이 상세 분석 내용이 페이지
+   * 구조(DesignDocument)를 결정하는 데만 쓰이고, 실제 콘텐츠를 쓰는 Content Engine에는
+   * businessType/targetUsers 같은 짧은 값만 전달되어 최종 결과물에 전혀 반영되지 않는
+   * 단절이 있었다(2026-09-17, 실사용 중 발견). `buildAdditionalContext()`가 채워 넣는다.
+   */
+  additionalContext?: string;
+}
+
+/**
+ * Design Plan의 Requirement Analysis·Feature List·Customer Requirements(고객 요구사항 원문)를
+ * Content Engine 프롬프트에 그대로 붙여 넣을 수 있는 하나의 텍스트로 정리한다. 새로운 AI 호출
+ * 없이 이미 Phase 1에서 생성·저장된 값만 재사용하는 순수 함수 — 존재하는 정보만 포함하고
+ * (비어있는 섹션은 건너뜀), 지어내는 값은 전혀 없다.
+ */
+export function buildAdditionalContext(plan: DesignPlanRecord): string {
+  const sections: string[] = [];
+
+  const summary = plan.content.requirementAnalysis.projectSummary.trim();
+  if (summary) sections.push(`Project summary: ${summary}`);
+
+  const requirements = plan.input.requirements.trim();
+  if (requirements) sections.push(`Customer requirements (verbatim): ${requirements}`);
+
+  const features = plan.content.featureList
+    .map((feature) => `- ${feature.name.trim()}: ${feature.description.trim()}`)
+    .filter((line) => line !== "- :");
+  if (features.length > 0) sections.push(`Key features:\n${features.join("\n")}`);
+
+  return sections.join("\n\n");
 }
 
 /**
@@ -47,6 +78,8 @@ export function inferSiteType(projectType: string): WebsiteTypeId {
  * audience/brand/language/siteType)을 그대로 따른다 — 같은 CLI 호출 계약을 공유하기 위함이다.
  */
 export function planToWebsiteBuildInputs(plan: DesignPlanRecord): WebsiteBuildInputs {
+  const additionalContext = buildAdditionalContext(plan);
+
   return {
     name: plan.input.projectName,
     businessType: plan.input.projectType,
@@ -54,5 +87,6 @@ export function planToWebsiteBuildInputs(plan: DesignPlanRecord): WebsiteBuildIn
     brand: plan.input.projectName,
     language: "Korean",
     siteType: inferSiteType(plan.input.projectType),
+    ...(additionalContext ? { additionalContext } : {}),
   };
 }

@@ -42,6 +42,7 @@ export type AuditAction =
   | "deployment.github.create_repo"
   | "deployment.git.commit_push"
   | "deployment.vercel.create_project"
+  | "deployment.vercel.disable_protection"
   | "deployment.vercel.link_repo"
   | "deployment.vercel.deploy"
   | "deployment.vercel.promote"

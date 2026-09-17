@@ -88,6 +88,16 @@ export function resolveGeneratedWebsitesDir(subPath: string): string {
 }
 
 /**
+ * `dir`가 CLI 전용 scratch 영역(os.tmpdir() 하위) 안에 있는지 확인한다. 호출자가 재시도 전에
+ * outDir를 안전하게 지워도 되는지 판단하는 데 쓴다 — 이 영역 밖(예: 관리자가 폼에 직접 입력한
+ * 임의 경로)은 지우지 않고 그대로 둔다.
+ */
+export function isUnderGeneratedWebsitesScratch(dir: string): boolean {
+  const root = path.resolve(CLI_SCRATCH_ROOT) + path.sep;
+  return (path.resolve(dir) + path.sep).startsWith(root);
+}
+
+/**
  * Working directory for the `node <cliEntry> website create ...` subprocess. packages/cli's
  * generation workflow has a known side effect of scaffolding some files (e.g. an `agents/`
  * directory) relative to its own cwd regardless of `--out`, so this needs to be writable too —

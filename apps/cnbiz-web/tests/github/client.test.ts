@@ -71,7 +71,9 @@ describe("GitHub client — lib/github/client.ts (AI Business OS Rewiring Phase 
       expect(calledUrl).toBe("https://api.github.com/user/repos");
       expect(calledBody.name).toBe("acme-restaurant-a1b2c3d4");
       expect(calledBody.private).toBe(true);
-      expect(calledBody.auto_init).toBe(false);
+      // auto_init: true(2026-09-17) — 완전히 빈 저장소에는 Git Data API의 blob 생성이
+      // 409 "Git Repository is empty"로 거부되는 GitHub 제약을 피하기 위함(lib/git/client.ts 참고).
+      expect(calledBody.auto_init).toBe(true);
       expect(result).toEqual({
         id: 12345,
         name: "acme-restaurant-a1b2c3d4",

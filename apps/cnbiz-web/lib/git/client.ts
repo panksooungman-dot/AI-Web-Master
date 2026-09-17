@@ -76,10 +76,13 @@ interface TreeEntry {
 }
 
 /**
- * cwd 아래 모든 파일을 GitHub Git Data API로 blob → tree → commit까지 만든다. 부모 없는
- * root commit이다 — 대상 저장소는 항상 `createRepository({ auto_init: false })`로 방금 만든
- * 빈 저장소이므로(lib/github/client.ts), 이 파이프라인 안에서는 언제나 첫 커밋이다. 성공 시
- * 생성된 commit SHA를 stdout에 담아 pushToRemote()로 그대로 전달한다.
+ * cwd 아래 모든 파일을 GitHub Git Data API로 blob → tree → commit까지 만든다. 항상 부모 없는
+ * root commit으로 만든다 — README 하나뿐인 `createRepository({ auto_init: true })`의 초기
+ * 커밋(lib/github/client.ts, 2026-09-17 변경 — 완전히 빈 저장소에는 blob 생성 자체가
+ * `409 Git Repository is empty`로 거부되는 GitHub 제약을 피하기 위한 최소 1커밋)을 이어받지
+ * 않는다. pushToRemote()가 이 root commit으로 branch ref를 강제로(force) 덮어쓰므로, 초기
+ * README 커밋은 최종 저장소 히스토리에 남지 않고 도달 불가능한 상태로 사라진다. 성공 시 생성된
+ * commit SHA를 stdout에 담아 pushToRemote()로 그대로 전달한다.
  */
 export async function commitAll(
   cwd: string,

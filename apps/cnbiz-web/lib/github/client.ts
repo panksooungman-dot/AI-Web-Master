@@ -52,8 +52,18 @@ async function readErrorBody(res: Response): Promise<string> {
 
 /**
  * `GITHUB_OWNER`가 설정되어 있으면 그 조직(org) 아래에, 아니면 토큰 소유자의 개인 계정에
- * 생성한다(`POST /user/repos`). `auto_init: false` — 로컬에서 만든 산출물을 그대로 첫 커밋으로
- * 올릴 것이므로 GitHub이 README로 초기 커밋을 만들게 하지 않는다.
+ * 생성한다(`POST /user/repos`).
+ *
+ * `auto_init: true`(2026-09-17 변경) — 원래는 로컬에서 만든 산출물을 그대로 첫 커밋으로 올릴
+ * 것이므로 `false`로 두어 GitHub이 README로 초기 커밋을 만들지 않게 했었다. 그런데 완전히
+ * 커밋이 하나도 없는("empty") 저장소에는 Git Data API의 blob 생성 자체가
+ * `409 Git Repository is empty`로 거부된다는 GitHub 쪽 제약이 실제 프로덕션에서 재현됨
+ * (lib/git/client.ts가 로컬 git CLI 대신 이 API로 커밋을 만들도록 바뀐 뒤 처음 발견 — #126).
+ * `auto_init: true`로 최소 1개의 커밋(보통 README.md)이 있는 상태로 만들면 이 제약을
+ * 피할 수 있다. lib/git/client.ts의 commitAll()은 이 초기 커밋을 parent로 참조하지 않고
+ * 부모 없는 새 root commit을 만들어 pushToRemote()가 강제로 branch ref를 덮어쓰므로
+ * (force: true), 최종 저장소에는 여전히 README가 남지 않는다 — 초기 커밋은 도달 불가능한
+ * 상태로 남아 있다가 GitHub이 자체적으로 정리한다.
  */
 export async function createRepository(
   input: CreateRepositoryInput,
@@ -73,7 +83,7 @@ export async function createRepository(
       name: input.name,
       description: input.description,
       private: input.private ?? true,
-      auto_init: false,
+      auto_init: true,
     }),
   });
 

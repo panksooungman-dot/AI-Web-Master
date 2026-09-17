@@ -4,6 +4,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import type { GitTargetRepo } from "../../lib/git/types";
 import { commitAll, ensureRepoInitialized, pushToRemote } from "../../lib/git/client";
+import { createRepository } from "../../lib/github/client";
 
 const REPO: GitTargetRepo = { owner: "cnbiz-customers", name: "restaurant-a1b2c3d4" };
 
@@ -319,6 +320,98 @@ describe("Git client — lib/git/client.ts (GitHub Git Data API 기반, 2026-09-
         expect(refs.get("refs/heads/main")).toBe(commitResult.stdout);
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe("regression — GitHub의 'Git Repository is empty' 409 (createRepository()의 auto_init:true로 수정, 2026-09-17)", () => {
+    /**
+     * 실제 프로덕션에서 재현된 순서를 그대로 재현한다: createRepository()로 저장소를 만든 뒤
+     * commitAll()로 blob을 생성한다. 이 fake 서버는 GitHub의 실제 제약(완전히 커밋이 없는
+     * 저장소에는 blob 생성 자체가 409로 거부됨)을 모델링해, `auto_init: false`로 만든 저장소에
+     * 대고는 실제로 재현된 것과 동일한 409를 반환하고, `auto_init: true`로 만든 저장소(최소
+     * 1개의 초기 커밋이 있음)에 대고는 정상 동작하는지를 검증한다.
+     */
+    function createFakeGitHubServer() {
+      const reposWithAtLeastOneCommit = new Set<string>();
+      let refExists = false;
+
+      const fetchFn = async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : {};
+
+        if (url.endsWith("/user/repos") && method === "POST") {
+          if (body.auto_init) reposWithAtLeastOneCommit.add(body.name);
+          return new Response(
+            JSON.stringify({
+              id: 1,
+              name: body.name,
+              full_name: `${REPO.owner}/${body.name}`,
+              html_url: `https://github.com/${REPO.owner}/${body.name}`,
+              clone_url: `https://github.com/${REPO.owner}/${body.name}.git`,
+              default_branch: "main",
+            }),
+            { status: 201 }
+          );
+        }
+
+        if (url.endsWith("/git/blobs")) {
+          if (!reposWithAtLeastOneCommit.has(REPO.name)) {
+            return new Response(JSON.stringify({ message: "Git Repository is empty." }), { status: 409 });
+          }
+          return new Response(JSON.stringify({ sha: "blob-sha" }), { status: 201 });
+        }
+        if (url.endsWith("/git/trees")) return new Response(JSON.stringify({ sha: "tree-sha" }), { status: 201 });
+        if (url.endsWith("/git/commits")) return new Response(JSON.stringify({ sha: "commit-sha" }), { status: 201 });
+        if (url.endsWith("/git/refs") && method === "POST") {
+          if (refExists) return new Response("already exists", { status: 422 });
+          refExists = true;
+          return new Response(JSON.stringify({}), { status: 201 });
+        }
+
+        throw new Error(`unexpected fake GitHub call: ${method} ${url}`);
+      };
+
+      return { fetchFn };
+    }
+
+    it("reproduces the original production failure against a repo with zero commits (the old auto_init:false state)", async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "git-client-regression-"));
+      fs.writeFileSync(path.join(dir, ".gitignore"), "node_modules\n");
+
+      try {
+        // lib/github/client.ts의 createRepository()는 이제 항상 auto_init:true를 보내 이
+        // 시나리오 자체는 프로덕션 코드 경로로는 더 이상 도달하지 않는다 — 그 이전 상태(완전히
+        // 커밋이 없는 저장소)를 fake 서버로 직접 구성해, "고치기 전에는 이 순서로 정확히 이
+        // 오류가 났다"는 것을 재현해 남겨 회귀를 방지한다.
+        const { fetchFn } = createFakeGitHubServer(); // 아무 repo도 커밋 상태로 표시하지 않음 = 빈 저장소
+        const result = await commitAll(dir, "Initial deployment via AI Business OS", REPO, "tok", fetchFn);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("blob 생성 실패");
+        expect(result.error).toContain("Git Repository is empty");
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("succeeds end-to-end when createRepository() uses auto_init:true (the actual fix)", async () => {
+      process.env.GITHUB_TOKEN = "fake-token";
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "git-client-regression-"));
+      fs.writeFileSync(path.join(dir, "index.html"), "<h1>hello</h1>");
+
+      try {
+        const { fetchFn } = createFakeGitHubServer();
+        const repo = await createRepository({ name: REPO.name, private: true }, fetchFn);
+
+        const commitResult = await commitAll(dir, "Initial deployment via AI Business OS", repo, "tok", fetchFn);
+        expect(commitResult.success).toBe(true);
+
+        const pushResult = await pushToRemote(commitResult.stdout!, repo, "tok", "main", fetchFn);
+        expect(pushResult).toEqual({ success: true });
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+        delete process.env.GITHUB_TOKEN;
       }
     });
   });

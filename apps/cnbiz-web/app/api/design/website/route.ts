@@ -9,6 +9,7 @@ import { getPrototype } from "@/lib/design/prototype";
 import { buildWebsiteBuildHybridSource } from "@/lib/design/website-build-document-adapter";
 import { listWebsiteBuilds, recordWebsiteBuild, type WebsiteBuildRecord } from "@/lib/design/website-build";
 import { createWebsiteRecord } from "@/lib/websites/registry";
+import { runDeploymentPipeline } from "@/lib/deployment/pipeline";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
@@ -79,6 +80,13 @@ export async function GET() {
  * Approval Rule(Figma Export와 동일한 원칙) — Review 상태가 "approved"가 아니면 409를 반환한다.
  * 실제 코드를 생성하는 마지막 단계이므로, 참고 자료 성격인 Figma Import보다는 Figma Export/
  * Design Sync와 같은 게이트를 적용하는 것이 맞다고 판단했다.
+ *
+ * Deployment(2026-09-17 추가) — 생성이 성공하면 lib/deployment/pipeline.ts의
+ * runDeploymentPipeline()을 그대로 호출해 실제 GitHub Repository + Vercel Preview 배포까지
+ * 이어서 수행한다(lib/aiJobs/worker.ts의 triggerDeployment()와 동일한 패턴 재사용). 그 전까지는
+ * outDir가 서버리스 임시 파일시스템(os.tmpdir())을 가리켜, "Success"가 떠도 실제로 접근 가능한
+ * 결과물이 전혀 없었다. 결과는 WebsiteRecord.deployment*에 기록되며, 프론트엔드는
+ * GET /api/websites/[id]로 다시 조회해 배포 상태·URL을 표시한다.
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -194,6 +202,22 @@ export async function POST(request: Request) {
     detail: websiteRecord.status === "Success" ? `"${inputs.name}" (${inputs.siteType}) 생성됨` : websiteRecord.error ?? "생성 실패",
   });
   await incrementMetric("websiteGenerationCount");
+
+  // outDir(os.tmpdir() 하위)는 이 요청이 처리되는 동안만 존재하는 서버리스 임시 파일시스템이라,
+  // 여기서 코드를 실제 GitHub 저장소로 push하고 Vercel Preview까지 배포하지 않으면 생성된
+  // 코드는 이 응답이 끝나는 즉시 사라져 관리자가 다시 접근할 방법이 없다(2026-09-17 실사용 —
+  // "Success"가 떴는데 실제로 볼 수 있는 화면이 없음을 발견). lib/aiJobs/worker.ts의
+  // triggerDeployment()가 의뢰 접수 파이프라인에서 이미 검증된 방식으로 동일한 파이프라인을
+  // 호출하는 것과 완전히 동일한 패턴 — 새 배포 로직을 만들지 않고 그대로 재사용한다.
+  // GITHUB_TOKEN/VERCEL_TOKEN이 없으면 파이프라인 자체가 예외 없이 "NotConfigured" 상태만
+  // 기록하고 끝나므로, 여기서 별도로 존재 여부를 확인할 필요가 없다.
+  if (websiteRecord.status === "Success") {
+    await runDeploymentPipeline({
+      websiteId: websiteRecord.id,
+      outDir,
+      repoBaseName: inputs.siteType || "site",
+    });
+  }
 
   const buildRecord = await recordWebsiteBuild({
     reviewId,

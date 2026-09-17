@@ -10,7 +10,27 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { ReviewRecord } from "@/lib/design/review";
 import type { WebsiteBuildRecord } from "@/lib/design/website-build";
-import type { WebsiteRecord } from "@/lib/websites/registry";
+import type { DeploymentStatus, WebsiteRecord } from "@/lib/websites/registry";
+import type { WebsitePreviewShareRecord } from "@/lib/websites/preview-share";
+import type { BadgeTone } from "@/components/developer/Badge";
+
+// app/developer/inquiries/[id]/page.tsx와 동일한 라벨/톤(그 화면이 이미 검증된 표준 — 여기서도
+// 그대로 재사용해 같은 상태가 두 화면에서 다르게 보이지 않도록 한다).
+const DEPLOYMENT_STATUS_LABELS: Record<DeploymentStatus, string> = {
+  NotStarted: "배포 전",
+  PreviewReady: "미리보기 준비됨",
+  Success: "운영 배포 완료",
+  Failed: "배포 실패",
+  NotConfigured: "배포 미설정",
+};
+
+const DEPLOYMENT_STATUS_TONES: Record<DeploymentStatus, BadgeTone> = {
+  NotStarted: "neutral",
+  PreviewReady: "warning",
+  Success: "success",
+  Failed: "danger",
+  NotConfigured: "neutral",
+};
 
 interface PlansResponse {
   plans: DesignPlanRecord[];
@@ -72,6 +92,13 @@ export default function DesignWebsiteBuilderPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [promotingWebsiteId, setPromotingWebsiteId] = useState<string | null>(null);
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+  const [sharingWebsiteId, setSharingWebsiteId] = useState<string | null>(null);
+  const [previewShareError, setPreviewShareError] = useState<string | null>(null);
+  const [previewShares, setPreviewShares] = useState<Record<string, WebsitePreviewShareRecord>>({});
+  const [copiedPreviewShareId, setCopiedPreviewShareId] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -179,6 +206,58 @@ export default function DesignWebsiteBuilderPage() {
       setDeleteError("삭제 중 오류가 발생했습니다.");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  // app/developer/inquiries/[id]/page.tsx의 handlePromoteWebsite()/handleSharePreview()와
+  // 완전히 동일한 패턴 — 이 화면이 만드는 WebsiteRecord도 같은 /api/websites/[id] 엔드포인트를
+  // 그대로 쓰므로 새 API를 만들지 않고 재사용한다.
+  async function handlePromoteWebsite(websiteId: string) {
+    setPromotingWebsiteId(websiteId);
+    setPromoteError(null);
+
+    try {
+      const res = await fetch(`/api/websites/${websiteId}/promote`, { method: "POST" });
+      const data: { success: boolean; error?: string } = await res.json();
+      if (!data.success) {
+        setPromoteError(data.error ?? "운영 배포 확정에 실패했습니다.");
+        return;
+      }
+      load();
+    } catch {
+      setPromoteError("운영 배포 확정 중 오류가 발생했습니다.");
+    } finally {
+      setPromotingWebsiteId(null);
+    }
+  }
+
+  async function handleSharePreview(websiteId: string) {
+    setSharingWebsiteId(websiteId);
+    setPreviewShareError(null);
+
+    try {
+      const res = await fetch(`/api/websites/${websiteId}/preview-share`, { method: "POST" });
+      const data: { success: boolean; share?: WebsitePreviewShareRecord; error?: string } = await res.json();
+      if (!data.success || !data.share) {
+        setPreviewShareError(data.error ?? "공유 링크 생성에 실패했습니다.");
+        return;
+      }
+      setPreviewShares((prev) => ({ ...prev, [websiteId]: data.share! }));
+    } catch {
+      setPreviewShareError("공유 링크 생성 중 오류가 발생했습니다.");
+    } finally {
+      setSharingWebsiteId(null);
+    }
+  }
+
+  async function handleCopyPreviewShareLink(shareId: string) {
+    const url = `${window.location.origin}/preview-review/${shareId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedPreviewShareId(shareId);
+      setTimeout(() => setCopiedPreviewShareId(null), 2000);
+    } catch {
+      // 클립보드 권한이 없는 환경 — 링크는 화면에 그대로 표시되어 있으므로 수동 복사 가능.
     }
   }
 
@@ -338,6 +417,79 @@ export default function DesignWebsiteBuilderPage() {
               </div>
               {selectedWebsite && <p className="text-xs text-gray-400 font-mono break-all">{selectedWebsite.outDir}</p>}
               {selectedBuild.error && <p className="text-xs text-red-400 mt-1">{selectedBuild.error}</p>}
+
+              {selectedWebsite && (
+                <div className="mt-3 border-t border-gray-800 pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={DEPLOYMENT_STATUS_TONES[selectedWebsite.deploymentStatus ?? "NotStarted"]}>
+                      {DEPLOYMENT_STATUS_LABELS[selectedWebsite.deploymentStatus ?? "NotStarted"]}
+                    </Badge>
+                    {selectedWebsite.deployment?.url && (
+                      <a
+                        href={selectedWebsite.deployment.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-400 hover:underline"
+                      >
+                        {selectedWebsite.deploymentStatus === "Success" ? "운영 사이트 보기" : "미리보기 화면 확인"} →
+                      </a>
+                    )}
+                  </div>
+                  {selectedWebsite.deploymentStatus === "NotConfigured" && (
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      GITHUB_TOKEN·VERCEL_TOKEN이 설정되지 않아 실제 배포 없이 코드 생성까지만
+                      완료됐습니다 — 이 상태로는 생성된 코드에 접근할 방법이 없습니다.
+                    </p>
+                  )}
+                  {selectedWebsite.deploymentStatus === "Failed" && selectedWebsite.deploymentError && (
+                    <p className="mt-1 text-[11px] text-red-400">{selectedWebsite.deploymentError}</p>
+                  )}
+                  {promoteError && <StatusMessage tone="error" className="mt-2">{promoteError}</StatusMessage>}
+                  {previewShareError && <StatusMessage tone="error" className="mt-2">{previewShareError}</StatusMessage>}
+
+                  {selectedWebsite.deploymentStatus === "PreviewReady" && (
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handlePromoteWebsite(selectedWebsite.id)}
+                          disabled={promotingWebsiteId === selectedWebsite.id}
+                          className="rounded bg-green-700 hover:bg-green-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                        >
+                          {promotingWebsiteId === selectedWebsite.id ? "배포 확정 중..." : "미리보기 확인함 — 운영 배포 확정"}
+                        </button>
+                        <button
+                          onClick={() => handleSharePreview(selectedWebsite.id)}
+                          disabled={sharingWebsiteId === selectedWebsite.id}
+                          className="rounded bg-purple-700 hover:bg-purple-600 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                        >
+                          {sharingWebsiteId === selectedWebsite.id
+                            ? "링크 생성 중..."
+                            : previewShares[selectedWebsite.id]
+                              ? "공유 링크 다시 보기"
+                              : "의뢰자에게 실제 화면 공유"}
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        위 링크로 실제 화면을 먼저 확인하세요. 확정 전까지는 운영 도메인·고객 알림에 전혀 반영되지 않습니다.
+                      </p>
+
+                      {previewShares[selectedWebsite.id] && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded border border-gray-800 bg-gray-950 px-2 py-2">
+                          <code className="rounded bg-black px-2 py-1 text-[11px] text-blue-300">
+                            {`${typeof window !== "undefined" ? window.location.origin : ""}/preview-review/${previewShares[selectedWebsite.id].id}`}
+                          </code>
+                          <button
+                            onClick={() => handleCopyPreviewShareLink(previewShares[selectedWebsite.id].id)}
+                            className="rounded bg-gray-700 hover:bg-gray-600 px-2 py-0.5 text-[11px] transition-colors"
+                          >
+                            {copiedPreviewShareId === previewShares[selectedWebsite.id].id ? "복사됨!" : "복사"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </Card>
           </div>
 

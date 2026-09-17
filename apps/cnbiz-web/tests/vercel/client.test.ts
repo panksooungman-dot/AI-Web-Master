@@ -4,6 +4,7 @@ import {
   createDeployment,
   createProject,
   deleteProject,
+  disableDeploymentProtection,
   isVercelConfigured,
   linkGitRepository,
 } from "../../lib/vercel/client";
@@ -118,6 +119,63 @@ describe("Vercel client — lib/vercel/client.ts (AI Business OS Rewiring Phase 
       const result = await linkGitRepository("prj_1", "owner/repo", async () => new Response("bad", { status: 400 }));
       expect(result.success).toBe(false);
       expect(result.error).toContain("400");
+    });
+  });
+
+  describe("disableDeploymentProtection() (2026-09-17 — preview 공유 시 iframe이 vercel.com SSO 확인 페이지에 막히는 문제 대응)", () => {
+    it("returns failure without calling fetch when not configured", async () => {
+      let called = false;
+      const result = await disableDeploymentProtection("prj_1", async () => {
+        called = true;
+        throw new Error("should not be called");
+      });
+      expect(result.success).toBe(false);
+      expect(called).toBe(false);
+    });
+
+    it("PATCHes /v9/projects/:idOrName with ssoProtection: null and succeeds on 200", async () => {
+      process.env.VERCEL_TOKEN = "fake-token";
+      let calledUrl = "";
+      let calledMethod = "";
+      let calledBody: Record<string, unknown> = {};
+
+      const fakeFetch = async (url: string, init?: RequestInit) => {
+        calledUrl = url;
+        calledMethod = String(init?.method);
+        calledBody = JSON.parse(String(init?.body));
+        return new Response(null, { status: 200 });
+      };
+
+      const result = await disableDeploymentProtection("prj_123", fakeFetch);
+
+      expect(result.success).toBe(true);
+      expect(calledUrl).toBe("https://api.vercel.com/v9/projects/prj_123");
+      expect(calledMethod).toBe("PATCH");
+      expect(calledBody).toEqual({ ssoProtection: null });
+    });
+
+    it("appends ?teamId= when VERCEL_TEAM_ID is set", async () => {
+      process.env.VERCEL_TOKEN = "fake-token";
+      process.env.VERCEL_TEAM_ID = "team_abc";
+      let calledUrl = "";
+
+      const fakeFetch = async (url: string) => {
+        calledUrl = url;
+        return new Response(null, { status: 200 });
+      };
+
+      await disableDeploymentProtection("prj_123", fakeFetch);
+      expect(calledUrl).toBe("https://api.vercel.com/v9/projects/prj_123?teamId=team_abc");
+    });
+
+    it("returns failure with a message when the endpoint fails (e.g. plan does not support this setting)", async () => {
+      process.env.VERCEL_TOKEN = "fake-token";
+      const result = await disableDeploymentProtection(
+        "prj_1",
+        async () => new Response("forbidden", { status: 403 })
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("403");
     });
   });
 

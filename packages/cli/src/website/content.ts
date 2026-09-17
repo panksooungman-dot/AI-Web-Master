@@ -427,7 +427,7 @@ export async function generateSiteContent(
   cwd: string,
   inputs: WebsiteInputs,
   providerId?: string
-): Promise<{ content: SiteContent; simulated: boolean; provider?: string; model?: string }> {
+): Promise<{ content: SiteContent; simulated: boolean; simulatedReason?: string; provider?: string; model?: string }> {
   const defaults = buildDefaultContent(inputs);
 
   const systemPrompt = renderPromptTemplate(CONTENT_SYSTEM_PROMPT, {
@@ -447,8 +447,16 @@ export async function generateSiteContent(
     fallbackLabel: `Content Writer for "${inputs.projectName}"`
   });
 
+  // ProviderManager.complete()는 시뮬레이션으로 폴백할 때 실제 실패 사유(API 키 미설정·
+  // 타임아웃·응답 오류 등)를 completion.text에 담아 반환하는데, 지금까지는 이 값을 그냥
+  // 버리고 simulated 불리언만 남겨 "왜" 시뮬레이션됐는지 어디에도 남지 않았다(2026-09-17,
+  // 실제 프로덕션에서 ANTHROPIC_API_KEY가 설정돼 있는데도 Simulated가 뜨는 것을 조사하다
+  // 발견 — 원인 자체를 특정하기 전에 이 진단 정보부터 보존해야 다음 실행에서 실제 원인을
+  // 알 수 있다). completion.text 형식은 `[simulated] <fallbackLabel> — <reason>.`
+  // 이므로 대괄호 라벨을 걷어내 사람이 읽는 이유만 남긴다.
   if (completion.simulated) {
-    return { content: defaults, simulated: true };
+    const simulatedReason = completion.text.replace(/^\[simulated\]\s*/, "").trim() || undefined;
+    return { content: defaults, simulated: true, simulatedReason };
   }
 
   const overrides = parseOverrides(completion.text);

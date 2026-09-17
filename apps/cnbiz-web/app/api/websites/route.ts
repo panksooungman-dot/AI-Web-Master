@@ -162,6 +162,9 @@ export async function POST(request: Request) {
   }
 
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
+  // app/api/design/website/route.ts와 동일한 이유(2026-09-17) — packages/cli가 별도의
+  // "Reason: " 줄로 출력하는 실제 폴백 사유를 그대로 보존한다.
+  const simulatedReason = /^Reason: (.+)$/m.exec(result.stdout)?.[1]?.trim() ?? undefined;
 
   const record = await createWebsiteRecord({
     name,
@@ -169,6 +172,7 @@ export async function POST(request: Request) {
     outDir,
     status: result.success ? "Success" : "Failed",
     simulatedContent,
+    simulatedReason,
     error: result.success ? undefined : result.error ?? (result.stderr.trim() || "생성 실패"),
   });
 

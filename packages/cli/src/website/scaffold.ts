@@ -106,6 +106,8 @@ export interface ScaffoldResult {
   files: string[];
   content: SiteContent;
   contentSimulated: boolean;
+  /** contentSimulated가 true일 때만 있음 — generateSiteContent()가 폴백한 실제 이유. */
+  contentSimulatedReason?: string;
 }
 
 /**
@@ -126,7 +128,7 @@ export async function scaffoldWebsiteProject(
 ): Promise<ScaffoldResult> {
   const memory = await getMemory(cwd, WEBSITE_WORKFLOW_NAME);
 
-  const { content, simulated } = await generateSiteContent(cwd, inputs, providerId);
+  const { content, simulated, simulatedReason } = await generateSiteContent(cwd, inputs, providerId);
   const palette = resolvePalette(inputs.siteType, inputs.primaryColor);
 
   const siteConfig: SiteConfigData = {
@@ -191,6 +193,7 @@ export async function scaffoldWebsiteProject(
     targetDir,
     files: [...result.files, path.join(targetDir, "PLANNING.md")],
     content,
-    contentSimulated: simulated
+    contentSimulated: simulated,
+    contentSimulatedReason: simulatedReason
   };
 }

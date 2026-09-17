@@ -37,6 +37,9 @@ export interface WebsiteRecord {
   outDir: string;
   status: WebsiteGenerationStatus;
   simulatedContent: boolean;
+  /** simulatedContent가 true일 때만 있음 — packages/cli가 실제로 시뮬레이션 폴백한 이유
+   *  (예: "provider \"anthropic\" unavailable (ANTHROPIC_API_KEY is not configured)."). */
+  simulatedReason?: string;
   error?: string;
   createdAt: string;
   /** Phase 3 이전 레코드에는 존재하지 않는다(옵셔널) — 파이프라인이 실행된 뒤에만 채워진다. */
@@ -52,6 +55,7 @@ export interface CreateWebsiteRecordInput {
   outDir: string;
   status: WebsiteGenerationStatus;
   simulatedContent: boolean;
+  simulatedReason?: string;
   error?: string;
 }
 
@@ -81,6 +85,7 @@ export async function createWebsiteRecord(
     outDir: input.outDir,
     status: input.status,
     simulatedContent: input.simulatedContent,
+    simulatedReason: input.simulatedReason,
     error: input.error,
     createdAt: new Date().toISOString(),
   };

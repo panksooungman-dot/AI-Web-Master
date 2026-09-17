@@ -132,11 +132,21 @@ async function websiteCreateCommand(options: WebsiteCreateOptions): Promise<void
     }
 
     if (result.contentSimulated) {
+      // 실패 사유(예: `provider "anthropic" unavailable (ANTHROPIC_API_KEY is not
+      // configured).`)를 함께 출력한다 — 지금까지는 이 이유가 어디에도 남지 않아, 실제로
+      // API 키가 있어도 시뮬레이션으로 떨어지는 경우(타임아웃·응답 오류 등)와 애초에 키가
+      // 없는 경우를 구분할 방법이 없었다(2026-09-17). apps/cnbiz-web의 호출부가 stdout을
+      // 정규식으로 파싱하므로 "Reason: " 라인을 별도로 출력한다 — 이유 문자열 자체에 이미
+      // 괄호가 들어있어(위 예시 참고) 괄호로 감싸면 중첩 괄호 때문에 정규식으로 온전히
+      // 추출할 수 없다(처음에 괄호로 감쌌다가 실제로 이 문제를 겪고서 발견해 고침).
       console.log(
         chalk.yellow(
           "⚠ No LLM provider connected — content was generated deterministically. Run `ai provider set <id>` to enable AI-written copy on the next run."
         )
       );
+      if (result.contentSimulatedReason) {
+        console.log(chalk.yellow(`Reason: ${result.contentSimulatedReason}`));
+      }
     }
 
     console.log();

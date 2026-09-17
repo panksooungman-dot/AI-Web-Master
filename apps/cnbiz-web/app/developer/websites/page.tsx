@@ -354,6 +354,7 @@ export default function WebsiteBuilderPage() {
                   {lastResult.website.simulatedContent && (
                     <p className="text-yellow-500">
                       LLM Provider 미연결 — 콘텐츠는 결정론적 기본값으로 생성되었습니다.
+                      {lastResult.website.simulatedReason ? ` (${lastResult.website.simulatedReason})` : ""}
                     </p>
                   )}
                   {typeof lastResult.designPageTotal === "number" && lastResult.designPageTotal > 0 && (

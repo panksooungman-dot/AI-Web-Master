@@ -55,6 +55,10 @@ function buildSuccessfulDeps(callLog: string[]): DeploymentPipelineDeps {
       callLog.push("vercel.create_project");
       return FAKE_PROJECT;
     },
+    disableDeploymentProtection: async () => {
+      callLog.push("vercel.disable_protection");
+      return { success: true };
+    },
     linkGitRepository: async () => {
       callLog.push("vercel.link_repo");
       return { success: true };
@@ -102,6 +106,7 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
       commitAll: async () => ({ success: true }),
       pushToRemote: async () => ({ success: true }),
       createProject: async () => ({ id: "x", name: "x" }),
+      disableDeploymentProtection: async () => ({ success: true }),
       linkGitRepository: async () => ({ success: true }),
       createDeployment: async () => ({ id: "x", url: "x", readyState: "x" }),
       deleteProject: async () => ({ success: true }),
@@ -149,6 +154,7 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
       "git.commit",
       "git.push",
       "vercel.create_project",
+      "vercel.disable_protection",
       "vercel.link_repo",
       "vercel.deploy",
     ]);
@@ -235,6 +241,40 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
     expect(nameSeenByGitHub).toBe(nameSeenByVercel);
   });
 
+  it("does not fail the pipeline when disabling Deployment Protection fails (best-effort, e.g. plan constraint)", async () => {
+    const website = await createWebsiteRecord(
+      { name: "Test", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },
+      store
+    );
+
+    const callLog: string[] = [];
+    const deps = buildSuccessfulDeps(callLog);
+    deps.disableDeploymentProtection = async () => {
+      callLog.push("vercel.disable_protection");
+      return { success: false, error: "plan does not support this setting" };
+    };
+
+    const result = await runDeploymentPipeline(
+      { websiteId: website.id, outDir: website.outDir, repoBaseName: "restaurant" },
+      deps,
+      store
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.status).toBe("PreviewReady");
+    // 실패해도 다음 단계(Repo 연결·배포)는 그대로 이어져야 한다.
+    expect(callLog).toEqual([
+      "github.create_repo",
+      "git.init",
+      "git.commit",
+      "git.push",
+      "vercel.create_project",
+      "vercel.disable_protection",
+      "vercel.link_repo",
+      "vercel.deploy",
+    ]);
+  });
+
   it("rolls back the GitHub repo when git push fails (Vercel project never created)", async () => {
     const website = await createWebsiteRecord(
       { name: "Test", siteType: "restaurant", outDir: "/tmp/x", status: "Success", simulatedContent: false },
@@ -295,6 +335,7 @@ describe("Deployment pipeline — lib/deployment/pipeline.ts (AI Business OS Rew
       "git.commit",
       "git.push",
       "vercel.create_project",
+      "vercel.disable_protection",
       "vercel.link_repo",
       "vercel.deploy",
       "rollback.vercel_project",

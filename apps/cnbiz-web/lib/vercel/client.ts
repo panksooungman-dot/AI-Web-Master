@@ -68,6 +68,40 @@ export async function createProject(name: string, fetchFn: FetchLike = fetch): P
   return { id: String(json.id ?? ""), name: String(json.name ?? name) };
 }
 
+/**
+ * 새로 만든 Project의 Deployment Protection(Vercel Authentication/SSO)을 끈다 — Vercel
+ * 팀 설정에 따라 신규 Project는 기본적으로 이 보호가 켜진 채로 생성될 수 있는데, 켜져 있으면
+ * Preview 배포 URL은 Vercel 계정으로 로그인해야만 열리고, 특히 다른 사이트(cnbiz.kr)의
+ * iframe 안에서는 이 로그인 확인 페이지 자체가 프레이밍을 거부해 "vercel.com이 연결을
+ * 거부했습니다"로 완전히 빈 화면이 된다(2026-09-17, `/preview-review/[id]` 실사용 중 실제
+ * 재현·확인). 관리자 본인은 이미 Vercel에 로그인돼 있어 새 탭 직접 접속은 정상 동작하지만,
+ * 의뢰자에게 공유하는 preview-share 화면은 로그인 세션이 없는 제3자가 보므로 이 보호가 켜져
+ * 있으면 항상 깨진 것처럼 보인다. `ssoProtection: null`은 Vercel 공식 REST API(PATCH
+ * /v9/projects/:idOrName)가 명시적으로 지원하는 "보호 해제" 값이다.
+ * 실패해도(예: 플랜 제약) 파이프라인 자체를 막지 않는다 — 이미 만들어진 Project·이후
+ * 단계(Repo 연결·배포)는 이 설정과 무관하게 계속 진행될 수 있어야 한다.
+ */
+export async function disableDeploymentProtection(
+  projectIdOrName: string,
+  fetchFn: FetchLike = fetch
+): Promise<VercelOperationResult> {
+  if (!isVercelConfigured()) {
+    return { success: false, error: "VERCEL_TOKEN이 설정되지 않았습니다." };
+  }
+
+  const res = await fetchFn(
+    `${VERCEL_API_BASE}/v9/projects/${encodeURIComponent(projectIdOrName)}${teamQuery()}`,
+    {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify({ ssoProtection: null }),
+    }
+  );
+
+  if (res.ok) return { success: true };
+  return { success: false, error: `Deployment Protection 해제 실패 (${res.status}): ${await readErrorBody(res)}` };
+}
+
 /** 생성된 Project에 GitHub 저장소를 연결한다(Workflow의 6단계 — Project 생성과 분리된 별도 호출). */
 export async function linkGitRepository(
   projectIdOrName: string,

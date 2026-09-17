@@ -6,6 +6,7 @@ import {
   createDeployment,
   createProject,
   deleteProject,
+  disableDeploymentProtection,
   isVercelConfigured,
   linkGitRepository,
 } from "@/lib/vercel/client";
@@ -41,6 +42,7 @@ export interface DeploymentPipelineDeps {
   commitAll: typeof commitAll;
   pushToRemote: typeof pushToRemote;
   createProject: typeof createProject;
+  disableDeploymentProtection: typeof disableDeploymentProtection;
   linkGitRepository: typeof linkGitRepository;
   createDeployment: typeof createDeployment;
   deleteProject: typeof deleteProject;
@@ -55,6 +57,7 @@ const DEFAULT_DEPS: DeploymentPipelineDeps = {
   commitAll,
   pushToRemote,
   createProject,
+  disableDeploymentProtection,
   linkGitRepository,
   createDeployment,
   deleteProject,
@@ -174,6 +177,20 @@ export async function runDeploymentPipeline(
       detail: vercelProject.name,
       metadata: { websiteId: input.websiteId, projectId: vercelProject.id },
     });
+
+    // 5-1. Deployment Protection 해제 — 팀 기본 설정에 따라 신규 Project는 Vercel
+    // Authentication(SSO)이 켜진 채로 생성될 수 있는데, 켜져 있으면 이 뒤에 만들 preview
+    // 배포는 Vercel 로그인 없이는 열 수 없다(관리자 본인만 자기 로그인 세션으로 우연히 정상
+    // 열림). 특히 의뢰자 공유 화면(app/preview-review/[id])의 iframe은 그 로그인 확인
+    // 페이지 자체가 프레이밍을 거부해 완전히 빈 화면으로 보인다(2026-09-17 실사용 재현).
+    // 실패해도(플랜 제약 등) 파이프라인을 막지 않는다 — 로그만 남기고 계속 진행한다.
+    const ssoResult = await deps.disableDeploymentProtection(vercelProject.id);
+    pushLog(
+      logs,
+      "vercel.disable_protection",
+      ssoResult.success,
+      ssoResult.success ? "Deployment Protection 해제됨" : (ssoResult.error ?? "Deployment Protection 해제 실패")
+    );
 
     // 6. GitHub Repository 연결
     const linkResult = await deps.linkGitRepository(vercelProject.id, repository.fullName);

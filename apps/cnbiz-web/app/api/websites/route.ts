@@ -11,7 +11,12 @@ import { prototypeToDesignDocument } from "@/lib/design/claude-design-document-a
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
-import { resolveCliEntry, resolveCliWorkingDir, resolveGeneratedWebsitesDir } from "@/lib/paths/repoRoot";
+import {
+  isUnderGeneratedWebsitesScratch,
+  resolveCliEntry,
+  resolveCliWorkingDir,
+  resolveGeneratedWebsitesDir,
+} from "@/lib/paths/repoRoot";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -122,6 +127,17 @@ export async function POST(request: Request) {
 
     documentPath = path.join(resolveCliWorkingDir(), `design-document-quickbuild-${wireframeId}.json`);
     await fs.writeFile(documentPath, JSON.stringify(document), "utf-8");
+  }
+
+  // 같은 프로젝트명으로 재시도하면 outDir(slugify(name))가 항상 동일한 경로로 계산되는데,
+  // generateFromTemplate()(packages/cli)은 대상 폴더가 이미 있으면 "Target already exists"로
+  // 거부한다. Vercel의 warm 서버리스 컨테이너는 여러 요청에 걸쳐 같은 /tmp를 재사용하므로,
+  // 이전 시도(성공/실패 무관)가 남긴 산출물이 재시도를 항상 막는 문제가 실제 프로덕션에서
+  // 재현됨(app/api/design/website/route.ts와 동일한 원인, 2026-09-17). scratch 영역
+  // (os.tmpdir() 하위) 밖을 가리키는 경우(관리자가 폼에 직접 입력한 임의 경로)는 안전을 위해
+  // 지우지 않는다.
+  if (isUnderGeneratedWebsitesScratch(outDir)) {
+    await fs.rm(outDir, { recursive: true, force: true }).catch(() => {});
   }
 
   const args = [

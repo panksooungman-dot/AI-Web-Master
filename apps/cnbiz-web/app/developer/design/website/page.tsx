@@ -416,6 +416,9 @@ export default function DesignWebsiteBuilderPage() {
                 <span className="text-xs text-gray-500">{selectedBuild.siteType}</span>
               </div>
               {selectedWebsite && <p className="text-xs text-gray-400 font-mono break-all">{selectedWebsite.outDir}</p>}
+              {selectedBuild.simulatedContent && selectedWebsite?.simulatedReason && (
+                <p className="text-xs text-yellow-500 mt-1">Simulated 이유: {selectedWebsite.simulatedReason}</p>
+              )}
               {selectedBuild.error && <p className="text-xs text-red-400 mt-1">{selectedBuild.error}</p>}
 
               {selectedWebsite && (

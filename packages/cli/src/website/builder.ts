@@ -39,6 +39,8 @@ export interface BuildWebsiteResult {
   files: string[];
   siteType: WebsiteInputs["siteType"];
   contentSimulated: boolean;
+  /** contentSimulated가 true일 때만 있음 — scaffoldWebsiteProject()가 전달한 실제 이유. */
+  contentSimulatedReason?: string;
   /** DesignDocument로부터 생성해 덮어쓴 페이지 경로. 미사용 시 빈 배열. */
   designPages: string[];
 }
@@ -106,6 +108,7 @@ export async function buildWebsite(options: BuildWebsiteOptions): Promise<BuildW
     files: scaffolded.files,
     siteType,
     contentSimulated: scaffolded.contentSimulated,
+    contentSimulatedReason: scaffolded.contentSimulatedReason,
     designPages
   };
 }

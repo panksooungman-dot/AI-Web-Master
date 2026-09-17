@@ -76,5 +76,16 @@ describe("Website Builder v2 — Content Generator (packages/cli/src/website/con
       expect(result.content).toEqual(buildDefaultContent(BASE_INPUTS));
       expect(result.provider).toBeUndefined();
     });
+
+    it("preserves the actual fallback reason instead of discarding it (2026-09-17 diagnostic fix)", async () => {
+      // 실제 프로덕션에서 ANTHROPIC_API_KEY가 설정돼 있는데도 Simulated가 뜨는 문제를 조사하다,
+      // 지금까지는 ProviderManager.complete()가 계산한 실패 사유가 어디에도 남지 않는 것을
+      // 발견했다 — simulated 불리언만 남기고 진단 정보를 그냥 버리고 있었다.
+      const result = await generateSiteContent(cwd, BASE_INPUTS);
+
+      expect(result.simulated).toBe(true);
+      expect(result.simulatedReason).toBeDefined();
+      expect(result.simulatedReason).toContain("unavailable");
+    });
   });
 });

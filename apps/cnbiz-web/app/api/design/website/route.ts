@@ -196,6 +196,12 @@ export async function POST(request: Request) {
   }
 
   const simulatedContent = /No LLM provider connected/i.test(result.stdout);
+  // packages/cli/src/commands/website.ts가 실제 폴백 이유를 별도의 "Reason: " 줄로 출력한다
+  // (2026-09-17 — ANTHROPIC_API_KEY가 설정돼 있는데도 Simulated가 뜨는 문제를 조사하다,
+  // 지금까지는 이 이유가 어디에도 남지 않았음을 발견해 추가). 이유 문자열 자체에 괄호가 들어있어
+  // 괄호로 감싸는 형식은 중첩 괄호 때문에 정규식으로 온전히 못 뽑아내(처음에 이 방식으로 했다가
+  // 실제로 겪은 문제) 별도 줄로 바꿨다 — [^\n]+로 줄 끝까지 통째로 캡처한다.
+  const simulatedReason = /^Reason: (.+)$/m.exec(result.stdout)?.[1]?.trim() ?? undefined;
   const designPageCount = Number(/Design Document applied — (\d+) page/.exec(result.stdout)?.[1] ?? 0);
   const actor = await getCurrentActorEmail();
 
@@ -205,6 +211,7 @@ export async function POST(request: Request) {
     outDir,
     status: result.success ? "Success" : "Failed",
     simulatedContent,
+    simulatedReason,
     error: result.success ? undefined : result.error ?? (result.stderr.trim() || "생성 실패"),
   });
 

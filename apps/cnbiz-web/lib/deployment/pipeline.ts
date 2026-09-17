@@ -132,18 +132,25 @@ export async function runDeploymentPipeline(
       metadata: { websiteId: input.websiteId },
     });
 
-    // 3. Commit
+    // 3. Commit — outDir 산출물 존재 확인 후 GitHub Git Data API로 blob→tree→commit 생성
+    // (git CLI 미사용 — lib/git/client.ts 상단 주석 참고, Vercel 서버리스 런타임에는 git
+    // 바이너리가 없어 로컬 git 프로세스 실행이 항상 ENOENT로 실패한다)
     const initResult = await deps.ensureRepoInitialized(input.outDir);
     if (!initResult.success) throw new Error(`git init 실패: ${initResult.error}`);
 
-    const commitResult = await deps.commitAll(input.outDir, "Initial deployment via AI Business OS");
+    const commitResult = await deps.commitAll(
+      input.outDir,
+      "Initial deployment via AI Business OS",
+      repository,
+      process.env.GITHUB_TOKEN ?? ""
+    );
     if (!commitResult.success) throw new Error(`git commit 실패: ${commitResult.error}`);
     pushLog(logs, "git.commit", true, "커밋 완료");
 
-    // 4. Push
+    // 4. Push — commitAll()이 만든 commit SHA로 branch ref를 생성/갱신한다
     const pushResult = await deps.pushToRemote(
-      input.outDir,
-      repository.htmlUrl,
+      commitResult.stdout ?? "",
+      repository,
       process.env.GITHUB_TOKEN ?? "",
       repository.defaultBranch
     );

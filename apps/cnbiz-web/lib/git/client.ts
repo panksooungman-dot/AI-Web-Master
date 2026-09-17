@@ -1,185 +1,189 @@
 import fs from "fs";
 import path from "path";
-import { spawn } from "child_process";
-import type { GitCommandRunner, GitStepResult } from "./types";
+import type { FetchLike, GitStepResult, GitTargetRepo } from "./types";
 
 /**
- * AI Business OS Rewiring Phase 3 — 로컬 git 조작(생성된 사이트 산출물을 커밋·푸시).
+ * AI Business OS Rewiring Phase 3.1 — GitHub Git Data API 기반 재구현 (2026-09-17).
  *
- * 의도적으로 lib/commandEngine/engine.ts의 execute()를 재사용하지 않는다 — 그 함수는 실행한
- * 명령 문자열 전체를 감사 이력(commandHistoryStore)·이벤트 버스에 그대로 기록하도록 설계되어
- * 있는데(Terminal/Git Manager 화면에서 사람이 실행한 명령을 보여주기 위한 용도), 이 모듈의
- * pushToRemote()는 GitHub 토큰이 포함된 URL을 인자로 다뤄야 한다. 토큰이 로그에 남는 것을
- * 원천적으로 막기 위해, git을 인자 배열(argv)로 직접 spawn하는 별도의 최소 실행기를 둔다 —
- * 이 파일 안에서도 어떤 함수도 인자 자체를 로깅하지 않는다(호출자인
- * lib/deployment/pipeline.ts가 남기는 감사 로그에도 토큰 값은 절대 포함하지 않는다).
+ * 기존 구현은 로컬 `git` CLI를 `child_process.spawn("git", ...)`으로 직접 실행했다. 이 방식은
+ * `npm run dev`로 띄운 로컬 서버(git이 PATH에 있음)에서는 문제없이 동작했지만, 실제
+ * 프로덕션(Vercel의 배포된 서버리스 Node.js 함수 런타임)에는 `git` 바이너리 자체가 없어
+ * spawn이 즉시 "spawn git ENOENT"로 실패했다(2026-09-17, Website Build → 배포 파이프라인을
+ * 처음 실사용한 직후 실제로 재현·보고됨 — GitHub Repository 생성까지는 정상 진행되고 바로
+ * 다음 단계에서 처음으로 git을 실행하려는 순간 실패했다). 이는 lib/aiJobs/worker.ts의
+ * triggerDeployment()가 호출하는 기존 고객 의뢰 배포 경로도 실제 배포된 함수에서 실행될 때는
+ * 동일하게 겪었을 잠재적 결함이다 — 그동안의 검증(PRODUCTION_VALIDATION.md 등)이 전부 로컬
+ * dev 서버 기준이라 드러나지 않았을 뿐이다.
  *
- * ## Git Scope 안전장치 (GIT_SCOPE_FIX_REPORT.md 참고)
- *
- * 이전 버전은 `git rev-parse --is-inside-work-tree`로 "이미 초기화됐는지"를 판단했다. 이 명령은
- * `cwd`가 **어떤** 저장소든 작업 트리 내부에 있으면 성공을 반환하므로, `outDir`(생성된 사이트
- * 산출물 폴더)가 독립 `.git`을 가진 적이 없으면 이 저장소(`ai-web-master`)의 `.git`을 상위에서
- * 찾아내 "이미 초기화됨"으로 오판했다 — 그 결과 이어지는 `git add -A`/`git commit`이 `outDir`가
- * 아니라 **모노레포 전체**를 대상으로 실행되어, 실제로 로컬 `main` 브랜치에 저장소 전체를 담은
- * 잘못된 커밋이 만들어진 사고가 있었다(다행히 그 다음 push는 별도 사유로 실패해 GitHub 원격에는
- * 올라가지 않았다).
- *
- * 재발을 막기 위해 두 겹의 안전장치를 둔다:
- * 1. `ensureRepoInitialized()`는 이제 git 명령이 아니라 `fs.existsSync(path.join(cwd, ".git"))`
- *    **만으로** "cwd 자신이 독립 저장소인가"를 판단한다 — 상위 저장소의 존재 여부와 무관하게
- *    cwd 자신에 `.git`이 없으면 무조건 `git init`을 cwd에서 실행한다.
- * 2. `assertOwnRepoScope()`(아래, 비공개)를 `ensureRepoInitialized()`·`commitAll()`·
- *    `pushToRemote()` **세 함수 모두의 진입점**에서 각각 독립적으로 호출한다 — "cwd에 `.git`이
- *    있는가" + "`git rev-parse --show-toplevel`의 결과가 정확히 cwd와 같은가"를 확인해, 하나라도
- *    어긋나면 `GitScopeError`를 즉시 throw하고 어떤 git 명령도 실행하지 않는다. `ensureRepoInitialized()`
- *    호출을 빠뜨리거나 다른 경로로 우회해도 `commitAll()`/`pushToRemote()` 자체가 독립적으로
- *    막아서므로, 모노레포 루트를 대상으로 `git add`/`git commit`/`git push`가 실행될 가능성을
- *    구조적으로 차단한다.
+ * 이번 재구현은 로컬 git 프로세스를 아예 쓰지 않도록, GitHub REST의 Git Data API
+ * (blob → tree → commit → ref)로 완전히 대체한다 — lib/github/client.ts와 동일하게 새 npm
+ * 의존성 없이 `fetch`만 사용한다. 부수 효과로, 과거 GIT_SCOPE_FIX_REPORT.md가 다루던 사고
+ * (outDir가 상위 모노레포의 .git 안에 중첩되어 `git rev-parse`가 상위 저장소를 가리킴)는
+ * 이 구조에서는 원천적으로 발생할 수 없다 — 로컬 git 저장소 개념 자체가 없고, outDir는 그저
+ * "이 경로 아래 파일들을 읽어 GitHub에 올릴 소스"일 뿐이라 상위 디렉터리의 git 상태와 전혀
+ * 무관하다.
  */
 
-export class GitScopeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "GitScopeError";
-  }
+const GITHUB_API_BASE = "https://api.github.com";
+
+function authHeaders(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
 }
 
-/** Windows(`\`)·POSIX(`/`) 구분자, 대소문자, trailing slash 차이를 흡수하고 절대 경로로 정규화한다. */
-function normalizeForComparison(candidate: string): string {
-  return path
-    .resolve(candidate)
-    .replace(/\\/g, "/")
-    .replace(/\/+$/, "")
-    .toLowerCase();
+async function readErrorBody(res: Response): Promise<string> {
+  try {
+    return (await res.text()).slice(0, 300);
+  } catch {
+    return "";
+  }
 }
 
 /**
- * `cwd`가 "그 자신의" git 저장소 최상위인지 확인한다. 아래 둘 중 하나라도 아니면 `GitScopeError`를
- * throw한다(반환하지 않음 — 호출자가 실수로 반환값 검사를 빠뜨려도 안전하도록):
- * - `cwd` 바로 아래 `.git`이 없다(독립 저장소가 아니라 상위 저장소의 작업 트리 내부일 뿐)
- * - `git rev-parse --show-toplevel`의 결과가 `cwd`와 다르다(예: 상위 저장소를 가리킴)
+ * outDir가 실제로 존재하는 디렉터리인지만 확인한다 — 과거 "로컬 git 저장소 초기화" 단계의
+ * 자리를 대체한다(더 이상 초기화할 로컬 git 상태 자체가 없다).
  */
-async function assertOwnRepoScope(cwd: string, runner: GitCommandRunner): Promise<void> {
-  if (!fs.existsSync(path.join(cwd, ".git"))) {
-    throw new GitScopeError(
-      `Git 스코프 위반: "${cwd}"에 독립된 .git이 없습니다. 상위 저장소를 대상으로 git 명령이 ` +
-        `실행되는 것을 방지하기 위해 중단합니다.`
-    );
+export async function ensureRepoInitialized(cwd: string): Promise<GitStepResult> {
+  if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+    return { success: false, error: `"${cwd}"가 존재하지 않거나 디렉터리가 아닙니다.` };
   }
-
-  const toplevel = await runner(["rev-parse", "--show-toplevel"], cwd);
-  if (!toplevel.success) {
-    throw new GitScopeError(
-      `Git 스코프 확인 실패: "${cwd}"에서 "git rev-parse --show-toplevel" 실행에 실패했습니다 ` +
-        `(${toplevel.error ?? "알 수 없는 오류"}).`
-    );
-  }
-
-  const actualToplevel = (toplevel.stdout ?? "").trim();
-  if (normalizeForComparison(actualToplevel) !== normalizeForComparison(cwd)) {
-    throw new GitScopeError(
-      `Git 스코프 위반: "${cwd}"의 저장소 최상위가 "${actualToplevel}"입니다(기대값: "${cwd}"). ` +
-        `상위 저장소 전체가 commit/push 대상이 되는 것을 방지하기 위해 중단합니다.`
-    );
-  }
-}
-
-function defaultRunner(args: string[], cwd: string): Promise<GitStepResult> {
-  return new Promise((resolve) => {
-    const child = spawn("git", args, { cwd, windowsHide: true });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout?.on("data", (data) => {
-      stdout += data.toString();
-    });
-    child.stderr?.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    child.on("error", (error) => {
-      resolve({ success: false, error: error.message });
-    });
-
-    child.on("close", (code) => {
-      resolve({
-        success: code === 0,
-        stdout,
-        error: code === 0 ? undefined : stderr.trim() || `git ${args[0] ?? ""} 종료 코드 ${code}`,
-      });
-    });
-  });
-}
-
-/**
- * `cwd` 자신에 `.git`이 없으면(상위 저장소의 존재 여부와 무관하게) `cwd`에서 `git init`을
- * 실행해 독립 저장소로 만든다. 이미 `.git`이 있으면 멱등하게 아무것도 하지 않는다. 어느 경우든
- * 마지막에 `assertOwnRepoScope()`로 실제로 `cwd`가 자신의 저장소 최상위가 됐는지 재확인한다 —
- * 여기서 어긋나면 `GitScopeError`를 throw한다(반환값 아님, 위 클래스 설명 참고).
- */
-export async function ensureRepoInitialized(
-  cwd: string,
-  runner: GitCommandRunner = defaultRunner
-): Promise<GitStepResult> {
-  if (!fs.existsSync(path.join(cwd, ".git"))) {
-    const init = await runner(["init"], cwd);
-    if (!init.success) return init;
-  }
-
-  await assertOwnRepoScope(cwd, runner);
-
   return { success: true };
 }
 
+/** 생성물에 보통 없지만, 있다면 커밋 대상에서 제외한다(방어적 스킵). */
+const SKIP_DIR_NAMES = new Set([".git", "node_modules"]);
+
+function listFilesRecursive(currentDir: string, out: string[]): void {
+  for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+    if (SKIP_DIR_NAMES.has(entry.name)) continue;
+    const fullPath = path.join(currentDir, entry.name);
+    if (entry.isDirectory()) {
+      listFilesRecursive(fullPath, out);
+    } else if (entry.isFile()) {
+      out.push(fullPath);
+    }
+  }
+}
+
+interface TreeEntry {
+  path: string;
+  mode: "100644";
+  type: "blob";
+  sha: string;
+}
+
 /**
- * 산출물 전체를 커밋한다. 저장소별 전역 git 설정을 건드리지 않도록 커밋마다
- * `-c user.name=`/`-c user.email=`을 명시한다(새로 생성된 로컬 폴더에는 git 사용자 설정이
- * 없을 수 있음).
+ * cwd 아래 모든 파일을 GitHub Git Data API로 blob → tree → commit까지 만든다. 부모 없는
+ * root commit이다 — 대상 저장소는 항상 `createRepository({ auto_init: false })`로 방금 만든
+ * 빈 저장소이므로(lib/github/client.ts), 이 파이프라인 안에서는 언제나 첫 커밋이다. 성공 시
+ * 생성된 commit SHA를 stdout에 담아 pushToRemote()로 그대로 전달한다.
  */
 export async function commitAll(
   cwd: string,
   message: string,
-  runner: GitCommandRunner = defaultRunner
+  repo: GitTargetRepo,
+  token: string,
+  fetchFn: FetchLike = fetch
 ): Promise<GitStepResult> {
-  // ensureRepoInitialized() 호출 여부와 무관하게 독립적으로 재확인한다 — 이 함수 하나만으로도
-  // 루트 저장소(모노레포)를 대상으로 git add/commit이 실행되는 것을 막는다.
-  await assertOwnRepoScope(cwd, runner);
-
-  const add = await runner(["add", "-A"], cwd);
-  if (!add.success) return add;
-
-  const commit = await runner(
-    ["-c", "user.name=AI Business OS", "-c", "user.email=deploy@cnbiz.kr", "commit", "-m", message],
-    cwd
-  );
-
-  // 재시도 등으로 변경사항이 전혀 없는 상태에서 다시 호출되어도 실패로 취급하지 않는다.
-  // git commit은 이 메시지를 대부분 stdout으로 출력하므로(stderr가 아님) 둘 다 확인한다.
-  if (!commit.success && /nothing to commit/i.test(`${commit.stdout ?? ""}\n${commit.error ?? ""}`)) {
-    return { success: true };
+  const filePaths: string[] = [];
+  try {
+    listFilesRecursive(cwd, filePaths);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "파일 목록 조회 실패" };
   }
 
-  return commit;
+  if (filePaths.length === 0) {
+    return { success: false, error: `"${cwd}"에 커밋할 파일이 없습니다.` };
+  }
+
+  const base = `${GITHUB_API_BASE}/repos/${repo.owner}/${repo.name}`;
+
+  let treeEntries: TreeEntry[];
+  try {
+    treeEntries = await Promise.all(
+      filePaths.map(async (filePath): Promise<TreeEntry> => {
+        const relativePath = path.relative(cwd, filePath).split(path.sep).join("/");
+        const content = fs.readFileSync(filePath).toString("base64");
+
+        const res = await fetchFn(`${base}/git/blobs`, {
+          method: "POST",
+          headers: { ...authHeaders(token), "Content-Type": "application/json" },
+          body: JSON.stringify({ content, encoding: "base64" }),
+        });
+        if (!res.ok) {
+          throw new Error(`blob 생성 실패 (${relativePath}, ${res.status}): ${await readErrorBody(res)}`);
+        }
+        const json = (await res.json()) as { sha: string };
+        return { path: relativePath, mode: "100644", type: "blob", sha: json.sha };
+      })
+    );
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "blob 생성 실패" };
+  }
+
+  const treeRes = await fetchFn(`${base}/git/trees`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ tree: treeEntries }),
+  });
+  if (!treeRes.ok) {
+    return { success: false, error: `tree 생성 실패 (${treeRes.status}): ${await readErrorBody(treeRes)}` };
+  }
+  const treeJson = (await treeRes.json()) as { sha: string };
+
+  const now = new Date().toISOString();
+  const commitRes = await fetchFn(`${base}/git/commits`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      tree: treeJson.sha,
+      parents: [],
+      author: { name: "AI Business OS", email: "deploy@cnbiz.kr", date: now },
+      committer: { name: "AI Business OS", email: "deploy@cnbiz.kr", date: now },
+    }),
+  });
+  if (!commitRes.ok) {
+    return { success: false, error: `commit 생성 실패 (${commitRes.status}): ${await readErrorBody(commitRes)}` };
+  }
+  const commitJson = (await commitRes.json()) as { sha: string };
+
+  return { success: true, stdout: commitJson.sha };
 }
 
 /**
- * 커밋된 내용을 GitHub 저장소로 push한다. 인증은 `x-access-token:<token>@`를 담은 URL로만
- * 이뤄지며, 이 URL은 `git remote add`로 `.git/config`에 영구 기록하지 않는다(그 파일이 나중에
- * 어디로든 복사·백업될 경우의 토큰 유출 위험을 없애기 위함) — push 호출 한 번의 인자로만
- * 존재했다가 사라진다.
+ * commitAll()이 만든 commit SHA로 branch ref를 생성/갱신한다(git push의 대체). 대상 저장소는
+ * 방금 생성되어 ref가 아직 없는 것이 일반적인 경로라 먼저 생성을 시도하고, 이미 있으면
+ * (재시도 등) 422를 받아 갱신으로 폴백한다.
  */
 export async function pushToRemote(
-  cwd: string,
-  repositoryHtmlUrl: string,
+  commitSha: string,
+  repo: GitTargetRepo,
   token: string,
   branch = "main",
-  runner: GitCommandRunner = defaultRunner
+  fetchFn: FetchLike = fetch
 ): Promise<GitStepResult> {
-  // commitAll()과 동일한 이유로 독립적으로 재확인한다 — 이 함수 하나만으로도 루트 저장소를
-  // 대상으로 push가 실행되는 것을 막는다(가장 되돌리기 어려운 단계이므로 마지막 방어선).
-  await assertOwnRepoScope(cwd, runner);
+  const base = `${GITHUB_API_BASE}/repos/${repo.owner}/${repo.name}`;
 
-  const authenticatedUrl = repositoryHtmlUrl.replace(/^https:\/\//, `https://x-access-token:${token}@`);
-  return runner(["push", authenticatedUrl, `HEAD:${branch}`], cwd);
+  const createRes = await fetchFn(`${base}/git/refs`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: commitSha }),
+  });
+  if (createRes.ok) return { success: true };
+
+  if (createRes.status === 422) {
+    const updateRes = await fetchFn(`${base}/git/refs/heads/${branch}`, {
+      method: "PATCH",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ sha: commitSha, force: true }),
+    });
+    if (updateRes.ok) return { success: true };
+    return { success: false, error: `ref 갱신 실패 (${updateRes.status}): ${await readErrorBody(updateRes)}` };
+  }
+
+  return { success: false, error: `ref 생성 실패 (${createRes.status}): ${await readErrorBody(createRes)}` };
 }

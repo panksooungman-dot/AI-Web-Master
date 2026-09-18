@@ -423,6 +423,48 @@ function renderStub(stub: ReactEventStub): string {
 }`;
 }
 
+/**
+ * Matches every bare `{handleXxx_yyy}` event-handler reference emitted into rendered markup
+ * (`eventAttrs()`, `renderForm()`'s `onSubmit`). Text/attribute VALUES never match this — they're
+ * always JSON-quoted via `jsxString()` (`{"..."}`), so the character right after `{` is a `"`,
+ * never an identifier start.
+ */
+const HANDLER_REFERENCE_PATTERN = /\{(handle[A-Za-z0-9_]+)\}/g;
+
+function collectReferencedHandlerNames(markup: string): string[] {
+  const names: string[] = [];
+  for (const match of markup.matchAll(HANDLER_REFERENCE_PATTERN)) {
+    names.push(match[1]);
+  }
+  return names;
+}
+
+/**
+ * Defensive repair pass (found 2026-09-17 from a real generated project that failed to deploy):
+ * a page rendered `<form onSubmit={handleSubmit_reservation_form_0}>` with no matching
+ * `function handleSubmit_reservation_form_0() {...}` declared anywhere in the file — `tsc` then
+ * rejected the whole build with `Cannot find name 'handleSubmit_reservation_form_0'`. componentTree.ts
+ * is supposed to guarantee every form's handler has a matching stub, but by the time that guarantee
+ * breaks (a future renderer forgetting the same guarantee, a stale bundled build, a stub silently
+ * dropped somewhere in the pipeline) the failure only ever surfaces as a downstream compile error in
+ * the generated project — never inside this package, since nothing here type-checks its own output
+ * against itself. Scanning the actual rendered markup for every `{handleXxx}` reference and
+ * synthesizing a stub for any that don't already have one closes that gap at the source, regardless
+ * of which upstream step let the mismatch through.
+ */
+function repairMissingStubs(markup: string, stubs: ReactEventStub[]): ReactEventStub[] {
+  const declaredNames = new Set(stubs.map((stub) => stub.name));
+  const repaired = [...stubs];
+
+  for (const name of collectReferencedHandlerNames(markup)) {
+    if (declaredNames.has(name)) continue;
+    declaredNames.add(name);
+    repaired.push({ name, sourceAction: "unspecified (auto-repaired: referenced without a matching stub)" });
+  }
+
+  return repaired;
+}
+
 function toPascalCase(value: string): string {
   return value
     .split(/[^a-zA-Z0-9]+/)
@@ -440,7 +482,8 @@ export function renderPageTsx(structure: ReactPageStructure, stubs: ReactEventSt
   const sectionsMarkup = structure.sections.map((section) => renderSection(section, context, "      ")).join("\n");
 
   // Deduplicate stub names — a component's own id is already unique, but keep this defensive.
-  const uniqueStubs = [...new Map(stubs.map((stub) => [stub.name, stub])).values()];
+  const dedupedStubs = [...new Map(stubs.map((stub) => [stub.name, stub])).values()];
+  const uniqueStubs = repairMissingStubs(sectionsMarkup, dedupedStubs);
 
   // Any stub means the page binds a DOM event handler. In the App Router that only works in a
   // Client Component, and Next.js rejects a `metadata` export from a module marked "use client"

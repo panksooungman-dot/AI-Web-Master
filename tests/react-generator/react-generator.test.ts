@@ -6,6 +6,9 @@ import {
   pathToRoute,
   buildTailwindClasses,
 } from "../../packages/cli/src/generators/react/index.js";
+import { renderPageTsx } from "../../packages/cli/src/generators/react/tsx.js";
+import type { ReactPageStructure } from "../../packages/cli/src/generators/react/componentTree.js";
+import type { ReactComponentNode } from "../../packages/cli/src/generators/react/types.js";
 import type { DesignDocument } from "@cnbiz/design-system/types/design";
 
 const REACT_GENERATOR_SRC_DIR = path.join(__dirname, "..", "..", "packages", "cli", "src", "generators", "react");
@@ -483,6 +486,78 @@ describe("React Generator — packages/cli/src/generators/react", () => {
       const tsx = generateReactComponentTree(document).pages[0].tsx;
       expect(tsx).toContain('data-source-type={"Header"}');
       expect(tsx).not.toMatch(/[^-]sourceType=/);
+    });
+  });
+
+  describe("renderPageTsx() — repairing a handler referenced without a matching stub (2026-09-17)", () => {
+    // Reproduces a real generated project (website-27f9bd8b) whose Vercel build failed with
+    // `Type error: Cannot find name 'handleSubmit_reservation_form_0'` — a <form> referenced an
+    // onSubmit handler that componentTree.ts's normal pipeline never got a chance to declare a
+    // stub for (through this package's public API, that pairing is always correct; this
+    // reproduces the mismatch directly against renderPageTsx() itself, which is the only way to
+    // exercise the repair pass without depending on exactly how a future pipeline change could
+    // let a handler/stub pair drift apart).
+    function formNode(onSubmitName: string): ReactComponentNode {
+      return {
+        id: "reservation-form-0",
+        tag: "form",
+        sourceType: "form",
+        className: "",
+        props: {},
+        events: { onSubmit: onSubmitName },
+        children: [],
+      };
+    }
+
+    function pageWithComponent(component: ReactComponentNode): ReactPageStructure {
+      return {
+        id: "admin-gallery",
+        title: "갤러리 관리",
+        path: "/admin/gallery",
+        route: "app/admin/gallery/page.tsx",
+        className: "",
+        sections: [{ id: "s", tag: "section", sourceType: "about", className: "", components: [component] }],
+      };
+    }
+
+    it("declares a stub for a referenced handler even when the caller's stubs list omits it", () => {
+      const structure = pageWithComponent(formNode("handleSubmit_reservation_form_0"));
+
+      // The caller (componentTree.ts) failed to include a matching stub — exactly what happened
+      // in production.
+      const tsx = renderPageTsx(structure, []);
+
+      expect(tsx).toContain("onSubmit={handleSubmit_reservation_form_0}");
+      expect(tsx).toContain("function handleSubmit_reservation_form_0() {");
+      // A repaired page still needs "use client" — it binds a DOM event handler either way.
+      expect(tsx).toContain('"use client";');
+    });
+
+    it("does not duplicate a stub the caller already declared correctly", () => {
+      const structure = pageWithComponent(formNode("handleSubmit_reservation_form_0"));
+      const tsx = renderPageTsx(structure, [{ name: "handleSubmit_reservation_form_0", sourceAction: "submit" }]);
+
+      const occurrences = tsx.match(/function handleSubmit_reservation_form_0\(\)/g) ?? [];
+      expect(occurrences).toHaveLength(1);
+    });
+
+    it("never touches quoted text values (jsxString output), only bare event-handler references", () => {
+      const textNode: ReactComponentNode = {
+        id: "t",
+        tag: "p",
+        sourceType: "text",
+        className: "",
+        props: { text: "handleSomething should not be declared" },
+        events: {},
+        children: [],
+      };
+      const structure = pageWithComponent(textNode);
+
+      const tsx = renderPageTsx(structure, []);
+      expect(tsx).not.toContain("function handleSomething");
+      // Page has no real event handlers, so it stays a Server Component with metadata.
+      expect(tsx).not.toContain('"use client"');
+      expect(tsx).toContain("export const metadata");
     });
   });
 });

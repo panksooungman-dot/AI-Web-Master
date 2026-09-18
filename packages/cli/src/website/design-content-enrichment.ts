@@ -159,14 +159,39 @@ function enrichPage(page: Page, content: SiteContent, brand: string, navItems: A
   };
 }
 
+const ADMIN_PATH_PREFIX = "/admin";
+
+/** `/admin`·`/admin/gallery` 등 관리자 전용 경로. 공개 방문자가 보는 Header/Navigation/Sidebar에
+ *  관리자 화면 링크가 섞여 나오면 안 된다(2026-09-18, 실제 생성된 About 페이지에서 발견 — 예약문의
+ *  관리·SEO 관리 같은 관리자 메뉴 6개가 그대로 공개 네비게이션에 노출되고 있었다). */
+function isAdminPath(path: string): boolean {
+  return path === ADMIN_PATH_PREFIX || path.startsWith(`${ADMIN_PATH_PREFIX}/`);
+}
+
+/**
+ * Storyboard/Prototype이 화면 이름을 "ABOUT — 사색찬미 이야기"처럼 "짧은 이름 — 설명" 형태로
+ * 지어내는 경우가 있다(내부 기획 문서 표기, 실사용자 대상 카피가 아니다 — 같은 세션에서 만든
+ * Storyboard "화면 구성(Screen Flow)" 요약과 동일한 문구). `<title>` 메타데이터에는 이 설명이
+ * 남아있어도 괜찮지만(SEO상 오히려 유용), 네비게이션 라벨에 그대로 쓰면 링크 하나가 문장 하나만큼
+ * 길어져 실제로 보기 흉한 결과가 나온다(2026-09-18 발견). "—" 앞부분만 라벨로 쓰고, 구분자가
+ * 없으면 원본 그대로 둔다.
+ */
+function navLabel(title: string): string {
+  const [short] = title.split("—");
+  const trimmed = short.trim();
+  return trimmed || title;
+}
+
 /**
  * `brand`는 `WebsiteInputs.brand`(builder.ts가 이미 갖고 있음, Content Engine 호출과 동일한
  * 출처)를 그대로 받는다 — 새로 추론하지 않는다. `navItems`는 DesignDocument 자신의
  * `pages[].title`/`pages[].path`에서 뽑는다(Storyboard가 실제로 만든 화면 목록이라 지어낸
- * 메뉴가 아니다).
+ * 메뉴가 아니다) — 단, 관리자 경로는 제외하고 라벨은 위 `navLabel()`로 정리한다.
  */
 export function enrichDesignDocumentWithContent(document: DesignDocument, content: SiteContent, brand: string): DesignDocument {
-  const navItems = document.pages.map((page) => ({ label: page.title, href: page.path }));
+  const navItems = document.pages
+    .filter((page) => !isAdminPath(page.path))
+    .map((page) => ({ label: navLabel(page.title), href: page.path }));
 
   return {
     ...document,

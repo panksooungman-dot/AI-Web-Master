@@ -116,6 +116,41 @@ describe("Website Builder v2 — enrichDesignDocumentWithContent (packages/cli/s
     expect(sidebar.props.navItems).toEqual(header.props.navItems);
   });
 
+  it("excludes admin routes from nav items (2026-09-18 — real generated About page leaked all 6 admin links into its public nav)", () => {
+    const document = baseDocument([
+      page("home", "Home", "/", [landmark("h", "container", "Header")]),
+      page("about", "About", "/about", []),
+      page("admin", "관리자", "/admin", []),
+      page("admin-gallery", "갤러리 관리", "/admin/gallery", []),
+    ]);
+
+    const enriched = enrichDesignDocumentWithContent(document, content, BASE_INPUTS.brand);
+    const header = enriched.pages[0].sections[0].components[0];
+
+    expect(header.props.navItems).toEqual([
+      { label: "Home", href: "/" },
+      { label: "About", href: "/about" },
+    ]);
+  });
+
+  it("shortens a '짧은 이름 — 설명' screen title to just the short name for nav labels (metadata title is left untouched elsewhere)", () => {
+    const document = baseDocument([
+      page("home", "Home", "/", [landmark("h", "container", "Header")]),
+      page("about", "ABOUT — 사색찬미 이야기", "/about", []),
+      page("menu-detail", "메뉴 상세", "/menu/[id]", []),
+    ]);
+
+    const enriched = enrichDesignDocumentWithContent(document, content, BASE_INPUTS.brand);
+    const header = enriched.pages[0].sections[0].components[0];
+
+    expect(header.props.navItems).toEqual([
+      { label: "Home", href: "/" },
+      { label: "ABOUT", href: "/about" },
+      // No "—" in the title — used as-is, not accidentally truncated.
+      { label: "메뉴 상세", href: "/menu/[id]" },
+    ]);
+  });
+
   it("fills Footer with a brand-attributed copyright line", () => {
     const document = baseDocument([page("home", "Home", "/", [landmark("f", "container", "Footer")])]);
     const enriched = enrichDesignDocumentWithContent(document, content, BASE_INPUTS.brand);

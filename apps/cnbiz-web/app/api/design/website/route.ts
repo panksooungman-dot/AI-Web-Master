@@ -13,7 +13,7 @@ import {
   recordWebsiteBuild,
   type WebsiteBuildRecord,
 } from "@/lib/design/website-build";
-import { createWebsiteRecord, getWebsite } from "@/lib/websites/registry";
+import { createWebsiteRecord, getWebsite, updateWebsiteDeployment } from "@/lib/websites/registry";
 import { runDeploymentPipeline } from "@/lib/deployment/pipeline";
 import { shouldCleanupPreviousWebsite } from "@/lib/design/website-build-cleanup";
 import { deleteRepository } from "@/lib/github/client";
@@ -263,21 +263,27 @@ export async function POST(request: Request) {
   // 호출하는 것과 완전히 동일한 패턴 — 새 배포 로직을 만들지 않고 그대로 재사용한다.
   // GITHUB_TOKEN/VERCEL_TOKEN이 없으면 파이프라인 자체가 예외 없이 "NotConfigured" 상태만
   // 기록하고 끝나므로, 여기서 별도로 존재 여부를 확인할 필요가 없다.
+  // 2026-09-18 — runDeploymentPipeline() 자체는 내부적으로 자기 완결적인 try/catch로
+  // 감싸여 있어(lib/deployment/pipeline.ts) 정상적인 실패(GitHub/Vercel API 오류 등)는
+  // 절대 여기까지 예외로 올라오지 않지만, 그 catch 블록 "안"에서 실행되는 recordAuditEvent()·
+  // updateWebsiteDeployment() 자체가 실패하는 경우(예: DB 일시 장애)는 그 함수도 방어하지
+  // 못하고 그대로 위로 던져진다. 이전에는 이 호출 자체가 try/catch 밖에 있어, 그런 극단적인
+  // 경우 POST 핸들러 전체가 중단되어 응답이 도중에 끊기고(클라이언트의 "Unexpected end of
+  // JSON input") 아래 recordWebsiteBuild()까지 도달하지 못해 이번 빌드가 History에 전혀
+  // 기록되지 않는 문제를 실사용 중 재현(PR #136 직후, 이어서 PR #137로 정리 코드만 먼저
+  // 방어했으나 배포 파이프라인 호출 자체는 여전히 무방비였음). 정리 코드와 함께 이 호출까지
+  // 하나의 try/catch로 감싸, 무엇이 원인이든 이번 빌드의 History 기록은 항상 보장한다.
   if (websiteRecord.status === "Success") {
-    await runDeploymentPipeline({
-      websiteId: websiteRecord.id,
-      outDir,
-      repoBaseName: inputs.siteType || "site",
-    });
-
-    // 이전 버전 정리 — shouldCleanupPreviousWebsite()가 "정리해도 되는 시도"라고 판단할 때만
-    // 직전 버전(다른 websiteId)의 저장소·프로젝트를 삭제한다(이미 운영 배포로 확정된 배포는
-    // 그 함수가 절대 대상에 포함하지 않는다). deleteRepository()/deleteProject() 자체는
-    // 예외를 던지지 않고 {success:false} 를 반환하지만, getWebsite()(DB 조회)나
-    // recordAuditEvent()가 일시적으로 실패(예: 네트워크 오류)할 가능성까지 남아있어 이 구획
-    // 전체를 try/catch로 감싼다 — 정리 작업이 실패해도 이번 빌드 자체(생성·배포는 이미 끝난
-    // 뒤)와 아래 recordWebsiteBuild()의 이력 기록은 절대 막혀서는 안 된다.
     try {
+      await runDeploymentPipeline({
+        websiteId: websiteRecord.id,
+        outDir,
+        repoBaseName: inputs.siteType || "site",
+      });
+
+      // 이전 버전 정리 — shouldCleanupPreviousWebsite()가 "정리해도 되는 시도"라고 판단할
+      // 때만 직전 버전(다른 websiteId)의 저장소·프로젝트를 삭제한다(이미 운영 배포로 확정된
+      // 배포는 그 함수가 절대 대상에 포함하지 않는다).
       const previousWebsite = previousBuild ? await getWebsite(previousBuild.websiteId) : undefined;
 
       if (previousWebsite && shouldCleanupPreviousWebsite(previousBuild, websiteRecord.id, previousWebsite)) {
@@ -307,14 +313,32 @@ export async function POST(request: Request) {
           });
         }
       }
-    } catch (cleanupError) {
+    } catch (deploymentError) {
+      // 다음에 같은 문제가 재현되면 관리자가 /developer/audit-log·/developer/errors에서 직접
+      // 원인을 확인할 수 있도록, 메시지뿐 아니라 스택 앞부분(어느 파일·몇 번째 줄에서 던졌는지)도
+      // 함께 남긴다 — 이 세션 환경에는 실제 Vercel Runtime Logs 접근 권한이 없어, Audit Log가
+      // 사실상 유일하게 확인 가능한 진단 정보다.
+      const message =
+        deploymentError instanceof Error
+          ? [deploymentError.message, ...(deploymentError.stack?.split("\n").slice(1, 6) ?? [])].join("\n")
+          : "배포/이전 버전 정리 중 알 수 없는 오류가 발생했습니다.";
+
       await recordAuditEvent({
-        action: "deployment.cleanup.github_repo",
+        action: "deployment.pipeline.failed",
         actor,
         success: false,
-        detail: cleanupError instanceof Error ? cleanupError.message : "이전 버전 정리 중 알 수 없는 오류",
+        detail: message,
         metadata: { websiteId: websiteRecord.id },
       });
+
+      // runDeploymentPipeline() 자신이 실패를 기록하기 전에 예외가 새어나온 경우
+      // deploymentStatus가 갱신되지 않아 "배포 전" 상태로 잘못 남을 수 있어 여기서도 갱신한다.
+      // 레코드가 아직 없거나 이미 다른 상태로 갱신돼 있어도 조용히 무시된다(updateWebsiteDeployment()가
+      // 존재하지 않는 id에 undefined를 반환하는 것과 동일한 안전한 실패 처리).
+      await updateWebsiteDeployment(websiteRecord.id, {
+        deploymentStatus: "Failed",
+        deploymentError: message,
+      }).catch(() => {});
     }
   }
 

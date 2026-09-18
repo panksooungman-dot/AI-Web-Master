@@ -10,6 +10,7 @@ import { LoadingText, StatusMessage } from "@/components/developer/StatusMessage
 import type { DesignPlanRecord } from "@/lib/design/types";
 import type { ReviewRecord } from "@/lib/design/review";
 import type { WebsiteBuildRecord } from "@/lib/design/website-build";
+import type { WebsiteBuildJobRecord } from "@/lib/design/websiteBuildJob";
 import type { DeploymentStatus, WebsiteRecord } from "@/lib/websites/registry";
 import type { WebsitePreviewShareRecord } from "@/lib/websites/preview-share";
 import type { BadgeTone } from "@/components/developer/Badge";
@@ -145,30 +146,80 @@ export default function DesignWebsiteBuilderPage() {
     return review ? `${name} (v${review.version})` : name;
   };
 
+  // app/developer/design/storyboard/page.tsx의 pollStoryboardJob()과 동일한 패턴 — "AI로 여러
+  // 페이지 콘텐츠 생성 + GitHub 저장소 생성 + 커밋/푸시 + Vercel 프로젝트 생성·배포"를 하나의
+  // 동기 요청 안에서 전부 처리하면 페이지가 많은 실제 프로젝트에서 maxDuration(300초)을 그대로
+  // 넘겨버려, 정확히 5분 뒤 "Failed to execute 'json' on 'Response': Unexpected end of JSON
+  // input" + History 기록 안 됨으로 재현됨을 실사용 중 확인(2026-09-18). Job 생성 즉시 응답 →
+  // 별도 실행(run)이 브라우저 쪽에서 끊겨도 서버는 계속 처리 → 짧은 간격 폴링으로 결과 회수
+  // 구조로 바꿨다.
+  async function pollWebsiteBuildJob(
+    jobId: string
+  ): Promise<{ status: "Success"; build: WebsiteBuildRecord } | { status: "Failed"; error: string }> {
+    const POLL_INTERVAL_MS = 3000;
+    const MAX_CONSECUTIVE_POLL_FAILURES = 10;
+    let consecutiveFailures = 0;
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      let json: { success: boolean; job?: WebsiteBuildJobRecord; build?: WebsiteBuildRecord | null; error?: string };
+      try {
+        const res = await fetch(`/api/design/website/jobs/${jobId}`);
+        json = await res.json();
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          return {
+            status: "Failed",
+            error: "네트워크 연결이 불안정해 진행 상태를 확인할 수 없습니다. 잠시 후 History에서 결과를 확인해주세요.",
+          };
+        }
+        continue;
+      }
+
+      if (!json.success || !json.job) {
+        return { status: "Failed", error: json.error ?? "Job 조회에 실패했습니다." };
+      }
+      if (json.job.status === "Success" && json.build) {
+        return { status: "Success", build: json.build };
+      }
+      if (json.job.status === "Failed") {
+        return { status: "Failed", error: json.job.error ?? "Website Builder 실행이 실패했습니다." };
+      }
+    }
+  }
+
   const handleBuild = async () => {
     if (isBuilding || !selectedReviewId) return;
     setIsBuilding(true);
     setBuildError(null);
 
     try {
-      const res = await fetch("/api/design/website", {
+      const createRes = await fetch("/api/design/website/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reviewId: selectedReviewId, outDir: outDirInput.trim() || undefined }),
       });
-      const json = (await res.json()) as { success: boolean; build?: WebsiteBuildRecord; error?: string };
+      const createJson = (await createRes.json()) as { success: boolean; job?: WebsiteBuildJobRecord; error?: string };
 
-      if (!json.build) {
-        setBuildError(json.error ?? "Build 요청 실패");
+      if (!createJson.success || !createJson.job) {
+        setBuildError(createJson.error ?? "Build 요청 실패");
         return;
       }
 
-      setBuilds((prev) => [json.build!, ...prev.filter((b) => b.id !== json.build!.id)]);
-      setSelectedBuildId(json.build.id);
+      const jobId = createJson.job.id;
+      fetch(`/api/design/website/jobs/${jobId}/run`, { method: "POST" }).catch(() => {});
 
-      if (!json.success) {
-        setBuildError(json.error ?? "Website Builder 실행이 실패했습니다.");
+      const result = await pollWebsiteBuildJob(jobId);
+      if (result.status === "Failed") {
+        setBuildError(result.error);
+        return;
       }
+
+      setBuilds((prev) => [result.build, ...prev.filter((b) => b.id !== result.build.id)]);
+      setSelectedBuildId(result.build.id);
 
       // Website Builder가 생성한 결과(outDir 등)를 다시 불러온다.
       fetch("/api/websites")
@@ -176,11 +227,6 @@ export default function DesignWebsiteBuilderPage() {
         .then((j: WebsitesResponse) => setWebsites(j.websites ?? []))
         .catch(() => {});
     } catch (err) {
-      // res.json()이 실패하는 경우(응답이 도중에 끊김 등)는 서버가 실제로는 끝까지 처리를
-      // 완료했을 수 있다(2026-09-18 실사용 — 빌드는 실제로 Success했는데 화면에는 이 에러만
-      // 뜨고 builds/websites state가 그대로 남아, 오래된 Website 미리보기 링크를 계속 보여주는
-      // 문제를 발견). 실패 메시지만 보여주고 끝내지 않고, 실제 서버 상태를 다시 불러와 화면을
-      // 진실과 일치시킨다 — 그래야 "고쳤다는데 반영이 안 됐다"는 오해가 생기지 않는다.
       setBuildError(err instanceof Error ? err.message : "요청 실패");
       load();
     } finally {
@@ -338,6 +384,14 @@ export default function DesignWebsiteBuilderPage() {
             >
               {isBuilding ? "Building..." : "Build with Website Builder"}
             </button>
+
+            {isBuilding && (
+              <p className="text-xs text-gray-500">
+                여러 페이지의 콘텐츠 생성부터 저장소·배포까지 이어서 처리하는 중이라 최대 5분
+                정도 걸릴 수 있습니다. 이 화면을 벗어나도 서버는 계속 처리되며, 이 화면으로
+                돌아와 History에서 결과를 확인할 수 있습니다.
+              </p>
+            )}
 
             {approvedReviews.length === 0 && (
               <p className="text-xs text-gray-500">

@@ -272,36 +272,49 @@ export async function POST(request: Request) {
 
     // 이전 버전 정리 — shouldCleanupPreviousWebsite()가 "정리해도 되는 시도"라고 판단할 때만
     // 직전 버전(다른 websiteId)의 저장소·프로젝트를 삭제한다(이미 운영 배포로 확정된 배포는
-    // 그 함수가 절대 대상에 포함하지 않는다). 삭제가 실패해도(권한 문제 등) 이번 빌드 자체의
-    // 성공 여부에는 영향을 주지 않는다(Audit Log에만 기록).
-    const previousWebsite = previousBuild ? await getWebsite(previousBuild.websiteId) : undefined;
+    // 그 함수가 절대 대상에 포함하지 않는다). deleteRepository()/deleteProject() 자체는
+    // 예외를 던지지 않고 {success:false} 를 반환하지만, getWebsite()(DB 조회)나
+    // recordAuditEvent()가 일시적으로 실패(예: 네트워크 오류)할 가능성까지 남아있어 이 구획
+    // 전체를 try/catch로 감싼다 — 정리 작업이 실패해도 이번 빌드 자체(생성·배포는 이미 끝난
+    // 뒤)와 아래 recordWebsiteBuild()의 이력 기록은 절대 막혀서는 안 된다.
+    try {
+      const previousWebsite = previousBuild ? await getWebsite(previousBuild.websiteId) : undefined;
 
-    if (previousWebsite && shouldCleanupPreviousWebsite(previousBuild, websiteRecord.id, previousWebsite)) {
-      if (previousWebsite.repository) {
-        const repoResult = await deleteRepository(previousWebsite.repository.fullName);
-        await recordAuditEvent({
-          action: "deployment.cleanup.github_repo",
-          actor,
-          success: repoResult.success,
-          detail: repoResult.success
-            ? `이전 버전 저장소 삭제됨: ${previousWebsite.repository.fullName}`
-            : (repoResult.error ?? "저장소 삭제 실패"),
-          metadata: { websiteId: previousWebsite.id },
-        });
-      }
+      if (previousWebsite && shouldCleanupPreviousWebsite(previousBuild, websiteRecord.id, previousWebsite)) {
+        if (previousWebsite.repository) {
+          const repoResult = await deleteRepository(previousWebsite.repository.fullName);
+          await recordAuditEvent({
+            action: "deployment.cleanup.github_repo",
+            actor,
+            success: repoResult.success,
+            detail: repoResult.success
+              ? `이전 버전 저장소 삭제됨: ${previousWebsite.repository.fullName}`
+              : (repoResult.error ?? "저장소 삭제 실패"),
+            metadata: { websiteId: previousWebsite.id },
+          });
+        }
 
-      if (previousWebsite.deployment) {
-        const projectResult = await deleteProject(previousWebsite.deployment.vercelProjectId);
-        await recordAuditEvent({
-          action: "deployment.cleanup.vercel_project",
-          actor,
-          success: projectResult.success,
-          detail: projectResult.success
-            ? `이전 버전 Vercel 프로젝트 삭제됨: ${previousWebsite.deployment.vercelProjectName}`
-            : (projectResult.error ?? "Vercel 프로젝트 삭제 실패"),
-          metadata: { websiteId: previousWebsite.id },
-        });
+        if (previousWebsite.deployment) {
+          const projectResult = await deleteProject(previousWebsite.deployment.vercelProjectId);
+          await recordAuditEvent({
+            action: "deployment.cleanup.vercel_project",
+            actor,
+            success: projectResult.success,
+            detail: projectResult.success
+              ? `이전 버전 Vercel 프로젝트 삭제됨: ${previousWebsite.deployment.vercelProjectName}`
+              : (projectResult.error ?? "Vercel 프로젝트 삭제 실패"),
+            metadata: { websiteId: previousWebsite.id },
+          });
+        }
       }
+    } catch (cleanupError) {
+      await recordAuditEvent({
+        action: "deployment.cleanup.github_repo",
+        actor,
+        success: false,
+        detail: cleanupError instanceof Error ? cleanupError.message : "이전 버전 정리 중 알 수 없는 오류",
+        metadata: { websiteId: websiteRecord.id },
+      });
     }
   }
 

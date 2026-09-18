@@ -7,9 +7,17 @@ import { getReview } from "@/lib/design/review-registry";
 import { getClaudeDesign } from "@/lib/design/claude-design";
 import { getPrototype } from "@/lib/design/prototype";
 import { buildWebsiteBuildHybridSource } from "@/lib/design/website-build-document-adapter";
-import { listWebsiteBuilds, recordWebsiteBuild, type WebsiteBuildRecord } from "@/lib/design/website-build";
-import { createWebsiteRecord } from "@/lib/websites/registry";
+import {
+  getLatestWebsiteBuildForReview,
+  listWebsiteBuilds,
+  recordWebsiteBuild,
+  type WebsiteBuildRecord,
+} from "@/lib/design/website-build";
+import { createWebsiteRecord, getWebsite } from "@/lib/websites/registry";
 import { runDeploymentPipeline } from "@/lib/deployment/pipeline";
+import { shouldCleanupPreviousWebsite } from "@/lib/design/website-build-cleanup";
+import { deleteRepository } from "@/lib/github/client";
+import { deleteProject } from "@/lib/vercel/client";
 import { recordAuditEvent } from "@/lib/audit/log";
 import { getCurrentActorEmail } from "@/lib/audit/actor";
 import { incrementMetric } from "@/lib/metrics/registry";
@@ -150,6 +158,13 @@ export async function POST(request: Request) {
     );
   }
 
+  // 이 Review로 이전에 만든 Build가 있으면 websiteId를 기억해둔다 — recordWebsiteBuild()가
+  // 아래에서 이 값을 새 websiteId로 덮어쓰기 전에 먼저 읽어야 한다. 이번 빌드가 성공하면 이
+  // 이전 버전의 GitHub 저장소·Vercel 프로젝트를 정리하는 데 쓴다(같은 Review를 재빌드할 때마다
+  // 매번 새 저장소·프로젝트가 쌓이고, 관리자가 어떤 링크가 최신인지 헷갈리는 문제를 실사용 중
+  // 발견 — 2026-09-18).
+  const previousBuild = await getLatestWebsiteBuildForReview(reviewId);
+
   const hybridSource = buildWebsiteBuildHybridSource(plan, prototype);
   const inputs = hybridSource.inputs;
   const slug = slugify(inputs.name);
@@ -254,6 +269,40 @@ export async function POST(request: Request) {
       outDir,
       repoBaseName: inputs.siteType || "site",
     });
+
+    // 이전 버전 정리 — shouldCleanupPreviousWebsite()가 "정리해도 되는 시도"라고 판단할 때만
+    // 직전 버전(다른 websiteId)의 저장소·프로젝트를 삭제한다(이미 운영 배포로 확정된 배포는
+    // 그 함수가 절대 대상에 포함하지 않는다). 삭제가 실패해도(권한 문제 등) 이번 빌드 자체의
+    // 성공 여부에는 영향을 주지 않는다(Audit Log에만 기록).
+    const previousWebsite = previousBuild ? await getWebsite(previousBuild.websiteId) : undefined;
+
+    if (previousWebsite && shouldCleanupPreviousWebsite(previousBuild, websiteRecord.id, previousWebsite)) {
+      if (previousWebsite.repository) {
+        const repoResult = await deleteRepository(previousWebsite.repository.fullName);
+        await recordAuditEvent({
+          action: "deployment.cleanup.github_repo",
+          actor,
+          success: repoResult.success,
+          detail: repoResult.success
+            ? `이전 버전 저장소 삭제됨: ${previousWebsite.repository.fullName}`
+            : (repoResult.error ?? "저장소 삭제 실패"),
+          metadata: { websiteId: previousWebsite.id },
+        });
+      }
+
+      if (previousWebsite.deployment) {
+        const projectResult = await deleteProject(previousWebsite.deployment.vercelProjectId);
+        await recordAuditEvent({
+          action: "deployment.cleanup.vercel_project",
+          actor,
+          success: projectResult.success,
+          detail: projectResult.success
+            ? `이전 버전 Vercel 프로젝트 삭제됨: ${previousWebsite.deployment.vercelProjectName}`
+            : (projectResult.error ?? "Vercel 프로젝트 삭제 실패"),
+          metadata: { websiteId: previousWebsite.id },
+        });
+      }
+    }
   }
 
   const buildRecord = await recordWebsiteBuild({

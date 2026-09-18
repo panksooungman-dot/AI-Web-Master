@@ -49,6 +49,8 @@ export type AuditAction =
   | "deployment.pipeline.success"
   | "deployment.pipeline.failed"
   | "deployment.pipeline.rollback"
+  | "deployment.cleanup.github_repo"
+  | "deployment.cleanup.vercel_project"
   | "workspace.autoprovision"
   | "deployment.notify_customer"
   | "estimate.generate"

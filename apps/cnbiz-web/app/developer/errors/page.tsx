@@ -52,6 +52,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "deployment.pipeline.success": "배포 파이프라인 성공",
   "deployment.pipeline.failed": "배포 파이프라인 실패",
   "deployment.pipeline.rollback": "배포 파이프라인 롤백",
+  "deployment.cleanup.github_repo": "이전 버전 저장소 정리",
+  "deployment.cleanup.vercel_project": "이전 버전 Vercel 프로젝트 정리",
   "workspace.autoprovision": "Project Workspace 자동 생성",
   "deployment.notify_customer": "고객 URL 전달",
   "estimate.generate": "기술 견적서 생성",

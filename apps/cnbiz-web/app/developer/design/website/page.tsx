@@ -176,7 +176,13 @@ export default function DesignWebsiteBuilderPage() {
         .then((j: WebsitesResponse) => setWebsites(j.websites ?? []))
         .catch(() => {});
     } catch (err) {
+      // res.json()이 실패하는 경우(응답이 도중에 끊김 등)는 서버가 실제로는 끝까지 처리를
+      // 완료했을 수 있다(2026-09-18 실사용 — 빌드는 실제로 Success했는데 화면에는 이 에러만
+      // 뜨고 builds/websites state가 그대로 남아, 오래된 Website 미리보기 링크를 계속 보여주는
+      // 문제를 발견). 실패 메시지만 보여주고 끝내지 않고, 실제 서버 상태를 다시 불러와 화면을
+      // 진실과 일치시킨다 — 그래야 "고쳤다는데 반영이 안 됐다"는 오해가 생기지 않는다.
       setBuildError(err instanceof Error ? err.message : "요청 실패");
+      load();
     } finally {
       setIsBuilding(false);
     }
@@ -369,7 +375,12 @@ export default function DesignWebsiteBuilderPage() {
               {builds.map((build) => (
                 <li key={build.id} className="flex items-stretch gap-2">
                   <button
-                    onClick={() => setSelectedBuildId(build.id)}
+                    onClick={() => {
+                      setSelectedBuildId(build.id);
+                      // 이전 빌드 시도의 에러 메시지가 다른 항목을 선택한 뒤에도 그대로 남아
+                      // 보이던 문제(2026-09-18 실사용 발견) — 선택이 바뀌면 지운다.
+                      setBuildError(null);
+                    }}
                     className={`flex-1 min-w-0 text-left rounded px-3 py-2 text-sm transition-colors ${
                       selectedBuildId === build.id
                         ? "bg-blue-600/20 border border-blue-600"

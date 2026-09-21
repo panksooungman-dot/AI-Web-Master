@@ -12,16 +12,27 @@ const LABEL = "text-sm font-semibold tracking-widest uppercase text-primary";
 const H2 = "text-3xl font-bold leading-tight text-foreground sm:text-4xl";
 const BODY = "text-base leading-relaxed text-muted";
 
-/** 01 HERO */
+/** 01 HERO — 배경 사진(한 상 전체)으로 한정식 분위기를 전달 */
 export function HeroSection() {
   return (
-    <section className="bg-secondary/40 py-20 sm:py-28">
-      <Container className="flex flex-col items-center gap-6 text-center">
-        <span className={LABEL}>파주 광탄 · 한정식</span>
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+    <section className="relative overflow-hidden py-24 sm:py-32">
+      <Image
+        src="/images/food/table-spread.jpg"
+        alt="사색찬미한정식의 정갈한 한 상"
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-black/60" aria-hidden />
+      <Container className="relative flex flex-col items-center gap-6 text-center">
+        <span className="text-sm font-semibold tracking-widest uppercase text-white/90">
+          파주 광탄 · 한정식
+        </span>
+        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
           {SITE_TAGLINE}
         </h1>
-        <p className="max-w-xl text-lg leading-relaxed text-muted">
+        <p className="max-w-xl text-lg leading-relaxed text-white/90">
           갓 지은 솥밥과 정갈한 한 상, 좋은 사람과 함께하는 따뜻한 식사
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -30,7 +41,7 @@ export function HeroSection() {
             예약 문의
           </LinkButton>
         </div>
-        <p className="text-sm text-muted">{ADDRESS.region} · 한정식 · 솥밥</p>
+        <p className="text-sm text-white/80">{ADDRESS.region} · 한정식 · 솥밥</p>
       </Container>
     </section>
   );

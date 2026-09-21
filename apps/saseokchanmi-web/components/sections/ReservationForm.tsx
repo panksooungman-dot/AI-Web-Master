@@ -5,7 +5,6 @@ import { Button, Input, Textarea } from "@cnbiz/ui";
 import { hasFieldErrors, validateReservationInput } from "@/lib/reservation/validate";
 import type { FieldErrors, ReservationInput } from "@/lib/reservation/types";
 import { telUrl } from "@/lib/links";
-import { CONTACT } from "@/lib/site-config";
 
 const EMPTY_INPUT: ReservationInput = {
   name: "",
@@ -187,10 +186,6 @@ export function ReservationForm() {
       <Button type="submit" disabled={status === "submitting"} className="w-full sm:w-auto">
         {status === "submitting" ? "접수 중..." : "예약 문의 접수"}
       </Button>
-
-      {!CONTACT.phone && (
-        <p className="text-xs text-muted">* 전화 예약을 원하시면 매장 확인 후 안내되는 번호로 연락해 주세요.</p>
-      )}
     </form>
   );
 }

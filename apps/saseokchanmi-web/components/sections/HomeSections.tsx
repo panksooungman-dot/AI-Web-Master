@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card, LinkButton } from "@cnbiz/ui";
 import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_SPOTS } from "@/lib/content";
-import { ADDRESS, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
+import { ADDRESS, CONTACT, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl } from "@/lib/links";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { TodoBadge } from "@/components/ui/TodoBadge";
@@ -281,6 +281,16 @@ export function FinalCTASection() {
           오늘, 좋은 사람과 함께 따뜻한 한 끼 어떠세요?
         </h2>
         <div className="flex flex-wrap items-center justify-center gap-3">
+          {CONTACT.naverPlaceUrl && (
+            <a
+              href={CONTACT.naverPlaceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-primary"
+            >
+              네이버 예약하기
+            </a>
+          )}
           <LinkButton href={RESERVATION_HREF} variant="secondary">
             예약 문의
           </LinkButton>

@@ -18,9 +18,21 @@ export function Footer() {
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
               오늘, 좋은 사람과 함께 따뜻한 한 끼 어떠세요?
             </p>
-            <LinkButton href={RESERVATION_HREF} className="mt-5">
-              예약 문의
-            </LinkButton>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {CONTACT.naverPlaceUrl && (
+                <a
+                  href={CONTACT.naverPlaceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                  네이버 예약하기
+                </a>
+              )}
+              <LinkButton href={RESERVATION_HREF} variant="secondary">
+                예약 문의
+              </LinkButton>
+            </div>
           </div>
 
           <div>

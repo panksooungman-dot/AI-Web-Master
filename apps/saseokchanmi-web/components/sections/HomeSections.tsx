@@ -168,6 +168,19 @@ export function SignatureStorySection() {
   );
 }
 
+/** 홈 SPACE 요약 타일. 실제 사진이 있으면 표시하고, 없으면 자리표시자로 대체. */
+function SpaceTile({ src, alt, caption, label }: { src?: string; alt: string; caption?: string; label: string }) {
+  if (!src) return <PhotoPlaceholder label={label} aspect="square" />;
+  return (
+    <figure>
+      <div className="relative aspect-square overflow-hidden rounded-xl">
+        <Image src={src} alt={alt} fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />
+      </div>
+      {caption && <figcaption className="mt-3 text-sm font-medium text-foreground">{caption}</figcaption>}
+    </figure>
+  );
+}
+
 /** 06 SPACE — 매장·주차 (요약) */
 export function SpaceTeaserSection() {
   return (
@@ -178,9 +191,24 @@ export function SpaceTeaserSection() {
           <h2 className={`${H2} mt-3`}>편안하게 머무를 수 있는 공간</h2>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
-          <PhotoPlaceholder label="외관" aspect="square" />
-          <PhotoPlaceholder label="홀·좌석" aspect="square" />
-          <PhotoPlaceholder label="주차 공간" aspect="square" />
+          <SpaceTile
+            label="외관"
+            src="/images/space/exterior.jpg"
+            alt="정갈한 간판 아래, 사색찬미의 첫인사"
+            caption="정갈한 간판 아래, 사색찬미의 첫인사"
+          />
+          <SpaceTile
+            label="홀·좌석"
+            src="/images/space/hall.jpg"
+            alt="넉넉한 공간에서 나누는 넉넉한 한 상"
+            caption="넉넉한 공간에서 나누는 넉넉한 한 상"
+          />
+          <SpaceTile
+            label="주차 공간"
+            src="/images/space/parking.jpg"
+            alt="여유롭게 세우고 편안하게 드시는 하루"
+            caption="여유롭게 세우고 편안하게 드시는 하루"
+          />
         </div>
         <div className="mt-8 text-center">
           <LinkButton href="/space" variant="secondary">

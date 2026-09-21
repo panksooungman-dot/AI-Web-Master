@@ -231,13 +231,42 @@ export const SEATING_OPTIONS: SeatingOption[] = [
 export interface SpacePhoto {
   label: string;
   category: "외관" | "홀" | "좌석" | "모임 공간" | "주차";
+  /** 실제 매장 사진 경로. 아직 없으면 PhotoPlaceholder로 대체된다. */
+  image?: string;
+  /** 사진 아래 표시하는 한 줄 카피. */
+  caption?: string;
 }
 
-/** 실제 사진 수령 전까지 라벨만 있는 자리표시자. */
+/** 2026-09-21 — 매장주가 제공한 실제 매장 사진 5장 반영. */
 export const SPACE_PHOTOS: SpacePhoto[] = [
-  { label: "외관", category: "외관" },
-  { label: "홀 전경", category: "홀" },
-  { label: "좌석", category: "좌석" },
-  { label: "모임 공간", category: "모임 공간" },
-  { label: "주차 공간", category: "주차" },
+  {
+    label: "외관",
+    category: "외관",
+    image: "/images/space/exterior.jpg",
+    caption: "정갈한 간판 아래, 사색찬미의 첫인사",
+  },
+  {
+    label: "홀 전경",
+    category: "홀",
+    image: "/images/space/hall.jpg",
+    caption: "넉넉한 공간에서 나누는 넉넉한 한 상",
+  },
+  {
+    label: "좌석",
+    category: "좌석",
+    image: "/images/space/seating.jpg",
+    caption: "결 고운 원목 테이블, 마주 앉는 시간",
+  },
+  {
+    label: "모임 공간",
+    category: "모임 공간",
+    image: "/images/space/gathering.jpg",
+    caption: "평상에 둘러앉아 이어가는 정겨운 이야기",
+  },
+  {
+    label: "주차 공간",
+    category: "주차",
+    image: "/images/space/parking.jpg",
+    caption: "여유롭게 세우고 편안하게 드시는 하루",
+  },
 ];

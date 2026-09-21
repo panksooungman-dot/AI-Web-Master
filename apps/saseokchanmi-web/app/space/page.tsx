@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { TodoBadge } from "@/components/ui/TodoBadge";
@@ -24,9 +25,24 @@ export default function SpacePage() {
       <section className="bg-background py-20">
         <Container>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {SPACE_PHOTOS.map((photo) => (
-              <PhotoPlaceholder key={photo.label} label={photo.label} aspect="square" />
-            ))}
+            {SPACE_PHOTOS.map((photo) =>
+              photo.image ? (
+                <figure key={photo.label}>
+                  <div className="relative aspect-square overflow-hidden rounded-xl">
+                    <Image
+                      src={photo.image}
+                      alt={photo.caption ?? photo.label}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  </div>
+                  <figcaption className="mt-3 text-sm font-medium text-foreground">{photo.caption}</figcaption>
+                </figure>
+              ) : (
+                <PhotoPlaceholder key={photo.label} label={photo.label} aspect="square" />
+              ),
+            )}
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2">

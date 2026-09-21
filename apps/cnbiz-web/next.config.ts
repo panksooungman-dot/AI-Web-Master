@@ -124,6 +124,10 @@ const nextConfig: NextConfig = {
     "/api/design/claude": CLI_TRACE_INCLUDES,
     // spawns `ai website create` via lib/commandEngine/engine.ts directly
     "/api/design/website": CLI_TRACE_INCLUDES,
+    // 2026-09-18 — lib/design/websiteBuildJobWorker.ts가 위와 완전히 동일한 CLI 호출을
+    // 수행하는데, 이 Job 실행 라우트만 여기 없으면 위 주석이 경고하는 바로 그 증상(로컬에선
+    // 정상, 프로덕션에서 첫 require()에 조용히 죽음)이 재발한다.
+    "/api/design/website/jobs/[id]/run": CLI_TRACE_INCLUDES,
     // lib/{estimates,specifications,timeline,proposals,contracts}/generator.ts
     "/api/estimates": CLI_TRACE_INCLUDES,
     "/api/specifications": CLI_TRACE_INCLUDES,

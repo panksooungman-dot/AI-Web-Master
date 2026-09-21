@@ -64,7 +64,7 @@ export function SignatureMenuSection() {
           <span className={LABEL}>Signature</span>
           <h2 className={`${H2} mt-3`}>사색찬미의 대표 한정식</h2>
         </div>
-        <div className="mt-10 grid gap-6 sm:grid-cols-3">
+        <div className="mt-10 grid gap-6 sm:grid-cols-4">
           {SIGNATURE_MENU.map((item, index) => (
             <Card key={index} className="flex flex-col gap-3">
               {item.image ? (
@@ -73,7 +73,7 @@ export function SignatureMenuSection() {
                     src={item.image}
                     alt={item.name ?? `대표 메뉴 ${index + 1}`}
                     fill
-                    sizes="(min-width: 640px) 33vw, 100vw"
+                    sizes="(min-width: 640px) 25vw, 100vw"
                     className="object-cover"
                   />
                 </div>

@@ -1,8 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
-import { ADDRESS, BLOG_URL, CONTACT, NAV_ITEMS, RESERVATION_HREF, SITE_NAME } from "@/lib/site-config";
+import { ADDRESS, BLOG_URL, CONTACT, RESERVATION_HREF, SITE_NAME } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { TraditionalPattern } from "@/components/ui/TraditionalPattern";
@@ -15,7 +14,7 @@ export function Footer() {
     <footer className="relative overflow-hidden border-t border-secondary bg-secondary/40">
       <TraditionalPattern className="opacity-[0.12]" />
       <Container className="relative py-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-10 sm:grid-cols-2">
           <div>
             <Image src="/images/logo.png" alt={SITE_NAME} width={1435} height={755} className="h-10 w-auto" />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
@@ -59,19 +58,6 @@ export function Footer() {
                 {CONTACT.businessHours} · 매일 영업{CONTACT.closedDays === "연중무휴" ? "" : ` (휴무: ${CONTACT.closedDays})`}
               </span>
             </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-foreground">메뉴</p>
-            <ul className="mt-3 flex flex-col gap-2 text-sm">
-              {NAV_ITEMS.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} className="text-muted hover:text-primary">
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
 

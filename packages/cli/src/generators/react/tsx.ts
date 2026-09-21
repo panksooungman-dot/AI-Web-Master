@@ -206,14 +206,16 @@ interface WireframeNavItem {
 
 /** `design-content-enrichment.ts` sets this from the DesignDocument's own page list when the
  *  landmark came from a real Wireframe (real screens, not invented) — absent for anything else
- *  (hand-authored documents, or a landmark rendered without going through that enrichment step). */
-function navItemsProp(node: ReactComponentNode): WireframeNavItem[] | null {
+ *  (hand-authored documents, or a landmark rendered without going through that enrichment step).
+ *  `undefined` means "no value was ever provided" (renderers fall back to a placeholder); an
+ *  explicit `[]` means "the caller deliberately wants no items here" and is honored as-is — see
+ *  the 2026-09-21 comment on `renderWireframeHeader()` for why that distinction exists. */
+function navItemsProp(node: ReactComponentNode): WireframeNavItem[] | undefined {
   const value = node.props.navItems;
-  if (!Array.isArray(value)) return null;
-  const items = value.filter(
+  if (!Array.isArray(value)) return undefined;
+  return value.filter(
     (item): item is WireframeNavItem => isRecord(item) && isNonEmptyString(item.label) && isNonEmptyString(item.href)
   );
-  return items.length > 0 ? items : null;
 }
 
 function renderNavItems(items: WireframeNavItem[], context: RenderContext, indent: string): string {
@@ -228,23 +230,35 @@ function renderNavItems(items: WireframeNavItem[], context: RenderContext, inden
 const PLACEHOLDER_NAV_MARKUP = (indent: string) =>
   [`${indent}<span>메뉴 1</span>`, `${indent}<span>메뉴 2</span>`, `${indent}<span>메뉴 3</span>`].join("\n");
 
+/**
+ * 2026-09-21 실사용 발견 — 한 페이지에 Header와 Navigation 랜드마크가 함께 있으면(로고 바 +
+ * 별도 메뉴 바로 구성된 흔한 2단 레이아웃), design-content-enrichment.ts가 둘 다에게 완전히
+ * 동일한 전체 메뉴 목록을 넘겨 화면에 같은 메뉴가 나란히 두 번 나오는 것을 실제 생성된 사이트
+ * (사색찬미한정식)에서 확인. Header의 `<nav>`가 실제로 필요한 것은 그런 별도 Navigation이
+ * 없을 때뿐이므로, 이 함수 자체는 navItemsProp()가 반환한 값을 그대로 신뢰한다 — "이 페이지에
+ * Navigation이 이미 있으니 Header 몫은 비운다"는 판단은 enrichComponent()가 내리고, 그 결과
+ * (명시적 빈 배열)만 여기로 전달된다.
+ */
 function renderWireframeHeader(node: ReactComponentNode, context: RenderContext, indent: string): string {
   const cls = mergeClass("flex flex-wrap items-center justify-between gap-4 py-4", node.className);
   const logo = isNonEmptyString(node.props.logo) ? node.props.logo : "로고";
   const items = navItemsProp(node);
-  const navMarkup = items ? renderNavItems(items, context, `${indent}    `) : PLACEHOLDER_NAV_MARKUP(`${indent}    `);
+  const navBlock =
+    items === undefined
+      ? `\n${indent}  <nav className="flex gap-6 text-sm text-slate-600">\n${PLACEHOLDER_NAV_MARKUP(`${indent}    `)}\n${indent}  </nav>`
+      : items.length > 0
+        ? `\n${indent}  <nav className="flex gap-6 text-sm text-slate-600">\n${renderNavItems(items, context, `${indent}    `)}\n${indent}  </nav>`
+        : ""; // 명시적으로 빈 배열 — 이 페이지의 Navigation이 전체 메뉴를 이미 보여주므로 생략
   return `${indent}<header${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
-${indent}  <span className="text-lg font-bold text-slate-900">${jsxString(logo)}</span>
-${indent}  <nav className="flex gap-6 text-sm text-slate-600">
-${navMarkup}
-${indent}  </nav>
+${indent}  <span className="text-lg font-bold text-slate-900">${jsxString(logo)}</span>${navBlock}
 ${indent}</header>`;
 }
 
 function renderWireframeNavigation(node: ReactComponentNode, context: RenderContext, indent: string): string {
   const cls = mergeClass("flex flex-wrap gap-6 text-sm text-slate-600", node.className);
   const items = navItemsProp(node);
-  const navMarkup = items ? renderNavItems(items, context, `${indent}  `) : PLACEHOLDER_NAV_MARKUP(`${indent}  `);
+  const navMarkup =
+    items === undefined ? PLACEHOLDER_NAV_MARKUP(`${indent}  `) : renderNavItems(items, context, `${indent}  `);
   return `${indent}<nav${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
 ${navMarkup}
 ${indent}</nav>`;
@@ -253,7 +267,8 @@ ${indent}</nav>`;
 function renderWireframeSidebar(node: ReactComponentNode, context: RenderContext, indent: string): string {
   const cls = mergeClass("flex w-full flex-col gap-2 text-sm text-slate-600 sm:w-56", node.className);
   const items = navItemsProp(node);
-  const navMarkup = items ? renderNavItems(items, context, `${indent}  `) : PLACEHOLDER_NAV_MARKUP(`${indent}  `);
+  const navMarkup =
+    items === undefined ? PLACEHOLDER_NAV_MARKUP(`${indent}  `) : renderNavItems(items, context, `${indent}  `);
   return `${indent}<aside${classAttr(cls)}${eventAttrs(node)}${dataSourceTypeAttr(node)}>
 ${navMarkup}
 ${indent}</aside>`;

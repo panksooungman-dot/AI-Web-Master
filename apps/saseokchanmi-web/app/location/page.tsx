@@ -4,7 +4,7 @@ import { LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { TodoBadge } from "@/components/ui/TodoBadge";
-import { ADDRESS, CONTACT, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
+import { ADDRESS, BLOG_URL, CONTACT, PAYMENT_METHODS, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
 
 export const metadata: Metadata = {
@@ -40,6 +40,7 @@ export default function LocationPage() {
             <InfoRow label="라스트오더" value={CONTACT.lastOrder} todo="라스트오더 확인 필요" />
             <InfoRow label="휴무일" value={CONTACT.closedDays} todo="휴무일 확인 필요" />
             <InfoRow label="주차" value={CONTACT.parkingInfo} todo="주차 조건 확인 필요" />
+            <InfoRow label="결제수단" value={PAYMENT_METHODS.join(", ")} />
 
             <div className="mt-6 flex flex-wrap gap-3">
               {phoneHref && (
@@ -56,7 +57,15 @@ export default function LocationPage() {
                 rel="noreferrer"
                 className="inline-flex items-center justify-center rounded-lg border border-secondary px-6 py-3 text-sm font-semibold text-primary"
               >
-                길찾기 (네이버 지도)
+                {CONTACT.naverPlaceUrl ? "네이버플레이스 (길찾기·리뷰)" : "길찾기 (네이버 지도)"}
+              </a>
+              <a
+                href={BLOG_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-lg border border-secondary px-6 py-3 text-sm font-semibold text-primary"
+              >
+                네이버 블로그
               </a>
               <LinkButton href={RESERVATION_HREF} variant="secondary">
                 예약 문의

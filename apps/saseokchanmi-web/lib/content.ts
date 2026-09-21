@@ -167,6 +167,11 @@ export const TOUR_SPOTS: TourSpot[] = [
     travelTime: "차량 20분",
   },
   {
+    name: "벽초지수목원",
+    description: "한국의 전통 정원과 사계절 풍경으로 유명한 수목원입니다.",
+    travelTime: "차량 2분",
+  },
+  {
     name: "임진각",
     description: "역사와 평화의 의미를 담은 파주의 대표 관광지입니다.",
     travelTime: "차량 15분",

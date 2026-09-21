@@ -41,7 +41,15 @@ export function BrandSection() {
   return (
     <section className="bg-background py-20 sm:py-24">
       <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        <PhotoPlaceholder label="브랜드" aspect="wide" />
+        <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40">
+          <Image
+            src="/images/food/plating.jpg"
+            alt="정성을 다해 한 상을 완성하는 손길"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
         <div>
           <span className={LABEL}>Brand</span>
           <h2 className={`${H2} mt-3`}>한 상을 차리는 마음까지 담았습니다</h2>
@@ -117,7 +125,15 @@ export function FoodSection() {
             음식 이야기 보기
           </LinkButton>
         </div>
-        <PhotoPlaceholder label="사색찬미의 한 상" aspect="wide" className="order-1 lg:order-2" />
+        <div className="relative order-1 aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40 lg:order-2">
+          <Image
+            src="/images/food/table-spread.jpg"
+            alt="사색찬미의 한 상 전체"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
       </Container>
     </section>
   );
@@ -128,7 +144,15 @@ export function SoulSection() {
   return (
     <section className="bg-secondary/30 py-20 sm:py-24">
       <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        <PhotoPlaceholder label="갓 지은 솥밥" aspect="wide" />
+        <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40">
+          <Image
+            src="/images/food/sotbap-open.jpg"
+            alt="갓 지은 솥밥의 뚜껑을 여는 순간"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
         <div>
           <span className={LABEL}>Soul · 솥밥</span>
           <h2 className={`${H2} mt-3`}>갓 지은 솥밥, 사색찬미의 자부심</h2>

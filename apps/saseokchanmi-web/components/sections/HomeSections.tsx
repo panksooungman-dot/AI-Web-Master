@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card, LinkButton } from "@cnbiz/ui";
 import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_SPOTS } from "@/lib/content";
@@ -66,7 +67,19 @@ export function SignatureMenuSection() {
         <div className="mt-10 grid gap-6 sm:grid-cols-3">
           {SIGNATURE_MENU.map((item, index) => (
             <Card key={index} className="flex flex-col gap-3">
-              <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
+              {item.image ? (
+                <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
+                  <Image
+                    src={item.image}
+                    alt={item.name ?? `대표 메뉴 ${index + 1}`}
+                    fill
+                    sizes="(min-width: 640px) 33vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
+              )}
               {item.name ? (
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="font-semibold text-foreground">{item.name}</p>

@@ -5,7 +5,7 @@ import { Card, LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { TodoBadge } from "@/components/ui/TodoBadge";
-import { SIGNATURE_MENU } from "@/lib/content";
+import { ADDITIONAL_MENU, SIGNATURE_MENU, type MenuItem } from "@/lib/content";
 import { RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
 
 export const metadata: Metadata = {
@@ -14,6 +14,32 @@ export const metadata: Metadata = {
   keywords: seoKeywords("core", "menu"),
   alternates: { canonical: "/menu" },
 };
+
+function MenuCard({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
+  const label = item.name ?? `${fallbackLabel} ${index + 1}`;
+  return (
+    <Card className="flex flex-col gap-3">
+      {item.image ? (
+        <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
+          <Image src={item.image} alt={label} fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />
+        </div>
+      ) : (
+        <PhotoPlaceholder label={label} aspect="square" />
+      )}
+      {item.name ? (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="font-semibold text-foreground">{item.name}</p>
+            {item.price && <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>}
+          </div>
+          {item.description && <p className="text-sm text-muted">{item.description}</p>}
+        </div>
+      ) : (
+        <TodoBadge label={item.todo ?? "확인 필요"} />
+      )}
+    </Card>
+  );
+}
 
 export default function MenuPage() {
   return (
@@ -27,32 +53,14 @@ export default function MenuPage() {
         <Container>
           <div className="grid gap-6 sm:grid-cols-3">
             {SIGNATURE_MENU.map((item, index) => (
-              <Card key={index} className="flex flex-col gap-3">
-                {item.image ? (
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
-                    <Image
-                      src={item.image}
-                      alt={item.name ?? `대표 메뉴 ${index + 1}`}
-                      fill
-                      sizes="(min-width: 640px) 33vw, 100vw"
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
-                )}
-                {item.name ? (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="font-semibold text-foreground">{item.name}</p>
-                      {item.price && <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>}
-                    </div>
-                    {item.description && <p className="text-sm text-muted">{item.description}</p>}
-                  </div>
-                ) : (
-                  <TodoBadge label={item.todo ?? "확인 필요"} />
-                )}
-              </Card>
+              <MenuCard key={index} item={item} index={index} fallbackLabel="대표 메뉴" />
+            ))}
+          </div>
+
+          <h2 className="mt-16 text-2xl font-bold text-foreground">그 외 메뉴</h2>
+          <div className="mt-6 grid gap-6 sm:grid-cols-3">
+            {ADDITIONAL_MENU.map((item, index) => (
+              <MenuCard key={index} item={item} index={index} fallbackLabel="메뉴" />
             ))}
           </div>
 

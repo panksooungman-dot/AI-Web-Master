@@ -66,6 +66,34 @@ export const SIGNATURE_MENU: MenuItem[] = [
   },
 ];
 
+/**
+ * 대표(SIGNATURE) 배지가 없는 그 외 판매 메뉴. 매장주가 2026-09-21 네이버플레이스
+ * 전체 메뉴판 캡처로 직접 확인해준 3종 — SIGNATURE_MENU 6종과 별개로 실제 판매 중인
+ * 메뉴다(사용자 확인: "정보 제공 해준 메뉴는 15개인데" — 캡처 화면에 15줄이 보이는 건
+ * "추천 메뉴 6" 구간과 "전체 메뉴" 구간이 같은 6종을 한 번 더 나열해서 생기는 네이버
+ * 자체 UI 중복이고, 실제로 서로 다른 메뉴는 이 3종을 더한 9종이다).
+ */
+export const ADDITIONAL_MENU: MenuItem[] = [
+  {
+    name: "갈치한마리구이 (주말에는 예약 필수)",
+    price: "20,000원",
+    description: "겉바싹 속촉촉",
+    image: "/images/menu/galchi-hanmari.jpg",
+  },
+  {
+    name: "아침식사 코다리조림",
+    price: "15,000원",
+    description: "달큰한 무하고 매콤한 코다리조합",
+    image: "/images/menu/achim-kodari-jorim.jpg",
+  },
+  {
+    name: "아침식사 한돈김치찌개",
+    price: "12,000원",
+    description: "국내산 앞다리살로 만든 김치찌개",
+    image: "/images/menu/achim-kimchi-jjigae.jpg",
+  },
+];
+
 export interface OccasionItem {
   slug: string;
   title: string;

@@ -117,7 +117,8 @@ function enrichComponent(
   cardCopy: CardCopy[],
   cardIndexRef: { value: number },
   brand: string,
-  navItems: Array<{ label: string; href: string }>
+  navItems: Array<{ label: string; href: string }>,
+  hasSeparateNavigation: boolean
 ): Component {
   if (typeof landmark !== "string") return component;
 
@@ -129,6 +130,12 @@ function enrichComponent(
       return item ? { ...component, props: { ...component.props, title: item.title, description: item.description } } : component;
     }
     case "Header":
+      // 2026-09-21 실사용 발견 — 이 페이지에 별도 Navigation 랜드마크가 이미 있으면 그쪽이
+      // 전체 메뉴를 보여주므로, Header에는 로고만 주고 메뉴는 명시적으로 비운다(react
+      // Generator의 renderWireframeHeader()가 빈 배열과 "값 없음"을 구분해, 빈 배열이면
+      // 플레이스홀더 대신 아예 생략한다). 안 그러면 같은 메뉴가 나란히 두 번 렌더링된다
+      // (사색찬미한정식 실제 생성 결과에서 확인).
+      return { ...component, props: { ...component.props, logo: brand, navItems: hasSeparateNavigation ? [] : navItems } };
     case "Navigation":
     case "Sidebar":
       return { ...component, props: { ...component.props, logo: brand, navItems } };
@@ -142,18 +149,32 @@ function enrichComponent(
   }
 }
 
+function pageHasLandmark(page: Page, landmark: string): boolean {
+  return page.sections.some((section) => section.components.some((component) => component.props.sourceType === landmark));
+}
+
 function enrichPage(page: Page, content: SiteContent, brand: string, navItems: Array<{ label: string; href: string }>): Page {
   const key = pageContentKeyForPath(page.path);
   const heroCopy = heroCopyFor(key, content);
   const cardCopy = cardCopyFor(key, content);
   const cardIndexRef = { value: 0 };
+  const hasSeparateNavigation = pageHasLandmark(page, "Navigation");
 
   return {
     ...page,
     sections: page.sections.map((section) => ({
       ...section,
       components: section.components.map((component) =>
-        enrichComponent(component, component.props.sourceType, heroCopy, cardCopy, cardIndexRef, brand, navItems)
+        enrichComponent(
+          component,
+          component.props.sourceType,
+          heroCopy,
+          cardCopy,
+          cardIndexRef,
+          brand,
+          navItems,
+          hasSeparateNavigation
+        )
       ),
     })),
   };

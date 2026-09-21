@@ -116,6 +116,33 @@ describe("Website Builder v2 — enrichDesignDocumentWithContent (packages/cli/s
     expect(sidebar.props.navItems).toEqual(header.props.navItems);
   });
 
+  it("empties Header's navItems when the same page also has a separate Navigation landmark, to avoid rendering the menu twice (2026-09-21 — real generated site showed the menu twice on one page)", () => {
+    const document = baseDocument([
+      page("home", "Home", "/", [landmark("h", "container", "Header"), landmark("n", "container", "Navigation")]),
+      page("about", "About", "/about", [landmark("h2", "container", "Header")]),
+    ]);
+
+    const enriched = enrichDesignDocumentWithContent(document, content, BASE_INPUTS.brand);
+    const headerWithSiblingNav = enriched.pages[0].sections[0].components[0];
+    const navigation = enriched.pages[0].sections[0].components[1];
+    const headerAlone = enriched.pages[1].sections[0].components[0];
+
+    // Header shares its page with a Navigation landmark — its own menu is emptied so the
+    // real menu (rendered by Navigation) doesn't appear twice.
+    expect(headerWithSiblingNav.props.logo).toBe(BASE_INPUTS.brand);
+    expect(headerWithSiblingNav.props.navItems).toEqual([]);
+    // Navigation still gets the full real menu.
+    expect(navigation.props.navItems).toEqual([
+      { label: "Home", href: "/" },
+      { label: "About", href: "/about" },
+    ]);
+    // Header on a page with no sibling Navigation is unaffected — it still gets the full menu.
+    expect(headerAlone.props.navItems).toEqual([
+      { label: "Home", href: "/" },
+      { label: "About", href: "/about" },
+    ]);
+  });
+
   it("excludes admin routes from nav items (2026-09-18 — real generated About page leaked all 6 admin links into its public nav)", () => {
     const document = baseDocument([
       page("home", "Home", "/", [landmark("h", "container", "Header")]),

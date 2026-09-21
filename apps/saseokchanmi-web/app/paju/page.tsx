@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
-import { NEARBY_AREAS, TOUR_SPOTS } from "@/lib/content";
+import { NEARBY_AREAS, TOUR_DATE_COURSE_INTRO, TOUR_SPOTS } from "@/lib/content";
 import { ADDRESS, seoKeywords } from "@/lib/site-config";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 
@@ -39,6 +39,7 @@ export default function PajuPage() {
         <Container>
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">Tour</p>
           <h2 className="mt-3 text-3xl font-bold text-foreground">파주 여행 중 만나는 맛있는 한 끼</h2>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{TOUR_DATE_COURSE_INTRO}</p>
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {TOUR_SPOTS.map((spot) => (
               <Card key={spot.name}>

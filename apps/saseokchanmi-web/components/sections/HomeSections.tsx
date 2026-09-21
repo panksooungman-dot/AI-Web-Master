@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card, LinkButton } from "@cnbiz/ui";
-import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_SPOTS } from "@/lib/content";
+import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_DATE_COURSE_INTRO, TOUR_SPOTS } from "@/lib/content";
 import { ADDRESS, CONTACT, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl } from "@/lib/links";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
@@ -176,7 +176,7 @@ export function OccasionTeaserSection() {
           <span className={LABEL}>Occasion</span>
           <h2 className={`${H2} mt-3`}>이런 자리에 사색찬미를 추천합니다</h2>
         </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {OCCASIONS.map((occasion) => (
             <Link key={occasion.slug} href={`/occasion#${occasion.slug}`}>
               <Card className="h-full transition-shadow hover:shadow-md">
@@ -224,6 +224,7 @@ export function TourSection() {
       <Container>
         <span className={LABEL}>Tour</span>
         <h2 className={`${H2} mt-3`}>파주 여행 중 만나는 맛있는 한 끼</h2>
+        <p className={`${BODY} mt-4 max-w-2xl`}>{TOUR_DATE_COURSE_INTRO}</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {TOUR_SPOTS.map((spot) => (
             <Card key={spot.name}>

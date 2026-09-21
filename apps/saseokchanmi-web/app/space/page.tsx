@@ -3,7 +3,7 @@ import { Container } from "@cnbiz/layout-primitives";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { PageHero } from "@/components/ui/PageHero";
-import { SPACE_PHOTOS } from "@/lib/content";
+import { SEATING_OPTIONS, SPACE_PHOTOS } from "@/lib/content";
 import { CONTACT, seoKeywords } from "@/lib/site-config";
 
 export const metadata: Metadata = {
@@ -29,18 +29,22 @@ export default function SpacePage() {
             ))}
           </div>
 
-          <div className="mt-10 rounded-xl border border-dashed border-primary/30 bg-secondary/30 p-6 text-sm leading-relaxed text-muted">
+          <div className="mt-10 grid gap-5 sm:grid-cols-2">
+            {SEATING_OPTIONS.map((option) => (
+              <div key={option.label} className="rounded-xl border border-primary/20 bg-secondary/30 p-6">
+                <p className="font-semibold text-foreground">{option.label}</p>
+                <p className="mt-2 text-sm text-muted">{option.capacity}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-xl border border-dashed border-primary/30 bg-secondary/30 p-6 text-sm leading-relaxed text-muted">
             <p className="font-semibold text-foreground">주차 안내</p>
             <p className="mt-2">
               {CONTACT.parkingInfo ?? "실제 주차 가능 대수·방식은 매장 확인 후 안내해 드립니다."}
             </p>
             {!CONTACT.parkingInfo && <TodoBadge label="주차 조건 확인 필요" className="mt-3" />}
           </div>
-
-          <p className="mt-6 text-sm leading-relaxed text-muted">
-            개별룸·프라이빗 공간은 실제 존재가 확인된 경우에만 안내해 드립니다.
-            <TodoBadge label="개별룸 보유 여부 확인 필요" className="ml-2 align-middle" />
-          </p>
         </Container>
       </section>
     </>

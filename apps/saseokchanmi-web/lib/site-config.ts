@@ -22,15 +22,30 @@ export const ADDRESS = {
   region: "경기 파주시 광탄면",
 } as const;
 
-/** 매장 확인 전까지 비워둔다 — 임의로 추정하지 않는다. */
+/**
+ * 매장 확인 전까지 비워둔다 — 임의로 추정하지 않는다.
+ *
+ * 2026-09-21 — 실제 매장주(의뢰자)가 네이버플레이스(사색찬미한정식, ID 1882539912) 캡처를
+ * 직접 제공해 phone·lastOrder·parkingInfo·naverPlaceUrl을 확정했다. businessHours·
+ * closedDays는 네이버플레이스 화면에 없어 남겨뒀다가, 매장주가 직접 "오픈 10시·휴무 없음"을
+ * 확인해줘 확정했다.
+ */
 export const CONTACT = {
-  phone: null as string | null,
-  businessHours: null as string | null,
-  lastOrder: null as string | null,
-  closedDays: null as string | null,
-  parkingInfo: null as string | null,
-  naverPlaceUrl: null as string | null,
+  phone: "031-945-8804",
+  businessHours: "매일 10:00 ~ 19:30",
+  lastOrder: "19:30",
+  closedDays: "연중무휴",
+  parkingInfo: "주차 가능(무료), 발렛 주차 가능(무료). 주차장이 넓어 대형버스 4대까지 주차할 수 있습니다.",
+  // pcmap.place.naver.com/restaurant/<ID>/photo 경로가 캡처에 보여 ID(1882539912)를
+  // 확인했다 — 대표 링크는 그 표준 홈 경로로 구성. 실제로 열리는지는 배포 전 재확인 필요.
+  naverPlaceUrl: "https://pcmap.place.naver.com/restaurant/1882539912/home" as string | null,
 } as const;
+
+/** 2026-09-21 — 네이버플레이스 캡처의 "SNS"·"결제수단" 항목에서 그대로 확인된 값. */
+export const BLOG_URL = "https://blog.naver.com/4s_chanmihanjeongsik";
+
+/** 온라인 결제 연동(네이버페이 등)이 아니라, 매장에서 실제로 받는 결제 수단 안내다. */
+export const PAYMENT_METHODS = ["지역화폐 (모바일형)", "지역화폐 (카드형)", "제로페이", "간편결제"] as const;
 
 export const NAV_ITEMS = [
   { href: "/about", label: "브랜드 이야기" },

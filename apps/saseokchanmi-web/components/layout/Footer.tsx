@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
-import { ADDRESS, CONTACT, NAV_ITEMS, RESERVATION_HREF, SITE_NAME } from "@/lib/site-config";
+import { ADDRESS, BLOG_URL, CONTACT, NAV_ITEMS, RESERVATION_HREF, SITE_NAME } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 
@@ -18,9 +18,21 @@ export function Footer() {
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
               오늘, 좋은 사람과 함께 따뜻한 한 끼 어떠세요?
             </p>
-            <LinkButton href={RESERVATION_HREF} className="mt-5">
-              예약 문의
-            </LinkButton>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {CONTACT.naverPlaceUrl && (
+                <a
+                  href={CONTACT.naverPlaceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                  네이버 예약하기
+                </a>
+              )}
+              <LinkButton href={RESERVATION_HREF} variant="secondary">
+                예약 문의
+              </LinkButton>
+            </div>
           </div>
 
           <div>
@@ -37,7 +49,12 @@ export function Footer() {
               <a href={naverMapUrl()} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                 네이버 지도에서 길찾기
               </a>
-              {!CONTACT.businessHours && <TodoBadge label="영업시간 확인 필요" />}
+              <a href={BLOG_URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                네이버 블로그
+              </a>
+              <span className="text-muted">
+                {CONTACT.businessHours} · 매일 영업{CONTACT.closedDays === "연중무휴" ? "" : ` (휴무: ${CONTACT.closedDays})`}
+              </span>
             </div>
           </div>
 

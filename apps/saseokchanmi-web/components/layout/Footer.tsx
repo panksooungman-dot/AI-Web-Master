@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
@@ -16,7 +17,7 @@ export function Footer() {
       <Container className="relative py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <p className="text-lg font-bold text-primary">{SITE_NAME}</p>
+            <Image src="/images/logo.png" alt={SITE_NAME} width={1435} height={755} className="h-10 w-auto" />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
               오늘, 좋은 사람과 함께 따뜻한 한 끼 어떠세요?
             </p>

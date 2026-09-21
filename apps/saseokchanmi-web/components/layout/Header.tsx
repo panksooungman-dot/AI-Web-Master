@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
@@ -12,8 +13,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-secondary bg-background/95 backdrop-blur-sm">
       <Container className="flex h-16 items-center justify-between">
-        <Link href="/" className="text-lg font-bold tracking-tight text-primary">
-          {SITE_NAME}
+        <Link href="/" className="flex items-center">
+          <Image src="/images/logo.png" alt={SITE_NAME} width={1435} height={755} priority className="h-10 w-auto sm:h-12" />
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

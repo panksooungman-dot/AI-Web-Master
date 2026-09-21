@@ -22,14 +22,23 @@ export const ADDRESS = {
   region: "경기 파주시 광탄면",
 } as const;
 
-/** 매장 확인 전까지 비워둔다 — 임의로 추정하지 않는다. */
+/**
+ * 매장 확인 전까지 비워둔다 — 임의로 추정하지 않는다.
+ *
+ * 2026-09-21 — 실제 매장주(의뢰자)가 네이버플레이스(사색찬미한정식, ID 1882539912) 캡처를
+ * 직접 제공해 phone·lastOrder·parkingInfo·naverPlaceUrl을 확정했다. businessHours(정확한
+ * 오픈 시간)·closedDays는 네이버플레이스 화면에도 명시돼 있지 않아(라스트오더 시각만 표기)
+ * 여전히 null로 남긴다.
+ */
 export const CONTACT = {
-  phone: null as string | null,
+  phone: "031-945-8804",
   businessHours: null as string | null,
-  lastOrder: null as string | null,
+  lastOrder: "19:30",
   closedDays: null as string | null,
-  parkingInfo: null as string | null,
-  naverPlaceUrl: null as string | null,
+  parkingInfo: "주차 가능(무료), 발렛 주차 가능(무료). 주차장이 넓어 대형버스 4대까지 주차할 수 있습니다.",
+  // pcmap.place.naver.com/restaurant/<ID>/photo 경로가 캡처에 보여 ID(1882539912)를
+  // 확인했다 — 대표 링크는 그 표준 홈 경로로 구성. 실제로 열리는지는 배포 전 재확인 필요.
+  naverPlaceUrl: "https://pcmap.place.naver.com/restaurant/1882539912/home" as string | null,
 } as const;
 
 export const NAV_ITEMS = [

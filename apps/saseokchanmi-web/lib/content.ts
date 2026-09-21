@@ -124,6 +124,21 @@ export interface ReviewItem {
  */
 export const REVIEWS: ReviewItem[] = [];
 
+export interface SeatingOption {
+  label: string;
+  capacity: string;
+}
+
+/**
+ * 2026-09-21 — 네이버플레이스 "좌석·공간" 정보를 매장주(의뢰자)가 직접 캡처로 확인해준 실제
+ * 값. 개별룸 보유 여부가 미확인 상태였던 기존 TODO를 해소한다(공간을 실사진으로 보여주는
+ * SPACE_PHOTOS와 달리, 이건 인원수 같은 텍스트 정보라 별도 목록으로 둔다).
+ */
+export const SEATING_OPTIONS: SeatingOption[] = [
+  { label: "단체석 (좌식)", capacity: "최소 2명 ~ 최대 130명" },
+  { label: "프라이빗 룸", capacity: "최소 2명 ~ 최대 32명" },
+];
+
 export interface SpacePhoto {
   label: string;
   category: "외관" | "홀" | "좌석" | "모임 공간" | "주차";

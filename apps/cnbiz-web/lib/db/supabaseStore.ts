@@ -72,17 +72,50 @@ export function createSupabaseStore(url: string, serviceRoleKey: string): Collec
           }
         }
 
-        let deleteQuery = client.from("app_collections").delete().eq("collection", collection);
+        if (records.length === 0) {
+          // Replacing with nothing really does mean "delete everything in this collection" — no
+          // id list needed, so no URL-length risk here regardless of collection size.
+          const { error: deleteError } = await client.from("app_collections").delete().eq("collection", collection);
 
-        if (records.length > 0) {
-          const keepIds = records.map((record) => `"${record.id}"`).join(",");
-          deleteQuery = deleteQuery.not("id", "in", `(${keepIds})`);
+          if (deleteError) {
+            throw new Error(`[supabaseStore] replaceAll("${collection}") delete failed: ${deleteError.message}`);
+          }
+          return;
         }
 
-        const { error: deleteError } = await deleteQuery;
+        // 2026-09-21 실사용 발견 — audit-log가 트리밍 상한(500건) 근처까지 쌓인 뒤 매 기록마다
+        // `.not("id","in",(500개 id 전부))"` 필터를 URL에 그대로 실어 보내다 PostgREST가
+        // "Bad Request"로 거부하는 것을 실제로 재현(Website Builder Job 실행 중
+        // recordAuditEvent()가 이 예외를 던져 Job이 Failed로 끝남). "유지할 id 전부"를 URL에
+        // 나열하는 대신, 이 collection에 실제로 존재하는 id만 가볍게 조회해 JS에서 차집합
+        // (진짜로 사라져야 할 id, 보통 트리밍 1건 수준으로 적음)을 구한 뒤 그 목록만 삭제한다 —
+        // 삭제 대상 자체가 커지는 극단적인 경우까지 대비해 한 요청당 개수를 제한해 청크로 나눈다.
+        const { data: existingRows, error: idsError } = await client
+          .from("app_collections")
+          .select("id")
+          .eq("collection", collection);
 
-        if (deleteError) {
-          throw new Error(`[supabaseStore] replaceAll("${collection}") delete failed: ${deleteError.message}`);
+        if (idsError) {
+          throw new Error(`[supabaseStore] replaceAll("${collection}") id lookup failed: ${idsError.message}`);
+        }
+
+        const keepIds = new Set(records.map((record) => record.id));
+        const staleIds = (existingRows ?? [])
+          .map((row) => (row as { id: string }).id)
+          .filter((id) => !keepIds.has(id));
+
+        const DELETE_CHUNK_SIZE = 200;
+        for (let i = 0; i < staleIds.length; i += DELETE_CHUNK_SIZE) {
+          const chunk = staleIds.slice(i, i + DELETE_CHUNK_SIZE);
+          const { error: deleteError } = await client
+            .from("app_collections")
+            .delete()
+            .eq("collection", collection)
+            .in("id", chunk);
+
+          if (deleteError) {
+            throw new Error(`[supabaseStore] replaceAll("${collection}") delete failed: ${deleteError.message}`);
+          }
         }
       } finally {
         release(collection);

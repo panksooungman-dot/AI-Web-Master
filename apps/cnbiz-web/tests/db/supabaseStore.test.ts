@@ -11,6 +11,7 @@ interface FakeBuilder extends PromiseLike<QueryResult> {
   upsert: (...args: unknown[]) => FakeBuilder;
   eq: (...args: unknown[]) => FakeBuilder;
   not: (...args: unknown[]) => FakeBuilder;
+  in: (...args: unknown[]) => FakeBuilder;
   maybeSingle: (...args: unknown[]) => FakeBuilder;
 }
 
@@ -37,6 +38,7 @@ function makeBuilder(): FakeBuilder {
   builder.upsert = chain("upsert");
   builder.eq = chain("eq");
   builder.not = chain("not");
+  builder.in = chain("in");
   builder.maybeSingle = chain("maybeSingle");
   builder.then = <TResult1 = QueryResult, TResult2 = never>(
     onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
@@ -63,8 +65,9 @@ describe("supabaseStore.replaceAll — lib/db/supabaseStore.ts", () => {
     resultQueue.length = 0;
   });
 
-  it("upserts the new/updated rows before deleting stale ones (no delete-then-insert gap)", async () => {
+  it("upserts the new/updated rows, then looks up existing ids and deletes only the ones actually gone (no full keep-list in the delete filter)", async () => {
     resultQueue.push({ error: null }); // upsert result
+    resultQueue.push({ data: [{ id: "a" }, { id: "b" }, { id: "c" }], error: null }); // existing-ids lookup
     resultQueue.push({ error: null }); // delete result
 
     const store = createSupabaseStore("https://example.test", "service-key");
@@ -72,13 +75,28 @@ describe("supabaseStore.replaceAll — lib/db/supabaseStore.ts", () => {
 
     const methods = calls.map((c) => c.method);
     const upsertIndex = methods.indexOf("upsert");
+    const selectIndex = methods.indexOf("select");
     const deleteIndex = methods.indexOf("delete");
 
     expect(upsertIndex).toBeGreaterThanOrEqual(0);
-    expect(deleteIndex).toBeGreaterThan(upsertIndex);
+    expect(selectIndex).toBeGreaterThan(upsertIndex);
+    expect(deleteIndex).toBeGreaterThan(selectIndex);
 
-    const notCall = calls.find((c) => c.method === "not");
-    expect(notCall?.args).toEqual(["id", "in", '("a","b")']);
+    // "c" is the only row that exists but isn't in the new set — that's the only id the delete
+    // filter should ever mention, never the full kept set ("a","b").
+    const inCall = calls.find((c) => c.method === "in");
+    expect(inCall?.args).toEqual(["id", ["c"]]);
+    expect(calls.some((c) => c.method === "not")).toBe(false);
+  });
+
+  it("deletes nothing when every existing row is still in the new set", async () => {
+    resultQueue.push({ error: null }); // upsert result
+    resultQueue.push({ data: [{ id: "a" }, { id: "b" }], error: null }); // existing-ids lookup
+
+    const store = createSupabaseStore("https://example.test", "service-key");
+    await store.replaceAll("widgets", [{ id: "a" }, { id: "b" }]);
+
+    expect(calls.some((c) => c.method === "delete")).toBe(false);
   });
 
   it("deletes every row for the collection (no upsert, no keep-list) when records is empty", async () => {
@@ -101,12 +119,39 @@ describe("supabaseStore.replaceAll — lib/db/supabaseStore.ts", () => {
     expect(calls.some((c) => c.method === "delete")).toBe(false);
   });
 
+  it("throws when the existing-ids lookup itself fails", async () => {
+    resultQueue.push({ error: null }); // upsert result
+    resultQueue.push({ error: { message: "lookup boom" } }); // existing-ids lookup
+
+    const store = createSupabaseStore("https://example.test", "service-key");
+    await expect(store.replaceAll("widgets", [{ id: "a" }])).rejects.toThrow(/id lookup failed/);
+  });
+
   it("throws when the delete step fails", async () => {
     resultQueue.push({ error: null }); // upsert result
+    resultQueue.push({ data: [{ id: "a" }, { id: "stale" }], error: null }); // existing-ids lookup
     resultQueue.push({ error: { message: "delete boom" } }); // delete result
 
     const store = createSupabaseStore("https://example.test", "service-key");
     await expect(store.replaceAll("widgets", [{ id: "a" }])).rejects.toThrow(/delete failed/);
+  });
+
+  it("chunks the delete into multiple requests when many rows are stale at once", async () => {
+    resultQueue.push({ error: null }); // upsert result
+    const existing = Array.from({ length: 450 }, (_, i) => ({ id: `stale-${i}` }));
+    resultQueue.push({ data: existing, error: null }); // existing-ids lookup — all 450 are stale
+    resultQueue.push({ error: null }); // delete chunk 1 (200)
+    resultQueue.push({ error: null }); // delete chunk 2 (200)
+    resultQueue.push({ error: null }); // delete chunk 3 (50)
+
+    const store = createSupabaseStore("https://example.test", "service-key");
+    await store.replaceAll("widgets", [{ id: "kept" }]);
+
+    const inCalls = calls.filter((c) => c.method === "in");
+    expect(inCalls).toHaveLength(3);
+    expect((inCalls[0].args[1] as string[]).length).toBe(200);
+    expect((inCalls[1].args[1] as string[]).length).toBe(200);
+    expect((inCalls[2].args[1] as string[]).length).toBe(50);
   });
 });
 
@@ -135,14 +180,17 @@ describe("supabaseStore concurrency — collection-level lock prevents lost writ
     return {
       from() {
         let mode: "select" | "upsert" | "delete" = "select";
+        let selectFields: string | undefined;
         let eqCollection: string | undefined;
         let eqId: string | undefined;
         let notIds: string[] | undefined;
+        let inIds: string[] | undefined;
         let upsertRows: Array<{ collection: string; id: string; data: unknown }> = [];
 
         const builder = {
-          select() {
+          select(fields?: string) {
             mode = "select";
+            selectFields = fields;
             return builder;
           },
           upsert(rows: Array<{ collection: string; id: string; data: unknown }>) {
@@ -166,6 +214,10 @@ describe("supabaseStore concurrency — collection-level lock prevents lost writ
               .map((s) => s.replace(/^"|"$/g, ""));
             return builder;
           },
+          in(field: string, values: string[]) {
+            if (field === "id") inIds = values;
+            return builder;
+          },
           maybeSingle() {
             return builder;
           },
@@ -182,7 +234,10 @@ describe("supabaseStore concurrency — collection-level lock prevents lost writ
               }
               if (mode === "select") {
                 const rows = [...table.values()].filter((r) => r.collection === eqCollection);
-                return { data: rows.map((r) => ({ data: r.data })), error: null };
+                return {
+                  data: selectFields === "id" ? rows.map((r) => ({ id: r.id })) : rows.map((r) => ({ data: r.data })),
+                  error: null,
+                };
               }
               if (mode === "upsert") {
                 for (const row of upsertRows) {
@@ -195,6 +250,7 @@ describe("supabaseStore concurrency — collection-level lock prevents lost writ
                 if (row.collection !== eqCollection) continue;
                 if (eqId !== undefined && row.id !== eqId) continue;
                 if (notIds && notIds.includes(row.id)) continue;
+                if (inIds && !inIds.includes(row.id)) continue;
                 table.delete(key);
               }
               return { error: null };

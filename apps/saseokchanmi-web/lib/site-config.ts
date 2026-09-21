@@ -39,6 +39,15 @@ export const CONTACT = {
   // pcmap.place.naver.com/restaurant/<ID>/photo 경로가 캡처에 보여 ID(1882539912)를
   // 확인했다 — 대표 링크는 그 표준 홈 경로로 구성. 실제로 열리는지는 배포 전 재확인 필요.
   naverPlaceUrl: "https://pcmap.place.naver.com/restaurant/1882539912/home" as string | null,
+  /**
+   * 네이버 스마트콜(네이버가 무료 제공하는 가상 전화번호 — 통화 연결·스마트 ARS·발신자
+   * 검색정보 분석·통화/검색 통계를 지원) 연동 준비 자리. 이 서비스는 별도 API 연동이
+   * 필요한 게 아니라, 네이버 스마트플레이스에서 스마트콜을 신청하면 발급되는 가상
+   * 전화번호를 노출용으로 쓰는 방식이다. 아직 발급받지 않아 null — 발급되면 이 값을
+   * 채우고, 화면에 노출할 위치(전화·라스트오더 안내 등)는 그때 확정한다. 이미 확정된
+   * 실제 매장 전화번호(phone)는 임의로 대체하지 않는다.
+   */
+  smartCallNumber: null as string | null,
 } as const;
 
 /** 2026-09-21 — 네이버플레이스 캡처의 "SNS"·"결제수단" 항목에서 그대로 확인된 값. */

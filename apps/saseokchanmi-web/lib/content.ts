@@ -12,14 +12,53 @@ export interface MenuItem {
   /** 확정 전에는 null — 가격을 지어내지 않는다. */
   price: string | null;
   description: string | null;
-  todo: string;
+  /** 아직 남은 확인사항이 있을 때만 채운다(예: 사진). 전부 확정되면 생략한다. */
+  todo?: string;
 }
 
-/** 대표 메뉴 3~5개 슬롯. 기획서 3장(SIGNATURE) 기준 — 매장 확인 후 이름·가격·사진을 채운다. */
+/**
+ * 대표 메뉴. 기획서 3장(SIGNATURE) 슬롯을 매장주(의뢰자)가 2026-09-21 네이버플레이스
+ * 캡처로 직접 확인해준 실제 "대표" 표시 메뉴 6종으로 채웠다(3~5개로 잡았던 원래 슬롯 수보다
+ * 많지만, 실제 매장이 6개를 전부 대표 메뉴로 지정해뒀으므로 임의로 줄이지 않았다). 실제
+ * 메뉴 사진은 아직 없어 `todo`로 남겨둔다.
+ */
 export const SIGNATURE_MENU: MenuItem[] = [
-  { name: null, price: null, description: null, todo: "대표 메뉴 1 — 메뉴명·가격·사진 확인 필요" },
-  { name: null, price: null, description: null, todo: "대표 메뉴 2 — 메뉴명·가격·사진 확인 필요" },
-  { name: null, price: null, description: null, todo: "대표 메뉴 3 — 메뉴명·가격·사진 확인 필요" },
+  {
+    name: "제육 조기 가자미 솥밥정식",
+    price: "18,000원",
+    description: "제육볶음과 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
+    todo: "메뉴 사진 확인 필요",
+  },
+  {
+    name: "제육코다리 조기가자미솥밥 정식",
+    price: "22,000원",
+    description: "매콤한 코다리조림에 제육볶음과 생선튀김, 12가지 반찬 제공",
+    todo: "메뉴 사진 확인 필요",
+  },
+  {
+    name: "고등어 조기 가자미 솥밥정식",
+    price: "20,000원",
+    description: "고등어구이와 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
+    todo: "메뉴 사진 확인 필요",
+  },
+  {
+    name: "코다리+조기가자미솥밥정식",
+    price: "18,000원",
+    description: null,
+    todo: "메뉴 사진 확인 필요",
+  },
+  {
+    name: "LA갈비 조기 가자미솥밥 정식",
+    price: "25,000원",
+    description: "LA갈비와 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
+    todo: "메뉴 사진 확인 필요",
+  },
+  {
+    name: "불고기 조기 가자미솥밥 정식",
+    price: "22,000원",
+    description: "불고기와 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
+    todo: "메뉴 사진 확인 필요",
+  },
 ];
 
 export interface OccasionItem {

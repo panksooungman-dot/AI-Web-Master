@@ -66,8 +66,15 @@ export function SignatureMenuSection() {
         <div className="mt-10 grid gap-6 sm:grid-cols-3">
           {SIGNATURE_MENU.map((item, index) => (
             <Card key={index} className="flex flex-col gap-3">
-              <PhotoPlaceholder label={`대표 메뉴 ${index + 1}`} aspect="square" />
-              <TodoBadge label={item.todo} />
+              <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
+              {item.name ? (
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="font-semibold text-foreground">{item.name}</p>
+                  {item.price && <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>}
+                </div>
+              ) : (
+                <TodoBadge label={item.todo ?? "확인 필요"} />
+              )}
             </Card>
           ))}
         </div>

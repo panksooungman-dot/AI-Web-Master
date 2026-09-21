@@ -20,15 +20,25 @@ export default function MenuPage() {
       <PageHero
         eyebrow="Menu"
         title="사색찬미의 대표 한정식"
-        description="메뉴명·가격·구성은 매장 확인 후 등록됩니다."
+        description="정성껏 준비한 대표 한정식 코스를 소개합니다."
       />
       <section className="bg-background py-20">
         <Container>
           <div className="grid gap-6 sm:grid-cols-3">
             {SIGNATURE_MENU.map((item, index) => (
               <Card key={index} className="flex flex-col gap-3">
-                <PhotoPlaceholder label={`대표 메뉴 ${index + 1}`} aspect="square" />
-                <TodoBadge label={item.todo} />
+                <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
+                {item.name ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="font-semibold text-foreground">{item.name}</p>
+                      {item.price && <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>}
+                    </div>
+                    {item.description && <p className="text-sm text-muted">{item.description}</p>}
+                  </div>
+                ) : (
+                  <TodoBadge label={item.todo ?? "확인 필요"} />
+                )}
               </Card>
             ))}
           </div>

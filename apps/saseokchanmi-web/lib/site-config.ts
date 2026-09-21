@@ -60,7 +60,6 @@ export const NAV_ITEMS = [
   { href: "/about", label: "브랜드 이야기" },
   { href: "/menu", label: "메뉴" },
   { href: "/food", label: "음식·솥밥" },
-  { href: "/space", label: "매장·주차" },
   { href: "/occasion", label: "모임 안내" },
   { href: "/paju", label: "광탄·파주" },
   { href: "/review", label: "고객 후기" },

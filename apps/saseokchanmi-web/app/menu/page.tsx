@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card, LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
@@ -27,7 +28,19 @@ export default function MenuPage() {
           <div className="grid gap-6 sm:grid-cols-3">
             {SIGNATURE_MENU.map((item, index) => (
               <Card key={index} className="flex flex-col gap-3">
-                <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
+                {item.image ? (
+                  <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
+                    <Image
+                      src={item.image}
+                      alt={item.name ?? `대표 메뉴 ${index + 1}`}
+                      fill
+                      sizes="(min-width: 640px) 33vw, 100vw"
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
+                )}
                 {item.name ? (
                   <div className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-2">

@@ -21,7 +21,7 @@ function MenuCard({ item, index, fallbackLabel }: { item: MenuItem; index: numbe
     <Card className="flex flex-col gap-3">
       {item.image ? (
         <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
-          <Image src={item.image} alt={label} fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />
+          <Image src={item.image} alt={label} fill sizes="(min-width: 640px) 25vw, 100vw" className="object-cover" />
         </div>
       ) : (
         <PhotoPlaceholder label={label} aspect="square" />
@@ -51,14 +51,14 @@ export default function MenuPage() {
       />
       <section className="bg-background py-20">
         <Container>
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-4">
             {SIGNATURE_MENU.map((item, index) => (
               <MenuCard key={index} item={item} index={index} fallbackLabel="대표 메뉴" />
             ))}
           </div>
 
           <h2 className="mt-16 text-2xl font-bold text-foreground">그 외 메뉴</h2>
-          <div className="mt-6 grid gap-6 sm:grid-cols-3">
+          <div className="mt-6 grid gap-6 sm:grid-cols-4">
             {ADDITIONAL_MENU.map((item, index) => (
               <MenuCard key={index} item={item} index={index} fallbackLabel="메뉴" />
             ))}

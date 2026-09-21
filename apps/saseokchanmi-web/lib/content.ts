@@ -133,6 +133,13 @@ export const OCCASIONS: OccasionItem[] = [
     description: "회사 모임이나 단체 방문에 맞춰 인원과 일정에 맞는 상차림을 상담합니다.",
     keywords: ["파주단체식당"],
   },
+  {
+    slug: "date",
+    title: "데이트",
+    description:
+      "마장호수·헤이리마을·임진각처럼 파주를 대표하는 나들이 코스 다음 일정으로, 정갈한 한 상과 함께 하루를 마무리하는 데이트 코스로도 좋습니다.",
+    keywords: ["파주데이트", "파주데이트코스"],
+  },
 ];
 
 export interface TourSpot {
@@ -167,6 +174,13 @@ export const TOUR_SPOTS: TourSpot[] = [
     todo: "매장 기준 실제 이동 거리·소요 시간 확인 필요",
   },
 ];
+
+/**
+ * TOUR_SPOTS(전부 실존이 확인된 파주 명소)를 데이트 코스로 자연스럽게 엮는 문구.
+ * 새로운 장소·거리·소요 시간을 지어내지 않고, 이미 확정된 명소 이름만 그대로 인용한다.
+ */
+export const TOUR_DATE_COURSE_INTRO =
+  "마장호수의 출렁다리, 헤이리마을의 갤러리, 임진각의 평화누리공원처럼 파주를 대표하는 나들이 코스에 사색찬미의 정갈한 한 상을 더하면 자연스러운 데이트 코스가 완성됩니다.";
 
 /** 기획서 08 LOCAL 섹션 — 실제 접근성 확인 시 활용할 인근 지역명(8-5). */
 export const NEARBY_AREAS = [

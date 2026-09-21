@@ -253,7 +253,12 @@ export function TourSection() {
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {TOUR_SPOTS.map((spot) => (
             <Card key={spot.name}>
-              <p className="text-base font-bold text-foreground">{spot.name}</p>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-base font-bold text-foreground">{spot.name}</p>
+                {spot.travelTime && (
+                  <p className="whitespace-nowrap text-xs font-semibold text-primary">{spot.travelTime}</p>
+                )}
+              </div>
               <p className="mt-2 text-sm leading-relaxed text-muted">{spot.description}</p>
             </Card>
           ))}

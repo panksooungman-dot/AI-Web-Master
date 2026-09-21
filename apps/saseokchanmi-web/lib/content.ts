@@ -146,33 +146,35 @@ export const OCCASIONS: OccasionItem[] = [
 export interface TourSpot {
   name: string;
   description: string;
+  /** 매장 기준 실제 이동 거리·소요 시간 확인 후 채운다(예: "도보 15분", "차량 20분"). */
+  travelTime?: string;
   todo?: string;
 }
 
 /**
  * 기획서 09 TOUR 섹션 — 실제 존재하는 파주 지역 명소만 사용한다(기획서에서 허용한 항목).
- * 매장과의 실제 이동 거리·소요 시간은 확인 전까지 과장하지 않고 TODO로 남긴다.
+ * 매장 기준 이동 거리·소요 시간은 2026-09-21 매장주가 직접 확인해준 실제 값이다.
  */
 export const TOUR_SPOTS: TourSpot[] = [
   {
     name: "마장호수",
     description: "출렁다리로 잘 알려진 파주의 대표 나들이 명소입니다.",
-    todo: "매장 기준 실제 이동 거리·소요 시간 확인 필요",
+    travelTime: "도보 15분",
   },
   {
     name: "헤이리마을",
     description: "예술과 건축이 어우러진 파주의 문화예술마을입니다.",
-    todo: "매장 기준 실제 이동 거리·소요 시간 확인 필요",
+    travelTime: "차량 20분",
   },
   {
     name: "임진각",
     description: "역사와 평화의 의미를 담은 파주의 대표 관광지입니다.",
-    todo: "매장 기준 실제 이동 거리·소요 시간 확인 필요",
+    travelTime: "차량 15분",
   },
   {
     name: "파주출판단지",
     description: "책과 관련된 다양한 공간이 모여 있는 문화 지구입니다.",
-    todo: "매장 기준 실제 이동 거리·소요 시간 확인 필요",
+    travelTime: "차량 10분",
   },
 ];
 

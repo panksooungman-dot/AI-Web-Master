@@ -38,131 +38,130 @@ export function HeroSection() {
   );
 }
 
-/** 02 BRAND */
-export function BrandSection() {
+/** 02~05 통합 — 브랜드 소개부터 대표 메뉴 사진 스토리, 실제 메뉴 목록까지 하나의 흐름으로 구성.
+ * 사진 5장(plating/stirfry/sotbap-open/table-spread/topping)은 이 섹션에서만 쓰고
+ * 아래 다른 섹션에서는 재사용하지 않아 한 페이지 안에서 같은 사진이 중복되지 않는다. */
+function StoryBlock({
+  src,
+  alt,
+  eyebrow,
+  title,
+  body,
+  reverse = false,
+  badge,
+  linkHref,
+  linkLabel,
+}: {
+  src: string;
+  alt: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  reverse?: boolean;
+  badge?: string;
+  linkHref?: string;
+  linkLabel?: string;
+}) {
   return (
-    <section className="bg-background py-20 sm:py-24">
-      <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40">
-          <Image
-            src="/images/food/plating.jpg"
-            alt="정성을 다해 한 상을 완성하는 손길"
-            fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            className="object-cover"
-          />
-        </div>
-        <div>
-          <span className={LABEL}>Brand</span>
-          <h2 className={`${H2} mt-3`}>한 상을 차리는 마음까지 담았습니다</h2>
-          <p className={`${BODY} mt-4`}>
-            사색찬미한정식은 정갈함과 정성을 우선으로 한 상을 준비합니다. 좋은 재료로 갓 지은
-            솥밥과 함께, 좋은 사람과 나누는 따뜻한 한 끼가 되도록 매 상을 정성껏 차립니다.
-          </p>
-        </div>
-      </Container>
-    </section>
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
+      <div
+        className={`relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40 ${
+          reverse ? "order-1 lg:order-2" : ""
+        }`}
+      >
+        <Image src={src} alt={alt} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
+      </div>
+      <div className={reverse ? "order-2 lg:order-1" : undefined}>
+        <span className={LABEL}>{eyebrow}</span>
+        <h3 className="mt-3 text-2xl font-bold leading-tight text-foreground sm:text-3xl">{title}</h3>
+        <p className={`${BODY} mt-3`}>{body}</p>
+        {badge && <TodoBadge label={badge} className="mt-3" />}
+        {linkHref && linkLabel && (
+          <LinkButton href={linkHref} variant="secondary" className="mt-4">
+            {linkLabel}
+          </LinkButton>
+        )}
+      </div>
+    </div>
   );
 }
 
-/** 03 SIGNATURE — 대표 메뉴 */
-export function SignatureMenuSection() {
+export function SignatureStorySection() {
   return (
-    <section className="bg-secondary/30 py-20 sm:py-24">
-      <Container>
+    <section className="bg-background py-20 sm:py-24">
+      <Container className="flex flex-col gap-16">
         <div className="text-center">
           <span className={LABEL}>Signature</span>
           <h2 className={`${H2} mt-3`}>사색찬미의 대표 한정식</h2>
-        </div>
-        <div className="mt-10 grid gap-6 sm:grid-cols-4">
-          {SIGNATURE_MENU.map((item, index) => (
-            <Card key={index} className="flex flex-col gap-3">
-              {item.image ? (
-                <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
-                  <Image
-                    src={item.image}
-                    alt={item.name ?? `대표 메뉴 ${index + 1}`}
-                    fill
-                    sizes="(min-width: 640px) 25vw, 100vw"
-                    className="object-cover"
-                  />
-                </div>
-              ) : (
-                <PhotoPlaceholder label={item.name ?? `대표 메뉴 ${index + 1}`} aspect="square" />
-              )}
-              {item.name ? (
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="font-semibold text-foreground">{item.name}</p>
-                  {item.price && <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>}
-                </div>
-              ) : (
-                <TodoBadge label={item.todo ?? "확인 필요"} />
-              )}
-            </Card>
-          ))}
-        </div>
-        <div className="mt-8 text-center">
-          <LinkButton href="/menu" variant="secondary">
-            메뉴 상세 보기
-          </LinkButton>
-        </div>
-      </Container>
-    </section>
-  );
-}
-
-/** 04 FOOD — 한 상 */
-export function FoodSection() {
-  return (
-    <section className="bg-background py-20 sm:py-24">
-      <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        <div className="order-2 lg:order-1">
-          <span className={LABEL}>Food</span>
-          <h2 className={`${H2} mt-3`}>이것이 사색찬미의 한 상입니다</h2>
-          <p className={`${BODY} mt-4`}>
-            솥밥, 생선, 고기, 정갈한 반찬까지 — 한 상 위에 담긴 구성 하나하나가 사색찬미의
-            정성을 보여줍니다.
+          <p className={`${BODY} mx-auto mt-4 max-w-2xl`}>
+            사색찬미한정식은 정갈함과 정성을 우선으로 한 상을 준비합니다. 좋은 사람과 나누는
+            따뜻한 한 끼가 되도록, 재료를 매만지는 손끝부터 갓 지은 솥밥까지 정성껏 차립니다.
           </p>
-          <LinkButton href="/food" variant="secondary" className="mt-6">
-            음식 이야기 보기
-          </LinkButton>
         </div>
-        <div className="relative order-1 aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40 lg:order-2">
-          <Image
-            src="/images/food/table-spread.jpg"
-            alt="사색찬미의 한 상 전체"
-            fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            className="object-cover"
-          />
-        </div>
-      </Container>
-    </section>
-  );
-}
 
-/** 05 SOUL — 솥밥 */
-export function SoulSection() {
-  return (
-    <section className="bg-secondary/30 py-20 sm:py-24">
-      <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40">
-          <Image
-            src="/images/food/sotbap-open.jpg"
-            alt="갓 지은 솥밥의 뚜껑을 여는 순간"
-            fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            className="object-cover"
-          />
-        </div>
+        <StoryBlock
+          src="/images/food/plating.jpg"
+          alt="정성을 다해 한 상을 완성하는 손길"
+          eyebrow="Care"
+          title="손끝으로 완성하는 정성"
+          body="생선 한 마리, 반찬 하나까지 마지막 순간까지 정갈하게 매만져 상에 올립니다."
+        />
+        <StoryBlock
+          reverse
+          src="/images/food/stirfry.jpg"
+          alt="매콤하게 조려낸 코다리·제육 요리"
+          eyebrow="Taste"
+          title="깊은 손맛이 밴 조림·볶음"
+          body="LA갈비, 제육, 코다리조림처럼 매콤달콤하게 조려낸 요리가 대표 메뉴의 중심입니다."
+        />
+        <StoryBlock
+          src="/images/food/sotbap-open.jpg"
+          alt="갓 지은 솥밥의 뚜껑을 여는 순간"
+          eyebrow="Soul · 솥밥"
+          title="갓 지은 솥밥, 사색찬미의 자부심"
+          body="따뜻하게 지어낸 솥밥 한 그릇이 상의 중심에서 완성도를 더합니다."
+          badge="누룽지 등 실제 제공 방식 확인 필요"
+        />
+        <StoryBlock
+          reverse
+          src="/images/food/table-spread.jpg"
+          alt="사색찬미의 한 상 전체"
+          eyebrow="Food"
+          title="이것이 사색찬미의 한 상입니다"
+          body="솥밥, 생선, 고기, 정갈한 반찬까지 — 한 상 위에 담긴 구성 하나하나가 정성을 보여줍니다."
+          linkHref="/food"
+          linkLabel="음식 이야기 자세히 보기"
+        />
+        <StoryBlock
+          src="/images/food/topping.jpg"
+          alt="정성으로 마무리하는 밥 한 그릇"
+          eyebrow="Finish"
+          title="마지막까지 놓치지 않는 정갈함"
+          body="정갈한 밑반찬 하나를 올리는 작은 손길까지, 사색찬미의 한 상은 그렇게 완성됩니다."
+        />
+
         <div>
-          <span className={LABEL}>Soul · 솥밥</span>
-          <h2 className={`${H2} mt-3`}>갓 지은 솥밥, 사색찬미의 자부심</h2>
-          <p className={`${BODY} mt-4`}>
-            사색찬미한정식은 갓 지은 솥밥을 상의 중심에 둡니다. 따뜻하게 지어낸 밥 한 그릇이
-            한 상의 완성도를 더합니다.
-          </p>
-          <TodoBadge label="누룽지 등 실제 제공 방식 확인 필요" className="mt-3" />
+          <h3 className="text-center text-xl font-bold text-foreground">대표 메뉴</h3>
+          <div className="mx-auto mt-6 max-w-3xl divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
+            {SIGNATURE_MENU.map((item, index) => (
+              <div key={index} className="flex items-baseline justify-between gap-4 px-5 py-4">
+                <div>
+                  <p className="font-semibold text-foreground">{item.name ?? `대표 메뉴 ${index + 1}`}</p>
+                  {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
+                </div>
+                {item.price ? (
+                  <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>
+                ) : (
+                  <TodoBadge label={item.todo ?? "확인 필요"} />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <LinkButton href="/menu" variant="secondary">
+              메뉴 상세 보기
+            </LinkButton>
+          </div>
         </div>
       </Container>
     </section>
@@ -172,7 +171,7 @@ export function SoulSection() {
 /** 06 SPACE — 매장·주차 (요약) */
 export function SpaceTeaserSection() {
   return (
-    <section className="bg-background py-20 sm:py-24">
+    <section className="bg-secondary/30 py-20 sm:py-24">
       <Container>
         <div className="text-center">
           <span className={LABEL}>Space</span>
@@ -196,7 +195,7 @@ export function SpaceTeaserSection() {
 /** 07 OCCASION — 목적별 방문 */
 export function OccasionTeaserSection() {
   return (
-    <section className="bg-secondary/30 py-20 sm:py-24">
+    <section className="bg-background py-20 sm:py-24">
       <Container>
         <div className="text-center">
           <span className={LABEL}>Occasion</span>
@@ -220,7 +219,7 @@ export function OccasionTeaserSection() {
 /** 08 LOCAL — 광탄·파주 (요약) */
 export function LocalSection() {
   return (
-    <section className="bg-background py-20 sm:py-24">
+    <section className="bg-secondary/30 py-20 sm:py-24">
       <Container>
         <span className={LABEL}>Local</span>
         <h2 className={`${H2} mt-3`}>광탄, 사색찬미가 자리한 곳</h2>
@@ -246,7 +245,7 @@ export function LocalSection() {
 /** 09 TOUR — 파주 여행 */
 export function TourSection() {
   return (
-    <section className="bg-secondary/30 py-20 sm:py-24">
+    <section className="bg-background py-20 sm:py-24">
       <Container>
         <span className={LABEL}>Tour</span>
         <h2 className={`${H2} mt-3`}>파주 여행 중 만나는 맛있는 한 끼</h2>
@@ -267,7 +266,7 @@ export function TourSection() {
 /** 10 REVIEW — 고객 후기 (요약) */
 export function ReviewTeaserSection() {
   return (
-    <section className="bg-background py-20 sm:py-24">
+    <section className="bg-secondary/30 py-20 sm:py-24">
       <Container className="text-center">
         <span className={LABEL}>Review</span>
         <h2 className={`${H2} mt-3`}>고객의 이야기</h2>
@@ -296,7 +295,7 @@ export function ReviewTeaserSection() {
 /** 11 LOCATION — 오시는 길 (요약) */
 export function LocationTeaserSection() {
   return (
-    <section className="bg-secondary/30 py-20 sm:py-24">
+    <section className="bg-background py-20 sm:py-24">
       <Container className="grid gap-8 lg:grid-cols-2 lg:items-center">
         <PhotoPlaceholder label="지도" aspect="wide" />
         <div>

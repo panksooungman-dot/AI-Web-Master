@@ -4,14 +4,16 @@ import { LinkButton } from "@cnbiz/ui";
 import { ADDRESS, BLOG_URL, CONTACT, NAV_ITEMS, RESERVATION_HREF, SITE_NAME } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
 import { TodoBadge } from "@/components/ui/TodoBadge";
+import { TraditionalPattern } from "@/components/ui/TraditionalPattern";
 
 /** 기획서 12 FINAL CTA: "푸터에서도 동일 CTA 제공". */
 export function Footer() {
   const phoneHref = telUrl();
 
   return (
-    <footer className="border-t border-secondary bg-secondary/40">
-      <Container className="py-16">
+    <footer className="relative overflow-hidden border-t border-secondary bg-secondary/40">
+      <TraditionalPattern className="opacity-[0.12]" />
+      <Container className="relative py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <p className="text-lg font-bold text-primary">{SITE_NAME}</p>

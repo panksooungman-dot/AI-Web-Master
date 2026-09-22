@@ -333,9 +333,9 @@ export function ReviewTeaserSection() {
 export function LocationTeaserSection() {
   return (
     <section className="bg-background py-20 sm:py-24">
-      <Container className="grid gap-8 lg:grid-cols-2 lg:items-center">
-        <LocationMap />
-        <div>
+      <Container>
+        <LocationMap className="aspect-[16/9] sm:aspect-[21/9]" />
+        <div className="mt-8">
           <span className={LABEL}>Location</span>
           <h2 className={`${H2} mt-3`}>오시는 길</h2>
           <p className={`${BODY} mt-4`}>{ADDRESS.full}</p>

@@ -35,10 +35,10 @@ function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number
       )}
       <div className="min-w-0 flex-1">
         {item.name ? (
-          <div className="flex items-baseline justify-between gap-3">
+          <>
             <p className="font-semibold text-foreground">{item.name}</p>
-            {item.price && <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>}
-          </div>
+            {item.price && <p className="mt-0.5 text-sm font-semibold text-primary">{item.price}</p>}
+          </>
         ) : (
           <TodoBadge label={item.todo ?? "확인 필요"} />
         )}

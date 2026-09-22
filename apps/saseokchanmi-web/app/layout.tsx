@@ -96,7 +96,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd) }}
         />
         <Header />
-        <main className="flex-1 pr-16 md:pr-0">{children}</main>
+        <main className="flex-1 pr-14 md:pr-0">{children}</main>
         <Footer />
         <MobileFloatingCTA />
       </body>

@@ -361,7 +361,11 @@ export function ReviewTeaserSection() {
         </div>
 
         {CUSTOMER_REVIEWS.length > 0 && (
-          <ScrollRow wrapperClassName="mt-10 text-left" className="-mx-4 px-4 sm:mx-0 sm:px-0">
+          <ScrollRow
+            wrapperClassName="mt-10 text-left"
+            className="-mx-4 px-4 sm:mx-0 sm:px-0"
+            fadeFromClassName="from-secondary/30"
+          >
             {CUSTOMER_REVIEWS.map((review) => (
               <ReviewCard key={review.author} review={review} className="w-72 shrink-0 snap-start sm:w-80" />
             ))}

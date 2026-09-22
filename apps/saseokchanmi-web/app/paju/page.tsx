@@ -46,7 +46,11 @@ export default function PajuPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">Tour</p>
           <h2 className="mt-3 text-3xl font-bold text-foreground">파주 여행 중 만나는 맛있는 한 끼</h2>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{TOUR_DATE_COURSE_INTRO}</p>
-          <ScrollRow wrapperClassName="mt-8" className="-mx-4 px-4 sm:mx-0 sm:px-0">
+          <ScrollRow
+            wrapperClassName="mt-8"
+            className="-mx-4 px-4 sm:mx-0 sm:px-0"
+            fadeFromClassName="from-secondary/30"
+          >
             {TOUR_SPOTS.map((spot) => (
               <Card key={spot.name} className="w-72 shrink-0 snap-start sm:w-80">
                 <div className="flex items-baseline justify-between gap-2">

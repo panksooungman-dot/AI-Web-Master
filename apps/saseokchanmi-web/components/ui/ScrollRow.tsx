@@ -9,6 +9,12 @@ interface ScrollRowProps {
   className?: string;
   /** 바깥 relative 래퍼에 추가할 클래스(예: mt-8 간격). */
   wrapperClassName?: string;
+  /**
+   * 카드가 사라지는 그라데이션의 시작 색(`from-*`)만 지정한다(`to-transparent`는 고정).
+   * 이 컴포넌트를 감싸는 section의 실제 배경색과 일치시켜야 페이드가 자연스럽다 — 기본값
+   * `from-background`는 `bg-secondary/30` 섹션에 그대로 쓰면 경계가 살짝 어긋난다.
+   */
+  fadeFromClassName?: string;
 }
 
 /**
@@ -16,7 +22,12 @@ interface ScrollRowProps {
  * 모바일은 카드가 살짝 잘려 보이는 것만으로도 스크롤 가능함이 드러나지만, 데스크탑(넓은 화면)에서는
  * 아무 단서가 없을 수 있어 화살표 버튼을 추가로 제공한다(터치가 아닌 클릭으로도 이동 가능).
  */
-export function ScrollRow({ children, className, wrapperClassName }: ScrollRowProps) {
+export function ScrollRow({
+  children,
+  className,
+  wrapperClassName,
+  fadeFromClassName = "from-background",
+}: ScrollRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -59,7 +70,7 @@ export function ScrollRow({ children, className, wrapperClassName }: ScrollRowPr
         <>
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-background to-transparent"
+            className={cn("pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r to-transparent", fadeFromClassName)}
           />
           <button
             type="button"
@@ -76,7 +87,7 @@ export function ScrollRow({ children, className, wrapperClassName }: ScrollRowPr
         <>
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background to-transparent"
+            className={cn("pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l to-transparent", fadeFromClassName)}
           />
           <button
             type="button"

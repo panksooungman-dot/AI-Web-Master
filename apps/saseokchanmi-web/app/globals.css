@@ -27,9 +27,24 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  /*
+   * 브라우저 기본 CJK 줄바꿈 규칙은 한글을 음절(글자) 단위로 아무 데서나 끊는다("대표"를
+   * "대"/"표"로 쪼개는 식) — 이게 이 사이트 곳곳에서 보이던 "한 글자만 남는 어색한 줄바꿈"의
+   * 근본 원인이었다. keep-all로 띄어쓰기 단위로만 끊도록 하고, overflow-wrap으로 띄어쓰기
+   * 없이 긴 단일 문자열(URL 등)은 여전히 안전하게 줄바꿈되도록 안전장치를 둔다.
+   */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
+}
+
+/* 좁은 화면에서 제목이 불균형하게 꺾이는 것을 방지한다(keep-all과 함께 적용). */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
 }

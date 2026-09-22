@@ -20,21 +20,20 @@ export const metadata: Metadata = {
 };
 
 /**
- * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 작은 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * 썸네일 원본이 70x70px 안팎으로 작아, 카드처럼 크게 띄우는 대신 이 h-20 w-20(80px)
- * 크기로만 보여줘 확대로 인한 흐림을 최소화한다(64px보다 살짝 키워 텍스트 블록과의 비율을
- * 보완했다 — 2026-09-22 실제 배포본에서 사진이 텍스트에 비해 지나치게 작아 보인다는
- * 피드백 반영, 사진 자체를 더 키우기엔 원본 해상도가 부족해 설명을 1줄로 줄여 텍스트
- * 높이도 함께 낮췄다). 설명은 목록에서는 1줄만 보여주고(line-clamp-1), 전체 설명은 굳이
- * 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
+ * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
+ * SIGNATURE_MENU 6종은 2026-09-22부터 매장 실제 사진(320x320)을 쓰므로 h-24 w-24(96px)로
+ * 키워도 흐려지지 않는다. ADDITIONAL_MENU 3종은 여전히 70x70px 안팎의 로컬 썸네일이라
+ * 같은 크기로 키우면 흐릿해 보일 수 있지만, 목록 전체의 시각적 일관성을 위해 같은 크기를
+ * 유지한다(더 나은 원본이 생기면 교체). 설명은 목록에서는 1줄만 보여주고(line-clamp-1),
+ * 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
  */
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
   const label = item.name ?? `${fallbackLabel} ${index + 1}`;
   return (
     <div className="flex items-center gap-4 px-5 py-4">
       {item.image && (
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
-          <Image src={item.image} alt={label} fill sizes="80px" className="object-cover" />
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
+          <Image src={item.image} alt={label} fill sizes="96px" className="object-cover" />
         </div>
       )}
       <div className="min-w-0 flex-1">

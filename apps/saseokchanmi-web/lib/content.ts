@@ -13,10 +13,11 @@ export interface MenuItem {
   price: string | null;
   description: string | null;
   /**
-   * 2026-09-21 — 매장주가 네이버플레이스 메뉴판 캡처에서 잘라 제공한 70x70px 안팎의
-   * 작은 썸네일. 카드처럼 크게 띄우면 흐릿해 보여 한 차례 제거했으나, 메뉴판 형식(작은
-   * 썸네일 + 텍스트 목록)으로 표시할 때는 원본 크기 그대로 보여줘 문제가 없어 복원했다.
-   * 고화질 원본(매장 직접 촬영 등)이 생기면 이 필드에 경로를 교체하면 된다.
+   * 2026-09-22 — SIGNATURE_MENU 6종은 매장주가 네이버 스마트플레이스 "대표 메뉴" 탭의
+   * 실제 HTML을 그대로 전달해줘, 거기 담긴 실제 사진(320x320, search.pstatic.net 프록시
+   * — 리뷰 사진과 동일한 방식, next.config.ts에 이미 허용된 도메인)으로 교체했다. 이전에
+   * 쓰던 70x70px 로컬 썸네일보다 훨씬 선명하다. ADDITIONAL_MENU 3종은 아직 이 수준의
+   * 원본이 없어 기존 로컬 썸네일을 그대로 둔다.
    */
   image?: string;
   /** 아직 남은 확인사항이 있을 때만 채운다(예: 사진). 전부 확정되면 생략한다. */
@@ -27,43 +28,53 @@ export interface MenuItem {
  * 대표 메뉴. 기획서 3장(SIGNATURE) 슬롯을 매장주(의뢰자)가 2026-09-21 네이버플레이스
  * 캡처로 직접 확인해준 실제 "대표" 표시 메뉴 6종으로 채웠다(3~5개로 잡았던 원래 슬롯 수보다
  * 많지만, 실제 매장이 6개를 전부 대표 메뉴로 지정해뒀으므로 임의로 줄이지 않았다).
+ *
+ * 2026-09-22 — 매장주가 네이버 스마트플레이스 "대표 메뉴" 탭의 실제 HTML을 전달해줘,
+ * description·image를 그 원문 그대로 반영했다(항목 순서·이름·가격은 기존과 동일해 6종이
+ * 정확히 일대일로 대응됨을 확인).
  */
 export const SIGNATURE_MENU: MenuItem[] = [
   {
     name: "제육 조기 가자미 솥밥정식",
     price: "18,000원",
-    description: "제육볶음과 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
-    image: "/images/menu/jeyuk-jogi-gajami.jpg",
+    description: "사색찬미 정식 : 제육볶음과 가자미, 조기 그리고 16가지 반찬(개인솥밥 제공)",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260827_244%2F1787805068595pWvPG_JPEG%2F8857.jpg",
   },
   {
     name: "제육코다리 조기가자미솥밥 정식",
     price: "22,000원",
-    description: "매콤한 코다리조림에 제육볶음과 생선튀김, 12가지 반찬 제공",
-    image: "/images/menu/jeyuk-kodari.jpg",
+    description: "매콤한 코다리조림에 단짝 제육볶음에 생선튀김에 12가지반찬이 제공됩니다(개인솥밥)",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260725_203%2F1784979363700LiyYM_JPEG%2F8809.jpg",
   },
   {
     name: "고등어 조기 가자미 솥밥정식",
     price: "20,000원",
-    description: "고등어구이와 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
-    image: "/images/menu/godeungeo.jpg",
+    description: "생선모듬정식 : 고등어구이와 가자미,조기 그리고 16가지 반찬(개인솥밥 제공)",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_33%2F1784107799478fMDpy_JPEG%2F7308.jpg",
   },
   {
     name: "코다리+조기가자미솥밥정식",
     price: "18,000원",
     description: null,
-    image: "/images/menu/kodari-jogi.jpg",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260801_175%2F1785573921407JqSl8_JPEG%2F8748.jpg",
   },
   {
     name: "LA갈비 조기 가자미솥밥 정식",
     price: "25,000원",
-    description: "LA갈비와 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
-    image: "/images/menu/la-galbi.jpg",
+    description: "LA갈비정식 : LA갈비와 가자미, 조기 그리고 16가지 반찬(개인솥밥 제공)",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_147%2F1784107849166rUSGf_JPEG%2F8390.jpg",
   },
   {
     name: "불고기 조기 가자미솥밥 정식",
     price: "22,000원",
-    description: "불고기와 가자미·조기, 그리고 16가지 반찬(개인솥밥 제공)",
-    image: "/images/menu/bulgogi.jpg",
+    description: "불고기 정식 : 불고기와 가자미,조기 그리고 16가지 반찬(개인솥밥 제공)",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250723_280%2F1753255016117YtYXx_JPEG%2FKakaoTalk_20250721_214527514_05.jpg",
   },
 ];
 

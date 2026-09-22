@@ -41,6 +41,12 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // 2026-09-22 — 매장주가 네이버 서치어드바이저에서 발급받은 소유 확인 코드.
+  verification: {
+    other: {
+      "naver-site-verification": "48d1759371bf2dbd946bfdfd31b3403946cfbe9b",
+    },
+  },
 };
 
 /**

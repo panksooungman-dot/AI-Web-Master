@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
-import { LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { LocationMap } from "@/components/ui/LocationMap";
 import { TodoBadge } from "@/components/ui/TodoBadge";
@@ -42,11 +42,11 @@ export default function LocationPage() {
             <InfoRow label="주차" value={CONTACT.parkingInfo} todo="주차 조건 확인 필요" />
             <InfoRow label="결제수단" value={PAYMENT_METHODS.join(", ")} />
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {phoneHref && (
                 <a
                   href={phoneHref}
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-3 text-center text-sm font-semibold text-white"
                 >
                   전화 걸기
                 </a>
@@ -55,21 +55,24 @@ export default function LocationPage() {
                 href={naverMapUrl()}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-lg border border-secondary px-6 py-3 text-sm font-semibold text-primary"
+                className="inline-flex items-center justify-center rounded-lg border border-secondary px-4 py-3 text-center text-sm font-semibold text-primary"
               >
-                {CONTACT.naverPlaceUrl ? "네이버플레이스 (길찾기·리뷰)" : "길찾기 (네이버 지도)"}
+                {CONTACT.naverPlaceUrl ? "네이버플레이스" : "길찾기"}
               </a>
               <a
                 href={BLOG_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-lg border border-secondary px-6 py-3 text-sm font-semibold text-primary"
+                className="inline-flex items-center justify-center rounded-lg border border-secondary px-4 py-3 text-center text-sm font-semibold text-primary"
               >
                 네이버 블로그
               </a>
-              <LinkButton href={RESERVATION_HREF} variant="secondary">
+              <Link
+                href={RESERVATION_HREF}
+                className="inline-flex items-center justify-center rounded-lg border border-secondary px-4 py-3 text-center text-sm font-semibold text-primary"
+              >
                 예약 문의
-              </LinkButton>
+              </Link>
             </div>
           </div>
         </Container>

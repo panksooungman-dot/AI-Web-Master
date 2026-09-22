@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { MobileBottomCTA } from "@/components/layout/MobileBottomCTA";
+import { MobileFloatingCTA } from "@/components/layout/MobileFloatingCTA";
 import {
   ADDRESS,
   BLOG_URL,
@@ -96,9 +96,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd) }}
         />
         <Header />
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
+        <main className="flex-1 pr-16 md:pr-0">{children}</main>
         <Footer />
-        <MobileBottomCTA />
+        <MobileFloatingCTA />
       </body>
     </html>
   );

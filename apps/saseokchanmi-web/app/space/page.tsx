@@ -5,13 +5,18 @@ import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { PageHero } from "@/components/ui/PageHero";
 import { SEATING_OPTIONS, SPACE_PHOTOS } from "@/lib/content";
-import { CONTACT, seoKeywords } from "@/lib/site-config";
+import { CONTACT, OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
+
+const TITLE = "매장·주차 안내";
+const DESCRIPTION = "사색찬미한정식의 매장 공간과 주차 안내입니다.";
 
 export const metadata: Metadata = {
-  title: "매장·주차 안내",
-  description: "사색찬미한정식의 매장 공간과 주차 안내입니다.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("occasion"),
   alternates: { canonical: "/space" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/space", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 export default function SpacePage() {

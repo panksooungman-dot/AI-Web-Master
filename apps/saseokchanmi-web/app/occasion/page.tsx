@@ -3,13 +3,18 @@ import { Container } from "@cnbiz/layout-primitives";
 import { Card, LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { OCCASIONS } from "@/lib/content";
-import { RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
+import { OG_DEFAULTS, OG_IMAGE, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
+
+const TITLE = "모임 안내";
+const DESCRIPTION = "가족모임·부모님 식사·생신·상견례·단체식사에 맞는 사색찬미한정식 안내.";
 
 export const metadata: Metadata = {
-  title: "모임 안내",
-  description: "가족모임·부모님 식사·생신·상견례·단체식사에 맞는 사색찬미한정식 안내.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("occasion"),
   alternates: { canonical: "/occasion" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/occasion", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 export default function OccasionPage() {

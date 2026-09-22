@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import { Container } from "@cnbiz/layout-primitives";
 import { PageHero } from "@/components/ui/PageHero";
-import { CONTACT, seoKeywords } from "@/lib/site-config";
+import { CONTACT, OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
 import { telUrl } from "@/lib/links";
 
+const TITLE = "예약 안내";
+const DESCRIPTION = "사색찬미한정식 예약 안내. 네이버 예약 또는 전화로 예약하실 수 있습니다.";
+
 export const metadata: Metadata = {
-  title: "예약 안내",
-  description: "사색찬미한정식 예약 안내. 네이버 예약 또는 전화로 예약하실 수 있습니다.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("core", "occasion"),
   alternates: { canonical: "/reservation" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/reservation", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 /**

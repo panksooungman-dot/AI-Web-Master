@@ -6,6 +6,7 @@ import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_DATE_COURSE_INTRO, TOUR_S
 import { ADDRESS, CONTACT, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl } from "@/lib/links";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
+import { ScrollRow } from "@/components/ui/ScrollRow";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { TraditionalPattern } from "@/components/ui/TraditionalPattern";
 
@@ -278,7 +279,7 @@ export function TourSection() {
         <span className={LABEL}>Tour</span>
         <h2 className={`${H2} mt-3`}>파주 여행 중 만나는 맛있는 한 끼</h2>
         <p className={`${BODY} mt-4 max-w-2xl`}>{TOUR_DATE_COURSE_INTRO}</p>
-        <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <ScrollRow wrapperClassName="mt-8" className="-mx-4 px-4 sm:mx-0 sm:px-0">
           {TOUR_SPOTS.map((spot) => (
             <Card key={spot.name} className="w-72 shrink-0 snap-start sm:w-80">
               <div className="flex items-baseline justify-between gap-2">
@@ -292,7 +293,7 @@ export function TourSection() {
               <p className="mt-3 text-base leading-relaxed text-muted">{spot.description}</p>
             </Card>
           ))}
-        </div>
+        </ScrollRow>
       </Container>
     </section>
   );

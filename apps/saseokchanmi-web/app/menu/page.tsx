@@ -21,11 +21,10 @@ export const metadata: Metadata = {
 
 /**
  * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * SIGNATURE_MENU 6종은 2026-09-22부터 매장 실제 사진(320x320)을 쓰므로 h-24 w-24(96px)로
- * 키워도 흐려지지 않는다. ADDITIONAL_MENU 3종은 여전히 70x70px 안팎의 로컬 썸네일이라
- * 같은 크기로 키우면 흐릿해 보일 수 있지만, 목록 전체의 시각적 일관성을 위해 같은 크기를
- * 유지한다(더 나은 원본이 생기면 교체). 설명은 목록에서는 1줄만 보여주고(line-clamp-1),
- * 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
+ * SIGNATURE_MENU·ADDITIONAL_MENU 9종 전부 2026-09-22부터 매장 실제 사진(320x320)을
+ * 쓰므로 h-24 w-24(96px)로 키워도 흐려지지 않는다. 설명은 목록에서는 1줄만
+ * 보여주고(line-clamp-1), 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을
+ * 감수한다.
  */
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
   const label = item.name ?? `${fallbackLabel} ${index + 1}`;

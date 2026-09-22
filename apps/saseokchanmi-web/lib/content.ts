@@ -210,18 +210,75 @@ export const NEARBY_AREAS = [
   "탄현",
 ] as const;
 
-export interface ReviewItem {
+export interface CustomerReview {
+  /** 네이버 플레이스에 표시되는 닉네임을 그대로 사용한다(이미 공개된 닉네임, 지어내지 않음). */
   author: string;
-  visitPurpose: string;
-  body: string;
+  /** 5점 만점 별점(네이버 원문 값 그대로 — 5 또는 4.5 등). */
+  rating: number;
+  /** 방문일(네이버 원문 표기, 예: "2026. 9. 12"). */
+  visitDate: string;
+  /** 후기 원문. 줄바꿈은 \n으로 표시하고, 문구 자체는 한 글자도 수정하지 않는다. */
+  text: string;
+  /** 후기에 첨부된 사진 중 대표 1장(네이버 CDN 원본 URL). 사진이 없는 후기는 생략. */
+  photo?: string;
 }
 
 /**
- * 실제 고객 후기는 아직 수집·확인되지 않았다(기획서 10장: "실제 고객 후기 중심",
- * "후기 원문 사용 시 출처와 사용 범위를 확인"). 확인되지 않은 후기를 지어내는 대신
- * 빈 배열로 두고, 화면에서는 준비중 안내 + 네이버 플레이스 링크로 대체한다.
+ * 2026-09-22 — 매장주가 네이버 스마트플레이스 "리뷰 관리" 화면의 실제 HTML을 그대로
+ * 전달해줘 확정한 실제 고객 후기. 닉네임·별점·방문일·후기 문구·사진은 전부 그 HTML에서
+ * 그대로 옮겨 왔으며(지어낸 내용 없음), 문구는 원문 그대로 보존한다(맞춤법·띄어쓰기도
+ * 수정하지 않음). 사진은 각 후기의 첫 번째 첨부 사진 1장만 대표로 사용한다.
  */
-export const REVIEWS: ReviewItem[] = [];
+export const CUSTOMER_REVIEWS: CustomerReview[] = [
+  {
+    author: "깍형",
+    rating: 5,
+    visitDate: "2026. 9. 12",
+    text: "성묘갔다가 근처에 있는 한식당집을 찾았어요 1인18천원 코다리정식2인 가자미정식2인 시켜어요. 제육과 조기느 기분으로 인당나와요(헉~~코다리 사진이 빠졌네요~) 엄마아빠랑 남편이랑 먹으러갔는데 푸짐하게 건강하게 잘먹었어요~~ 넘 과하지도 않고 적정하면서도 맛있게 먹었고 사장님이 넘친절하세요~~",
+    photo:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&src=https%3A%2F%2Fpup-review-phinf.pstatic.net%2FMjAyNjA5MTJfOTMg%2FMDAxNzg5MTg1NzQ5NDYy.SF8xclY77nK9V04HnSfqxyfGkJqQWuCuLTrtacqmmjEg.jJpSWdBkREgYNJ4hMOkOhe-wGOkavjtRmYcmZDHF6U8g.JPEG%2F20260912_110537.jpg.jpg&type=f352_440",
+  },
+  {
+    author: "예쁜누",
+    rating: 5,
+    visitDate: "2026. 8. 4",
+    text: "음식 다 나오고 흡입하느라 중간사진밖에 없네요 무지 친절하시고 음식 미친듯이 나와요 진짜 배터지게 먹었어요 예전에 이십만원 내고 간 한식당 보다 훨 나음\n사장님도 매우 친절하시고 음식 안아끼심 또 와볼만한 곳",
+    photo:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&src=https%3A%2F%2Fpup-review-phinf.pstatic.net%2FMjAyNjA4MDRfMjAg%2FMDAxNzg1ODE2MDY0MzAw.7i5iYIUG5zHIJ3tQD3wZ1qOEdFpGfX4yE2NVjS7Q-AYg.sdzcpeENGfy3U4NoclT3MSshPgHh4Zc8HG9Yn9VC9Mgg.JPEG%2F1000041628.jpg.jpg&type=f440_440",
+  },
+  {
+    author: "goii****",
+    rating: 5,
+    visitDate: "2026. 8. 29",
+    text: "가족모임겸 찾아간곳인데 24명들어갈수있는 룸이있어서 조용하고 편안해서 오래앉아 이야기 나누며 식사하기 참좋았어요.어르신들 좋아하는 생선하고 청국장이 다들 맛있다고 식당 잘찾았다고 칭찬받았어요.식사 마치고 마실차도 줍니다.",
+    photo:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&src=https%3A%2F%2Fpup-review-phinf.pstatic.net%2FMjAyNjA4MjlfMTgy%2FMDAxNzg4MDAwMDQwMTcw.UyuOgO5_DvmdxOvoJt9w5B_y69cjHWYW2Ohke9StzOcg.pHnpligpIyW2wNQyAzbiugHy27JXr4q3WBsss7jQAsgg.JPEG%2F20260828_124629.jpg.jpg&type=f352_440",
+  },
+  {
+    author: "ey2ey2",
+    rating: 5,
+    visitDate: "2026. 9. 6",
+    text: "사색찬미한정식에서 든든하게 식사하고 왔어요. \n생선구이부터 솥밥, 다양한 밑반찬까지 한 상 가득 차려져 엄청 푸짐했어요!!\n특히 따끈한 솥밥이 찰지고 고소해서 반찬들과 잘 어울렸어요. 반찬들도 종류가 다양하고 전체적으로 깔끔해서 가족들과 식사하기 좋았어요. 파주에서 정갈하고 푸짐한 한정식 찾으시는 분들께 추천하고 싶어요😊 \n정말 맛있게 먹었습니다! \n또 방문할께요 ^-^!!!",
+    photo:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&src=https%3A%2F%2Fpup-review-phinf.pstatic.net%2FMjAyNjA5MDZfMTgy%2FMDAxNzg4Njk0NzAzODY5.YgLWX7osDbycwHwHhEO_gwAJ-5eqOOu5JALFEHxRdKIg.xqVAO7VajcvG3OJj0WgWZAuluYFc0cpPULOwl_4DvTEg.JPEG%2FC34F6076-1544-4277-854C-4F0E231AAA80.jpeg&type=f352_440",
+  },
+  {
+    author: "나사랑93",
+    rating: 5,
+    visitDate: "2026. 7. 10",
+    text: "벽초지수목원 나들이 나왔다 \n전에 먹고 좋았던 추억 찾아 재방문합니다.\n갈비정식 고등어정식 너무 맛있어요\n밑반찬도 풍성하고 개인밥솥이라 너무 좋앙~\n우리가족 오늘도 잘 먹고 갑니다~ 다음에 또 근처 들릴 일 있으면 찾아뵙게요~~",
+    photo:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&src=https%3A%2F%2Fpup-review-phinf.pstatic.net%2FMjAyNjA3MTFfNzMg%2FMDAxNzgzNzY1OTU1MTI0.THSC5GU_kKdnPPTsHIiwnb-Q89glmiFX7-FX-WkYLSgg.PtKg_eIwK3UW23kXI6GlnzP0bqE8WEpkYWT9Rmx_kgUg.JPEG%2Fmmexport1783764545355.jpg.jpg&type=f660_440",
+  },
+  {
+    author: "콜드브루조아",
+    rating: 4.5,
+    visitDate: "2026. 6. 18",
+    text: "인근에 올 일이 있어 검색해서 방문했습니다 \n반찬도 모두 맛있고 솥밥이 너무 맛있었어요 무엇보다 제육볶음 짱맛입니다~!!! 그리고 서빙하시는 직원분 너무너무 친절하세요  👍  기분좋게 식사하고 갑니다 \n정신없이 먹다 찍은 사진 죄송요ㅎㅎ",
+    photo:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&src=https%3A%2F%2Fpup-review-phinf.pstatic.net%2FMjAyNjA2MThfNTUg%2FMDAxNzgxNzcyMjA3Nzg3.DGQBln_SpTc50owb1QXQQYwkdwxentR_2gUZ_IrTNKYg.fcqfmOdp7eTgsdbWm3vuhICanBxw9Kx4P7TqSPKyIrEg.JPEG%2F1000082459.heic.jpg&type=f352_440",
+  },
+];
 
 export interface SeatingOption {
   label: string;

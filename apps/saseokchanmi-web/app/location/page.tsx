@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
-import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
+import { LocationMap } from "@/components/ui/LocationMap";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { ADDRESS, BLOG_URL, CONTACT, PAYMENT_METHODS, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
@@ -31,7 +31,7 @@ export default function LocationPage() {
       <PageHero eyebrow="Location" title="오시는 길" description={ADDRESS.full} />
       <section className="bg-background py-20">
         <Container className="grid gap-10 lg:grid-cols-2 lg:items-start">
-          <PhotoPlaceholder label="지도" aspect="wide" />
+          <LocationMap />
 
           <div>
             <InfoRow label="주소" value={ADDRESS.full} />

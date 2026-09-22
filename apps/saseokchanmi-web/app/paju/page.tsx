@@ -4,14 +4,19 @@ import { Card } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { NEARBY_AREAS, TOUR_DATE_COURSE_INTRO, TOUR_SPOTS } from "@/lib/content";
-import { ADDRESS, seoKeywords } from "@/lib/site-config";
+import { ADDRESS, OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 
+const TITLE = "광탄·파주 이야기";
+const DESCRIPTION = "파주 광탄에 자리한 사색찬미한정식과 주변 지역, 파주 여행 정보.";
+
 export const metadata: Metadata = {
-  title: "광탄·파주 이야기",
-  description: "파주 광탄에 자리한 사색찬미한정식과 주변 지역, 파주 여행 정보.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("gwangtan", "tour"),
   alternates: { canonical: "/paju" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/paju", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 export default function PajuPage() {

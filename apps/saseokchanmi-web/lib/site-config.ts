@@ -162,3 +162,11 @@ export const OG_DEFAULTS = {
   locale: "ko_KR",
   type: "website" as const,
 };
+
+/**
+ * app/opengraph-image.tsx가 생성하는 이미지를 가리킨다. Next.js 파일 컨벤션은 페이지가
+ * 자체 openGraph/twitter 필드를 선언하지 않을 때만 이 이미지를 자동으로 채워주므로,
+ * 페이지별로 title·description을 다르게 지정하려면(=openGraph 객체를 직접 선언하려면)
+ * 이 값도 함께 명시해야 이미지가 계속 노출된다.
+ */
+export const OG_IMAGE = { url: "/opengraph-image", width: 1200, height: 630 };

@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import { Container } from "@cnbiz/layout-primitives";
 import { PageHero } from "@/components/ui/PageHero";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
-import { seoKeywords } from "@/lib/site-config";
+import { OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
+
+const TITLE = "사색찬미 이야기";
+const DESCRIPTION = "정갈함과 정성을 우선하는 사색찬미한정식의 브랜드 철학을 소개합니다.";
 
 export const metadata: Metadata = {
-  title: "사색찬미 이야기",
-  description: "정갈함과 정성을 우선하는 사색찬미한정식의 브랜드 철학을 소개합니다.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("brand", "core"),
   alternates: { canonical: "/about" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/about", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 export default function AboutPage() {

@@ -5,13 +5,18 @@ import { LinkButton } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { ADDITIONAL_MENU, SIGNATURE_MENU, type MenuItem } from "@/lib/content";
-import { RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
+import { OG_DEFAULTS, OG_IMAGE, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
+
+const TITLE = "한정식 메뉴";
+const DESCRIPTION = "사색찬미한정식의 대표 한정식 코스를 소개합니다.";
 
 export const metadata: Metadata = {
-  title: "한정식 메뉴",
-  description: "사색찬미한정식의 대표 한정식 코스를 소개합니다.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("core", "menu"),
   alternates: { canonical: "/menu" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/menu", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 /**

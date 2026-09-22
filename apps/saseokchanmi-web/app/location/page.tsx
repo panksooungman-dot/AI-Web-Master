@@ -4,14 +4,28 @@ import { Container } from "@cnbiz/layout-primitives";
 import { PageHero } from "@/components/ui/PageHero";
 import { LocationMap } from "@/components/ui/LocationMap";
 import { TodoBadge } from "@/components/ui/TodoBadge";
-import { ADDRESS, BLOG_URL, CONTACT, PAYMENT_METHODS, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
+import {
+  ADDRESS,
+  BLOG_URL,
+  CONTACT,
+  OG_DEFAULTS,
+  OG_IMAGE,
+  PAYMENT_METHODS,
+  RESERVATION_HREF,
+  seoKeywords,
+} from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
 
+const TITLE = "오시는 길";
+const DESCRIPTION = "사색찬미한정식 오시는 길, 주소와 연락처 안내.";
+
 export const metadata: Metadata = {
-  title: "오시는 길",
-  description: "사색찬미한정식 오시는 길, 주소와 연락처 안내.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("core"),
   alternates: { canonical: "/location" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/location", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 function InfoRow({ label, value, todo }: { label: string; value: string | null; todo?: string }) {

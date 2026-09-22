@@ -3,13 +3,18 @@ import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { PageHero } from "@/components/ui/PageHero";
-import { seoKeywords } from "@/lib/site-config";
+import { OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
+
+const TITLE = "음식·솥밥 이야기";
+const DESCRIPTION = "사색찬미한정식이 한 상에 담는 솥밥과 음식 이야기.";
 
 export const metadata: Metadata = {
-  title: "음식·솥밥 이야기",
-  description: "사색찬미한정식이 한 상에 담는 솥밥과 음식 이야기.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("menu", "core"),
   alternates: { canonical: "/food" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/food", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 function StoryPhoto({ src, alt, reverse = false }: { src: string; alt: string; reverse?: boolean }) {

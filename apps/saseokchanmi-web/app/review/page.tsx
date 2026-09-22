@@ -6,13 +6,18 @@ import { ReviewCard } from "@/components/ui/ReviewCard";
 import { StarRating } from "@/components/ui/StarRating";
 import { CUSTOMER_REVIEWS } from "@/lib/content";
 import { naverMapUrl } from "@/lib/links";
-import { CONTACT, seoKeywords } from "@/lib/site-config";
+import { CONTACT, OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
+
+const TITLE = "고객 후기";
+const DESCRIPTION = "사색찬미한정식을 방문한 고객들의 이야기.";
 
 export const metadata: Metadata = {
-  title: "고객 후기",
-  description: "사색찬미한정식을 방문한 고객들의 이야기.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: seoKeywords("brand", "core"),
   alternates: { canonical: "/review" },
+  openGraph: { ...OG_DEFAULTS, title: TITLE, description: DESCRIPTION, url: "/review", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 /**

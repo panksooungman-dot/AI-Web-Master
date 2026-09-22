@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card } from "@cnbiz/ui";
 import { PageHero } from "@/components/ui/PageHero";
+import { ScrollRow } from "@/components/ui/ScrollRow";
 import { NEARBY_AREAS, TOUR_DATE_COURSE_INTRO, TOUR_SPOTS } from "@/lib/content";
 import { ADDRESS, seoKeywords } from "@/lib/site-config";
 import { TodoBadge } from "@/components/ui/TodoBadge";
@@ -40,7 +41,7 @@ export default function PajuPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">Tour</p>
           <h2 className="mt-3 text-3xl font-bold text-foreground">파주 여행 중 만나는 맛있는 한 끼</h2>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{TOUR_DATE_COURSE_INTRO}</p>
-          <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+          <ScrollRow wrapperClassName="mt-8" className="-mx-4 px-4 sm:mx-0 sm:px-0">
             {TOUR_SPOTS.map((spot) => (
               <Card key={spot.name} className="w-72 shrink-0 snap-start sm:w-80">
                 <div className="flex items-baseline justify-between gap-2">
@@ -54,7 +55,7 @@ export default function PajuPage() {
                 <p className="mt-3 text-base leading-relaxed text-muted">{spot.description}</p>
               </Card>
             ))}
-          </div>
+          </ScrollRow>
         </Container>
       </section>
     </>

@@ -40,6 +40,12 @@ export const CONTACT = {
   // 확인했다 — 대표 링크는 그 표준 홈 경로로 구성. 실제로 열리는지는 배포 전 재확인 필요.
   naverPlaceUrl: "https://pcmap.place.naver.com/restaurant/1882539912/home" as string | null,
   /**
+   * 2026-09-22 — 매장주가 직접 제공한 네이버 예약(실시간 시간대 선택) 전용 링크.
+   * naverPlaceUrl(플레이스 홈·길찾기·리뷰)과는 별개 페이지라, "예약하기" 버튼은
+   * 이 링크로, "길찾기·리뷰" 버튼은 계속 naverPlaceUrl로 분리해서 연결한다.
+   */
+  naverBookingUrl: "https://booking.naver.com/booking/17/bizes/1743720" as string | null,
+  /**
    * 네이버 스마트콜(네이버가 무료 제공하는 가상 전화번호 — 통화 연결·스마트 ARS·발신자
    * 검색정보 분석·통화/검색 통계를 지원) 연동 준비 자리. 이 서비스는 별도 API 연동이
    * 필요한 게 아니라, 네이버 스마트플레이스에서 스마트콜을 신청하면 발급되는 가상

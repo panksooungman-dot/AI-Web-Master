@@ -27,14 +27,14 @@ export default function ReservationPage() {
       <PageHero eyebrow="Reservation" title="예약 안내" description="네이버 예약 또는 전화로 예약해 주세요." />
       <section className="bg-background py-20">
         <Container className="max-w-xl space-y-6">
-          {CONTACT.naverPlaceUrl && (
+          {CONTACT.naverBookingUrl && (
             <div className="rounded-xl border border-primary/30 bg-secondary/30 p-6 text-center">
               <p className="font-semibold text-foreground">네이버 예약으로 바로 예약하기</p>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 원하시는 날짜와 시간을 바로 선택해 실시간으로 예약할 수 있습니다.
               </p>
               <a
-                href={CONTACT.naverPlaceUrl}
+                href={CONTACT.naverBookingUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white"

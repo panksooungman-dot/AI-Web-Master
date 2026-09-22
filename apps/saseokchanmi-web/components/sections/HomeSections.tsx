@@ -5,6 +5,7 @@ import { Card, LinkButton } from "@cnbiz/ui";
 import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_DATE_COURSE_INTRO, TOUR_SPOTS } from "@/lib/content";
 import { ADDRESS, CONTACT, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl } from "@/lib/links";
+import { LocationMap } from "@/components/ui/LocationMap";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { TodoBadge } from "@/components/ui/TodoBadge";
@@ -333,7 +334,7 @@ export function LocationTeaserSection() {
   return (
     <section className="bg-background py-20 sm:py-24">
       <Container className="grid gap-8 lg:grid-cols-2 lg:items-center">
-        <PhotoPlaceholder label="지도" aspect="wide" />
+        <LocationMap />
         <div>
           <span className={LABEL}>Location</span>
           <h2 className={`${H2} mt-3`}>오시는 길</h2>

@@ -21,16 +21,20 @@ export const metadata: Metadata = {
 
 /**
  * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 작은 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * 썸네일 원본이 70x70px 안팎으로 작아, 카드처럼 크게 띄우는 대신 이 h-16 w-16(64px)
- * 크기로만 보여줘 확대로 인한 흐림이 생기지 않는다.
+ * 썸네일 원본이 70x70px 안팎으로 작아, 카드처럼 크게 띄우는 대신 이 h-20 w-20(80px)
+ * 크기로만 보여줘 확대로 인한 흐림을 최소화한다(64px보다 살짝 키워 텍스트 블록과의 비율을
+ * 보완했다 — 2026-09-22 실제 배포본에서 사진이 텍스트에 비해 지나치게 작아 보인다는
+ * 피드백 반영, 사진 자체를 더 키우기엔 원본 해상도가 부족해 설명을 1줄로 줄여 텍스트
+ * 높이도 함께 낮췄다). 설명은 목록에서는 1줄만 보여주고(line-clamp-1), 전체 설명은 굳이
+ * 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
  */
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
   const label = item.name ?? `${fallbackLabel} ${index + 1}`;
   return (
     <div className="flex items-center gap-4 px-5 py-4">
       {item.image && (
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
-          <Image src={item.image} alt={label} fill sizes="64px" className="object-cover" />
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
+          <Image src={item.image} alt={label} fill sizes="80px" className="object-cover" />
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -42,7 +46,7 @@ function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number
         ) : (
           <TodoBadge label={item.todo ?? "확인 필요"} />
         )}
-        {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
+        {item.description && <p className="mt-1 line-clamp-1 text-sm text-muted">{item.description}</p>}
       </div>
     </div>
   );

@@ -13,11 +13,11 @@ export interface MenuItem {
   price: string | null;
   description: string | null;
   /**
-   * 2026-09-22 — SIGNATURE_MENU 6종은 매장주가 네이버 스마트플레이스 "대표 메뉴" 탭의
-   * 실제 HTML을 그대로 전달해줘, 거기 담긴 실제 사진(320x320, search.pstatic.net 프록시
-   * — 리뷰 사진과 동일한 방식, next.config.ts에 이미 허용된 도메인)으로 교체했다. 이전에
-   * 쓰던 70x70px 로컬 썸네일보다 훨씬 선명하다. ADDITIONAL_MENU 3종은 아직 이 수준의
-   * 원본이 없어 기존 로컬 썸네일을 그대로 둔다.
+   * 2026-09-22 — 매장주가 네이버 스마트플레이스 "대표 메뉴" 탭에 이어 "전체 메뉴" 탭의
+   * 실제 HTML도 전달해줘, SIGNATURE_MENU·ADDITIONAL_MENU 9종 전부 실제 사진(320x320,
+   * search.pstatic.net 프록시 — 리뷰 사진과 동일한 방식, next.config.ts에 이미 허용된
+   * 도메인)으로 교체했다. 이전에 쓰던 70x70px 로컬 썸네일보다 훨씬 선명해, 리스트 썸네일을
+   * 96px로 키워도(app/menu/page.tsx) 흐려지지 않는다.
    */
   image?: string;
   /** 아직 남은 확인사항이 있을 때만 채운다(예: 사진). 전부 확정되면 생략한다. */
@@ -84,25 +84,32 @@ export const SIGNATURE_MENU: MenuItem[] = [
  * 메뉴다(사용자 확인: "정보 제공 해준 메뉴는 15개인데" — 캡처 화면에 15줄이 보이는 건
  * "추천 메뉴 6" 구간과 "전체 메뉴" 구간이 같은 6종을 한 번 더 나열해서 생기는 네이버
  * 자체 UI 중복이고, 실제로 서로 다른 메뉴는 이 3종을 더한 9종이다).
+ *
+ * 2026-09-22 — 매장주가 네이버 스마트플레이스 "전체 메뉴" 탭의 실제 HTML을 전달해줘,
+ * image를 실제 사진(320x320)으로 교체했다(name·price·description은 이미 확인된 값과
+ * 동일해 무변경).
  */
 export const ADDITIONAL_MENU: MenuItem[] = [
   {
     name: "갈치한마리구이 (주말에는 예약 필수)",
     price: "20,000원",
     description: "겉바싹 속촉촉",
-    image: "/images/menu/galchi-hanmari.jpg",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260903_103%2F1788402354725Q5aKP_JPEG%2F8972.jpg",
   },
   {
     name: "아침식사 코다리조림",
     price: "15,000원",
     description: "달큰한 무하고 매콤한 코다리조합",
-    image: "/images/menu/achim-kodari-jorim.jpg",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_230%2F1784117654188TFg3E_JPEG%2F8688.jpg",
   },
   {
     name: "아침식사 한돈김치찌개",
     price: "12,000원",
     description: "국내산 앞다리살로 만든 김치찌개",
-    image: "/images/menu/achim-kimchi-jjigae.jpg",
+    image:
+      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_49%2F1784117508578E9ApO_JPEG%2F7972.jpg",
   },
 ];
 

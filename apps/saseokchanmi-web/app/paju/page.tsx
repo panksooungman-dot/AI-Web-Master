@@ -40,16 +40,18 @@ export default function PajuPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">Tour</p>
           <h2 className="mt-3 text-3xl font-bold text-foreground">파주 여행 중 만나는 맛있는 한 끼</h2>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{TOUR_DATE_COURSE_INTRO}</p>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
             {TOUR_SPOTS.map((spot) => (
-              <Card key={spot.name}>
+              <Card key={spot.name} className="w-72 shrink-0 snap-start sm:w-80">
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-base font-bold text-foreground">{spot.name}</p>
+                  <p className="text-lg font-bold text-foreground">{spot.name}</p>
                   {spot.travelTime && (
-                    <p className="whitespace-nowrap text-xs font-semibold text-primary">{spot.travelTime}</p>
+                    <span className="whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                      {spot.travelTime}
+                    </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{spot.description}</p>
+                <p className="mt-3 text-base leading-relaxed text-muted">{spot.description}</p>
               </Card>
             ))}
           </div>

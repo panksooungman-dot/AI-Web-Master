@@ -20,17 +20,20 @@ export const metadata: Metadata = {
 };
 
 /**
- * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 작은 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * 썸네일 원본이 70x70px 안팎으로 작아, 카드처럼 크게 띄우는 대신 이 h-16 w-16(64px)
- * 크기로만 보여줘 확대로 인한 흐림이 생기지 않는다.
+ * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
+ * SIGNATURE_MENU 6종은 2026-09-22부터 매장 실제 사진(320x320)을 쓰므로 h-24 w-24(96px)로
+ * 키워도 흐려지지 않는다. ADDITIONAL_MENU 3종은 여전히 70x70px 안팎의 로컬 썸네일이라
+ * 같은 크기로 키우면 흐릿해 보일 수 있지만, 목록 전체의 시각적 일관성을 위해 같은 크기를
+ * 유지한다(더 나은 원본이 생기면 교체). 설명은 목록에서는 1줄만 보여주고(line-clamp-1),
+ * 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
  */
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
   const label = item.name ?? `${fallbackLabel} ${index + 1}`;
   return (
     <div className="flex items-center gap-4 px-5 py-4">
       {item.image && (
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
-          <Image src={item.image} alt={label} fill sizes="64px" className="object-cover" />
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
+          <Image src={item.image} alt={label} fill sizes="96px" className="object-cover" />
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -42,7 +45,7 @@ function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number
         ) : (
           <TodoBadge label={item.todo ?? "확인 필요"} />
         )}
-        {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
+        {item.description && <p className="mt-1 line-clamp-1 text-sm text-muted">{item.description}</p>}
       </div>
     </div>
   );

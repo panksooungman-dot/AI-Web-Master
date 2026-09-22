@@ -172,6 +172,11 @@ export const TOUR_SPOTS: TourSpot[] = [
     travelTime: "차량 2분",
   },
   {
+    name: "벽초지계곡",
+    description: "맑은 물이 흐르는 계곡으로, 여름철 물놀이하기 좋은 곳입니다.",
+    travelTime: "도보 1분",
+  },
+  {
     name: "임진각",
     description: "역사와 평화의 의미를 담은 파주의 대표 관광지입니다.",
     travelTime: "차량 15분",

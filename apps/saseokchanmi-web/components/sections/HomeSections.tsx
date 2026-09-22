@@ -314,7 +314,7 @@ export function TourSection() {
  *
  * 2026-09-22 — 매장주가 네이버 스마트플레이스 "리뷰 관리" 화면의 실제 HTML을 전달해줘
  * CUSTOMER_REVIEWS(lib/content.ts)에 실제 후기 원문·닉네임·별점·사진을 반영했다(지어낸
- * 내용 없음). 첫 3건만 미리보기로 보여주고, 전체는 /review 페이지에서 확인하도록 안내.
+ * 내용 없음). 전체 후기를 가로 스크롤로 보여주고, 상세 페이지는 /review로 안내.
  */
 export function ReviewTeaserSection() {
   return (
@@ -362,7 +362,7 @@ export function ReviewTeaserSection() {
 
         {CUSTOMER_REVIEWS.length > 0 && (
           <ScrollRow wrapperClassName="mt-10 text-left" className="-mx-4 px-4 sm:mx-0 sm:px-0">
-            {CUSTOMER_REVIEWS.slice(0, 3).map((review) => (
+            {CUSTOMER_REVIEWS.map((review) => (
               <ReviewCard key={review.author} review={review} className="w-72 shrink-0 snap-start sm:w-80" />
             ))}
           </ScrollRow>

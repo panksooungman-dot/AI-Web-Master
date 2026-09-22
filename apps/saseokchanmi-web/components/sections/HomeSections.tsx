@@ -2,11 +2,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { Card, LinkButton } from "@cnbiz/ui";
-import { NEARBY_AREAS, OCCASIONS, SIGNATURE_MENU, TOUR_DATE_COURSE_INTRO, TOUR_SPOTS } from "@/lib/content";
+import {
+  CUSTOMER_REVIEWS,
+  NEARBY_AREAS,
+  OCCASIONS,
+  SIGNATURE_MENU,
+  TOUR_DATE_COURSE_INTRO,
+  TOUR_SPOTS,
+} from "@/lib/content";
 import { ADDRESS, CONTACT, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl } from "@/lib/links";
 import { LocationMap } from "@/components/ui/LocationMap";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
+import { ReviewCard } from "@/components/ui/ReviewCard";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { StarRating } from "@/components/ui/StarRating";
 import { TodoBadge } from "@/components/ui/TodoBadge";
@@ -304,10 +312,9 @@ export function TourSection() {
 /**
  * 10 REVIEW — 고객 후기 (요약)
  *
- * 2026-09-22 — 개별 후기(작성자·본문)는 매장주가 보내준 캡처 해상도가 낮아 정확히 옮겨 적을
- * 수 없어 지어내지 않는다. 대신 캡처에서 명확히 확인된 집계 수치(CONTACT.naverAverageRating)와
- * 네이버 플레이스의 실제 특징(영수증 인증 후기)만으로 카드를 구성하고, 개별 후기 원문은
- * 네이버 플레이스로 링크해 확인하도록 안내한다.
+ * 2026-09-22 — 매장주가 네이버 스마트플레이스 "리뷰 관리" 화면의 실제 HTML을 전달해줘
+ * CUSTOMER_REVIEWS(lib/content.ts)에 실제 후기 원문·닉네임·별점·사진을 반영했다(지어낸
+ * 내용 없음). 첫 3건만 미리보기로 보여주고, 전체는 /review 페이지에서 확인하도록 안내.
  */
 export function ReviewTeaserSection() {
   return (
@@ -352,6 +359,14 @@ export function ReviewTeaserSection() {
             <p className="text-sm font-semibold">네이버에서 후기 전체보기</p>
           </a>
         </div>
+
+        {CUSTOMER_REVIEWS.length > 0 && (
+          <ScrollRow wrapperClassName="mt-10 text-left" className="-mx-4 px-4 sm:mx-0 sm:px-0">
+            {CUSTOMER_REVIEWS.slice(0, 3).map((review) => (
+              <ReviewCard key={review.author} review={review} className="w-72 shrink-0 snap-start sm:w-80" />
+            ))}
+          </ScrollRow>
+        )}
 
         <div className="mt-8">
           <LinkButton href="/review" variant="secondary">

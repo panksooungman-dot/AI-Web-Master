@@ -26,8 +26,7 @@ npm run dev --workspace=saseokchanmi-web   # http://localhost:4100
 
 - `lib/site-config.ts` — `CONTACT`(전화번호·영업시간·라스트오더·휴무일·주차 정보·네이버
   플레이스 URL), `SITE_URL`(실제 도메인 확정 후 `.env.local`의 `NEXT_PUBLIC_SITE_URL`)
-- `lib/content.ts` — `SIGNATURE_MENU`(대표 메뉴명·가격·사진), `REVIEWS`(실제 고객 후기,
-  출처·사용 범위 확인 필요)
+- `lib/content.ts` — `SIGNATURE_MENU`(대표 메뉴명·가격·사진)
 - `public/images/` — 실제 매장·음식 사진(현재는 `PhotoPlaceholder`로 대체됨)
 
 ## 예약 문의

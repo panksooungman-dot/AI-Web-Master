@@ -8,6 +8,7 @@ import { naverMapUrl } from "@/lib/links";
 import { LocationMap } from "@/components/ui/LocationMap";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { ScrollRow } from "@/components/ui/ScrollRow";
+import { StarRating } from "@/components/ui/StarRating";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { TraditionalPattern } from "@/components/ui/TraditionalPattern";
 
@@ -300,7 +301,14 @@ export function TourSection() {
   );
 }
 
-/** 10 REVIEW — 고객 후기 (요약) */
+/**
+ * 10 REVIEW — 고객 후기 (요약)
+ *
+ * 2026-09-22 — 개별 후기(작성자·본문)는 매장주가 보내준 캡처 해상도가 낮아 정확히 옮겨 적을
+ * 수 없어 지어내지 않는다. 대신 캡처에서 명확히 확인된 집계 수치(CONTACT.naverAverageRating)와
+ * 네이버 플레이스의 실제 특징(영수증 인증 후기)만으로 카드를 구성하고, 개별 후기 원문은
+ * 네이버 플레이스로 링크해 확인하도록 안내한다.
+ */
 export function ReviewTeaserSection() {
   return (
     <section className="bg-secondary/30 py-20 sm:py-24">
@@ -308,21 +316,47 @@ export function ReviewTeaserSection() {
         <span className={LABEL}>Review</span>
         <h2 className={`${H2} mt-3`}>고객의 이야기</h2>
         <p className={`${BODY} mx-auto mt-4 max-w-xl`}>
-          실제 방문객의 후기는 준비 중입니다. 최신 후기는 네이버 플레이스에서 확인하실 수
-          있습니다.
+          실제 방문객의 후기는 네이버 플레이스에서 확인하실 수 있습니다.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <LinkButton href="/review" variant="secondary">
-            후기 페이지 보기
-          </LinkButton>
+
+        <div className="mx-auto mt-10 grid max-w-3xl gap-5 sm:grid-cols-3">
+          {CONTACT.naverAverageRating != null && (
+            <Card className="flex flex-col items-center justify-center gap-2 py-8">
+              <p className="text-4xl font-bold text-foreground">
+                {CONTACT.naverAverageRating.toFixed(1)}
+              </p>
+              <StarRating rating={CONTACT.naverAverageRating} className="flex gap-0.5" />
+              <p className="text-xs text-muted">네이버 플레이스 평균 평점</p>
+            </Card>
+          )}
+
+          <Card className="flex flex-col items-center justify-center gap-2 py-8">
+            <span aria-hidden className="text-2xl">
+              🧾
+            </span>
+            <p className="text-sm font-semibold text-foreground">영수증 인증 후기</p>
+            <p className="text-xs leading-relaxed text-muted">
+              실제 방문·결제가 확인된 손님만 남길 수 있는 후기입니다.
+            </p>
+          </Card>
+
           <a
             href={naverMapUrl()}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center text-sm font-semibold text-primary hover:underline"
+            className="flex flex-col items-center justify-center gap-2 rounded-xl bg-primary py-8 text-white shadow-sm transition-shadow hover:shadow-md"
           >
-            네이버 플레이스에서 보기 →
+            <span aria-hidden className="text-2xl">
+              →
+            </span>
+            <p className="text-sm font-semibold">네이버에서 후기 전체보기</p>
           </a>
+        </div>
+
+        <div className="mt-8">
+          <LinkButton href="/review" variant="secondary">
+            후기 페이지 보기
+          </LinkButton>
         </div>
       </Container>
     </section>

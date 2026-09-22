@@ -21,9 +21,9 @@ export function Footer() {
               오늘, 좋은 사람과 함께 따뜻한 한 끼 어떠세요?
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              {CONTACT.naverPlaceUrl && (
+              {CONTACT.naverBookingUrl && (
                 <a
-                  href={CONTACT.naverPlaceUrl}
+                  href={CONTACT.naverBookingUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white"

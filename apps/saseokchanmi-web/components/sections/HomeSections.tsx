@@ -357,9 +357,9 @@ export function FinalCTASection() {
           오늘, 좋은 사람과 함께 따뜻한 한 끼 어떠세요?
         </h2>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          {CONTACT.naverPlaceUrl && (
+          {CONTACT.naverBookingUrl && (
             <a
-              href={CONTACT.naverPlaceUrl}
+              href={CONTACT.naverBookingUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-primary"

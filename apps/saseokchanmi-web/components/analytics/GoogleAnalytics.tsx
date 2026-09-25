@@ -8,6 +8,13 @@ import Script from "next/script";
  */
 const GA_MEASUREMENT_ID = "G-DWFBHC6LNG";
 
+/**
+ * 2026-09-25 — 매장주가 Google Ads 캠페인("파주 광탄 정통 한정식")의 "길찾기" 목표
+ * 설정 과정에서 발급받은 전환 추적용 태그 ID. GA4 태그와 같은 gtag.js 스크립트를
+ * 공유하고 config 호출만 추가하는 구글 공식 권장 방식(스크립트 중복 로드 없음).
+ */
+const GOOGLE_ADS_TAG_ID = "AW-18469635437";
+
 export function GoogleAnalytics() {
   return (
     <>
@@ -21,6 +28,7 @@ window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', '${GA_MEASUREMENT_ID}');
+gtag('config', '${GOOGLE_ADS_TAG_ID}');
         `}
       </Script>
     </>

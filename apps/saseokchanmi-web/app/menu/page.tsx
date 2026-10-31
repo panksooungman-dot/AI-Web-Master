@@ -21,10 +21,10 @@ export const metadata: Metadata = {
 
 /**
  * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * SIGNATURE_MENU·ADDITIONAL_MENU 9종 전부 2026-09-22부터 매장 실제 사진(320x320)을
- * 쓰므로 h-24 w-24(96px)로 키워도 흐려지지 않는다. 설명은 목록에서는 1줄만
- * 보여주고(line-clamp-1), 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을
- * 감수한다.
+ * 사진이 있는 항목(item.image)은 96px 썸네일로 보여주고(2026-09-22 확보한 매장 실제
+ * 사진, 320x320이라 키워도 흐려지지 않는다), 아직 사진이 없는 항목(2026-10-31 신규
+ * 추가분)은 썸네일 없이 텍스트만 표시한다. 설명은 목록에서는 1줄만 보여주고
+ * (line-clamp-1), 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
  */
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
   const label = item.name ?? `${fallbackLabel} ${index + 1}`;
@@ -56,19 +56,23 @@ export default function MenuPage() {
       <PageHero
         eyebrow="Menu"
         title="사색찬미의 대표 한정식"
-        description="정성껏 준비한 대표 한정식 코스를 소개합니다."
+        description="정갈한 한상, 건강한 맛. 모든 솥밥정식은 2인 기준 한 상입니다."
       />
       <section className="bg-background py-20">
         <Container>
           <div className="mx-auto max-w-3xl">
-            <h2 className="text-2xl font-bold text-foreground">대표 메뉴</h2>
+            <h2 className="text-2xl font-bold text-foreground">솥밥정식</h2>
             <div className="mt-6 divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
               {SIGNATURE_MENU.map((item, index) => (
                 <MenuRow key={index} item={item} index={index} fallbackLabel="대표 메뉴" />
               ))}
             </div>
 
-            <h2 className="mt-16 text-2xl font-bold text-foreground">그 외 메뉴</h2>
+            <h2 className="mt-16 text-2xl font-bold text-foreground">추가메뉴</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              정식은 2인 기준 한 상입니다. 세 분 이상 오셨거나 더 푸짐하게 즐기고 싶다면 아래
+              추가메뉴로 넉넉하게 채워 보세요.
+            </p>
             <div className="mt-6 divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
               {ADDITIONAL_MENU.map((item, index) => (
                 <MenuRow key={index} item={item} index={index} fallbackLabel="메뉴" />

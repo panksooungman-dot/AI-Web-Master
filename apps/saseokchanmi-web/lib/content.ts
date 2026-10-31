@@ -25,92 +25,75 @@ export interface MenuItem {
 }
 
 /**
- * 대표 메뉴. 기획서 3장(SIGNATURE) 슬롯을 매장주(의뢰자)가 2026-09-21 네이버플레이스
- * 캡처로 직접 확인해준 실제 "대표" 표시 메뉴 6종으로 채웠다(3~5개로 잡았던 원래 슬롯 수보다
- * 많지만, 실제 매장이 6개를 전부 대표 메뉴로 지정해뒀으므로 임의로 줄이지 않았다).
- *
- * 2026-09-22 — 매장주가 네이버 스마트플레이스 "대표 메뉴" 탭의 실제 HTML을 전달해줘,
- * description·image를 그 원문 그대로 반영했다(항목 순서·이름·가격은 기존과 동일해 6종이
- * 정확히 일대일로 대응됨을 확인).
+ * 솥밥정식(2인 기준) — 2026-10-31 매장주가 실제 사용 중인 메뉴판 포스터(이미지)를 전달해줘
+ * 전면 갱신했다. 9월에 확인했던 "코다리+조기가자미솥밥정식"은 매장주 확인 결과 현재
+ * 메뉴에서 빠졌고(판매 종료), "더덕구이" 계열 2종이 새로 추가됐다. 이름이 그대로 유지된
+ * 5종(제육·조기·가자미 / 제육·코다리·조기·가자미 / 고등어·조기·가자미 / LA갈비·조기·가자미 /
+ * 불고기·조기·가자미)은 같은 메뉴이므로 9월에 확보한 실제 사진을 그대로 유지한다. 새로
+ * 추가된 더덕구이 2종은 아직 사진이 없어 PhotoPlaceholder로 대체된다(메뉴판 포스터 설명
+ * 문구를 그대로 반영).
  */
 export const SIGNATURE_MENU: MenuItem[] = [
   {
-    name: "제육 조기 가자미 솥밥정식",
+    name: "제육·조기·가자미 솥밥정식",
     price: "18,000원",
-    description: "사색찬미 정식 : 제육볶음과 가자미, 조기 그리고 16가지 반찬(개인솥밥 제공)",
+    description: "매콤한 제육볶음과 노릇한 조기, 담백한 가자미구이를 다채로운 솥밥과 반찬에 올린 두 분 한 상.",
     image:
       "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260827_244%2F1787805068595pWvPG_JPEG%2F8857.jpg",
   },
   {
-    name: "제육코다리 조기가자미솥밥 정식",
+    name: "제육·코다리·조기·가자미 솥밥정식",
     price: "22,000원",
-    description: "매콤한 코다리조림에 단짝 제육볶음에 생선튀김에 12가지반찬이 제공됩니다(개인솥밥)",
+    description: "제육볶음에 코다리조림, 조기와 가자미구이까지 한 상에 담아 가장 푸짐하게 차린 메뉴.",
     image:
       "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260725_203%2F1784979363700LiyYM_JPEG%2F8809.jpg",
   },
   {
-    name: "고등어 조기 가자미 솥밥정식",
+    name: "고등어·조기·가자미 솥밥정식",
     price: "20,000원",
-    description: "생선모듬정식 : 고등어구이와 가자미,조기 그리고 16가지 반찬(개인솥밥 제공)",
+    description: "고소한 고등어구이와 조기, 가자미까지 세 가지 생선구이를 골라 먹는 재미가 있는 한 상.",
     image:
       "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_33%2F1784107799478fMDpy_JPEG%2F7308.jpg",
   },
   {
-    name: "코다리+조기가자미솥밥정식",
-    price: "18,000원",
-    description: null,
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260801_175%2F1785573921407JqSl8_JPEG%2F8748.jpg",
-  },
-  {
-    name: "LA갈비 조기 가자미솥밥 정식",
+    name: "LA갈비·조기·가자미 솥밥정식",
     price: "25,000원",
-    description: "LA갈비정식 : LA갈비와 가자미, 조기 그리고 16가지 반찬(개인솥밥 제공)",
+    description: "달콤짭짤한 양념 LA갈비구이와 조기·가자미구이를 함께 올려 가장 넉넉하게 차린 한 상.",
     image:
       "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_147%2F1784107849166rUSGf_JPEG%2F8390.jpg",
   },
   {
-    name: "불고기 조기 가자미솥밥 정식",
+    name: "불고기·조기·가자미 솥밥정식",
     price: "22,000원",
-    description: "불고기 정식 : 불고기와 가자미,조기 그리고 16가지 반찬(개인솥밥 제공)",
+    description: "달콤한 불고기 한 입에 고소한 조기·가자미구이까지, 남녀노소 좋아하는 솥밥 한 상.",
     image:
       "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250723_280%2F1753255016117YtYXx_JPEG%2FKakaoTalk_20250721_214527514_05.jpg",
+  },
+  {
+    name: "더덕구이·제육볶음 솥밥정식",
+    price: "20,000원",
+    description: "향긋한 더덕구이와 매콤달콤 제육볶음의 맛있는 만남, 솥밥과 정갈한 반찬 한 상.",
+  },
+  {
+    name: "더덕구이·조기·가자미 솥밥정식",
+    price: "22,000원",
+    description: "향긋하고 쫄깃한 더덕구이와 노릇하게 구운 조기·가자미를 함께 차린 솥밥 한 상.",
   },
 ];
 
 /**
- * 대표(SIGNATURE) 배지가 없는 그 외 판매 메뉴. 매장주가 2026-09-21 네이버플레이스
- * 전체 메뉴판 캡처로 직접 확인해준 3종 — SIGNATURE_MENU 6종과 별개로 실제 판매 중인
- * 메뉴다(사용자 확인: "정보 제공 해준 메뉴는 15개인데" — 캡처 화면에 15줄이 보이는 건
- * "추천 메뉴 6" 구간과 "전체 메뉴" 구간이 같은 6종을 한 번 더 나열해서 생기는 네이버
- * 자체 UI 중복이고, 실제로 서로 다른 메뉴는 이 3종을 더한 9종이다).
- *
- * 2026-09-22 — 매장주가 네이버 스마트플레이스 "전체 메뉴" 탭의 실제 HTML을 전달해줘,
- * image를 실제 사진(320x320)으로 교체했다(name·price·description은 이미 확인된 값과
- * 동일해 무변경).
+ * 추가메뉴 — 2026-10-31 메뉴판 포스터 기준 전면 교체. 정식은 2인 기준 한 상이라, 인원이
+ * 늘거나 더 푸짐하게 즐기고 싶을 때 추가하는 단품 구성이다(9월에 있던 갈치한마리구이·
+ * 아침식사 코다리조림·아침식사 한돈김치찌개는 매장주 확인 결과 판매 종료). 아직 개별
+ * 단품 사진은 받지 못해 PhotoPlaceholder로 대체된다.
  */
 export const ADDITIONAL_MENU: MenuItem[] = [
-  {
-    name: "갈치한마리구이 (주말에는 예약 필수)",
-    price: "20,000원",
-    description: "겉바싹 속촉촉",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260903_103%2F1788402354725Q5aKP_JPEG%2F8972.jpg",
-  },
-  {
-    name: "아침식사 코다리조림",
-    price: "15,000원",
-    description: "달큰한 무하고 매콤한 코다리조합",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_230%2F1784117654188TFg3E_JPEG%2F8688.jpg",
-  },
-  {
-    name: "아침식사 한돈김치찌개",
-    price: "12,000원",
-    description: "국내산 앞다리살로 만든 김치찌개",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_49%2F1784117508578E9ApO_JPEG%2F7972.jpg",
-  },
+  { name: "제육볶음", price: "20,000원", description: "매콤달콤 불맛 한 접시, 인원 늘릴 때 가장 먼저 찾는 메뉴." },
+  { name: "LA갈비", price: "30,000원", description: "한 점만 더해도 상이 확 풍성해집니다." },
+  { name: "불고기", price: "25,000원", description: "아이부터 어른까지, 빠지면 아쉬운 달콤한 한 접시." },
+  { name: "고등어", price: "15,000원", description: "노릇하게 구운 밥도둑, 한 토막 더." },
+  { name: "더덕구이", price: "15,000원", description: "향긋하고 쫄깃한 더덕 한 접시, 상의 품격을 한층 더." },
+  { name: "솥밥 추가", price: "2,000원", description: "2,000원으로 솥밥 한 그릇 더, 마지막까지 든든하게." },
 ];
 
 export interface OccasionItem {

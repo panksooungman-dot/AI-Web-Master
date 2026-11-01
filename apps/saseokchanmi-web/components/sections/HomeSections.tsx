@@ -9,6 +9,7 @@ import {
   SIGNATURE_MENU,
   TOUR_DATE_COURSE_INTRO,
   TOUR_SPOTS,
+  type MenuItem,
 } from "@/lib/content";
 import { ADDRESS, CONTACT, RESERVATION_HREF, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl } from "@/lib/links";
@@ -97,6 +98,57 @@ function StoryBlock({
   );
 }
 
+/**
+ * 대표 메뉴 카드 — 매장주가 전달해준 메뉴판 포스터(사진 + 상호 + 가격 배지) 구성을 참고해
+ * 텍스트 목록 대신 사진 카드로 보여준다. 실제 사진이 있는 5종(제육·코다리·고등어·LA갈비·
+ * 불고기 솥밥정식)은 그 사진을 그대로 쓰고, 2026-10-31 새로 추가된 더덕구이 2종은 아직
+ * 사진이 없어 PhotoPlaceholder와 동일한 "사진 준비중" 톤으로 대체한다.
+ */
+function SignatureMenuCard({ item, index }: { item: MenuItem; index: number }) {
+  const label = item.name ?? `대표 메뉴 ${index + 1}`;
+  return (
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-secondary bg-white shadow-sm shadow-primary/5 transition-shadow hover:shadow-md">
+      <div className="relative aspect-square bg-secondary/40">
+        {item.image ? (
+          <Image
+            src={item.image}
+            alt={label}
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-center">
+            <span className="px-4 text-sm font-medium text-muted">
+              {label}
+              <br />
+              사진 준비중
+            </span>
+          </div>
+        )}
+        <span className="absolute left-3 top-3 rounded-full bg-foreground/80 px-3 py-1 text-xs font-semibold text-white">
+          2인 기준
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        <p className="font-bold leading-snug text-foreground">{label}</p>
+        {item.description && (
+          <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-muted">{item.description}</p>
+        )}
+        <div>
+          {item.price ? (
+            <span className="inline-flex rounded-full bg-primary px-4 py-1.5 text-sm font-bold text-white">
+              {item.price}
+            </span>
+          ) : (
+            <TodoBadge label={item.todo ?? "확인 필요"} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SignatureStorySection() {
   return (
     <section className="bg-background py-20 sm:py-24">
@@ -152,20 +204,13 @@ export function SignatureStorySection() {
         />
 
         <div>
-          <h3 className="text-center text-xl font-bold text-foreground">대표 메뉴</h3>
-          <div className="mx-auto mt-6 max-w-3xl divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
+          <div className="text-center">
+            <h3 className="text-xl font-bold text-foreground">대표 메뉴</h3>
+            <p className="mt-2 text-sm text-muted">모든 솥밥정식은 2인 기준 한 상입니다.</p>
+          </div>
+          <div className="mx-auto mt-8 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {SIGNATURE_MENU.map((item, index) => (
-              <div key={index} className="flex items-baseline justify-between gap-4 px-5 py-4">
-                <div>
-                  <p className="font-semibold text-foreground">{item.name ?? `대표 메뉴 ${index + 1}`}</p>
-                  {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
-                </div>
-                {item.price ? (
-                  <p className="whitespace-nowrap text-sm font-semibold text-primary">{item.price}</p>
-                ) : (
-                  <TodoBadge label={item.todo ?? "확인 필요"} />
-                )}
-              </div>
+              <SignatureMenuCard key={index} item={item} index={index} />
             ))}
           </div>
           <div className="mt-8 text-center">

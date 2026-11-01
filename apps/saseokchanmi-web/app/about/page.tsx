@@ -36,6 +36,18 @@ export default function AboutPage() {
             />
           </div>
           <div className="space-y-4 text-base leading-relaxed text-muted">
+            <div className="flex items-center gap-4">
+              <Image
+                src="/images/brand-emblem.png"
+                alt="사색찬미 四色讚美 엠블럼"
+                width={64}
+                height={64}
+                className="shrink-0"
+              />
+              <p className="text-sm font-medium text-foreground">
+                四色讚美 <span className="text-muted">— 네 가지 빛깔로 정성을 찬미하다</span>
+              </p>
+            </div>
             <p>
               사색찬미한정식은 정갈함, 따뜻함, 정성, 전통, 자연, 가족이라는 여섯 가지 가치를
               바탕으로 한 상을 준비합니다.

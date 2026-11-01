@@ -27,57 +27,56 @@ export interface MenuItem {
 /**
  * 솥밥정식(2인 기준) — 2026-10-31 매장주가 실제 사용 중인 메뉴판 포스터(이미지)를 전달해줘
  * 전면 갱신했다. 9월에 확인했던 "코다리+조기가자미솥밥정식"은 매장주 확인 결과 현재
- * 메뉴에서 빠졌고(판매 종료), "더덕구이" 계열 2종이 새로 추가됐다. 이름이 그대로 유지된
- * 5종(제육·조기·가자미 / 제육·코다리·조기·가자미 / 고등어·조기·가자미 / LA갈비·조기·가자미 /
- * 불고기·조기·가자미)은 같은 메뉴이므로 9월에 확보한 실제 사진을 그대로 유지한다. 새로
- * 추가된 더덕구이 2종은 아직 사진이 없어 PhotoPlaceholder로 대체된다(메뉴판 포스터 설명
- * 문구를 그대로 반영).
+ * 메뉴에서 빠졌고(판매 종료), "더덕구이" 계열 2종이 새로 추가됐다.
+ *
+ * 2026-11-01 — 매장주가 "대표메뉴 사진을 이 사진으로 변경해줘"라며 그 메뉴판 포스터를
+ * 다시 전달해줘, 7종 전부의 사진을 포스터 속 실제 음식 사진(이름·가격 텍스트가 겹치지
+ * 않는 순수 사진 영역만 잘라낸 것)으로 교체했다 — 기존 네이버 320x320 썸네일보다 해상도가
+ * 높고 상차림 전체가 보여 더 먹음직스럽다. 잘라낸 원본 파일은
+ * public/images/menu/sotbap-*.jpg(가로 1000px, 매장 사진과 동일한 JPEG 압축 관례).
  */
 export const SIGNATURE_MENU: MenuItem[] = [
   {
     name: "제육·조기·가자미 솥밥정식",
     price: "18,000원",
     description: "매콤한 제육볶음과 노릇한 조기, 담백한 가자미구이를 다채로운 솥밥과 반찬에 올린 두 분 한 상.",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260827_244%2F1787805068595pWvPG_JPEG%2F8857.jpg",
+    image: "/images/menu/sotbap-jeyuk.jpg",
   },
   {
     name: "제육·코다리·조기·가자미 솥밥정식",
     price: "22,000원",
     description: "제육볶음에 코다리조림, 조기와 가자미구이까지 한 상에 담아 가장 푸짐하게 차린 메뉴.",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260725_203%2F1784979363700LiyYM_JPEG%2F8809.jpg",
+    image: "/images/menu/sotbap-jeyuk-kodari.jpg",
   },
   {
     name: "고등어·조기·가자미 솥밥정식",
     price: "20,000원",
     description: "고소한 고등어구이와 조기, 가자미까지 세 가지 생선구이를 골라 먹는 재미가 있는 한 상.",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_33%2F1784107799478fMDpy_JPEG%2F7308.jpg",
+    image: "/images/menu/sotbap-godeungeo.jpg",
   },
   {
     name: "LA갈비·조기·가자미 솥밥정식",
     price: "25,000원",
     description: "달콤짭짤한 양념 LA갈비구이와 조기·가자미구이를 함께 올려 가장 넉넉하게 차린 한 상.",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260715_147%2F1784107849166rUSGf_JPEG%2F8390.jpg",
+    image: "/images/menu/sotbap-la-galbi.jpg",
   },
   {
     name: "불고기·조기·가자미 솥밥정식",
     price: "22,000원",
     description: "달콤한 불고기 한 입에 고소한 조기·가자미구이까지, 남녀노소 좋아하는 솥밥 한 상.",
-    image:
-      "https://search.pstatic.net/common/?autoRotate=true&quality=95&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250723_280%2F1753255016117YtYXx_JPEG%2FKakaoTalk_20250721_214527514_05.jpg",
+    image: "/images/menu/sotbap-bulgogi.jpg",
   },
   {
     name: "더덕구이·제육볶음 솥밥정식",
     price: "20,000원",
     description: "향긋한 더덕구이와 매콤달콤 제육볶음의 맛있는 만남, 솥밥과 정갈한 반찬 한 상.",
+    image: "/images/menu/sotbap-deodeok-jeyuk.jpg",
   },
   {
     name: "더덕구이·조기·가자미 솥밥정식",
     price: "22,000원",
     description: "향긋하고 쫄깃한 더덕구이와 노릇하게 구운 조기·가자미를 함께 차린 솥밥 한 상.",
+    image: "/images/menu/sotbap-deodeok.jpg",
   },
 ];
 

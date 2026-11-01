@@ -100,9 +100,9 @@ function StoryBlock({
 
 /**
  * 대표 메뉴 카드 — 매장주가 전달해준 메뉴판 포스터(사진 + 상호 + 가격 배지) 구성을 참고해
- * 텍스트 목록 대신 사진 카드로 보여준다. 실제 사진이 있는 5종(제육·코다리·고등어·LA갈비·
- * 불고기 솥밥정식)은 그 사진을 그대로 쓰고, 2026-10-31 새로 추가된 더덕구이 2종은 아직
- * 사진이 없어 PhotoPlaceholder와 동일한 "사진 준비중" 톤으로 대체한다.
+ * 텍스트 목록 대신 사진 카드로 보여준다. 2026-11-01 기준 SIGNATURE_MENU 7종 전부 그 포스터
+ * 사진을 잘라낸 실제 이미지를 갖고 있다(lib/content.ts 참고). item.image가 비어있는 경우의
+ * PhotoPlaceholder 대체 톤은 안전장치로 남겨둔다(사진 추가/교체가 늦어지는 항목 대비).
  */
 function SignatureMenuCard({ item, index }: { item: MenuItem; index: number }) {
   const label = item.name ?? `대표 메뉴 ${index + 1}`;

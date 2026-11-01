@@ -83,16 +83,49 @@ export const SIGNATURE_MENU: MenuItem[] = [
 /**
  * 추가메뉴 — 2026-10-31 메뉴판 포스터 기준 전면 교체. 정식은 2인 기준 한 상이라, 인원이
  * 늘거나 더 푸짐하게 즐기고 싶을 때 추가하는 단품 구성이다(9월에 있던 갈치한마리구이·
- * 아침식사 코다리조림·아침식사 한돈김치찌개는 매장주 확인 결과 판매 종료). 아직 개별
- * 단품 사진은 받지 못해 PhotoPlaceholder로 대체된다.
+ * 아침식사 코다리조림·아침식사 한돈김치찌개는 매장주 확인 결과 판매 종료).
+ *
+ * 2026-11-01 — 같은 메뉴판 포스터 하단의 "추가메뉴" 사진 그리드(6칸)에서 각 단품 사진을
+ * 잘라내 전부 반영했다(public/images/menu/add-*.jpg). 솥밥정식(SIGNATURE_MENU)과 마찬가지로
+ * 텍스트만 남아있던 6종 전체에 실제 사진이 생겼다.
  */
 export const ADDITIONAL_MENU: MenuItem[] = [
-  { name: "제육볶음", price: "20,000원", description: "매콤달콤 불맛 한 접시, 인원 늘릴 때 가장 먼저 찾는 메뉴." },
-  { name: "LA갈비", price: "30,000원", description: "한 점만 더해도 상이 확 풍성해집니다." },
-  { name: "불고기", price: "25,000원", description: "아이부터 어른까지, 빠지면 아쉬운 달콤한 한 접시." },
-  { name: "고등어", price: "15,000원", description: "노릇하게 구운 밥도둑, 한 토막 더." },
-  { name: "더덕구이", price: "15,000원", description: "향긋하고 쫄깃한 더덕 한 접시, 상의 품격을 한층 더." },
-  { name: "솥밥 추가", price: "2,000원", description: "2,000원으로 솥밥 한 그릇 더, 마지막까지 든든하게." },
+  {
+    name: "제육볶음",
+    price: "20,000원",
+    description: "매콤달콤 불맛 한 접시, 인원 늘릴 때 가장 먼저 찾는 메뉴.",
+    image: "/images/menu/add-jeyuk-bokkeum.jpg",
+  },
+  {
+    name: "LA갈비",
+    price: "30,000원",
+    description: "한 점만 더해도 상이 확 풍성해집니다.",
+    image: "/images/menu/add-la-galbi.jpg",
+  },
+  {
+    name: "불고기",
+    price: "25,000원",
+    description: "아이부터 어른까지, 빠지면 아쉬운 달콤한 한 접시.",
+    image: "/images/menu/add-bulgogi.jpg",
+  },
+  {
+    name: "고등어",
+    price: "15,000원",
+    description: "노릇하게 구운 밥도둑, 한 토막 더.",
+    image: "/images/menu/add-godeungeo.jpg",
+  },
+  {
+    name: "더덕구이",
+    price: "15,000원",
+    description: "향긋하고 쫄깃한 더덕 한 접시, 상의 품격을 한층 더.",
+    image: "/images/menu/add-deodeok.jpg",
+  },
+  {
+    name: "솥밥 추가",
+    price: "2,000원",
+    description: "2,000원으로 솥밥 한 그릇 더, 마지막까지 든든하게.",
+    image: "/images/menu/add-sotbap-chuga.jpg",
+  },
 ];
 
 export interface OccasionItem {

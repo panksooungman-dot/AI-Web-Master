@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { PageHero } from "@/components/ui/PageHero";
-import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { OG_DEFAULTS, OG_IMAGE, seoKeywords } from "@/lib/site-config";
 
 const TITLE = "사색찬미 이야기";
@@ -26,7 +26,15 @@ export default function AboutPage() {
       />
       <section className="bg-background py-20">
         <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <PhotoPlaceholder label="매장 전경" aspect="wide" />
+          <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40">
+            <Image
+              src="/images/space/exterior.jpg"
+              alt="정갈한 간판 아래, 사색찬미의 첫인사"
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
           <div className="space-y-4 text-base leading-relaxed text-muted">
             <p>
               사색찬미한정식은 정갈함, 따뜻함, 정성, 전통, 자연, 가족이라는 여섯 가지 가치를

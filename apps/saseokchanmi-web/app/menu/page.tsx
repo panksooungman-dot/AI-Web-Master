@@ -21,10 +21,11 @@ export const metadata: Metadata = {
 
 /**
  * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * 사진이 있는 항목(item.image)은 96px 썸네일로 보여주고(2026-09-22 확보한 매장 실제
- * 사진, 320x320이라 키워도 흐려지지 않는다), 아직 사진이 없는 항목(2026-10-31 신규
- * 추가분)은 썸네일 없이 텍스트만 표시한다. 설명은 목록에서는 1줄만 보여주고
- * (line-clamp-1), 전체 설명은 굳이 필요하지 않은 훑어보기 용도이므로 생략됨을 감수한다.
+ * 사진이 있는 항목(item.image)은 96px 썸네일로 보여준다 — 솥밥정식(SIGNATURE_MENU) 7종은
+ * 2026-11-01 기준 매장주가 전달한 메뉴판 포스터에서 잘라낸 실제 사진(가로 1000px)을 전부
+ * 갖고 있고, 추가메뉴(ADDITIONAL_MENU)는 아직 개별 사진이 없어 썸네일 없이 텍스트만
+ * 표시한다. 설명은 목록에서는 1줄만 보여주고(line-clamp-1), 전체 설명은 굳이 필요하지
+ * 않은 훑어보기 용도이므로 생략됨을 감수한다.
  */
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
   const label = item.name ?? `${fallbackLabel} ${index + 1}`;

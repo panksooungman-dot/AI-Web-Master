@@ -56,7 +56,7 @@ export default function MenuPage() {
       <PageHero
         eyebrow="Menu"
         title="사색찬미의 대표 한정식"
-        description="정갈한 한상, 건강한 맛. 모든 솥밥정식은 2인 기준 한 상입니다."
+        description="정갈한 한상, 건강한 맛. 모든 솥밥정식은 1인 가격이며, 2인 이상 주문하실 수 있습니다."
       />
       <section className="bg-background py-20">
         <Container>
@@ -70,8 +70,8 @@ export default function MenuPage() {
 
             <h2 className="mt-16 text-2xl font-bold text-foreground">추가메뉴</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              정식은 2인 기준 한 상입니다. 세 분 이상 오셨거나 더 푸짐하게 즐기고 싶다면 아래
-              추가메뉴로 넉넉하게 채워 보세요.
+              정식은 1인 가격이며 2인 이상 주문하실 수 있습니다. 세 분 이상 오셨거나 더
+              푸짐하게 즐기고 싶다면 아래 추가메뉴로 넉넉하게 채워 보세요.
             </p>
             <div className="mt-6 divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
               {ADDITIONAL_MENU.map((item, index) => (

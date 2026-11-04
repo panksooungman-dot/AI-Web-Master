@@ -127,7 +127,7 @@ function SignatureMenuCard({ item, index }: { item: MenuItem; index: number }) {
           </div>
         )}
         <span className="absolute left-3 top-3 rounded-full bg-foreground/80 px-3 py-1 text-xs font-semibold text-white">
-          2인 기준
+          2인 이상
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-2 p-5">
@@ -206,7 +206,7 @@ export function SignatureStorySection() {
         <div>
           <div className="text-center">
             <h3 className="text-xl font-bold text-foreground">대표 메뉴</h3>
-            <p className="mt-2 text-sm text-muted">모든 솥밥정식은 2인 기준 한 상입니다.</p>
+            <p className="mt-2 text-sm text-muted">모든 솥밥정식은 1인 가격이며, 2인 이상 주문하실 수 있습니다.</p>
           </div>
           <div className="mx-auto mt-8 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {SIGNATURE_MENU.map((item, index) => (

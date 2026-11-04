@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
+import { MenuTabs } from "@/components/ui/MenuTabs";
 import { PageHero } from "@/components/ui/PageHero";
-import { TodoBadge } from "@/components/ui/TodoBadge";
-import { ADDITIONAL_MENU, SIGNATURE_MENU, type MenuItem } from "@/lib/content";
+import { ADDITIONAL_MENU, SIGNATURE_MENU } from "@/lib/content";
 import { OG_DEFAULTS, OG_IMAGE, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
 
 const TITLE = "한정식 메뉴";
@@ -19,37 +18,6 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
-/**
- * 메뉴판 형식 — 네이버플레이스 메뉴 탭처럼 썸네일 + 이름·설명·가격을 한 줄씩 나열한다.
- * 솥밥정식(SIGNATURE_MENU) 7종과 추가메뉴(ADDITIONAL_MENU) 6종 전부 2026-11-01 기준
- * 매장주가 전달한 메뉴판 포스터에서 잘라낸 실제 사진을 96px 썸네일로 보여준다(lib/content.ts
- * 참고). 설명은 목록에서는 1줄만 보여주고(line-clamp-1), 전체 설명은 굳이 필요하지 않은
- * 훑어보기 용도이므로 생략됨을 감수한다.
- */
-function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
-  const label = item.name ?? `${fallbackLabel} ${index + 1}`;
-  return (
-    <div className="flex items-center gap-4 px-5 py-4">
-      {item.image && (
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
-          <Image src={item.image} alt={label} fill sizes="96px" className="object-cover" />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        {item.name ? (
-          <>
-            <p className="font-semibold text-foreground">{item.name}</p>
-            {item.price && <p className="mt-0.5 text-sm font-semibold text-primary">{item.price}</p>}
-          </>
-        ) : (
-          <TodoBadge label={item.todo ?? "확인 필요"} />
-        )}
-        {item.description && <p className="mt-1 line-clamp-1 text-sm text-muted">{item.description}</p>}
-      </div>
-    </div>
-  );
-}
-
 export default function MenuPage() {
   return (
     <>
@@ -61,23 +29,7 @@ export default function MenuPage() {
       <section className="bg-background py-20">
         <Container>
           <div className="mx-auto max-w-3xl">
-            <h2 className="text-2xl font-bold text-foreground">솥밥정식</h2>
-            <div className="mt-6 divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
-              {SIGNATURE_MENU.map((item, index) => (
-                <MenuRow key={index} item={item} index={index} fallbackLabel="대표 메뉴" />
-              ))}
-            </div>
-
-            <h2 className="mt-16 text-2xl font-bold text-foreground">추가메뉴</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              정식은 1인 가격이며 2인 이상 주문하실 수 있습니다. 세 분 이상 오셨거나 더
-              푸짐하게 즐기고 싶다면 아래 추가메뉴로 넉넉하게 채워 보세요.
-            </p>
-            <div className="mt-6 divide-y divide-secondary overflow-hidden rounded-xl border border-secondary">
-              {ADDITIONAL_MENU.map((item, index) => (
-                <MenuRow key={index} item={item} index={index} fallbackLabel="메뉴" />
-              ))}
-            </div>
+            <MenuTabs signatureMenu={SIGNATURE_MENU} additionalMenu={ADDITIONAL_MENU} />
 
             <div className="mt-10 rounded-xl border border-dashed border-primary/30 bg-secondary/30 p-6 text-sm leading-relaxed text-muted">
               <p className="font-semibold text-foreground">안내</p>

@@ -29,9 +29,12 @@ export const ADDRESS = {
  * 직접 제공해 phone·lastOrder·parkingInfo·naverPlaceUrl을 확정했다. businessHours·
  * closedDays는 네이버플레이스 화면에 없어 남겨뒀다가, 매장주가 직접 "오픈 10시·휴무 없음"을
  * 확인해줘 확정했다.
+ *
+ * 2026-11-06 — 매장주가 전화번호를 "031-945-8004"로 정정해줘(기존 "031-945-8804"는 오타)
+ * 수정했다.
  */
 export const CONTACT = {
-  phone: "031-945-8804",
+  phone: "031-945-8004",
   businessHours: "매일 10:00 ~ 19:30",
   lastOrder: "19:30",
   closedDays: "연중무휴",

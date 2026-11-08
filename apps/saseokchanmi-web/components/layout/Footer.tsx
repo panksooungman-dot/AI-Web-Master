@@ -19,7 +19,7 @@ export function Footer() {
     <footer className="relative overflow-hidden border-t border-secondary bg-secondary/40">
       <TraditionalPattern className="opacity-[0.12]" />
       <Container className="relative py-16">
-        <div className="grid gap-10 sm:grid-cols-2">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <Image src="/images/logo.png" alt={SITE_NAME} width={1435} height={755} className="h-10 w-auto" />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">{SITE_TAGLINE}</p>
@@ -45,6 +45,44 @@ export function Footer() {
               <span className="text-muted">
                 {CONTACT.businessHours} · 매일 영업{CONTACT.closedDays === "연중무휴" ? "" : ` (휴무: ${CONTACT.closedDays})`}
               </span>
+            </div>
+          </div>
+
+          {/* ── 3. 모바일 앱 ── */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <p className="text-sm font-semibold text-foreground">모바일 앱</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              메뉴와 예약문의를 앱에서 더 편하게
+            </p>
+
+            <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-start">
+              {/* QR — PC 화면에서만 표시 */}
+              <div className="hidden shrink-0 md:block">
+                <Image
+                  src="/images/app-qr.png"
+                  alt="사색찬미한정식 앱 다운로드 QR 코드"
+                  width={160}
+                  height={160}
+                  className="h-40 w-40 rounded-lg border border-secondary bg-white p-1"
+                />
+                <p className="mt-2 text-xs text-muted">
+                  휴대폰 카메라로 스캔하세요
+                </p>
+              </div>
+
+              <div>
+                <a
+                  href="https://panksooungman-dot.github.io/sasaekchanmi-download/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
+                >
+                  앱 다운로드
+                </a>
+                <p className="mt-2 text-xs text-muted">
+                  Android 전용 · 약 59MB
+                </p>
+              </div>
             </div>
           </div>
         </div>

@@ -26,7 +26,10 @@ export default function AboutPage() {
       />
       <section className="bg-background py-20">
         <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-secondary/40">
+          {/* exterior.jpg는 세로 사진(966x1288)이라 가로형 비율 박스에 넣으면 간판·출입구가
+              잘려 보였다. 실제 사진 비율에 맞춰 세로형(3:4)으로 교체 — 모바일에서 특히 비중이
+              컸던 크롭 문제. */}
+          <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-secondary/40">
             <Image
               src="/images/space/exterior.jpg"
               alt="정갈한 간판 아래, 사색찬미의 첫인사"

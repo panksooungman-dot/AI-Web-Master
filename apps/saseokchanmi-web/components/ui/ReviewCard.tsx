@@ -12,7 +12,9 @@ export function ReviewCard({ review, className }: ReviewCardProps) {
   return (
     <Card className={`flex h-full flex-col gap-3 ${className ?? ""}`}>
       {review.photo && (
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-secondary/30">
+        // 네이버 리뷰 사진은 대부분 휴대폰 세로 촬영(실측 352x440≈3:4 비율)이라, 가로형
+        // 4:3 박스에 넣으면 크게 잘렸다. 세로형(3:4)으로 맞춰 크롭을 최소화.
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-secondary/30">
           <Image
             src={review.photo}
             alt={`${review.author} 님이 남긴 후기 사진`}

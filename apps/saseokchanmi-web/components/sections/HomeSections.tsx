@@ -108,7 +108,9 @@ function SignatureMenuCard({ item, index }: { item: MenuItem; index: number }) {
   const label = item.name ?? `대표 메뉴 ${index + 1}`;
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-secondary bg-white shadow-sm shadow-primary/5 transition-shadow hover:shadow-md">
-      <div className="relative aspect-square bg-secondary/40">
+      {/* 포스터에서 잘라낸 메뉴 사진은 가로형(실측 1.3~1.6:1)이라 정사각형 박스에 넣으면
+          양옆이 많이 잘렸다. 실제 사진 비율에 가까운 4:3으로 맞춰 크롭을 줄임. */}
+      <div className="relative aspect-[4/3] bg-secondary/40">
         {item.image ? (
           <Image
             src={item.image}

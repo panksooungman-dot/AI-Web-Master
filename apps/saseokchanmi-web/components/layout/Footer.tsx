@@ -55,7 +55,7 @@ export function Footer() {
               메뉴와 예약문의를 앱에서 더 편하게
             </p>
 
-            <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-start">
+            <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-start">
               {/* QR — PC 화면에서만 표시 */}
               <div className="hidden shrink-0 md:block">
                 <Image

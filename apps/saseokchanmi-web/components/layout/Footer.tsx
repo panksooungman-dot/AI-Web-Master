@@ -21,7 +21,7 @@ export function Footer() {
       <Container className="relative py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <Image src="/images/logo.png" alt={SITE_NAME} width={1435} height={755} className="h-10 w-auto" />
+            <Image src="/images/logo.png" alt={SITE_NAME} width={2081} height={700} className="h-10 w-auto" />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">{SITE_TAGLINE}</p>
           </div>
 

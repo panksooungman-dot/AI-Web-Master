@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@cnbiz/layout-primitives";
-import { LinkButton } from "@cnbiz/ui";
-import { NAV_ITEMS, RESERVATION_HREF, SITE_NAME } from "@/lib/site-config";
+import { NAV_ITEMS, SITE_NAME } from "@/lib/site-config";
 import { telUrl } from "@/lib/links";
 import { MobileMenu } from "./MobileMenu";
+import { ReservationButton } from "./ReservationButton";
 
 /** 모바일 스토리보드(기획서 7장) 기준: 로고 + 메뉴 + 전화 아이콘. */
 export function Header() {
@@ -45,9 +45,7 @@ export function Header() {
               </svg>
             </a>
           ) : null}
-          <LinkButton href={RESERVATION_HREF} className="hidden sm:inline-flex">
-            예약 문의
-          </LinkButton>
+          <ReservationButton className="hidden sm:inline-flex">예약 문의</ReservationButton>
           <MobileMenu />
         </div>
       </Container>

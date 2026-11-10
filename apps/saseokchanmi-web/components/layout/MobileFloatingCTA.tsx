@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import { RESERVATION_HREF } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
+import { useReservationLink } from "./useReservationLink";
 
 /**
  * 2026-09-22 — 기존 하단 고정 전체폭 바(전화/길찾기/예약) 대신, 매장주 요청으로 화면 우측에
@@ -12,6 +14,7 @@ import { naverMapUrl, telUrl } from "@/lib/links";
  */
 export function MobileFloatingCTA() {
   const phoneHref = telUrl();
+  const reservationLink = useReservationLink();
 
   return (
     <div className="fixed bottom-5 right-3 z-40 flex flex-col gap-2 md:hidden">
@@ -52,7 +55,7 @@ export function MobileFloatingCTA() {
       </a>
 
       <Link
-        href={RESERVATION_HREF}
+        {...reservationLink}
         aria-label="예약"
         className="flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-white shadow-lg"
       >

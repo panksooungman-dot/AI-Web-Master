@@ -1,9 +1,76 @@
 import Image from "next/image";
 import { Container } from "@cnbiz/layout-primitives";
-import { ADDRESS, BLOG_URL, CONTACT, SITE_NAME, SITE_TAGLINE } from "@/lib/site-config";
+import type { ReactNode } from "react";
+import { ADDRESS, CONTACT, SITE_NAME, SITE_TAGLINE } from "@/lib/site-config";
 import { naverMapUrl, telUrl } from "@/lib/links";
 import { TodoBadge } from "@/components/ui/TodoBadge";
 import { TraditionalPattern } from "@/components/ui/TraditionalPattern";
+
+const ICON_PROPS = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  className: "h-4 w-4",
+  "aria-hidden": true,
+} as const;
+
+function PinIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+    </svg>
+  );
+}
+
+function RouteIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="m3 11 18-8-8 18-2-8-8-2Z" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M12 4v11" />
+      <path d="m7 11 5 5 5-5" />
+      <path d="M5 20h14" />
+    </svg>
+  );
+}
+
+function InfoRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-secondary bg-white text-primary">
+        {icon}
+      </span>
+      <div className="min-w-0 pt-1 text-sm leading-relaxed">{children}</div>
+    </li>
+  );
+}
 
 /**
  * 2026-11-08 — 기존엔 기획서 12 FINAL CTA 지침("푸터에서도 동일 CTA 제공")에 따라 홈페이지의
@@ -27,25 +94,30 @@ export function Footer() {
 
           <div>
             <p className="text-sm font-semibold text-foreground">오시는 길</p>
-            <p className="mt-3 text-sm leading-relaxed text-muted">{ADDRESS.full}</p>
-            <div className="mt-2 flex flex-col gap-1 text-sm">
-              {phoneHref ? (
-                <a href={phoneHref} className="text-primary hover:underline">
-                  전화 문의
+            <ul className="mt-4 flex flex-col gap-3">
+              <InfoRow icon={<PinIcon />}>
+                <span className="text-muted">{ADDRESS.full}</span>
+              </InfoRow>
+              <InfoRow icon={<PhoneIcon />}>
+                {phoneHref ? (
+                  <a href={phoneHref} className="font-medium text-primary hover:underline">
+                    {CONTACT.phone}
+                  </a>
+                ) : (
+                  <TodoBadge label="전화번호 확인 필요" />
+                )}
+              </InfoRow>
+              <InfoRow icon={<RouteIcon />}>
+                <a href={naverMapUrl()} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                  네이버 지도에서 길찾기
                 </a>
-              ) : (
-                <TodoBadge label="전화번호 확인 필요" />
-              )}
-              <a href={naverMapUrl()} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                네이버 지도에서 길찾기
-              </a>
-              <a href={BLOG_URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                네이버 블로그
-              </a>
-              <span className="text-muted">
-                {CONTACT.businessHours} · 매일 영업{CONTACT.closedDays === "연중무휴" ? "" : ` (휴무: ${CONTACT.closedDays})`}
-              </span>
-            </div>
+              </InfoRow>
+              <InfoRow icon={<ClockIcon />}>
+                <span className="text-muted">
+                  {CONTACT.businessHours} · 매일 영업{CONTACT.closedDays === "연중무휴" ? "" : ` (휴무: ${CONTACT.closedDays})`}
+                </span>
+              </InfoRow>
+            </ul>
           </div>
 
           {/* ── 3. 모바일 앱 ── */}
@@ -75,8 +147,9 @@ export function Footer() {
                   href="https://panksooungman-dot.github.io/sasaekchanmi-download/"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
                 >
+                  <DownloadIcon />
                   앱 다운로드
                 </a>
                 <p className="mt-2 text-xs text-muted">

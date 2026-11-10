@@ -14,7 +14,7 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-secondary bg-background/95 backdrop-blur-sm">
       <Container className="flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Image src="/images/logo.png" alt={SITE_NAME} width={2081} height={700} priority className="h-10 w-auto sm:h-12" />
+          <Image src="/images/logo.png" alt={SITE_NAME} width={2081} height={700} priority className="h-8 w-auto sm:h-10" />
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

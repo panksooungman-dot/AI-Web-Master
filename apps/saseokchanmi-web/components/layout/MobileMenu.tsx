@@ -4,7 +4,8 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { MobileDrawer } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
-import { NAV_ITEMS, RESERVATION_HREF } from "@/lib/site-config";
+import { NAV_ITEMS } from "@/lib/site-config";
+import { useReservationLink } from "./useReservationLink";
 
 /** 메뉴 항목(href)별 아이콘 — 24x24 stroke 아이콘, 장식용이라 aria-hidden. */
 const MENU_ICONS: Record<string, ReactNode> = {
@@ -48,6 +49,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
+  const reservationLink = useReservationLink();
 
   return (
     <>
@@ -106,7 +108,7 @@ export function MobileMenu() {
         </nav>
 
         <LinkButton
-          href={RESERVATION_HREF}
+          {...reservationLink}
           onClick={() => setOpen(false)}
           className="mt-6 w-full"
         >

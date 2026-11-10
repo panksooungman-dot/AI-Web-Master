@@ -92,7 +92,7 @@ export function Footer() {
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">{SITE_TAGLINE}</p>
           </div>
 
-          <div>
+          <div className="sm:col-start-2 sm:row-span-2 sm:row-start-1 lg:row-span-1">
             <p className="text-sm font-semibold text-foreground">오시는 길</p>
             <ul className="mt-4 flex flex-col gap-3">
               <InfoRow icon={<PinIcon />}>
@@ -121,7 +121,7 @@ export function Footer() {
           </div>
 
           {/* ── 3. 모바일 앱 ── */}
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div className="sm:col-start-1 sm:row-start-2 lg:col-start-3 lg:row-start-1">
             <p className="text-sm font-semibold text-foreground">모바일 앱</p>
             <p className="mt-3 text-sm leading-relaxed text-muted">
               메뉴와 예약문의를 앱에서 더 편하게

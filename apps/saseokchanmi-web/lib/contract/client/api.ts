@@ -9,7 +9,12 @@ export interface ApiFailure {
 }
 export type ApiResult<T> = ({ ok: true } & T) | ApiFailure;
 
-export async function adminApi<T extends object>(path: string, init: { method?: string; body?: unknown } = {}): Promise<ApiResult<T>> {
+export const adminApi = <T extends object>(path: string, init: { method?: string; body?: unknown } = {}): Promise<ApiResult<T>> => request<T>(path, init, true);
+
+/** 근로자 화면용: 로그인이 없으므로 401이 와도 관리자 로그인으로 보내지 않는다. */
+export const publicApi = <T extends object>(path: string, init: { method?: string; body?: unknown } = {}): Promise<ApiResult<T>> => request<T>(path, init, false);
+
+async function request<T extends object>(path: string, init: { method?: string; body?: unknown }, redirectOn401: boolean): Promise<ApiResult<T>> {
   try {
     const res = await fetch(path, {
       method: init.method ?? "GET",
@@ -18,7 +23,7 @@ export async function adminApi<T extends object>(path: string, init: { method?: 
       cache: "no-store",
     });
     const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    if (res.status === 401 && typeof window !== "undefined") {
+    if (redirectOn401 && res.status === 401 && typeof window !== "undefined") {
       window.location.href = "/admin/login";
       return { ok: false, status: 401, error: "로그인이 필요합니다." };
     }

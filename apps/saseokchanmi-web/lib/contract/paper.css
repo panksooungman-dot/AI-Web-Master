@@ -33,3 +33,14 @@
 /* PDF·이미지 캡처용 고정 폭(A4 비율) */
 .paper.cap { width: 794px; font-size: 12.5px; line-height: 1.62; padding: 46px 54px; border: 0; border-radius: 0; }
 .cap .sgw .sg { height: 44px; }
+
+/*
+ * 근로자 사본 인쇄(→ PDF로 저장). body에 print-copy 클래스가 있을 때만 #copy-area 하나만 인쇄한다.
+ * 클래스는 인쇄 버튼을 누른 순간에만 붙였다가 인쇄가 끝나면 뗀다.
+ */
+@media print {
+  body.print-copy * { visibility: hidden; }
+  body.print-copy #copy-area, body.print-copy #copy-area * { visibility: visible; }
+  body.print-copy #copy-area { position: absolute; left: 0; top: 0; width: 100%; }
+  body.print-copy #copy-area .paper { border: 0; border-radius: 0; font-size: 12.5px; line-height: 1.62; padding: 8mm 10mm; }
+}

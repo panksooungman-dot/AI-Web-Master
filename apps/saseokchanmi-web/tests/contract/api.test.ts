@@ -142,6 +142,7 @@ describe("직원 계약 만들기 → 근로자 제출 → 관리자 확인 (시
     expect(open.config.wage).toBe("12000");
     expect(open.config.label).toBe(""); // 관리자 메모는 내보내지 않는다
     expect(open.config.ownerSig).toBe("");
+    expect(open.hasOwnerSig).toBe(false);
 
     // 제출 전 상태: 미제출
     const before = await data(await configsGet(req("/x", { cookie })));
@@ -282,7 +283,10 @@ describe("사업주 서명", () => {
     expect((await settingsPut(req("/x", { method: "PUT", cookie, body: { ownerSig: OWNER_PNG } }))).status).toBe(200);
     const t2 = await createConfig(cookie, { label: "나" });
     const open = await data(await workerGet(req("/x"), ctx({ token: t2 })));
-    expect(open.config.ownerSig).toBe(OWNER_PNG);
+    // 링크만 아는 사람에게는 사업주 서명 이미지를 내보내지 않고, 등록 여부만 알려 준다.
+    expect(open.config.ownerSig).toBe("");
+    expect(open.hasOwnerSig).toBe(true);
+    expect(JSON.stringify(open)).not.toContain(OWNER_PNG);
     await workerSubmit(req("/x", { method: "POST", body: worker }), ctx({ token: t2 }));
     expect((await data(await configGet(req("/x", { cookie }), ctx({ token: t2 })))).status).toBe("confirmed");
     const id2 = (await data(await submissionsGet(req("/x", { cookie })))).items.find((i: { configToken: string }) => i.configToken === t2).id as string;

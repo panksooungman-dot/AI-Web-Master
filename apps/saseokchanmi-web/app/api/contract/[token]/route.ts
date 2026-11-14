@@ -1,6 +1,6 @@
 import { fail, guarded, json } from "@/lib/contract/server/http";
 import { getStore } from "@/lib/contract/server/select";
-import { effectiveConfig, loadSettings } from "@/lib/contract/server/service";
+import { contractVersion, effectiveConfig, loadSettings } from "@/lib/contract/server/service";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     if (await store.getSubmissionByToken(token)) return json({ ok: true, state: "submitted" });
     const settings = await loadSettings(store);
     const config = { ...effectiveConfig(settings, rec), label: "", ownerSig: "" };
-    return json({ ok: true, state: "open", config, hasOwnerSig: !!settings.company.ownerSig });
+    return json({ ok: true, state: "open", config, version: contractVersion(config), hasOwnerSig: !!settings.company.ownerSig });
   });
 }

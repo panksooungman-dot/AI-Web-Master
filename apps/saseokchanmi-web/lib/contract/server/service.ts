@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { buildConfig, DEFAULT_COMPANY, DEFAULT_MIN_WAGE, fmtPhone, insOff, isValidSignature, parseInsForm, validateInsForm, validateWorkerInfo } from "..";
 import type { ContractConfig } from "..";
 import type { ConfigRecord, ContractStore, SettingsRecord, SubmissionRecord } from "./store";
@@ -17,6 +17,14 @@ export function effectiveConfig(settings: SettingsRecord, rec: ConfigRecord): Co
   return buildConfig(settings.company, rec.config);
 }
 
+/**
+ * 근로자가 화면에서 본 계약 내용의 버전. 계약서에 들어가는 내용(조건·회사 정보)이 바뀌면 값이 달라진다.
+ * 관리자 메모(label)와 사업주 서명(ownerSig)은 근로자가 읽는 계약 조건이 아니므로 제외한다.
+ */
+export function contractVersion(config: ContractConfig): string {
+  return createHash("sha256").update(JSON.stringify({ ...config, label: "", ownerSig: "" })).digest("hex").slice(0, 16);
+}
+
 export type ServiceResult = { status: number; body: Record<string, unknown> };
 
 const SIG_MIN_LENGTH = 150;
@@ -32,15 +40,19 @@ export async function submitContract(store: ContractStore, token: string, body: 
   if (typeof body !== "object" || body === null) return { status: 400, body: { ok: false, error: "요청 형식이 올바르지 않습니다." } };
   const b = body as Record<string, unknown>;
 
+  // 근로자가 읽은 뒤 사업주가 계약 내용을 고쳤다면, 읽지 않은 내용에 서명하지 않도록 제출을 막고 다시 읽게 한다.
+  const settings = await loadSettings(store);
+  const snapshot: ContractConfig = { ...effectiveConfig(settings, rec), label: "" };
+  if (typeof b.version !== "string" || b.version !== contractVersion(snapshot)) {
+    return { status: 412, body: { ok: false, code: "changed", error: "사업주가 계약 내용을 수정했습니다. 바뀐 내용을 다시 확인한 뒤 서명해 주세요." } };
+  }
+
   const info = { name: String(b.name ?? ""), phone: String(b.phone ?? ""), address: String(b.address ?? "") };
   const v = validateWorkerInfo(info);
   if (!v.ok) return { status: 400, body: { ok: false, error: "입력 내용을 확인해 주세요.", fields: v.errors } };
   if (!isValidSignature(b.sig) || (b.sig as string).length < SIG_MIN_LENGTH) {
     return { status: 400, body: { ok: false, error: "서명 이미지가 올바르지 않습니다. 다시 서명해 주세요." } };
   }
-
-  const settings = await loadSettings(store);
-  const snapshot: ContractConfig = { ...effectiveConfig(settings, rec), label: "" };
 
   let insForm = null;
   if (insOff(snapshot).length) {

@@ -382,6 +382,11 @@ export function ContractEditor({ token: initialToken }: { token?: string }) {
                   </Field>
                 ))}
               </div>
+              {f.ins.acc === "n" ? (
+                <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                  산재보험은 근로시간·고용 형태와 관계없이 근로자를 1명이라도 고용하면 적용되는 것이 원칙입니다. 미적용으로 두면 안 되는 경우가 대부분이니, 정말 제외 대상인지 확인한 뒤 설정하세요.
+                </p>
+              ) : null}
               <p className="text-xs leading-relaxed text-muted">
                 미적용으로 두면 직원이 계약서를 확인한 뒤 &lsquo;사회보험 미적용 사유서&rsquo;를 함께 작성합니다. 가입은 법령상 의무이므로 법정 제외 사유가 있을 때만 미적용으로 설정하세요.
               </p>

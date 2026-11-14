@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { contractHTML } from "@/lib/contract";
 import { createMemoryStore } from "@/lib/contract/server/backends";
-import { setStoreForTests } from "@/lib/contract/server/select";
+import { getStore, setStoreForTests } from "@/lib/contract/server/select";
+import type { ContractStore } from "@/lib/contract/server/store";
 import { POST as login } from "@/app/api/admin/login/route";
 import { GET as sessionGet } from "@/app/api/admin/session/route";
 import { GET as settingsGet, PUT as settingsPut } from "@/app/api/admin/settings/route";
@@ -351,9 +352,20 @@ describe("저장소를 쓸 수 없을 때", () => {
     }
   });
 
-  it("DATABASE_URL이 있어도 DB 저장소가 아직 없으면 503", async () => {
+  it("DATABASE_URL이 있으면 DB 저장소를 고른다 (연결은 첫 질의 때)", () => {
     setStoreForTests(null);
-    process.env.DATABASE_URL = "postgres://example";
-    expect((await workerGet(req("/x"), ctx({ token: "t" }))).status).toBe(503);
+    process.env.DATABASE_URL = "postgres://user:pw@127.0.0.1:1/db";
+    const store = getStore();
+    expect(typeof store.insertSubmission).toBe("function");
+    expect(getStore()).toBe(store); // 한 번 만든 저장소를 재사용한다
+  });
+
+  it("DB 오류는 내용(접속 정보 등)을 숨긴 500으로 돌려준다", async () => {
+    const leaky = new Error("connection to postgres://user:secret-pw@host failed");
+    const broken = new Proxy({}, { get: () => () => Promise.reject(leaky) }) as ContractStore;
+    setStoreForTests(broken);
+    const res = await workerGet(req("/x"), ctx({ token: "t" }));
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await data(res))).not.toContain("secret-pw");
   });
 });

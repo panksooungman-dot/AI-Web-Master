@@ -1,0 +1,35 @@
+/*
+ * 계약서 종이(.paper) 스타일 — contract.html의 .paper 규칙 포팅.
+ * contractHTML()이 만든 마크업의 클래스(ct, bl, ck, sub, gap, who, ln, sg, sgw, wm, insapp)에 대응한다.
+ * 다크 모드에서도 종이는 흰색으로 고정한다. 이 파일은 계약서 화면(근로자·관리자)에서 import한다.
+ */
+.paper {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  color: #111;
+  font-family: "Noto Serif KR", "Batang", "Nanum Myeongjo", serif;
+  font-size: 14px;
+  line-height: 1.75;
+  padding: 22px 18px;
+  border: 1px solid #d6d9df;
+  border-radius: 6px;
+  word-break: keep-all;
+}
+.paper > * { position: relative; z-index: 1; }
+.paper > .wm { position: absolute; z-index: 0; left: 9%; top: 26%; width: 82%; height: auto; opacity: 0.15; pointer-events: none; }
+.paper p { margin: 0 0 5px; }
+.paper .sub { padding-left: 1.1em; margin: 0 0 3px; }
+.paper .ct { font-size: 1.7em; letter-spacing: 0.22em; text-align: center; margin: 2px 0 14px; font-weight: 700; }
+.paper .bl { display: inline-block; min-width: 6em; border-bottom: 1px solid #111; height: 1.1em; vertical-align: -2px; }
+.paper .ck { display: inline-block; min-width: 1.1em; text-align: center; }
+.paper .gap { margin-top: 14px; text-align: center; }
+.paper .who { margin-top: 10px; }
+.paper .who b { margin-right: 0.4em; }
+.paper .ln { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; padding-left: 4.2em; min-height: 2.3em; }
+.paper .sg { height: 42px; width: auto; margin-left: 4px; vertical-align: middle; }
+.paper .sgw { position: relative; display: inline-block; white-space: nowrap; }
+.paper .sgw .sg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); height: 50px; width: auto; max-width: none; margin: 0; pointer-events: none; }
+/* PDF·이미지 캡처용 고정 폭(A4 비율) */
+.paper.cap { width: 794px; font-size: 12.5px; line-height: 1.62; padding: 46px 54px; border: 0; border-radius: 0; }
+.cap .sgw .sg { height: 44px; }

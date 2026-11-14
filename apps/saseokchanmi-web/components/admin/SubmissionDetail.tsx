@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContractPaper } from "@/components/contract/ContractPaper";
+import { ExportButtons } from "@/components/contract/ExportButtons";
 import { fmtKST, type ContractConfig, type InsForm } from "@/lib/contract";
 import { adminApi } from "@/lib/contract/client/api";
 import { Badge, Field, Notice, Panel, btnDanger, btnPrimary, inputCls } from "./ui";
@@ -144,6 +145,15 @@ export function SubmissionDetail({ id }: { id: string }) {
         </div>
 
         <div className="space-y-5 lg:sticky lg:top-4">
+          <Panel title="계약서 저장">
+            <ExportButtons
+              config={s.configSnapshot}
+              name={s.name}
+              signedAt={s.signedAt}
+              data={{ name: s.name, phone: s.phone, address: s.address, sig: s.sig, ownerSig: s.ownerSig ?? undefined, signedAt: s.signedAt, countersignedAt: s.countersignedAt, insForm: s.insForm }}
+            />
+            <p className="mt-2 text-xs leading-relaxed text-muted">서명 당시 내용 그대로 저장됩니다. 사유서가 있으면 계약서 뒤 별도 쪽에 들어갑니다.</p>
+          </Panel>
           {!data.ownerSigned ? (
             <Panel title="사업주 서명">
               <p className="mb-3 text-xs leading-relaxed text-muted">공통 설정에 서명이 없어 직접 서명이 필요합니다. 서명하면 계약이 확정됩니다.</p>

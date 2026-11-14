@@ -33,6 +33,8 @@
 /* PDF·이미지 캡처용 고정 폭(A4 비율) */
 .paper.cap { width: 794px; font-size: 12.5px; line-height: 1.62; padding: 46px 54px; border: 0; border-radius: 0; }
 .cap .sgw .sg { height: 44px; }
+/* PDF·이미지 저장에서는 워터마크를 쪽마다 따로 그린다(client/export.ts). */
+.paper.cap > .wm { display: none; }
 
 /*
  * 근로자 사본 인쇄(→ PDF로 저장). body에 print-copy 클래스가 있을 때만 #copy-area 하나만 인쇄한다.

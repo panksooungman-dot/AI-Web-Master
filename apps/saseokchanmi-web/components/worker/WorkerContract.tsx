@@ -26,7 +26,7 @@ type Load =
   | { kind: "loading" }
   | { kind: "invalid"; message: string }
   | { kind: "submitted" }
-  | { kind: "open"; config: ContractConfig; hasOwnerSig: boolean };
+  | { kind: "open"; config: ContractConfig; version: string; hasOwnerSig: boolean };
 
 const STEPS = ["정보 입력", "내용 확인", "서명", "완료"] as const;
 const emptyIns = (): InsForm => ({ r: {}, other: "", birth: "", detail: "", c: [false, false, false] });
@@ -51,11 +51,11 @@ export function WorkerContract({ token }: { token: string }) {
 
   useEffect(() => {
     let alive = true;
-    void publicApi<{ state: "open" | "submitted"; config?: ContractConfig; hasOwnerSig?: boolean }>(`/api/contract/${token}`).then((r) => {
+    void publicApi<{ state: "open" | "submitted"; config?: ContractConfig; version?: string; hasOwnerSig?: boolean }>(`/api/contract/${token}`).then((r) => {
       if (!alive) return;
       if (!r.ok) setLoad({ kind: "invalid", message: r.status === 404 ? "계약서 링크를 확인해 주세요." : r.error });
       else if (r.state === "submitted") setLoad({ kind: "submitted" });
-      else setLoad({ kind: "open", config: r.config!, hasOwnerSig: !!r.hasOwnerSig });
+      else setLoad({ kind: "open", config: r.config!, version: r.version ?? "", hasOwnerSig: !!r.hasOwnerSig });
     });
     return () => {
       alive = false;
@@ -110,8 +110,22 @@ export function WorkerContract({ token }: { token: string }) {
     setStepError("");
     const r = await publicApi<{ signedAt: string; snapshot: ContractConfig }>(`/api/contract/${token}/submit`, {
       method: "POST",
-      body: { name, phone, address, sig, ...(off.length ? { insForm: ins } : {}) },
+      body: { name, phone, address, sig, version: load.kind === "open" ? load.version : "", ...(off.length ? { insForm: ins } : {}) },
     });
+    if (!r.ok && r.status === 412) {
+      // 읽는 동안 사업주가 계약 내용을 고쳤다: 새 내용을 불러와 처음부터 다시 확인·서명하게 한다.
+      const fresh = await publicApi<{ state: "open" | "submitted"; config?: ContractConfig; version?: string; hasOwnerSig?: boolean }>(`/api/contract/${token}`);
+      setBusy(false);
+      if (fresh.ok && fresh.state === "open") {
+        setLoad({ kind: "open", config: fresh.config!, version: fresh.version ?? "", hasOwnerSig: !!fresh.hasOwnerSig });
+        setAgree(false);
+        setSig("");
+        setIns(emptyIns());
+        go(2);
+        return setStepError(r.error);
+      }
+      return setStepError(r.error);
+    }
     setBusy(false);
     if (r.ok) {
       setDone({ signedAt: r.signedAt, snapshot: r.snapshot });
@@ -225,6 +239,7 @@ export function WorkerContract({ token }: { token: string }) {
               {off.map(([key, label]) => (
                 <fieldset key={key} className="space-y-1.5">
                   <legend className="text-sm font-semibold text-foreground">{label} 미적용 사유</legend>
+                  {key === "acc" ? <p className="text-xs leading-relaxed text-amber-900">산재보험은 근로시간이나 고용 형태와 관계없이 모든 근로자에게 적용되는 것이 원칙입니다. 미적용이 맞는지 사업주에게 먼저 확인해 주세요.</p> : null}
                   {Object.entries(INS_REASON).map(([n, text]) => (
                     <label key={n} className="flex items-start gap-2 text-sm text-foreground">
                       <input type="radio" name={`reason-${key}`} checked={ins.r[key] === n} onChange={() => setIns({ ...ins, r: { ...ins.r, [key]: n } })} className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]" />

@@ -12,7 +12,7 @@ import { GET as submissionsGet } from "@/app/api/admin/submissions/route";
 import { DELETE as subDelete, GET as subGet, PATCH as subPatch } from "@/app/api/admin/submissions/[id]/route";
 import { POST as countersign } from "@/app/api/admin/submissions/[id]/countersign/route";
 import { GET as workerGet } from "@/app/api/contract/[token]/route";
-import { POST as workerSubmit } from "@/app/api/contract/[token]/submit/route";
+import { POST as workerSubmitRaw } from "@/app/api/contract/[token]/submit/route";
 
 const ORIGIN = "http://localhost:4100";
 const PASSWORD = "correct-horse-battery";
@@ -50,6 +50,16 @@ async function createConfig(cookie: string, over: Record<string, unknown> = {}) 
   const res = await configsPost(req("/api/admin/configs", { method: "POST", cookie, body: { ...hourly, ...over } }));
   expect(res.status).toBe(201);
   return (await data(res)).token as string;
+}
+
+/** 근로자 화면처럼 먼저 계약 내용을 조회해 받은 버전을 제출에 실어 보낸다(본문에 version이 이미 있으면 그대로 쓴다). */
+async function workerSubmit(request: Request, c: { params: Promise<{ token: string }> }) {
+  const { token } = await c.params;
+  const body = await request.clone().json().catch(() => undefined);
+  const got = await workerGet(req("/x"), ctx({ token }));
+  const version = got.status === 200 ? (await data(got)).version : undefined;
+  const patched = body && typeof body === "object" && !("version" in body) && version ? { ...body, version } : body;
+  return workerSubmitRaw(new Request(request.url, { method: request.method, headers: request.headers, body: JSON.stringify(patched) }), c);
 }
 
 beforeEach(() => {
@@ -216,6 +226,46 @@ describe("직원 계약 만들기 → 근로자 제출 → 관리자 확인 (시
     expect(s.configSnapshot.wage).toBe("12000");
     expect(s.signedAt.startsWith("2000")).toBe(false);
     expect(s.ownerSig).toBeNull();
+  });
+
+  it("근로자가 읽은 뒤 사업주가 계약 내용을 고치면 제출을 막고(412), 새 내용을 다시 읽으면 제출된다", async () => {
+    const cookie = await adminCookie();
+    const token = await createConfig(cookie);
+    const viewed = (await data(await workerGet(req("/x"), ctx({ token })))).version as string;
+    expect(viewed).toMatch(/^[0-9a-f]{16}$/);
+
+    await configPatch(req("/x", { method: "PATCH", cookie, body: { wage: "15000" } }), ctx({ token }));
+    const stale = await workerSubmitRaw(req("/x", { method: "POST", body: { ...worker, version: viewed } }), ctx({ token }));
+    expect(stale.status).toBe(412);
+    const staleBody = await data(stale);
+    expect(staleBody).toMatchObject({ ok: false, code: "changed" });
+    expect(await getStore().getSubmissionByToken(token)).toBeNull(); // 서명이 저장되지 않았다
+
+    const fresh = (await data(await workerGet(req("/x"), ctx({ token })))).version as string;
+    expect(fresh).not.toBe(viewed);
+    const ok = await workerSubmitRaw(req("/x", { method: "POST", body: { ...worker, version: fresh } }), ctx({ token }));
+    expect(ok.status).toBe(201);
+    expect((await data(ok)).snapshot.wage).toBe("15000");
+  });
+
+  it("공통 설정(회사 정보)이 바뀌어도 버전이 달라지고, 사업주 서명·관리자 메모만 바뀌면 달라지지 않는다", async () => {
+    const cookie = await adminCookie();
+    const token = await createConfig(cookie);
+    const ver = async () => (await data(await workerGet(req("/x"), ctx({ token })))).version as string;
+    const v0 = await ver();
+    await settingsPut(req("/x", { method: "PUT", cookie, body: { ownerSig: OWNER_PNG } }));
+    await configPatch(req("/x", { method: "PATCH", cookie, body: { label: "다른 메모" } }), ctx({ token }));
+    expect(await ver()).toBe(v0);
+    await settingsPut(req("/x", { method: "PUT", cookie, body: { tel: "031-111-2222" } }));
+    expect(await ver()).not.toBe(v0);
+  });
+
+  it("버전 없이 보낸 제출은 거부한다", async () => {
+    const cookie = await adminCookie();
+    const token = await createConfig(cookie);
+    const r = await workerSubmitRaw(req("/x", { method: "POST", body: worker }), ctx({ token }));
+    expect(r.status).toBe(412);
+    expect(await getStore().getSubmissionByToken(token)).toBeNull();
   });
 
   it("존재하지 않는 토큰은 404", async () => {

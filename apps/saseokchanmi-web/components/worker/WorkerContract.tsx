@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ContractPaper } from "@/components/contract/ContractPaper";
+import { ExportButtons } from "@/components/contract/ExportButtons";
 import { SignaturePad } from "@/components/contract/SignaturePad";
 import { Field, Notice, btnOutline, btnPrimary, inputCls } from "@/components/admin/ui";
 import {
@@ -300,9 +301,14 @@ export function WorkerContract({ token }: { token: string }) {
           <div id="copy-area">
             <ContractPaper config={done.snapshot} data={{ ...view, sig, signedAt: done.signedAt }} />
           </div>
-          <button type="button" className={`${btnPrimary} w-full`} onClick={printCopy}>
-            사본 저장 (인쇄 화면에서 &lsquo;PDF로 저장&rsquo; 선택)
-          </button>
+          <ExportButtons config={done.snapshot} data={{ ...view, sig, signedAt: done.signedAt }} name={name} signedAt={done.signedAt} />
+          <p className="text-xs leading-relaxed text-muted">
+            카카오톡 등 앱 안에서 저장이 되지 않으면 오른쪽 위 메뉴에서 &lsquo;다른 브라우저로 열기&rsquo;를 선택한 뒤 다시 저장해 주세요. 그래도 안 되면{" "}
+            <button type="button" onClick={printCopy} className="font-semibold text-primary underline">
+              인쇄 화면
+            </button>
+            에서 &lsquo;PDF로 저장&rsquo;을 선택할 수 있습니다.
+          </p>
         </section>
       ) : null}
     </div>

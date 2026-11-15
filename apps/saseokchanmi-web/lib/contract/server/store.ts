@@ -1,3 +1,4 @@
+import type { PayrollInput, PayrollRates, PayStatement } from "../payroll";
 import type { CompanySettings, ContractConfig, InsForm } from "../types";
 
 /** 계약 데이터 저장소 인터페이스. 지금은 파일/메모리 구현이 있고, 운영용(Neon) 구현은 다음 단계에서 같은 인터페이스로 추가한다. */
@@ -31,6 +32,35 @@ export interface SubmissionRecord {
   ownerSig: string | null;
   countersignedAt: string | null;
   editedAt: string | null;
+}
+
+/** 급여 설정: 사업주가 정한 공제율과 근무시간 계산 방식. 공제율은 코드에 두지 않고 여기에만 저장한다. */
+export interface PayrollSettingsRecord {
+  rates: PayrollRates;
+  /** 약정 휴게시간을 근무시간에서 자동으로 뺄지 */
+  deductBreak: boolean;
+  updatedAt: string;
+}
+
+/** 확정된 급여명세서(직원·달마다 1건). 다시 확정하면 차수가 올라가고 이전 금액은 history에 남는다. */
+export interface PayslipRecord {
+  id: string;
+  submissionId: string;
+  /** 귀속 월 YYYY-MM */
+  month: string;
+  revision: number;
+  confirmedAt: string;
+  payDate: string;
+  employeeName: string;
+  /** 근로자를 특정하는 정보(근로 개시일·관리번호) */
+  employeeNo: string;
+  biz: string;
+  owner: string;
+  /** 확정 시점의 계산 결과. 이후 출퇴근 기록을 고쳐도 이 값은 바뀌지 않는다. */
+  statement: PayStatement;
+  /** 확정할 때 사업주가 넣은 값(조정·직접 입력) */
+  input: PayrollInput;
+  history: { revision: number; confirmedAt: string; gross: number; net: number }[];
 }
 
 export interface LoginAttempt {
@@ -103,6 +133,14 @@ export interface ContractStore {
   insertClockAudit(rec: ClockAuditRecord): Promise<void>;
   /** `from` 이상 `to` 미만(정정한 시각 기준)의 이력을 시간 오름차순으로. 조건은 모두 선택. */
   listClockAudit(opts?: { from?: string; to?: string; submissionId?: string }): Promise<ClockAuditRecord[]>;
+
+  getPayrollSettings(): Promise<PayrollSettingsRecord | null>;
+  putPayrollSettings(rec: PayrollSettingsRecord): Promise<void>;
+  /** 확정된 명세서 목록(귀속 월 내림차순, 같은 달은 확정 시각 내림차순). 조건은 모두 선택. */
+  listPayslips(opts?: { month?: string; submissionId?: string }): Promise<PayslipRecord[]>;
+  getPayslip(submissionId: string, month: string): Promise<PayslipRecord | null>;
+  /** 직원·달이 같으면 덮어쓴다(다시 확정). */
+  putPayslip(rec: PayslipRecord): Promise<void>;
 
   getAttempt(key: string): Promise<LoginAttempt | null>;
   putAttempt(a: LoginAttempt): Promise<void>;

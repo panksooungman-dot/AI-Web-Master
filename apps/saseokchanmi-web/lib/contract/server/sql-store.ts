@@ -1,4 +1,4 @@
-import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
+import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, PayrollSettingsRecord, PayslipRecord, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * Postgres(Neon) 저장소. 드라이버에 묶이지 않도록 "SQL 한 줄 실행기"만 받는다
@@ -70,6 +70,19 @@ export const SCHEMA: readonly string[] = [
     at text NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS clock_audit_submission_at ON clock_audit (submission_id, at)`,
+  `CREATE TABLE IF NOT EXISTS payroll_setting (
+    id integer PRIMARY KEY CHECK (id = 1),
+    data jsonb NOT NULL,
+    updated_at text NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS payslip (
+    id text PRIMARY KEY,
+    submission_id text NOT NULL,
+    month text NOT NULL,
+    data jsonb NOT NULL,
+    confirmed_at text NOT NULL,
+    UNIQUE (submission_id, month)
+  )`,
 ];
 
 const json = (v: unknown): string => JSON.stringify(v);
@@ -304,6 +317,38 @@ export function createSqlStore(run: SqlRunner): ContractStore {
       if (opts.submissionId) where.push(`submission_id = $${params.push(opts.submissionId)}`);
       const sql = `SELECT * FROM clock_audit${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY at ASC, id ASC`;
       return (await q(sql, params)).map(toClockAudit);
+    },
+
+    getPayrollSettings: async () => {
+      const r = (await q("SELECT * FROM payroll_setting WHERE id = 1"))[0];
+      return r ? ({ ...parse<Omit<PayrollSettingsRecord, "updatedAt">>(r.data), updatedAt: String(r.updated_at) } satisfies PayrollSettingsRecord) : null;
+    },
+    putPayrollSettings: async (rec) => {
+      const { updatedAt, ...data } = rec;
+      await q(
+        `INSERT INTO payroll_setting (id, data, updated_at) VALUES (1, $1::jsonb, $2)
+         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+        [json(data), updatedAt],
+      );
+    },
+    listPayslips: async (opts = {}) => {
+      const where: string[] = [];
+      const params: unknown[] = [];
+      if (opts.month) where.push(`month = $${params.push(opts.month)}`);
+      if (opts.submissionId) where.push(`submission_id = $${params.push(opts.submissionId)}`);
+      const sql = `SELECT * FROM payslip${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY month DESC, confirmed_at DESC`;
+      return (await q(sql, params)).map((r) => parse<PayslipRecord>(r.data));
+    },
+    getPayslip: async (submissionId, month) => {
+      const rows = await q("SELECT * FROM payslip WHERE submission_id = $1 AND month = $2", [submissionId, month]);
+      return rows[0] ? parse<PayslipRecord>(rows[0].data) : null;
+    },
+    putPayslip: async (rec) => {
+      await q(
+        `INSERT INTO payslip (id, submission_id, month, data, confirmed_at) VALUES ($1, $2, $3, $4::jsonb, $5)
+         ON CONFLICT (submission_id, month) DO UPDATE SET id = EXCLUDED.id, data = EXCLUDED.data, confirmed_at = EXCLUDED.confirmed_at`,
+        [rec.id, rec.submissionId, rec.month, json(rec), rec.confirmedAt],
+      );
     },
 
     getAttempt: async (key) => {

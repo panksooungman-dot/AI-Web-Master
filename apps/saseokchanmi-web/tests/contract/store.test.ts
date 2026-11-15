@@ -28,14 +28,14 @@ describe.skipIf(!url)("ContractStore — Postgres (실제 DB)", () => {
   storeSuite("Postgres", async () => {
     const p = await connect();
     // 시험마다 깨끗한 상태에서 시작한다.
-    await p.query("DROP TABLE IF EXISTS contract_config, company_settings, contract_submission, login_attempt, clock_pin, clock_event, clock_audit");
+    await p.query("DROP TABLE IF EXISTS contract_config, company_settings, contract_submission, login_attempt, clock_pin, clock_event, clock_audit, payroll_setting, payslip");
     return createSqlStore(async (text, params) => (await p.query(text, params)).rows);
   });
 
   it("스키마는 여러 번(그리고 동시에) 만들어도 안전하다", async () => {
     const p = await connect();
     const run = async (text: string, params?: unknown[]) => (await p.query(text, params)).rows;
-    await p.query("DROP TABLE IF EXISTS contract_config, company_settings, contract_submission, login_attempt, clock_pin, clock_event, clock_audit");
+    await p.query("DROP TABLE IF EXISTS contract_config, company_settings, contract_submission, login_attempt, clock_pin, clock_event, clock_audit, payroll_setting, payslip");
     await Promise.all([createSqlStore(run).listConfigs(), createSqlStore(run).listConfigs(), createSqlStore(run).getSettings()]);
     for (const ddl of SCHEMA) await run(ddl);
     expect(await createSqlStore(run).listSubmissions()).toEqual([]);

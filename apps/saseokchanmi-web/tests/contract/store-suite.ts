@@ -144,6 +144,32 @@ export function storeSuite(name: string, make: () => Promise<ContractStore>) {
       expect(await store.listClockAudit({ submissionId: "s1" })).toMatchObject([{ action: "add", before: null, after: { kind: "out" } }, { action: "delete", before: { kind: "in" }, after: null }]);
     });
 
+    it("급여: 설정 저장·덮어쓰기, 명세서는 직원·달마다 1건(다시 저장하면 덮어쓰기)이고 목록은 최신 달부터", async () => {
+      expect(await store.getPayrollSettings()).toBeNull();
+      const set = { rates: { pension: 4.5, health: 3.545, ltc: 12.95, employment: 0.9, localTax: 10 }, deductBreak: true, updatedAt: "2026-11-15T00:00:00.000Z" };
+      await store.putPayrollSettings(set);
+      expect(await store.getPayrollSettings()).toEqual(set);
+      await store.putPayrollSettings({ ...set, deductBreak: false, updatedAt: "2026-11-16T00:00:00.000Z" });
+      expect(await store.getPayrollSettings()).toMatchObject({ deductBreak: false, rates: { health: 3.545 } });
+
+      const stmt = (gross: number) => ({ month: "2026-10", earnings: [{ key: "base", label: "기본급", amount: gross, basis: "b" }], deductions: [], gross, deductionTotal: 0, net: gross, work: { workedMin: 60, workedDays: 1, scheduledMin: null, deductBreak: true }, blocking: [], notes: [] });
+      const slip = (id: string, submissionId: string, month: string, gross: number, confirmedAt: string) => ({
+        id, submissionId, month, revision: 1, confirmedAt, payDate: "2026-12-10", employeeName: "홍길동", employeeNo: "관리번호 s1", biz: "사색찬미한정식", owner: "황",
+        statement: { ...stmt(gross), month }, input: { payDate: "2026-12-10", extraEarnings: [], extraDeductions: [], override: {}, ack: false }, history: [],
+      });
+      expect(await store.getPayslip("s1", "2026-10")).toBeNull();
+      await store.putPayslip(slip("p1", "s1", "2026-10", 100000, "2026-11-01T00:00:00.000Z"));
+      await store.putPayslip(slip("p2", "s2", "2026-10", 200000, "2026-11-02T00:00:00.000Z"));
+      await store.putPayslip(slip("p3", "s1", "2026-11", 300000, "2026-12-01T00:00:00.000Z"));
+      expect((await store.listPayslips()).map((x) => x.id)).toEqual(["p3", "p2", "p1"]);
+      expect((await store.listPayslips({ month: "2026-10" })).map((x) => x.id)).toEqual(["p2", "p1"]);
+      expect((await store.listPayslips({ submissionId: "s1" })).map((x) => x.id)).toEqual(["p3", "p1"]);
+      // 같은 직원·달로 다시 저장하면 덮어쓴다(새 id·차수로).
+      await store.putPayslip({ ...slip("p1b", "s1", "2026-10", 150000, "2026-11-05T00:00:00.000Z"), revision: 2, history: [{ revision: 1, confirmedAt: "2026-11-01T00:00:00.000Z", gross: 100000, net: 100000 }] });
+      expect((await store.listPayslips({ month: "2026-10" })).length).toBe(2);
+      expect(await store.getPayslip("s1", "2026-10")).toMatchObject({ id: "p1b", revision: 2, statement: { gross: 150000 }, history: [{ revision: 1, gross: 100000 }] });
+    });
+
     it("로그인 시도 기록: 저장·덮어쓰기·삭제, 큰 숫자(밀리초 시각)도 숫자로 돌아온다", async () => {
       expect(await store.getAttempt("login:k")).toBeNull();
       const a = { key: "login:k", count: 3, firstAt: 1_763_100_000_000, lockedUntil: 0 };

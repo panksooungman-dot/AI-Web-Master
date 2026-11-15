@@ -75,7 +75,7 @@ export function buildSummary(input: { month: string; employees: SummaryInput[]; 
 }
 
 /** 엑셀에서 수식으로 실행될 수 있는 문자(=, +, -, @ 등)로 시작하는 글자는 앞에 작은따옴표를 붙여 글자로만 열리게 한다. */
-function csvCell(v: string | number | null): string {
+export function csvCell(v: string | number | null): string {
   if (v === null) return "";
   if (typeof v === "number") return String(v);
   const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;

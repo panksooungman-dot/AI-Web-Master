@@ -1,4 +1,4 @@
-import type { ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
+import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * Postgres(Neon) 저장소. 드라이버에 묶이지 않도록 "SQL 한 줄 실행기"만 받는다
@@ -59,6 +59,17 @@ export const SCHEMA: readonly string[] = [
     note text NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS clock_event_submission_at ON clock_event (submission_id, at)`,
+  `CREATE TABLE IF NOT EXISTS clock_audit (
+    id text PRIMARY KEY,
+    event_id text NOT NULL,
+    submission_id text NOT NULL,
+    action text NOT NULL,
+    before jsonb,
+    after jsonb,
+    reason text NOT NULL,
+    at text NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS clock_audit_submission_at ON clock_audit (submission_id, at)`,
 ];
 
 const json = (v: unknown): string => JSON.stringify(v);
@@ -96,6 +107,17 @@ const toClockEvent = (r: Row): ClockEventRecord => ({
   at: String(r.at),
   source: r.source === "admin" ? "admin" : "device",
   note: String(r.note ?? ""),
+});
+
+const toClockAudit = (r: Row): ClockAuditRecord => ({
+  id: String(r.id),
+  eventId: String(r.event_id),
+  submissionId: String(r.submission_id),
+  action: r.action === "delete" ? "delete" : r.action === "edit" ? "edit" : "add",
+  before: r.before === null || r.before === undefined ? null : parse(r.before),
+  after: r.after === null || r.after === undefined ? null : parse(r.after),
+  reason: String(r.reason),
+  at: String(r.at),
 });
 
 /** updateSubmission에서 바꿀 수 있는 항목 → [컬럼, jsonb 여부]. id·configToken은 바꾸지 않는다(파일 저장소와 동일). */
@@ -243,6 +265,45 @@ export function createSqlStore(run: SqlRunner): ContractStore {
     lastClockEvents: async () => {
       const rows = await q("SELECT DISTINCT ON (submission_id) * FROM clock_event ORDER BY submission_id, at DESC, id DESC");
       return Object.fromEntries(rows.map((r) => [String(r.submission_id), toClockEvent(r)]));
+    },
+
+    getClockEvent: async (id) => {
+      const rows = await q("SELECT * FROM clock_event WHERE id = $1", [id]);
+      return rows[0] ? toClockEvent(rows[0]) : null;
+    },
+    updateClockEvent: async (id, patch) => {
+      const cols: Record<string, string> = { kind: "kind", at: "at", source: "source", note: "note" };
+      const sets: string[] = [];
+      const params: unknown[] = [id];
+      for (const [key, col] of Object.entries(cols)) {
+        const v = (patch as Record<string, unknown>)[key];
+        if (v === undefined) continue;
+        sets.push(`${col} = $${params.push(v)}`);
+      }
+      const rows = sets.length ? await q(`UPDATE clock_event SET ${sets.join(", ")} WHERE id = $1 RETURNING *`, params) : await q("SELECT * FROM clock_event WHERE id = $1", [id]);
+      return rows[0] ? toClockEvent(rows[0]) : null;
+    },
+    deleteClockEvent: async (id) => (await q("DELETE FROM clock_event WHERE id = $1 RETURNING id", [id])).length > 0,
+    insertClockAudit: async (rec) => {
+      await q("INSERT INTO clock_audit (id, event_id, submission_id, action, before, after, reason, at) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8)", [
+        rec.id,
+        rec.eventId,
+        rec.submissionId,
+        rec.action,
+        rec.before === null ? null : json(rec.before),
+        rec.after === null ? null : json(rec.after),
+        rec.reason,
+        rec.at,
+      ]);
+    },
+    listClockAudit: async (opts = {}) => {
+      const where: string[] = [];
+      const params: unknown[] = [];
+      if (opts.from) where.push(`at >= $${params.push(opts.from)}`);
+      if (opts.to) where.push(`at < $${params.push(opts.to)}`);
+      if (opts.submissionId) where.push(`submission_id = $${params.push(opts.submissionId)}`);
+      const sql = `SELECT * FROM clock_audit${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY at ASC, id ASC`;
+      return (await q(sql, params)).map(toClockAudit);
     },
 
     getAttempt: async (key) => {

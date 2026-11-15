@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi } from "@/lib/contract/client/api";
 import { fmtClockDateTime } from "@/lib/contract/client/clock-format";
@@ -126,6 +127,9 @@ export function ClockAdmin() {
                   <button type="button" className={btnOutline} disabled={busy} onClick={() => savePin(e.id, true)}>
                     자동 발급
                   </button>
+                  <Link href={`/admin/clock/sheet?id=${e.id}`} className={btnOutline}>
+                    월간 기록부
+                  </Link>
                   {e.hasPin ? (
                     <button type="button" className={btnDanger} disabled={busy} onClick={() => removePin(e.id, e.name)}>
                       PIN 삭제

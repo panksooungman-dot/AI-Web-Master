@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
+import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * 파일/메모리 저장소 (개발·테스트용). 전체 데이터를 JSON 하나로 보관하고,
@@ -15,9 +15,10 @@ export interface DbShape {
   attempts: Record<string, LoginAttempt>;
   clockPins: Record<string, ClockPinRecord>;
   clockEvents: Record<string, ClockEventRecord>;
+  clockAudit: Record<string, ClockAuditRecord>;
 }
 
-export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {} });
+export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {}, clockAudit: {} });
 
 export interface Backend {
   read(): Promise<DbShape>;
@@ -133,6 +134,28 @@ export function createStore(backend: Backend): ContractStore {
         }
         return last;
       }),
+
+    getClockEvent: (id) => read((db) => db.clockEvents[id] ?? null),
+    updateClockEvent: (id, patch) =>
+      mutate((db) => {
+        const cur = db.clockEvents[id];
+        if (!cur) return null;
+        db.clockEvents[id] = { ...cur, ...patch, id: cur.id, submissionId: cur.submissionId };
+        return db.clockEvents[id];
+      }),
+    deleteClockEvent: (id) =>
+      mutate((db) => {
+        if (!db.clockEvents[id]) return false;
+        delete db.clockEvents[id];
+        return true;
+      }),
+    insertClockAudit: (rec) => mutate((db) => void (db.clockAudit[rec.id] = rec)),
+    listClockAudit: (opts = {}) =>
+      read((db) =>
+        Object.values(db.clockAudit)
+          .filter((a) => (!opts.from || a.at >= opts.from) && (!opts.to || a.at < opts.to) && (!opts.submissionId || a.submissionId === opts.submissionId))
+          .sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id)),
+      ),
 
     getAttempt: (key) => read((db) => db.attempts[key] ?? null),
     putAttempt: (a) => mutate((db) => void (db.attempts[a.key] = a)),

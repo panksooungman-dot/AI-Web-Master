@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { fetchWindow, isMonth, monthRange, parseKstLocal } from "../clock-sheet";
 import { getAuthConfig, readCookie } from "./auth";
 import { newId } from "./service";
 import { isOwnerSigned } from "./status";
@@ -148,4 +149,79 @@ export async function recentEvents(store: ContractStore, days = 7, now: Date = n
   const [events, subs] = await Promise.all([store.listClockEvents({ from }), store.listSubmissions()]);
   const names = new Map(subs.map((s) => [s.id, s.name]));
   return events.map((e) => ({ ...e, name: names.get(e.submissionId) ?? "(삭제된 직원)" })).reverse();
+}
+
+// ── 월간 기록부·관리자 정정 ──────────────────────────
+
+const MAX_REASON = 200;
+/** 관리자가 입력하는 시각은 지금보다 이 시간 넘게 미래일 수 없다. */
+const FUTURE_SLACK_MS = 5 * 60 * 1000;
+
+const reasonOf = (v: unknown): string => (typeof v === "string" ? v.trim().slice(0, MAX_REASON) : "");
+const snap = (e: Pick<ClockEventRecord, "kind" | "at">) => ({ kind: e.kind, at: e.at });
+
+/** 월간 기록부에 필요한 데이터: 직원, 계약 스냅샷(근무표·시급), 이 달 앞뒤 기록, 이 달 정정 이력. */
+export async function sheetData(store: ContractStore, submissionId: string, month: string): Promise<ClockResult> {
+  if (!isMonth(month)) return { status: 400, body: { ok: false, error: "월은 YYYY-MM 형식이어야 합니다." } };
+  const sub = await store.getSubmission(submissionId);
+  if (!sub || !isOwnerSigned(sub)) return { status: 404, body: { ok: false, error: "확정된 계약의 직원을 찾을 수 없습니다." } };
+  const win = fetchWindow(month);
+  const r = monthRange(month);
+  const [events, audit] = await Promise.all([store.listClockEvents({ submissionId, from: win.from, to: win.to }), store.listClockAudit({ submissionId, from: r.from, to: r.to })]);
+  const c = sub.configSnapshot;
+  const config = { type: c.type, wageType: c.wageType, wage: c.wage, start: c.start, useSched: c.useSched, sched: c.sched, workS: c.workS, workE: c.workE, brkS: c.brkS, brkE: c.brkE, days: c.days };
+  return { status: 200, body: { ok: true, employee: { id: sub.id, name: sub.name }, biz: c.biz, config, events, audit, month } };
+}
+
+/** 관리자가 빠진 출퇴근 기록을 직접 넣는다. 사유가 필수이고 이력이 남는다. */
+export async function addEvent(store: ContractStore, input: unknown, now: Date = new Date()): Promise<ClockResult> {
+  const b = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
+  const kind = b.kind === "in" || b.kind === "out" ? b.kind : null;
+  const at = parseKstLocal(b.at);
+  const reason = reasonOf(b.reason);
+  const submissionId = typeof b.submissionId === "string" ? b.submissionId : "";
+  if (!kind || !at) return { status: 400, body: { ok: false, error: "구분(출근/퇴근)과 날짜·시각을 확인해 주세요." } };
+  if (!reason) return { status: 400, body: { ok: false, error: "정정 사유를 입력해 주세요." } };
+  if (Date.parse(at) > now.getTime() + FUTURE_SLACK_MS) return { status: 400, body: { ok: false, error: "미래 시각은 입력할 수 없습니다." } };
+  const sub = await store.getSubmission(submissionId);
+  if (!sub || !isOwnerSigned(sub)) return { status: 404, body: { ok: false, error: "확정된 계약의 직원을 찾을 수 없습니다." } };
+  const rec: ClockEventRecord = { id: newId(), submissionId, kind, at, source: "admin", note: reason };
+  await store.insertClockEvent(rec);
+  await store.insertClockAudit({ id: newId(), eventId: rec.id, submissionId, action: "add", before: null, after: snap(rec), reason, at: now.toISOString() });
+  return { status: 201, body: { ok: true, event: rec } };
+}
+
+/** 기록의 시각·구분을 고친다. 고치기 전 내용과 사유를 이력에 남긴다. */
+export async function editEvent(store: ContractStore, eventId: string, input: unknown, now: Date = new Date()): Promise<ClockResult> {
+  const b = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
+  const reason = reasonOf(b.reason);
+  if (!reason) return { status: 400, body: { ok: false, error: "정정 사유를 입력해 주세요." } };
+  const patch: { kind?: "in" | "out"; at?: string } = {};
+  if (b.kind !== undefined) {
+    if (b.kind !== "in" && b.kind !== "out") return { status: 400, body: { ok: false, error: "구분은 출근 또는 퇴근이어야 합니다." } };
+    patch.kind = b.kind;
+  }
+  if (b.at !== undefined) {
+    const at = parseKstLocal(b.at);
+    if (!at) return { status: 400, body: { ok: false, error: "날짜·시각 형식이 올바르지 않습니다." } };
+    if (Date.parse(at) > now.getTime() + FUTURE_SLACK_MS) return { status: 400, body: { ok: false, error: "미래 시각은 입력할 수 없습니다." } };
+    patch.at = at;
+  }
+  if (patch.kind === undefined && patch.at === undefined) return { status: 400, body: { ok: false, error: "바꿀 내용이 없습니다." } };
+  const before = await store.getClockEvent(eventId);
+  if (!before) return { status: 404, body: { ok: false, error: "기록을 찾을 수 없습니다." } };
+  const after = await store.updateClockEvent(eventId, { ...patch, source: "admin", note: reason });
+  if (!after) return { status: 404, body: { ok: false, error: "기록을 찾을 수 없습니다." } };
+  await store.insertClockAudit({ id: newId(), eventId, submissionId: before.submissionId, action: "edit", before: snap(before), after: snap(after), reason, at: now.toISOString() });
+  return { status: 200, body: { ok: true, event: after } };
+}
+
+/** 기록을 삭제한다. 삭제한 내용은 이력에 남는다. */
+export async function removeEvent(store: ContractStore, eventId: string, input: unknown, now: Date = new Date()): Promise<ClockResult> {
+  const reason = reasonOf(typeof input === "object" && input !== null ? (input as Record<string, unknown>).reason : "");
+  if (!reason) return { status: 400, body: { ok: false, error: "삭제 사유를 입력해 주세요." } };
+  const before = await store.getClockEvent(eventId);
+  if (!before || !(await store.deleteClockEvent(eventId))) return { status: 404, body: { ok: false, error: "기록을 찾을 수 없습니다." } };
+  await store.insertClockAudit({ id: newId(), eventId, submissionId: before.submissionId, action: "delete", before: snap(before), after: null, reason, at: now.toISOString() });
+  return { status: 200, body: { ok: true } };
 }

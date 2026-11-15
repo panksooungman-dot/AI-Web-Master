@@ -123,6 +123,27 @@ export function storeSuite(name: string, make: () => Promise<ContractStore>) {
       expect(last.s2).toMatchObject({ id: "e3", kind: "in" });
     });
 
+    it("출퇴근 기록 수정·삭제와 정정 이력", async () => {
+      await store.insertClockEvent({ id: "e1", submissionId: "s1", kind: "in", at: "2026-11-15T01:00:00.000Z", source: "device", note: "" });
+      expect(await store.getClockEvent("nope")).toBeNull();
+      expect(await store.getClockEvent("e1")).toMatchObject({ kind: "in", source: "device" });
+      const upd = await store.updateClockEvent("e1", { at: "2026-11-15T00:30:00.000Z", source: "admin", note: "정정" });
+      expect(upd).toEqual({ id: "e1", submissionId: "s1", kind: "in", at: "2026-11-15T00:30:00.000Z", source: "admin", note: "정정" });
+      expect(await store.updateClockEvent("e1", {})).toMatchObject({ at: "2026-11-15T00:30:00.000Z" });
+      expect(await store.updateClockEvent("nope", { kind: "out" })).toBeNull();
+      expect(await store.deleteClockEvent("e1")).toBe(true);
+      expect(await store.deleteClockEvent("e1")).toBe(false);
+
+      const a = (id: string, at: string, submissionId = "s1") => ({ id, eventId: "e1", submissionId, action: "edit" as const, before: { kind: "in" as const, at: "x" }, after: { kind: "out" as const, at: "y" }, reason: "사유", at });
+      await store.insertClockAudit({ ...a("a2", "2026-11-16T00:00:00.000Z"), action: "delete", after: null });
+      await store.insertClockAudit({ ...a("a1", "2026-11-15T00:00:00.000Z"), action: "add", before: null });
+      await store.insertClockAudit(a("a3", "2026-11-17T00:00:00.000Z", "s2"));
+      expect((await store.listClockAudit()).map((x) => x.id)).toEqual(["a1", "a2", "a3"]);
+      expect((await store.listClockAudit({ submissionId: "s1" })).map((x) => x.id)).toEqual(["a1", "a2"]);
+      expect((await store.listClockAudit({ from: "2026-11-16T00:00:00.000Z", to: "2026-11-17T00:00:00.000Z" })).map((x) => x.id)).toEqual(["a2"]);
+      expect(await store.listClockAudit({ submissionId: "s1" })).toMatchObject([{ action: "add", before: null, after: { kind: "out" } }, { action: "delete", before: { kind: "in" }, after: null }]);
+    });
+
     it("로그인 시도 기록: 저장·덮어쓰기·삭제, 큰 숫자(밀리초 시각)도 숫자로 돌아온다", async () => {
       expect(await store.getAttempt("login:k")).toBeNull();
       const a = { key: "login:k", count: 3, firstAt: 1_763_100_000_000, lockedUntil: 0 };

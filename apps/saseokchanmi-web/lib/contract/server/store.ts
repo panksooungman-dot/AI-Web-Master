@@ -58,6 +58,19 @@ export interface ClockEventRecord {
   note: string;
 }
 
+/** 관리자가 출퇴근 기록을 추가·수정·삭제한 이력. 수정 전/후 내용과 사유를 남겨서 나중에 무엇이 바뀌었는지 확인할 수 있다. */
+export interface ClockAuditRecord {
+  id: string;
+  eventId: string;
+  submissionId: string;
+  action: "add" | "edit" | "delete";
+  before: Pick<ClockEventRecord, "kind" | "at"> | null;
+  after: Pick<ClockEventRecord, "kind" | "at"> | null;
+  reason: string;
+  /** 정정한 시각(서버 시각, ISO) */
+  at: string;
+}
+
 export interface ContractStore {
   listConfigs(): Promise<ConfigRecord[]>;
   getConfig(token: string): Promise<ConfigRecord | null>;
@@ -84,6 +97,12 @@ export interface ContractStore {
   listClockEvents(opts?: { from?: string; to?: string; submissionId?: string }): Promise<ClockEventRecord[]>;
   /** 직원별 가장 최근 기록 1건(현재 출근 중인지 판단용). */
   lastClockEvents(): Promise<Record<string, ClockEventRecord>>;
+  getClockEvent(id: string): Promise<ClockEventRecord | null>;
+  updateClockEvent(id: string, patch: Partial<Pick<ClockEventRecord, "kind" | "at" | "source" | "note">>): Promise<ClockEventRecord | null>;
+  deleteClockEvent(id: string): Promise<boolean>;
+  insertClockAudit(rec: ClockAuditRecord): Promise<void>;
+  /** `from` 이상 `to` 미만(정정한 시각 기준)의 이력을 시간 오름차순으로. 조건은 모두 선택. */
+  listClockAudit(opts?: { from?: string; to?: string; submissionId?: string }): Promise<ClockAuditRecord[]>;
 
   getAttempt(key: string): Promise<LoginAttempt | null>;
   putAttempt(a: LoginAttempt): Promise<void>;

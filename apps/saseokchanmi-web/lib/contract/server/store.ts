@@ -40,6 +40,24 @@ export interface LoginAttempt {
   lockedUntil: number;
 }
 
+/** 직원(확정된 계약 건)별 출퇴근 PIN. PIN 자체는 저장하지 않고 salt와 해시만 보관한다. */
+export interface ClockPinRecord {
+  submissionId: string;
+  hash: string;
+  salt: string;
+  updatedAt: string;
+}
+
+/** 출퇴근 기록 한 건. `at`은 서버 시각(ISO). 관리자가 정정해 넣은 기록은 source가 "admin"이다. */
+export interface ClockEventRecord {
+  id: string;
+  submissionId: string;
+  kind: "in" | "out";
+  at: string;
+  source: "device" | "admin";
+  note: string;
+}
+
 export interface ContractStore {
   listConfigs(): Promise<ConfigRecord[]>;
   getConfig(token: string): Promise<ConfigRecord | null>;
@@ -56,6 +74,16 @@ export interface ContractStore {
   insertSubmission(rec: SubmissionRecord): Promise<boolean>;
   updateSubmission(id: string, patch: Partial<SubmissionRecord>): Promise<SubmissionRecord | null>;
   deleteSubmission(id: string): Promise<boolean>;
+
+  listClockPins(): Promise<ClockPinRecord[]>;
+  getClockPin(submissionId: string): Promise<ClockPinRecord | null>;
+  putClockPin(rec: ClockPinRecord): Promise<void>;
+  deleteClockPin(submissionId: string): Promise<boolean>;
+  insertClockEvent(rec: ClockEventRecord): Promise<void>;
+  /** `from` 이상 `to` 미만(ISO 문자열)의 기록을 시간 오름차순으로. 조건은 모두 선택. */
+  listClockEvents(opts?: { from?: string; to?: string; submissionId?: string }): Promise<ClockEventRecord[]>;
+  /** 직원별 가장 최근 기록 1건(현재 출근 중인지 판단용). */
+  lastClockEvents(): Promise<Record<string, ClockEventRecord>>;
 
   getAttempt(key: string): Promise<LoginAttempt | null>;
   putAttempt(a: LoginAttempt): Promise<void>;

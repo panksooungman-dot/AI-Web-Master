@@ -3,10 +3,10 @@
 import { usePathname } from "next/navigation";
 
 /**
- * 근로계약서 관리자(/admin)·근로자(/contract) 화면에서는 사이트 머리글·바닥글·떠 있는 버튼·방문 통계 스크립트를 쓰지 않는다.
+ * 근로계약서 관리자(/admin)·근로자(/contract)·출퇴근(/clock) 화면에서는 사이트 머리글·바닥글·떠 있는 버튼·방문 통계 스크립트를 쓰지 않는다.
  * 계약 링크의 주소에는 접근 토큰이 들어 있고 화면에는 개인정보가 나오므로, 방문 통계 서비스로 새어 나가면 안 된다.
  */
-const PLAIN_PREFIXES = ["/admin", "/contract"];
+const PLAIN_PREFIXES = ["/admin", "/contract", "/clock"];
 
 export const isPlainPath = (pathname: string | null): boolean => !!pathname && PLAIN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 

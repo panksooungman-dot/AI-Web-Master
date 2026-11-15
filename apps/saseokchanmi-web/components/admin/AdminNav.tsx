@@ -7,6 +7,7 @@ import { LogoutButton } from "./LogoutButton";
 const LINKS = [
   { href: "/admin", label: "직원 계약", match: (p: string) => p === "/admin" || p.startsWith("/admin/contracts") },
   { href: "/admin/submissions", label: "제출 현황", match: (p: string) => p.startsWith("/admin/submissions") },
+  { href: "/admin/clock", label: "출퇴근", match: (p: string) => p.startsWith("/admin/clock") },
   { href: "/admin/settings", label: "공통 설정", match: (p: string) => p.startsWith("/admin/settings") },
 ];
 

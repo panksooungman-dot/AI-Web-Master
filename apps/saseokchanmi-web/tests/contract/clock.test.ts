@@ -125,7 +125,7 @@ describe("직원 목록과 PIN 발급", () => {
     expect((await setPin(store, "b", "1234")).status).toBe(404); // 확정 전에는 PIN을 만들 수 없다
     expect((await setPin(store, "a", "12")).status).toBe(400);
     expect((await setPin(store, "a", "1234")).status).toBe(200);
-    expect(await roster(store)).toEqual([{ id: "a", name: "홍길동", status: "out" }]);
+    expect(await roster(store)).toEqual([{ id: "a", name: "홍길동", status: "out", stale: false }]);
   });
 
   it("자동 발급은 4자리 숫자를 한 번만 돌려주고, 저장된 PIN으로 출퇴근이 된다", async () => {
@@ -184,6 +184,35 @@ describe("출근·퇴근 기록", () => {
     const state = await punch(store, { id: "a", pin: "1234", kind: "in" }, at(600));
     expect(state).toMatchObject({ status: 409, body: { code: "state", status: "in" } }); // 이미 출근 상태
     expect(await store.listClockEvents({ submissionId: "a" })).toHaveLength(1);
+  });
+
+  it("중복 안내 문구에는 다시 누를 수 있는 남은 초가 들어간다", async () => {
+    await punch(store, { id: "a", pin: "1234", kind: "in" }, at(0));
+    const r = await punch(store, { id: "a", pin: "1234", kind: "out" }, at(5));
+    expect(r.body.error).toBe("방금 기록되었습니다. 25초 뒤에 다시 누를 수 있습니다.");
+    expect((await punch(store, { id: "a", pin: "1234", kind: "out" }, at(29.5 * 1))).body.error).toContain("1초");
+    expect((await punch(store, { id: "a", pin: "1234", kind: "out" }, at(31))).status).toBe(201); // 30초가 지나면 기록된다
+  });
+
+  it("퇴근을 깜빡한 다음 날 출근은 퇴근으로 잘못 기록되지 않고 새 출근으로 받는다", async () => {
+    await punch(store, { id: "a", pin: "1234", kind: "in" }, at(0)); // 어제 출근, 퇴근을 안 찍음
+    const H = 3600;
+    expect((await roster(store, at(15 * H)))[0]).toMatchObject({ status: "in", stale: false }); // 15시간 뒤에도 근무 중으로 본다
+    const next = at(26 * H); // 다음 날 아침
+    expect((await roster(store, next))[0]).toMatchObject({ status: "out", stale: true });
+    expect((await adminEmployees(store, next))[0]).toMatchObject({ status: "out", stale: true });
+
+    // 퇴근 버튼(옛 화면)을 누르면 거부되고, 퇴근 기록이 없음을 안내한다.
+    const wrong = await punch(store, { id: "a", pin: "1234", kind: "out" }, next);
+    expect(wrong).toMatchObject({ status: 409, body: { code: "stale", status: "out" } });
+    expect(String(wrong.body.error)).toContain("전 근무의 퇴근 기록이 없습니다");
+    expect(await store.listClockEvents({ submissionId: "a" })).toHaveLength(1);
+
+    // 출근은 새 출근으로 기록된다. 전 근무는 퇴근 기록 없이 그대로 남아 월간 기록부에서 정정할 수 있다.
+    expect((await punch(store, { id: "a", pin: "1234", kind: "in" }, next)).status).toBe(201);
+    expect((await store.listClockEvents({ submissionId: "a" })).map((e) => e.kind)).toEqual(["in", "in"]);
+    expect((await roster(store, at(27 * H)))[0]).toMatchObject({ status: "in", stale: false });
+    expect((await punch(store, { id: "a", pin: "1234", kind: "out" }, at(35 * H))).status).toBe(201); // 이후 퇴근은 정상
   });
 
   it("PIN이 틀리면 기록되지 않고, 5번 틀리면 10분간 잠기며, 새 PIN을 만들면 풀린다", async () => {

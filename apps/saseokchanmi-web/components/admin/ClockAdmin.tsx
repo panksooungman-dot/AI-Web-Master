@@ -6,7 +6,7 @@ import { adminApi } from "@/lib/contract/client/api";
 import { fmtClockDateTime } from "@/lib/contract/client/clock-format";
 import { Badge, btnDanger, btnOutline, btnPrimary, inputCls, Notice, Panel } from "./ui";
 
-type Employee = { id: string; name: string; hasPin: boolean; status: "in" | "out"; lastAt: string | null };
+type Employee = { id: string; name: string; hasPin: boolean; status: "in" | "out"; stale: boolean; lastAt: string | null };
 type Ev = { id: string; name: string; kind: "in" | "out"; at: string; source: "device" | "admin" };
 
 /** 출퇴근 관리: 기기 등록, 직원 PIN 발급, 최근 기록. */
@@ -106,7 +106,7 @@ export function ClockAdmin() {
               <li key={e.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
                 <div className="flex min-w-40 items-center gap-2">
                   <span className="font-semibold text-foreground">{e.name}</span>
-                  <Badge tone={e.status === "in" ? "ok" : "neutral"}>{e.status === "in" ? "출근 중" : "퇴근"}</Badge>
+                  <Badge tone={e.status === "in" ? "ok" : e.stale ? "warn" : "neutral"}>{e.status === "in" ? "출근 중" : e.stale ? "전 근무 퇴근 기록 없음" : "퇴근"}</Badge>
                   <Badge tone={e.hasPin ? "ok" : "warn"}>{e.hasPin ? "PIN 있음" : "PIN 없음"}</Badge>
                 </div>
                 <div className="flex flex-1 flex-wrap items-center gap-2">

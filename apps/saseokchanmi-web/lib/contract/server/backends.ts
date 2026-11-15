@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
+import type { ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * 파일/메모리 저장소 (개발·테스트용). 전체 데이터를 JSON 하나로 보관하고,
@@ -13,9 +13,11 @@ export interface DbShape {
   settings: SettingsRecord | null;
   submissions: Record<string, SubmissionRecord>;
   attempts: Record<string, LoginAttempt>;
+  clockPins: Record<string, ClockPinRecord>;
+  clockEvents: Record<string, ClockEventRecord>;
 }
 
-export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {} });
+export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {} });
 
 export interface Backend {
   read(): Promise<DbShape>;
@@ -104,6 +106,32 @@ export function createStore(backend: Backend): ContractStore {
         if (!db.submissions[id]) return false;
         delete db.submissions[id];
         return true;
+      }),
+
+    listClockPins: () => read((db) => Object.values(db.clockPins)),
+    getClockPin: (id) => read((db) => db.clockPins[id] ?? null),
+    putClockPin: (rec) => mutate((db) => void (db.clockPins[rec.submissionId] = rec)),
+    deleteClockPin: (id) =>
+      mutate((db) => {
+        if (!db.clockPins[id]) return false;
+        delete db.clockPins[id];
+        return true;
+      }),
+    insertClockEvent: (rec) => mutate((db) => void (db.clockEvents[rec.id] = rec)),
+    listClockEvents: (opts = {}) =>
+      read((db) =>
+        Object.values(db.clockEvents)
+          .filter((e) => (!opts.from || e.at >= opts.from) && (!opts.to || e.at < opts.to) && (!opts.submissionId || e.submissionId === opts.submissionId))
+          .sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id)),
+      ),
+    lastClockEvents: () =>
+      read((db) => {
+        const last: Record<string, ClockEventRecord> = {};
+        for (const e of Object.values(db.clockEvents)) {
+          const cur = last[e.submissionId];
+          if (!cur || e.at > cur.at || (e.at === cur.at && e.id > cur.id)) last[e.submissionId] = e;
+        }
+        return last;
       }),
 
     getAttempt: (key) => read((db) => db.attempts[key] ?? null),

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminApi } from "@/lib/contract/client/api";
-import { fmtClockDateTime } from "@/lib/contract/client/clock-format";
+import { buildPresence, fmtElapsed } from "@/lib/contract/clock-presence";
+import { fmtClockDateTime, fmtClockTime } from "@/lib/contract/client/clock-format";
 import { Badge, btnDanger, btnOutline, btnPrimary, inputCls, Notice, Panel } from "./ui";
 
 type Employee = { id: string; name: string; hasPin: boolean; status: "in" | "out"; stale: boolean; lastAt: string | null };
+const REFRESH_MS = 60_000;
 type Ev = { id: string; name: string; kind: "in" | "out"; at: string; source: "device" | "admin" };
 
 /** 출퇴근 관리: 기기 등록, 직원 PIN 발급, 최근 기록. */
@@ -27,9 +29,21 @@ export function ClockAdmin() {
     } else setNotice({ tone: "error", text: e.error });
   }, []);
 
+  const [now, setNow] = useState(0);
   useEffect(() => {
-    queueMicrotask(() => void load());
+    queueMicrotask(() => {
+      setNow(Date.now());
+      void load();
+    });
+    // 근무 현황은 1분마다 새로 불러와 경과 시간과 출퇴근 변화를 반영한다.
+    const t = setInterval(() => {
+      setNow(Date.now());
+      void load();
+    }, REFRESH_MS);
+    return () => clearInterval(t);
   }, [load]);
+
+  const presence = useMemo(() => buildPresence(employees, now), [employees, now]);
 
   async function device(method: "POST" | "DELETE") {
     setBusy(true);
@@ -78,6 +92,33 @@ export function ClockAdmin() {
           전 직원 월간 요약 보기
         </Link>
       </div>
+
+      <Panel title="지금 근무 중" aside={<Badge tone={presence.working.length ? "ok" : "neutral"}>{`${presence.working.length}명 / 출퇴근 가능 ${presence.total}명`}</Badge>}>
+        {presence.working.length === 0 ? (
+          <p className="text-sm text-muted">지금 출근 중인 직원이 없습니다.</p>
+        ) : (
+          <ul className="divide-y divide-secondary">
+            {presence.working.map((w) => (
+              <li key={w.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5">
+                <Link href={`/admin/clock/sheet?id=${w.id}`} className="font-semibold text-primary underline underline-offset-2">
+                  {w.name}
+                </Link>
+                <span className="text-sm text-foreground tabular-nums">
+                  {fmtClockTime(w.since)} 출근 · <span className="text-muted">{fmtElapsed(w.elapsedMin)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {presence.missing.length ? (
+          <div className="mt-3">
+            <Notice tone="error">
+              퇴근 기록이 없는 직원: {presence.missing.map((m) => `${m.name}(${fmtClockDateTime(m.since)} 출근)`).join(", ")}. 월간 기록부에서 퇴근 시각을 정정해 주세요.
+            </Notice>
+          </div>
+        ) : null}
+        <p className="mt-3 text-xs text-muted">1분마다 자동으로 새로 불러옵니다.</p>
+      </Panel>
 
       <Panel title="출퇴근 기기" aside={registered === null ? null : <Badge tone={registered ? "ok" : "warn"}>{registered ? "이 기기는 등록됨" : "이 기기는 미등록"}</Badge>}>
         <div className="space-y-3 text-sm leading-relaxed text-foreground">

@@ -63,12 +63,14 @@ async function sendSolapi(env: Env, text: string, fetchFn: typeof fetch): Promis
   }
 }
 
-/** 켜져 있는 채널로 보내고 채널별 결과를 돌려준다. 채널이 없으면 빈 배열. */
-export async function notifySubmission(name: string, env: Env = process.env, fetchFn: typeof fetch = fetch): Promise<NotifyResult[]> {
-  const text = buildMessage(name);
+/** 켜져 있는 채널로 같은 글을 보내고 채널별 결과를 돌려준다. 채널이 없으면 빈 배열. */
+export async function notifyOwner(text: string, env: Env = process.env, fetchFn: typeof fetch = fetch): Promise<NotifyResult[]> {
   const jobs: Promise<NotifyResult>[] = [];
   const slack = env.SLACK_WEBHOOK_URL?.trim();
   if (slack && slack.startsWith("https://hooks.slack.com/")) jobs.push(sendSlack(slack, text, fetchFn));
   if (env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SOLAPI_FROM && env.SOLAPI_TO) jobs.push(sendSolapi(env, text, fetchFn));
   return Promise.all(jobs);
 }
+
+/** 서명 제출 알림. */
+export const notifySubmission = (name: string, env: Env = process.env, fetchFn: typeof fetch = fetch): Promise<NotifyResult[]> => notifyOwner(buildMessage(name), env, fetchFn);

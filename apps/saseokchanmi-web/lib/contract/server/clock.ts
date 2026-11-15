@@ -1,8 +1,9 @@
 import { createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { fetchWindow, isMonth, monthRange, parseKstLocal } from "../clock-sheet";
 import { getAuthConfig, readCookie } from "./auth";
-import { newId } from "./service";
+import { loadSettings, newId } from "./service";
 import { isOwnerSigned } from "./status";
+import type { ContractConfig } from "../types";
 import type { ClockEventRecord, ContractStore, SubmissionRecord } from "./store";
 
 /**
@@ -184,8 +185,26 @@ export async function sheetData(store: ContractStore, submissionId: string, mont
   const r = monthRange(month);
   const [events, audit] = await Promise.all([store.listClockEvents({ submissionId, from: win.from, to: win.to }), store.listClockAudit({ submissionId, from: r.from, to: r.to })]);
   const c = sub.configSnapshot;
-  const config = { type: c.type, wageType: c.wageType, wage: c.wage, start: c.start, useSched: c.useSched, sched: c.sched, workS: c.workS, workE: c.workE, brkS: c.brkS, brkE: c.brkE, days: c.days };
-  return { status: 200, body: { ok: true, employee: { id: sub.id, name: sub.name }, biz: c.biz, config, events, audit, month } };
+  return { status: 200, body: { ok: true, employee: { id: sub.id, name: sub.name }, biz: c.biz, config: sheetConfigOf(c), events, audit, month } };
+}
+
+/** 기록부 계산에 필요한 계약 항목만 추린다(서명·연락처·주소 등은 내보내지 않는다). */
+function sheetConfigOf(c: ContractConfig) {
+  return { type: c.type, wageType: c.wageType, wage: c.wage, start: c.start, useSched: c.useSched, sched: c.sched, workS: c.workS, workE: c.workE, brkS: c.brkS, brkE: c.brkE, days: c.days };
+}
+
+/** 전 직원 월간 요약에 필요한 데이터: PIN이 있거나 이 달 앞뒤에 기록이 있는 확정 직원들의 계약 정보와 기록. */
+export async function summaryData(store: ContractStore, month: string): Promise<ClockResult> {
+  if (!isMonth(month)) return { status: 400, body: { ok: false, error: "월은 YYYY-MM 형식이어야 합니다." } };
+  const win = fetchWindow(month);
+  const [subs, pins, events, settings] = await Promise.all([store.listSubmissions(), store.listClockPins(), store.listClockEvents({ from: win.from, to: win.to }), loadSettings(store)]);
+  const hasPin = new Set(pins.map((p) => p.submissionId));
+  const byId = new Map<string, ClockEventRecord[]>();
+  for (const e of events) byId.set(e.submissionId, [...(byId.get(e.submissionId) ?? []), e]);
+  const employees = confirmed(subs)
+    .filter((s) => hasPin.has(s.id) || byId.has(s.id))
+    .map((s) => ({ id: s.id, name: s.name, config: sheetConfigOf(s.configSnapshot), events: byId.get(s.id) ?? [] }));
+  return { status: 200, body: { ok: true, month, biz: settings.company.biz, employees } };
 }
 
 /** 관리자가 빠진 출퇴근 기록을 직접 넣는다. 사유가 필수이고 이력이 남는다. */

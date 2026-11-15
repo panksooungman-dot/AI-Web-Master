@@ -73,6 +73,12 @@ export function ClockAdmin() {
 
       {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
 
+      <div>
+        <Link href="/admin/clock/summary" className={btnOutline}>
+          전 직원 월간 요약 보기
+        </Link>
+      </div>
+
       <Panel title="출퇴근 기기" aside={registered === null ? null : <Badge tone={registered ? "ok" : "warn"}>{registered ? "이 기기는 등록됨" : "이 기기는 미등록"}</Badge>}>
         <div className="space-y-3 text-sm leading-relaxed text-foreground">
           <p>출퇴근은 <b>등록된 기기에서만</b> 할 수 있어서, 직원이 집이나 다른 곳에서 대신 찍을 수 없습니다. 매장 기기의 브라우저로 이 관리자 화면에 로그인해 아래 버튼을 누르세요.</p>

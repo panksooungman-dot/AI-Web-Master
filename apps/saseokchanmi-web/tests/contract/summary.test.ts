@@ -43,8 +43,12 @@ describe("privacyConsent 초안", () => {
     const items = privacyConsent("사색찬미한정식");
     expect(items.map((i) => i.title)).toEqual(["수집·이용 목적", "수집 항목", "보유·이용 기간", "제3자 제공", "동의 거부 권리"]);
     expect(items[0].body).toContain("사색찬미한정식");
+    expect(items[0].body).toContain("출퇴근 기록 관리");
+    expect(items[1].body).toContain("출퇴근 기록(출근·퇴근 시각)");
+    expect(items[1].body).toContain("출퇴근용 PIN");
     expect(items[1].body).toContain("주민등록번호는 수집하지 않습니다");
     expect(items[2].body).toContain("3년");
+    expect(items[2].body).toContain("출퇴근 기록도 같은 기간");
     expect(items[2].body).toContain("분쟁이나 소송이 진행 중이면 그것이 끝날 때까지");
   });
 });

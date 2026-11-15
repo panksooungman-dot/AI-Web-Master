@@ -42,7 +42,7 @@ beforeEach(async () => {
 describe("전체 데이터 백업", () => {
   it("계약 설정·제출(서명 포함)·출퇴근 기록·정정 이력을 담고 개수를 맞춘다", async () => {
     const b = await buildBackup(store, NOW);
-    expect(b).toMatchObject({ app: "saseokchanmi-contract", version: 1, exportedAt: NOW.toISOString(), counts: { configs: 1, submissions: 1, clockEvents: 1, clockAudit: 1 } });
+    expect(b).toMatchObject({ app: "saseokchanmi-contract", version: 1, exportedAt: NOW.toISOString(), counts: { configs: 1, submissions: 1, clockEvents: 1, clockAudit: 1, payslips: 0 } });
     expect(b.submissions[0]).toMatchObject({ name: "홍길동", phone: "010-1234-5678", sig: PNG, ownerSig: PNG });
     expect(b.clockEvents[0]).toMatchObject({ kind: "in", submissionId: "a" });
     expect(b.notes.length).toBeGreaterThan(0);

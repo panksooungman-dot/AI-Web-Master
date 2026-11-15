@@ -19,7 +19,7 @@ describe("createNeonStore", () => {
 
     expect(await store.getConfig("abc")).toBeNull();
     const ddl = calls.filter((c) => c.text.startsWith("CREATE TABLE IF NOT EXISTS") || c.text.startsWith("CREATE INDEX IF NOT EXISTS"));
-    expect(ddl).toHaveLength(9);
+    expect(ddl).toHaveLength(11);
     const last = calls[calls.length - 1];
     expect(last).toMatchObject({ url: "postgres://u:p@host/db?sslmode=require", params: ["abc"] });
     expect(last.text).toContain("FROM contract_config WHERE token = $1");

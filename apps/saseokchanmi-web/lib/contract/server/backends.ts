@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, SettingsRecord, SubmissionRecord } from "./store";
+import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, PayrollSettingsRecord, PayslipRecord, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * 파일/메모리 저장소 (개발·테스트용). 전체 데이터를 JSON 하나로 보관하고,
@@ -16,9 +16,12 @@ export interface DbShape {
   clockPins: Record<string, ClockPinRecord>;
   clockEvents: Record<string, ClockEventRecord>;
   clockAudit: Record<string, ClockAuditRecord>;
+  payrollSettings: PayrollSettingsRecord | null;
+  /** 키: `${submissionId}:${month}` */
+  payslips: Record<string, PayslipRecord>;
 }
 
-export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {}, clockAudit: {} });
+export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {}, clockAudit: {}, payrollSettings: null, payslips: {} });
 
 export interface Backend {
   read(): Promise<DbShape>;
@@ -156,6 +159,17 @@ export function createStore(backend: Backend): ContractStore {
           .filter((a) => (!opts.from || a.at >= opts.from) && (!opts.to || a.at < opts.to) && (!opts.submissionId || a.submissionId === opts.submissionId))
           .sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id)),
       ),
+
+    getPayrollSettings: () => read((db) => db.payrollSettings),
+    putPayrollSettings: (rec) => mutate((db) => void (db.payrollSettings = rec)),
+    listPayslips: (opts = {}) =>
+      read((db) =>
+        Object.values(db.payslips)
+          .filter((p) => (!opts.month || p.month === opts.month) && (!opts.submissionId || p.submissionId === opts.submissionId))
+          .sort((a, b) => b.month.localeCompare(a.month) || b.confirmedAt.localeCompare(a.confirmedAt)),
+      ),
+    getPayslip: (submissionId, month) => read((db) => db.payslips[`${submissionId}:${month}`] ?? null),
+    putPayslip: (rec) => mutate((db) => void (db.payslips[`${rec.submissionId}:${rec.month}`] = rec)),
 
     getAttempt: (key) => read((db) => db.attempts[key] ?? null),
     putAttempt: (a) => mutate((db) => void (db.attempts[a.key] = a)),

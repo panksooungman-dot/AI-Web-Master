@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fmtClockTime } from "@/lib/contract/client/clock-format";
 import { publicApi } from "@/lib/contract/client/api";
 
-type Employee = { id: string; name: string; status: "in" | "out" };
+type Employee = { id: string; name: string; status: "in" | "out"; /** 전 근무의 퇴근 기록이 없다(깜빡함) */ stale?: boolean };
 type Phase = { kind: "loading" } | { kind: "nodevice" } | { kind: "error"; message: string } | { kind: "list" } | { kind: "pin"; emp: Employee } | { kind: "done"; name: string; punch: "in" | "out"; at: string };
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "지움", "0", "확인"] as const;
@@ -120,8 +120,8 @@ export function ClockScreen() {
               <li key={e.id}>
                 <button type="button" onClick={() => choose(e)} className="flex min-h-20 w-full items-center justify-between gap-3 rounded-xl border border-secondary bg-white px-5 py-4 text-left shadow-sm transition active:bg-secondary/60">
                   <span className="text-xl font-bold text-foreground">{e.name}</span>
-                  <span className={`rounded-full px-3 py-1 text-sm font-semibold ${e.status === "in" ? "bg-emerald-100 text-emerald-900" : "bg-secondary/60 text-foreground"}`}>
-                    {e.status === "in" ? "출근 중 → 퇴근" : "퇴근 → 출근"}
+                  <span className={`rounded-full px-3 py-1 text-sm font-semibold ${e.status === "in" ? "bg-emerald-100 text-emerald-900" : e.stale ? "bg-amber-100 text-amber-900" : "bg-secondary/60 text-foreground"}`}>
+                    {e.status === "in" ? "출근 중 → 퇴근" : e.stale ? "전 근무 퇴근 기록 없음 → 출근" : "퇴근 → 출근"}
                   </span>
                 </button>
               </li>
@@ -135,6 +135,9 @@ export function ClockScreen() {
           <div className="text-center">
             <p className="text-xl font-bold text-foreground">{phase.emp.name}님</p>
             <p className="mt-1 text-base font-semibold text-primary">{phase.emp.status === "in" ? "퇴근" : "출근"}하려면 PIN 4자리를 누르세요</p>
+            {phase.emp.stale ? (
+              <p className="mx-auto mt-2 max-w-xs rounded-lg bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">전 근무의 퇴근 기록이 없습니다. 지금은 새 출근으로 기록되고, 전 근무의 퇴근 시각은 사장님이 정정합니다.</p>
+            ) : null}
           </div>
           <p className="flex justify-center gap-3 text-3xl tracking-widest text-foreground" aria-live="polite" aria-label={`입력한 자릿수 ${digits.length}`}>
             {[0, 1, 2, 3].map((i) => (

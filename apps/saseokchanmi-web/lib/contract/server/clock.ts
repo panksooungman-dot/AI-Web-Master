@@ -18,9 +18,20 @@ const MAX_FAILS = 5;
 const LOCK_MS = 10 * 60 * 1000;
 /** 같은 직원이 이 시간 안에 다시 누르면 실수로 두 번 누른 것으로 보고 막는다. */
 const DUPLICATE_MS = 30 * 1000;
+/**
+ * 출근한 지 이만큼 지나도 퇴근 기록이 없으면 "퇴근을 깜빡한 것"으로 본다(월간 기록부의 긴 근무 안내 기준과 같다).
+ * 이 경우 다음 출근을 "퇴근"으로 잘못 기록하지 않고 새 출근으로 받는다.
+ */
+export const STALE_OPEN_MS = 16 * 60 * 60 * 1000;
 
 export type ClockResult = { status: number; body: Record<string, unknown> };
-export type ClockEmployee = { id: string; name: string; status: "in" | "out" };
+export type ClockEmployee = { id: string; name: string; status: "in" | "out"; /** 전 근무의 퇴근 기록이 없다(깜빡함) */ stale: boolean };
+
+/** 마지막 기록으로 지금 상태를 판단한다. 오래 열려 있는 출근은 퇴근 누락(stale)으로 보고 "퇴근 상태"로 취급한다. */
+export function clockState(last: ClockEventRecord | null | undefined, now: number): { status: "in" | "out"; stale: boolean } {
+  if (last?.kind !== "in") return { status: "out", stale: false };
+  return now - Date.parse(last.at) > STALE_OPEN_MS ? { status: "out", stale: true } : { status: "in", stale: false };
+}
 
 // ── PIN ─────────────────────────────────────────────
 
@@ -78,18 +89,18 @@ export function isClockDevice(request: Request, now: number = Date.now()): boole
 /** 출퇴근 대상: 사업주 서명까지 끝나 확정된 계약의 직원. */
 const confirmed = (subs: SubmissionRecord[]): SubmissionRecord[] => subs.filter(isOwnerSigned);
 
-export async function adminEmployees(store: ContractStore) {
+export async function adminEmployees(store: ContractStore, now: Date = new Date()) {
   const [subs, pins, last] = await Promise.all([store.listSubmissions(), store.listClockPins(), store.lastClockEvents()]);
   const hasPin = new Set(pins.map((p) => p.submissionId));
   return confirmed(subs)
-    .map((s) => ({ id: s.id, name: s.name, hasPin: hasPin.has(s.id), status: (last[s.id]?.kind === "in" ? "in" : "out") as "in" | "out", lastAt: last[s.id]?.at ?? null }))
+    .map((s) => ({ id: s.id, name: s.name, hasPin: hasPin.has(s.id), ...clockState(last[s.id], now.getTime()), lastAt: last[s.id]?.at ?? null }))
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 }
 
 /** 기기 화면에 보일 직원 목록: 확정된 계약 + PIN이 발급된 직원만. */
-export async function roster(store: ContractStore): Promise<ClockEmployee[]> {
-  const list = await adminEmployees(store);
-  return list.filter((e) => e.hasPin).map(({ id, name, status }) => ({ id, name, status }));
+export async function roster(store: ContractStore, now: Date = new Date()): Promise<ClockEmployee[]> {
+  const list = await adminEmployees(store, now);
+  return list.filter((e) => e.hasPin).map(({ id, name, status, stale }) => ({ id, name, status, stale }));
 }
 
 export async function setPin(store: ContractStore, submissionId: string, pin: string | null, now: Date = new Date()): Promise<ClockResult> {
@@ -130,11 +141,15 @@ export async function punch(store: ContractStore, input: unknown, now: Date = ne
   if (attempt) await store.clearAttempt(key);
 
   const last = (await store.lastClockEvents())[id] ?? null;
-  const current = last?.kind === "in" ? "in" : "out";
-  if (last && t - new Date(last.at).getTime() < DUPLICATE_MS) {
-    return { status: 409, body: { ok: false, code: "duplicate", error: "방금 기록되었습니다." } };
+  const { status: current, stale } = clockState(last, t);
+  if (last && t - Date.parse(last.at) < DUPLICATE_MS) {
+    const wait = Math.max(1, Math.ceil((DUPLICATE_MS - (t - Date.parse(last.at))) / 1000));
+    return { status: 409, body: { ok: false, code: "duplicate", error: `방금 기록되었습니다. ${wait}초 뒤에 다시 누를 수 있습니다.` } };
   }
   if ((current === "in") === (kind === "in")) {
+    if (stale) {
+      return { status: 409, body: { ok: false, code: "stale", status: current, error: "전 근무의 퇴근 기록이 없습니다. 화면을 새로고침해 출근을 눌러 주세요. 퇴근 시각은 사장님이 정정해 줍니다." } };
+    }
     return { status: 409, body: { ok: false, code: "state", status: current, error: current === "in" ? "이미 출근 상태입니다. 화면을 새로고침해 퇴근을 눌러 주세요." : "이미 퇴근 상태입니다. 화면을 새로고침해 출근을 눌러 주세요." } };
   }
   const rec: ClockEventRecord = { id: newId(), submissionId: id, kind, at: now.toISOString(), source: "device", note: "" };

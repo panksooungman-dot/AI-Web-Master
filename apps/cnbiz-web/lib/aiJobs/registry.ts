@@ -45,9 +45,12 @@ export async function createAiJob(
     finishedAt: null,
   };
 
-  const records = await store.list<AiJobRecord>(COLLECTION);
-  records.push(record);
-  await store.replaceAll(COLLECTION, records);
+  // lib/clients/registry.ts의 createClient()와 동일하게 이 Job 한 건만 upsert한다. 이전에는
+  // list()로 ai-jobs 전체를 읽어 push한 뒤 replaceAll()로 전부 다시 upsert했는데, Website
+  // Builder 결과(result)가 담긴 Job이 쌓일수록 문의 접수(POST /api/inquiries)마다 요청 크기·시간이
+  // 함께 커져 어느 시점부터 Supabase 쓰기가 실패해 고객 접수가 서버 오류로 끝날 수 있었다.
+  // 접수 경로에서 아직 이 전체 재쓰기 방식을 쓰던 마지막 registry였다.
+  await store.setDoc(COLLECTION, record.id, record);
 
   return record;
 }

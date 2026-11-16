@@ -8,6 +8,11 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+// app/api/inquiries/route.ts와 동일한 이유(generateAnalysis() 내부의 chatViaCli() 호출이
+// 최대 2분, 기본 재시도까지 포함하면 더 오래 걸릴 수 있음) — maxDuration 미설정 시 Vercel 기본
+// 상한에 걸려 "재분석" 클릭이 타임아웃 에러로 실패할 수 있어 Vercel Pro 기본 상한인 300초로 맞춘다.
+export const maxDuration = 300;
+
 /**
  * AI 분석(lib/ai-analysis)을 이 Inquiry의 현재 필드 값으로 다시 실행한다 — 신규 접수 시
  * app/api/inquiries/route.ts가 자동 실행하는 것과 동일한 generateAnalysis()를 그대로

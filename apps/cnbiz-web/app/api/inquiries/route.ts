@@ -17,6 +17,17 @@ import { addAiJobToWebsiteOrder, createWebsiteOrder } from "@/lib/websiteOrders/
 import { createAiJob } from "@/lib/aiJobs/registry";
 import { generateAnalysis } from "@/lib/ai-analysis/analysis";
 
+// AI 호출 1회가 최대 2분(providers/provider.ts의 DEFAULT_TIMEOUT_MS)까지 걸릴 수 있고,
+// generateAnalysis()는 기본 재시도 정책(최대 3회)까지 그대로 쓰므로 누적 최대 약 361초가 걸릴
+// 수 있다. app/api/design/* 라우트들이 이미 겪은 것과 동일한 원인(참고:
+// app/api/design/requirements/route.ts) — maxDuration 미설정 시 Vercel 기본 상한에 걸려 정상
+// JSON 대신 타임아웃 에러 페이지가 반환되고, 클라이언트(ContactForm.tsx)가 이를 파싱하지
+// 못해 "문의 접수 중 오류가 발생했습니다" 원시 catch 오류로 보인다(실 production 재현: 문의
+// 내용에 참고 사이트 URL을 포함해 제출하면 매번 이 오류가 발생). 이 라우트는 generateAnalysis()
+// 내부에서 chatViaCli()를 호출하는데도 maxDuration이 누락돼 있던 것이 원인이다. Vercel Pro
+// 기본 상한인 300초로 맞춘다.
+export const maxDuration = 300;
+
 /** Admin-only (RBAC default: /api/inquiries is not in UNGATED_API_PREFIXES). Lists newest first. */
 export async function GET() {
   return NextResponse.json({ inquiries: await listInquiries() });

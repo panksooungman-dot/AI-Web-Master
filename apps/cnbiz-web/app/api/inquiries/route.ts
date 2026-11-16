@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import type { InquiryInput } from "@/lib/inquiries/types";
 import { parseInquiryInput, validateInquiryInput } from "@/lib/inquiries/validate";
 import {
   createInquiry,
@@ -27,6 +28,32 @@ import { generateAnalysis } from "@/lib/ai-analysis/analysis";
 // 내부에서 chatViaCli()를 호출하는데도 maxDuration이 누락돼 있던 것이 원인이다. Vercel Pro
 // 기본 상한인 300초로 맞춘다.
 export const maxDuration = 300;
+
+/**
+ * AI Analysis Engine — 독립적이라 실패해도(Provider 미설정 등은 generateAnalysis() 내부에서
+ * 이미 결정론적 폴백으로 처리되므로 여기 catch는 진짜 예외 상황만 대비) Inquiry 접수 자체에는
+ * 영향이 없다. 기존 외부 라우트와 동일한 격리 원칙.
+ */
+async function runAiAnalysis(inquiryId: string, input: InquiryInput): Promise<void> {
+  try {
+    const analysisOutcome = await generateAnalysis({
+      companyName: input.companyName,
+      contactName: input.contactName,
+      email: input.email,
+      phone: input.phone,
+      siteType: input.siteType,
+      requirements: input.requirements,
+      industry: input.industry,
+      survey: input.survey,
+      uploadedFiles: input.uploadedFiles,
+      referenceUrls: input.referenceUrls,
+      codeSnippets: input.codeSnippets,
+    });
+    await saveInquiryAnalysis(inquiryId, analysisOutcome.result);
+  } catch (error) {
+    console.error("[api/inquiries] AI analysis failed", error);
+  }
+}
 
 /** Admin-only (RBAC default: /api/inquiries is not in UNGATED_API_PREFIXES). Lists newest first. */
 export async function GET() {
@@ -76,29 +103,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, errors }, { status: 400 });
   }
 
-  const inquiry = await createInquiry(input);
-
-  // AI Analysis Engine — 독립적이라 실패해도(Provider 미설정 등은 generateAnalysis() 내부에서
-  // 이미 결정론적 폴백으로 처리되므로 여기 catch는 진짜 예외 상황만 대비) 이 요청 자체(Inquiry
-  // 접수)를 막지 않는다. 기존 외부 라우트와 동일한 격리 원칙.
   try {
-    const analysisOutcome = await generateAnalysis({
-      companyName: input.companyName,
-      contactName: input.contactName,
-      email: input.email,
-      phone: input.phone,
-      siteType: input.siteType,
-      requirements: input.requirements,
-      industry: input.industry,
-      survey: input.survey,
-      uploadedFiles: input.uploadedFiles,
-      referenceUrls: input.referenceUrls,
-      codeSnippets: input.codeSnippets,
-    });
-    await saveInquiryAnalysis(inquiry.id, analysisOutcome.result);
+    return await receiveInquiry(input);
   } catch (error) {
-    console.error("[api/inquiries] AI analysis failed", error);
+    // 어떤 단계에서 예외가 나도 정상 JSON으로 응답한다 — 예외를 그대로 던지면 Next.js가 JSON이
+    // 아닌 에러 페이지를 반환해 ContactForm이 파싱하지 못하고 원인 없는 범용 오류만 보여준다.
+    console.error("[api/inquiries] intake failed", error);
+    return NextResponse.json(
+      { success: false, error: "문의 접수 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." },
+      { status: 500 },
+    );
   }
+}
+
+async function receiveInquiry(input: InquiryInput) {
+  const inquiry = await createInquiry(input);
 
   const client = await findOrCreateClient({
     companyName: input.companyName,
@@ -133,19 +152,27 @@ export async function POST(request: Request) {
 
   const linkedInquiry = await linkInquiryToClientAndOrder(inquiry.id, client.id, websiteOrder.id);
 
-  // 이메일·Slack·SOLAPI 세 채널 모두 시도한다 — 서로 독립적이며 한쪽이 실패해도 다른 쪽에
-  // 영향을 주지 않는다(각 함수 내부에서 이미 자체 try/catch로 Audit Log에 결과를 기록함).
-  await Promise.all([
-    notifyAdminOfNewInquiry(inquiry, client, websiteOrder).catch((error) => {
-      console.error("[api/inquiries] admin email notification failed", error);
-    }),
-    notifyAdminOfNewInquirySlack(inquiry, client, websiteOrder).catch((error) => {
-      console.error("[api/inquiries] admin slack notification failed", error);
-    }),
-    notifyAdminOfNewInquirySolapi(inquiry, client, websiteOrder).catch((error) => {
-      console.error("[api/inquiries] admin solapi notification failed", error);
-    }),
-  ]);
+  // 고객 응답을 막지 않아야 하는 느린 작업(AI 분석은 최대 수 분, 알림은 외부 API 호출)은
+  // 응답을 보낸 뒤 실행한다. 이전에는 응답 전에 await해서, 느려지면 Vercel 실행 시간 상한에 걸려
+  // JSON 대신 타임아웃 페이지가 반환되고 고객에게는 "문의 접수 중 오류"로 보였다(Inquiry·Client·
+  // WebsiteOrder·AiJob은 이미 저장된 뒤라 접수 자체는 유실되지 않는다). 실행 시간은 이 라우트의
+  // maxDuration(위)이 그대로 적용된다.
+  after(async () => {
+    await Promise.all([
+      runAiAnalysis(inquiry.id, input),
+      // 이메일·Slack·SOLAPI 세 채널 모두 시도한다 — 서로 독립적이며 한쪽이 실패해도 다른 쪽에
+      // 영향을 주지 않는다(각 함수 내부에서 이미 자체 try/catch로 Audit Log에 결과를 기록함).
+      notifyAdminOfNewInquiry(inquiry, client, websiteOrder).catch((error) => {
+        console.error("[api/inquiries] admin email notification failed", error);
+      }),
+      notifyAdminOfNewInquirySlack(inquiry, client, websiteOrder).catch((error) => {
+        console.error("[api/inquiries] admin slack notification failed", error);
+      }),
+      notifyAdminOfNewInquirySolapi(inquiry, client, websiteOrder).catch((error) => {
+        console.error("[api/inquiries] admin solapi notification failed", error);
+      }),
+    ]);
+  });
 
   return NextResponse.json(
     {

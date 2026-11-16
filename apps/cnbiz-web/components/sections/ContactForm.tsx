@@ -292,7 +292,9 @@ export function ContactForm() {
     const body = new FormData();
     body.append("file", file);
     const res = await fetch("/api/inquiries/upload", { method: "POST", body });
-    return res.json();
+    // 서버리스 요청 본문 상한(약 4.5MB)을 넘으면 JSON이 아닌 413 페이지가 돌아와 파싱이 실패한다 —
+    // 이 경우 접수 전체를 실패시키지 않고 해당 파일만 "업로드 실패"로 안내한다.
+    return res.json().catch(() => ({ success: false as const, error: `업로드 실패 (HTTP ${res.status})` }));
   }
 
   const step = steps[currentStep];
@@ -363,7 +365,17 @@ export function ContactForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      const data: { success: boolean; error?: string; errors?: InquiryValidationErrors } = await res.json();
+      const data: { success: boolean; error?: string; errors?: InquiryValidationErrors } | null = await res
+        .json()
+        .catch(() => null);
+
+      if (!data) {
+        // 서버가 JSON이 아닌 응답(타임아웃·게이트웨이 오류 페이지 등)을 돌려준 경우 — 원인 파악을
+        // 위해 HTTP 상태 코드를 함께 보여준다.
+        setErrorMessage(`문의 접수 중 오류가 발생했습니다 (HTTP ${res.status}). 잠시 후 다시 시도해주세요.`);
+        setStatus("error");
+        return;
+      }
 
       if (!data.success) {
         setErrors(data.errors ?? {});

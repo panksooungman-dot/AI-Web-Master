@@ -58,8 +58,10 @@ export async function runMissingCheckoutAlert(store: ContractStore, env: Env = p
   if (missing.length === 0) return { count: 0, sent: [] };
   const sent = await notifyOwner(buildMissingMessage(missing), env, fetchFn);
   // 알림톡은 설정이 모두 있을 때만 보낸다. 설정이 없으면 조용히 건너뛴다(Slack·문자만 쓰는 매장).
-  if (env.SOLAPI_TO && alimtalkMissing("missing", env).length === 0) {
-    const r = await sendAlimtalk("missing", { to: env.SOLAPI_TO, vars: { 인원: String(missing.length), 직원: kakaoPeople(missing) }, link: `${SITE_URL}/admin/clock` }, env, fetchFn);
+  // 받는 번호는 SOLAPI_KAKAO_TO가 우선이다. 알림톡 전용 키는 문자 권한이 없어서 SOLAPI_TO를 넣으면 문자 발송이 같이 시도되기 때문이다.
+  const kakaoTo = env.SOLAPI_KAKAO_TO?.trim() || env.SOLAPI_TO;
+  if (kakaoTo && alimtalkMissing("missing", env).length === 0) {
+    const r = await sendAlimtalk("missing", { to: kakaoTo, vars: { 인원: String(missing.length), 직원: kakaoPeople(missing) }, link: `${SITE_URL}/admin/clock` }, env, fetchFn);
     sent.push({ channel: r.channel, ok: r.ok, error: r.error });
   }
   return { count: missing.length, sent };

@@ -113,7 +113,7 @@ export function ClockAdmin() {
         {presence.missing.length ? (
           <div className="mt-3">
             <Notice tone="error">
-              퇴근 기록이 없는 직원: {presence.missing.map((m) => `${m.name}(${fmtClockDateTime(m.since)} 출근)`).join(", ")}. 월간 기록부에서 퇴근 시각을 정정해 주세요.
+              퇴근 기록이 없는 직원: {presence.missing.map((m) => `${m.name}(${fmtClockDateTime(m.since)} 출근)`).join(", ")}. 월간 기록부에서 퇴근 시각을 정정해 주세요. 정정하기 전에는 그 직원이 출근을 기록할 수 없습니다.
             </Notice>
           </div>
         ) : null}

@@ -62,6 +62,9 @@ export function ContractEditor({ token: initialToken }: { token?: string }) {
   const [saved, setSaved] = useState("");
   const [loadError, setLoadError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [kakaoPhone, setKakaoPhone] = useState("");
+  const [kakaoMsg, setKakaoMsg] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [kakaoBusy, setKakaoBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -139,6 +142,14 @@ export function ContractEditor({ token: initialToken }: { token?: string }) {
     } catch {
       window.prompt("아래 링크를 복사해 주세요.", url);
     }
+  }
+
+  async function sendKakao() {
+    setKakaoBusy(true);
+    setKakaoMsg(null);
+    const r = await adminApi<object>(`/api/admin/configs/${token}/notify`, { method: "POST", body: { phone: kakaoPhone, name: f.label } });
+    setKakaoBusy(false);
+    setKakaoMsg(r.ok ? { tone: "ok", text: "알림톡을 보냈습니다." } : { tone: "error", text: r.error });
   }
 
   const isMonthly = f.type === "monthly";
@@ -457,6 +468,30 @@ export function ContractEditor({ token: initialToken }: { token?: string }) {
             <button type="button" className={btnOutline} onClick={copyLink}>
               {copied ? "복사됨" : "링크 복사"}
             </button>
+          </div>
+        ) : null}
+        {link ? (
+          <div className="space-y-2 rounded-lg border border-secondary bg-white px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="kakao-phone" className="text-xs font-semibold text-muted">
+                카카오 알림톡으로 보내기
+              </label>
+              <input
+                id="kakao-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="off"
+                placeholder="직원 휴대전화 010-0000-0000"
+                className={`${inputCls} min-w-0 flex-1`}
+                value={kakaoPhone}
+                onChange={(e) => setKakaoPhone(e.target.value)}
+              />
+              <button type="button" className={btnOutline} onClick={sendKakao} disabled={kakaoBusy || !kakaoPhone.trim()}>
+                {kakaoBusy ? "보내는 중..." : "알림톡 보내기"}
+              </button>
+            </div>
+            <p className="text-xs text-muted">입력한 번호는 저장하지 않습니다. 저장한 최신 내용으로 작성 링크가 전달됩니다.</p>
+            {kakaoMsg ? <Notice tone={kakaoMsg.tone}>{kakaoMsg.text}</Notice> : null}
           </div>
         ) : null}
         <div className="flex flex-wrap justify-end gap-2">

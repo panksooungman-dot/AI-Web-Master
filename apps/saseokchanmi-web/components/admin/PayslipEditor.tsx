@@ -119,6 +119,14 @@ export function PayslipEditor({ id, month }: { id: string; month: string }) {
     return payslipHTML(shown, { biz: bundle.biz, owner: bundle.owner, name: bundle.employee.name, employeeNo: bundle.employee.employeeNo, payDate: input?.payDate ?? "" });
   }, [bundle, shown, mode, stored, input]);
 
+  async function sendKakao() {
+    setBusy(true);
+    setNotice(null);
+    const r = await adminApi<object>("/api/admin/payroll/notify", { method: "POST", body: { id, month } });
+    setBusy(false);
+    setNotice(r.ok ? { tone: "ok", text: "급여명세서 확정 안내를 알림톡으로 보냈습니다." } : { tone: "error", text: r.error });
+  }
+
   async function confirm() {
     if (!draft || !input) return;
     setBusy(true);
@@ -195,6 +203,9 @@ export function PayslipEditor({ id, month }: { id: string; month: string }) {
                 </button>
                 <button type="button" className={btnOutline} disabled={busy} onClick={() => exportFile("png")}>
                   이미지로 저장
+                </button>
+                <button type="button" className={btnOutline} disabled={busy} onClick={sendKakao}>
+                  직원에게 알림톡 보내기
                 </button>
                 <button type="button" className={btnOutline} onClick={() => setMode("edit")}>
                   기록이 바뀌었나요? 다시 계산해 정정 발행

@@ -83,7 +83,7 @@ describe("계약서 작성 링크 알림톡", () => {
     const m = sentMessages(fetchSpy)[0];
     expect(m.to).toBe("01012345678");
     expect(m.kakaoOptions.templateId).toBe("KA01TP-contract");
-    expect(m.kakaoOptions.variables).toEqual({ "#{이름}": "홍길동" });
+    expect(m.kakaoOptions.variables).toEqual({ "#{이름}": "홍길동", "#{토큰}": "tok1" });
     expect(m.kakaoOptions.buttons[0].linkMo).toMatch(/\/contract\/tok1$/);
   });
 

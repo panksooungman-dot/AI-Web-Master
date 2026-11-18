@@ -21,7 +21,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ token: str
     const rec = await getStore().getConfig(token);
     if (!rec) return fail(404, "직원 계약을 찾을 수 없습니다.");
     const name = safeName(String(b.name ?? "") || rec.config.label || "");
-    const r = await sendAlimtalk("contract", { to, vars: { 이름: name }, link: contractLink(token) });
+    const r = await sendAlimtalk("contract", { to, vars: { 이름: name, 토큰: token }, link: contractLink(token) });
     return r.ok ? json({ ok: true }) : fail(502, r.error ?? "알림톡을 보내지 못했습니다.");
   });
 }

@@ -40,6 +40,13 @@ describe("알림톡 도우미", () => {
     expect(vars("missing")).toEqual(["인원", "직원"]);
   });
 
+  it("버튼 링크 변수는 템플릿 본문 변수와 별개로 보낸다", () => {
+    const pathVars = (k: keyof typeof ALIMTALK) => [...ALIMTALK[k].buttonPath.matchAll(/#\{([^}]+)\}/g)].map((m) => m[1]);
+    expect(pathVars("contract")).toEqual(["토큰"]);
+    expect(pathVars("payslip")).toEqual([]);
+    expect(pathVars("missing")).toEqual([]);
+  });
+
   it("설정이 비어 있으면 보내지 않고 비어 있는 이름을 알려 준다", async () => {
     expect(alimtalkMissing("contract", {})).toContain("SOLAPI_KAKAO_PFID");
     expect(alimtalkMissing("contract", ENV)).toEqual([]);
@@ -83,6 +90,8 @@ describe("알림톡 도우미", () => {
   });
 });
 
+const sentOf = (f: ReturnType<typeof vi.fn>) => f.mock.calls.map((c) => JSON.parse((c[1] as { body: string }).body).messages[0]);
+
 describe("퇴근 누락 알림톡", () => {
   it("직원 요약은 40자 안에 들어간다", () => {
     const m = (name: string) => ({ id: name, name, since: "2026-11-14T01:00:00.000Z" });
@@ -121,6 +130,14 @@ describe("퇴근 누락 알림톡", () => {
     const kakaoCall = withKakao.mock.calls.map((c) => JSON.parse((c[1] as { body: string }).body).messages[0]).find((m) => m.type === "ATA");
     expect(kakaoCall.kakaoOptions.variables).toEqual({ "#{인원}": "1", "#{직원}": "홍길동" });
     expect(kakaoCall.to).toBe("01099998888");
+
+    // 알림톡 전용 번호(SOLAPI_KAKAO_TO)가 있으면 그 번호로 보낸다. SOLAPI_TO가 없으면 문자는 시도하지 않는다.
+    const only = okFetch();
+    const { SOLAPI_TO: _to, ...noSms } = ENV;
+    void _to;
+    const r3 = await runMissingCheckoutAlert(store, { ...noSms, SOLAPI_KAKAO_TO: "010-2222-3333" }, NOW, only);
+    expect(r3.sent.map((s) => s.channel)).toEqual(["kakao"]);
+    expect(sentOf(only)[0].to).toBe("01022223333");
 
     const noKakao = okFetch();
     const { SOLAPI_KAKAO_PFID: _omit, ...rest } = ENV;

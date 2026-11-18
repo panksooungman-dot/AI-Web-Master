@@ -17,6 +17,11 @@ export interface AlimtalkTemplate {
   body: string;
   /** 웹링크 버튼 이름(템플릿에 등록한 것과 같아야 한다) */
   button: string;
+  /**
+   * SOLAPI에 등록하는 버튼 링크(사이트 주소 뒤 부분). 카카오는 등록한 주소와 보내는 주소가 맞아야 통과시킨다.
+   * `#{변수}`가 들어 있으면 그 변수도 variables로 같이 보낸다(주소는 직원마다 달라지는 부분만 변수로 둔다).
+   */
+  buttonPath: string;
 }
 
 export const ALIMTALK: Record<AlimtalkKind, AlimtalkTemplate> = {
@@ -25,18 +30,21 @@ export const ALIMTALK: Record<AlimtalkKind, AlimtalkTemplate> = {
     env: "SOLAPI_TPL_CONTRACT",
     body: "[사색찬미한정식]\n#{이름}님, 근로계약서 작성을 요청드립니다.\n\n아래 버튼에서 계약 내용을 확인하고 서명해 주세요.\n문의는 매장으로 연락 부탁드립니다.",
     button: "계약서 작성하기",
+    buttonPath: "/contract/#{토큰}",
   },
   payslip: {
     label: "급여명세서 확정 안내",
     env: "SOLAPI_TPL_PAYSLIP",
     body: "[사색찬미한정식]\n#{이름}님, #{귀속월} 급여명세서가 확정되었습니다.\n\n임금 지급일: #{지급일}\n명세서 내용은 매장으로 문의해 주세요.",
     button: "매장 안내 보기",
+    buttonPath: "",
   },
   missing: {
     label: "퇴근 기록 누락 안내(사장님)",
     env: "SOLAPI_TPL_MISSING",
     body: "[사색찬미한정식]\n퇴근 기록이 없는 직원이 #{인원}명 있습니다.\n\n#{직원}\n\n월간 기록부에서 퇴근 시각을 정정해 주세요. 정정 전에는 해당 직원이 출근을 기록할 수 없습니다.",
     button: "출퇴근 관리",
+    buttonPath: "/admin/clock",
   },
 };
 

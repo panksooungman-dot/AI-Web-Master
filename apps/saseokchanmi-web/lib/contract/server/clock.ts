@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
-import { fetchWindow, isMonth, monthRange, parseKstLocal } from "../clock-sheet";
+import { fetchWindow, hhmm, isMonth, kst, monthRange, parseKstLocal } from "../clock-sheet";
 import { getAuthConfig, readCookie } from "./auth";
 import { loadSettings, newId } from "./service";
 import { isOwnerSigned } from "./status";
@@ -28,6 +28,30 @@ export const STALE_OPEN_MS = 16 * 60 * 60 * 1000;
 
 export type ClockResult = { status: number; body: Record<string, unknown> };
 export type ClockEmployee = { id: string; name: string; status: "in" | "out"; /** 전 근무의 퇴근 기록이 없다(깜빡함) */ stale: boolean };
+
+const fmtAt = (iso: string): string => {
+  const k = kst(iso);
+  return `${k.m}/${k.d} ${hhmm(iso)}`;
+};
+
+/**
+ * 관리자가 넣거나 고친 기록이 출근→퇴근 순서를 깨지 않는지 본다(같은 직원의 다른 기록 `others` 기준).
+ * - 출근: 바로 앞 기록이 퇴근 없는 출근이면 안 된다.
+ * - 퇴근: 바로 앞 기록이 출근이어야 하고, 바로 뒤 기록이 또 다른 퇴근이면 안 된다(그 퇴근의 출근이 없어진다).
+ * 하루치 기록을 통째로 빠뜨렸을 때 출근→퇴근 순서로 하나씩 넣을 수 있도록, 출근 바로 뒤에 다른 출근이 있는 것은 허용한다.
+ */
+export function sequenceError(others: ClockEventRecord[], kind: "in" | "out", at: string): string | null {
+  const sorted = [...others].sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
+  const prev = [...sorted].reverse().find((e) => e.at <= at) ?? null;
+  const next = sorted.find((e) => e.at > at) ?? null;
+  if (kind === "in") {
+    return prev?.kind === "in" ? `${fmtAt(prev.at)} 출근의 퇴근 기록이 없습니다. 그 퇴근 기록을 먼저 넣은 뒤 이 출근을 넣어 주세요.` : null;
+  }
+  if (!prev) return "이 퇴근 앞에 출근 기록이 없습니다. 출근 기록을 먼저 넣어 주세요.";
+  if (prev.kind === "out") return `${fmtAt(prev.at)} 퇴근 뒤에 출근 기록이 없습니다. 출근 기록을 먼저 넣어 주세요.`;
+  if (next?.kind === "out") return `${fmtAt(next.at)} 퇴근의 출근 기록이 없어집니다. 그 퇴근의 출근 기록을 먼저 넣어 주세요.`;
+  return null;
+}
 
 /** 마지막 기록으로 지금 상태를 판단한다. 오래 열려 있는 출근은 퇴근 누락(stale)으로 보고 "퇴근 상태"로 취급한다. */
 export function clockState(last: ClockEventRecord | null | undefined, now: number): { status: "in" | "out"; stale: boolean } {
@@ -148,10 +172,11 @@ export async function punch(store: ContractStore, input: unknown, now: Date = ne
     const wait = Math.max(1, Math.ceil((DUPLICATE_MS - (t - Date.parse(last.at))) / 1000));
     return { status: 409, body: { ok: false, code: "duplicate", error: `방금 기록되었습니다. ${wait}초 뒤에 다시 누를 수 있습니다.` } };
   }
+  // 퇴근 없이 다시 출근하는 것을 막는다: 퇴근 기록이 빠진 채 오래 지났으면 출근도 퇴근도 받지 않고, 사장님이 정정하게 한다.
+  if (stale && last) {
+    return { status: 409, body: { ok: false, code: "stale", status: current, error: `전 근무(${fmtAt(last.at)} 출근)의 퇴근 기록이 없어 지금은 출근할 수 없습니다. 사장님께 퇴근 시각 정정을 요청해 주세요.` } };
+  }
   if ((current === "in") === (kind === "in")) {
-    if (stale) {
-      return { status: 409, body: { ok: false, code: "stale", status: current, error: "전 근무의 퇴근 기록이 없습니다. 화면을 새로고침해 출근을 눌러 주세요. 퇴근 시각은 사장님이 정정해 줍니다." } };
-    }
     return { status: 409, body: { ok: false, code: "state", status: current, error: current === "in" ? "이미 출근 상태입니다. 화면을 새로고침해 퇴근을 눌러 주세요." : "이미 퇴근 상태입니다. 화면을 새로고침해 출근을 눌러 주세요." } };
   }
   const rec: ClockEventRecord = { id: newId(), submissionId: id, kind, at: now.toISOString(), source: "device", note: "" };
@@ -219,6 +244,8 @@ export async function addEvent(store: ContractStore, input: unknown, now: Date =
   if (Date.parse(at) > now.getTime() + FUTURE_SLACK_MS) return { status: 400, body: { ok: false, error: "미래 시각은 입력할 수 없습니다." } };
   const sub = await store.getSubmission(submissionId);
   if (!sub || !isOwnerSigned(sub)) return { status: 404, body: { ok: false, error: "확정된 계약의 직원을 찾을 수 없습니다." } };
+  const bad = sequenceError(await store.listClockEvents({ submissionId }), kind, at);
+  if (bad) return { status: 400, body: { ok: false, code: "sequence", error: bad } };
   const rec: ClockEventRecord = { id: newId(), submissionId, kind, at, source: "admin", note: reason };
   await store.insertClockEvent(rec);
   await store.insertClockAudit({ id: newId(), eventId: rec.id, submissionId, action: "add", before: null, after: snap(rec), reason, at: now.toISOString() });
@@ -244,6 +271,9 @@ export async function editEvent(store: ContractStore, eventId: string, input: un
   if (patch.kind === undefined && patch.at === undefined) return { status: 400, body: { ok: false, error: "바꿀 내용이 없습니다." } };
   const before = await store.getClockEvent(eventId);
   if (!before) return { status: 404, body: { ok: false, error: "기록을 찾을 수 없습니다." } };
+  const others = (await store.listClockEvents({ submissionId: before.submissionId })).filter((e) => e.id !== eventId);
+  const bad = sequenceError(others, patch.kind ?? before.kind, patch.at ?? before.at);
+  if (bad) return { status: 400, body: { ok: false, code: "sequence", error: bad } };
   const after = await store.updateClockEvent(eventId, { ...patch, source: "admin", note: reason });
   if (!after) return { status: 404, body: { ok: false, error: "기록을 찾을 수 없습니다." } };
   await store.insertClockAudit({ id: newId(), eventId, submissionId: before.submissionId, action: "edit", before: snap(before), after: snap(after), reason, at: now.toISOString() });

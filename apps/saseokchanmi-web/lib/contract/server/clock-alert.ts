@@ -32,7 +32,7 @@ export function buildMissingMessage(missing: MissingCheckout[], link = `${SITE_U
     })
     .join(", ");
   const more = missing.length > MAX_LISTED ? ` 외 ${missing.length - MAX_LISTED}명` : "";
-  return `[사색찬미] 퇴근 기록이 없는 직원이 ${missing.length}명 있습니다: ${shown}${more}\n월간 기록부에서 퇴근 시각을 정정해 주세요.\n${link}`;
+  return `[사색찬미] 퇴근 기록이 없는 직원이 ${missing.length}명 있습니다: ${shown}${more}\n월간 기록부에서 퇴근 시각을 정정해 주세요. 정정 전에는 해당 직원이 출근을 기록할 수 없습니다.\n${link}`;
 }
 
 export interface AlertResult {

@@ -170,9 +170,9 @@ describe("출근·퇴근 기록", () => {
     const r1 = await punch(store, { id: "a", pin: "1234", kind: "in", at: "2000-01-01T00:00:00Z" }, at(0));
     expect(r1.status).toBe(201);
     expect(r1.body).toMatchObject({ ok: true, kind: "in", at: T0.toISOString(), name: "홍길동" }); // 클라이언트가 보낸 시각은 무시
-    expect((await roster(store))[0].status).toBe("in");
+    expect((await roster(store, at(60)))[0].status).toBe("in");
     expect((await punch(store, { id: "a", pin: "1234", kind: "out" }, at(3600))).status).toBe(201);
-    expect((await roster(store))[0].status).toBe("out");
+    expect((await roster(store, at(3660)))[0].status).toBe("out");
     expect((await punch(store, { id: "a", pin: "1234", kind: "in" }, at(7200))).status).toBe(201);
     expect((await store.listClockEvents({ submissionId: "a" })).map((e) => e.kind)).toEqual(["in", "out", "in"]);
   });
@@ -194,7 +194,7 @@ describe("출근·퇴근 기록", () => {
     expect((await punch(store, { id: "a", pin: "1234", kind: "out" }, at(31))).status).toBe(201); // 30초가 지나면 기록된다
   });
 
-  it("퇴근을 깜빡한 다음 날 출근은 퇴근으로 잘못 기록되지 않고 새 출근으로 받는다", async () => {
+  it("퇴근을 깜빡한 채 오래 지나면 출근도 퇴근도 받지 않고, 사장님이 퇴근을 정정하면 다시 출근할 수 있다", async () => {
     await punch(store, { id: "a", pin: "1234", kind: "in" }, at(0)); // 어제 출근, 퇴근을 안 찍음
     const H = 3600;
     expect((await roster(store, at(15 * H)))[0]).toMatchObject({ status: "in", stale: false }); // 15시간 뒤에도 근무 중으로 본다
@@ -202,17 +202,19 @@ describe("출근·퇴근 기록", () => {
     expect((await roster(store, next))[0]).toMatchObject({ status: "out", stale: true });
     expect((await adminEmployees(store, next))[0]).toMatchObject({ status: "out", stale: true });
 
-    // 퇴근 버튼(옛 화면)을 누르면 거부되고, 퇴근 기록이 없음을 안내한다.
-    const wrong = await punch(store, { id: "a", pin: "1234", kind: "out" }, next);
-    expect(wrong).toMatchObject({ status: 409, body: { code: "stale", status: "out" } });
-    expect(String(wrong.body.error)).toContain("전 근무의 퇴근 기록이 없습니다");
+    // 출근도 퇴근도 거부된다. 퇴근 없이 다시 출근하는 기록이 생기지 않는다.
+    for (const kind of ["in", "out"]) {
+      const r = await punch(store, { id: "a", pin: "1234", kind }, next);
+      expect(r).toMatchObject({ status: 409, body: { code: "stale" } });
+      expect(String(r.body.error)).toContain("전 근무(11/15 09:00 출근)의 퇴근 기록이 없어 지금은 출근할 수 없습니다");
+    }
     expect(await store.listClockEvents({ submissionId: "a" })).toHaveLength(1);
 
-    // 출근은 새 출근으로 기록된다. 전 근무는 퇴근 기록 없이 그대로 남아 월간 기록부에서 정정할 수 있다.
+    // 사장님이 월간 기록부에서 퇴근을 정정하면 바로 출근할 수 있다.
+    expect((await addEvent(store, { submissionId: "a", kind: "out", at: "2026-11-15T18:00", reason: "퇴근 누락 정정" }, next)).status).toBe(201);
+    expect((await roster(store, next))[0]).toMatchObject({ status: "out", stale: false });
     expect((await punch(store, { id: "a", pin: "1234", kind: "in" }, next)).status).toBe(201);
-    expect((await store.listClockEvents({ submissionId: "a" })).map((e) => e.kind)).toEqual(["in", "in"]);
-    expect((await roster(store, at(27 * H)))[0]).toMatchObject({ status: "in", stale: false });
-    expect((await punch(store, { id: "a", pin: "1234", kind: "out" }, at(35 * H))).status).toBe(201); // 이후 퇴근은 정상
+    expect((await store.listClockEvents({ submissionId: "a" })).map((e) => e.kind)).toEqual(["in", "out", "in"]);
   });
 
   it("PIN이 틀리면 기록되지 않고, 5번 틀리면 10분간 잠기며, 새 PIN을 만들면 풀린다", async () => {
@@ -317,7 +319,36 @@ describe("월간 기록부 데이터와 관리자 정정", () => {
     expect(audit[0]).toMatchObject({ action: "edit", before: { kind: "in", at: orig.at }, after: { kind: "in", at: T("2026-11-02T09:30") } });
   });
 
+  it("관리자 기록 추가·수정도 출근→퇴근 순서를 깨지 않는다(퇴근 없는 출근 뒤 출근, 출근 없는 퇴근 뒤 퇴근 거부)", async () => {
+    const add = (kind: string, local: string) => addEvent(store, { submissionId: "a", kind, at: local, reason: "시험" }, NOW);
+    expect((await add("out", "2026-11-02T18:00")).status).toBe(400); // 앞에 출근이 없는 퇴근
+    expect((await add("in", "2026-11-02T10:00")).status).toBe(201);
+    const dupIn = await add("in", "2026-11-03T10:00"); // 퇴근 없는 출근 뒤에 또 출근
+    expect(dupIn).toMatchObject({ status: 400, body: { code: "sequence" } });
+    expect(String(dupIn.body.error)).toContain("11/2 10:00 출근의 퇴근 기록이 없습니다");
+    expect((await add("out", "2026-11-02T18:00")).status).toBe(201);
+    const dupOut = await add("out", "2026-11-02T20:00"); // 퇴근 뒤에 출근 없이 또 퇴근
+    expect(dupOut).toMatchObject({ status: 400, body: { code: "sequence" } });
+    expect(String(dupOut.body.error)).toContain("11/2 18:00 퇴근 뒤에 출근 기록이 없습니다");
+    expect((await store.listClockEvents({ submissionId: "a" })).map((e) => e.kind)).toEqual(["in", "out"]);
+
+    // 수정도 같은 규칙: 퇴근을 출근으로 바꾸면 출근 뒤에 출근이 되어 거부된다.
+    const out = (await store.listClockEvents({ submissionId: "a" }))[1];
+    expect(await editEvent(store, out.id, { kind: "in", reason: "x" }, NOW)).toMatchObject({ status: 400, body: { code: "sequence" } });
+    expect((await editEvent(store, out.id, { at: "2026-11-02T19:00", reason: "시각 정정" }, NOW)).status).toBe(200); // 순서를 지키는 수정은 된다
+
+    // 하루치를 통째로 빠뜨린 경우: 출근을 먼저, 이어서 퇴근을 넣을 수 있다(다른 날 기록 사이에도).
+    expect((await add("in", "2026-11-05T10:00")).status).toBe(201);
+    expect((await add("out", "2026-11-05T18:00")).status).toBe(201);
+    expect((await add("in", "2026-11-04T10:00")).status).toBe(201);
+    expect((await add("out", "2026-11-04T18:00")).status).toBe(201);
+    expect((await store.listClockEvents({ submissionId: "a" })).map((e) => e.kind)).toEqual(["in", "out", "in", "out", "in", "out"]);
+    // 이미 있는 퇴근 바로 앞에 퇴근을 끼워 넣어 그 퇴근의 출근이 없어지는 것도 막는다.
+    expect((await add("out", "2026-11-05T12:00")).status).toBe(400);
+  });
+
   it("기록 삭제: 사유 필수, 삭제 후에도 이력에 원래 내용이 남는다", async () => {
+    await addEvent(store, { submissionId: "a", kind: "in", at: "2026-11-02T10:00", reason: "추가" }, NOW);
     const add = await addEvent(store, { submissionId: "a", kind: "out", at: "2026-11-02T18:00", reason: "추가" }, NOW);
     const id = (add.body.event as { id: string }).id;
     expect((await removeEvent(store, id, {}, NOW)).status).toBe(400);
@@ -325,8 +356,8 @@ describe("월간 기록부 데이터와 관리자 정정", () => {
     expect((await removeEvent(store, id, { reason: "잘못 입력" }, new Date(NOW.getTime() + 1000))).status).toBe(200);
     expect(await store.getClockEvent(id)).toBeNull();
     const audit = await store.listClockAudit();
-    expect(audit.map((a) => a.action)).toEqual(["add", "delete"]);
-    expect(audit[1]).toMatchObject({ before: { kind: "out", at: T("2026-11-02T18:00") }, after: null, reason: "잘못 입력" });
+    expect(audit.map((a) => a.action)).toEqual(["add", "add", "delete"]);
+    expect(audit[2]).toMatchObject({ before: { kind: "out", at: T("2026-11-02T18:00") }, after: null, reason: "잘못 입력" });
   });
 
   it("API: 관리자만 정정할 수 있고 같은 출처 요청만 받는다", async () => {

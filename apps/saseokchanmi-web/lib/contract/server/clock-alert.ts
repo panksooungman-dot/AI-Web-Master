@@ -1,5 +1,6 @@
 import { hhmm, kst } from "../clock-sheet";
 import { SITE_URL } from "@/lib/site-config";
+import { alimtalkMissing, sendAlimtalk } from "./alimtalk";
 import { adminEmployees } from "./clock";
 import { notifyOwner, safeName, type Env, type NotifyResult } from "./notify";
 import type { ContractStore } from "./store";
@@ -35,6 +36,18 @@ export function buildMissingMessage(missing: MissingCheckout[], link = `${SITE_U
   return `[사색찬미] 퇴근 기록이 없는 직원이 ${missing.length}명 있습니다: ${shown}${more}\n월간 기록부에서 퇴근 시각을 정정해 주세요. 정정 전에는 해당 직원이 출근을 기록할 수 없습니다.\n${link}`;
 }
 
+/** 알림톡 변수용 직원 요약("홍길동, 김철수 외 1명"). 카카오 변수 길이 제한(40자) 안에 들어가게 이름을 줄인다. */
+export function kakaoPeople(missing: MissingCheckout[]): string {
+  const names = missing.map((m) => safeName(m.name));
+  let shown = names[0] ?? "";
+  let n = 1;
+  while (n < names.length && `${shown}, ${names[n]} 외 ${names.length - n - 1}명`.length <= 40) {
+    shown += `, ${names[n]}`;
+    n++;
+  }
+  return n < names.length ? `${shown} 외 ${names.length - n}명` : shown;
+}
+
 export interface AlertResult {
   count: number;
   sent: NotifyResult[];
@@ -43,5 +56,11 @@ export interface AlertResult {
 export async function runMissingCheckoutAlert(store: ContractStore, env: Env = process.env, now: Date = new Date(), fetchFn: typeof fetch = fetch): Promise<AlertResult> {
   const missing = await missingCheckouts(store, now);
   if (missing.length === 0) return { count: 0, sent: [] };
-  return { count: missing.length, sent: await notifyOwner(buildMissingMessage(missing), env, fetchFn) };
+  const sent = await notifyOwner(buildMissingMessage(missing), env, fetchFn);
+  // 알림톡은 설정이 모두 있을 때만 보낸다. 설정이 없으면 조용히 건너뛴다(Slack·문자만 쓰는 매장).
+  if (env.SOLAPI_TO && alimtalkMissing("missing", env).length === 0) {
+    const r = await sendAlimtalk("missing", { to: env.SOLAPI_TO, vars: { 인원: String(missing.length), 직원: kakaoPeople(missing) }, link: `${SITE_URL}/admin/clock` }, env, fetchFn);
+    sent.push({ channel: r.channel, ok: r.ok, error: r.error });
+  }
+  return { count: missing.length, sent };
 }

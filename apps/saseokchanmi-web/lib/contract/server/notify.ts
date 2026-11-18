@@ -9,7 +9,7 @@ import { SITE_URL } from "@/lib/site-config";
  */
 
 export type Env = Record<string, string | undefined>;
-export type NotifyResult = { channel: "slack" | "solapi"; ok: boolean; error?: string };
+export type NotifyResult = { channel: "slack" | "solapi" | "kakao"; ok: boolean; error?: string };
 
 const TIMEOUT_MS = 4000;
 
@@ -44,23 +44,28 @@ export function solapiAuthHeader(apiKey: string, apiSecret: string, now = new Da
   return `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
 }
 
-async function sendSolapi(env: Env, text: string, fetchFn: typeof fetch): Promise<NotifyResult> {
+/** SOLAPI 메시지 발송 요청. 문자·알림톡이 같이 쓴다. HTTP 오류와 접수 전체 실패(예: 발신번호 미등록)는 실패로 돌려준다. */
+export async function postSolapiMessages(env: Env, messages: unknown[], fetchFn: typeof fetch): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetchFn("https://api.solapi.com/messages/v4/send-many/detail", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: solapiAuthHeader(env.SOLAPI_API_KEY!, env.SOLAPI_API_SECRET!) },
-      body: JSON.stringify({ messages: [{ to: env.SOLAPI_TO!.replace(/\D/g, ""), from: env.SOLAPI_FROM!.replace(/\D/g, ""), text }] }),
+      body: JSON.stringify({ messages }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!res.ok) return { channel: "solapi", ok: false, error: `HTTP ${res.status}` };
-    // 접수 자체가 전부 실패로 집계된 경우도 실패로 본다(예: 발신번호 미등록).
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = (await res.json().catch(() => null)) as { groupInfo?: { count?: { total?: number; registeredFailed?: number } } } | null;
     const c = data?.groupInfo?.count;
-    if (c && typeof c.total === "number" && c.total > 0 && c.registeredFailed === c.total) return { channel: "solapi", ok: false, error: "접수 실패" };
-    return { channel: "solapi", ok: true };
+    if (c && typeof c.total === "number" && c.total > 0 && c.registeredFailed === c.total) return { ok: false, error: "접수 실패" };
+    return { ok: true };
   } catch (e) {
-    return { channel: "solapi", ok: false, error: e instanceof Error ? e.name : "error" };
+    return { ok: false, error: e instanceof Error ? e.name : "error" };
   }
+}
+
+async function sendSolapi(env: Env, text: string, fetchFn: typeof fetch): Promise<NotifyResult> {
+  const r = await postSolapiMessages(env, [{ to: env.SOLAPI_TO!.replace(/\D/g, ""), from: env.SOLAPI_FROM!.replace(/\D/g, ""), text }], fetchFn);
+  return { channel: "solapi", ...r };
 }
 
 /** 켜져 있는 채널로 같은 글을 보내고 채널별 결과를 돌려준다. 채널이 없으면 빈 배열. */

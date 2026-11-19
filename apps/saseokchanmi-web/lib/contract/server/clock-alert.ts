@@ -1,6 +1,6 @@
 import { hhmm, kst } from "../clock-sheet";
 import { SITE_URL } from "@/lib/site-config";
-import { alimtalkMissing, sendAlimtalk } from "./alimtalk";
+import { alimtalkMissing, sendAlimtalk, splitNumbers } from "./alimtalk";
 import { adminEmployees } from "./clock";
 import { notifyOwner, safeName, type Env, type NotifyResult } from "./notify";
 import type { ContractStore } from "./store";
@@ -59,10 +59,13 @@ export async function runMissingCheckoutAlert(store: ContractStore, env: Env = p
   const sent = await notifyOwner(buildMissingMessage(missing), env, fetchFn);
   // 알림톡은 설정이 모두 있을 때만 보낸다. 설정이 없으면 조용히 건너뛴다(Slack·문자만 쓰는 매장).
   // 받는 번호는 SOLAPI_KAKAO_TO가 우선이다. 알림톡 전용 키는 문자 권한이 없어서 SOLAPI_TO를 넣으면 문자 발송이 같이 시도되기 때문이다.
-  const kakaoTo = env.SOLAPI_KAKAO_TO?.trim() || env.SOLAPI_TO;
-  if (kakaoTo && alimtalkMissing("missing", env).length === 0) {
-    const r = await sendAlimtalk("missing", { to: kakaoTo, vars: { 인원: String(missing.length), 직원: kakaoPeople(missing) }, link: `${SITE_URL}/admin/clock` }, env, fetchFn);
-    sent.push({ channel: r.channel, ok: r.ok, error: r.error });
+  // 번호는 쉼표로 여러 개 적을 수 있다. 번호마다 따로 보내고, 결과는 알림톡 한 건으로 합친다(하나라도 실패하면 실패).
+  const kakaoTo = splitNumbers(env.SOLAPI_KAKAO_TO?.trim() || env.SOLAPI_TO);
+  if (kakaoTo.length > 0 && alimtalkMissing("missing", env).length === 0) {
+    const vars = { 인원: String(missing.length), 직원: kakaoPeople(missing) };
+    const results = await Promise.all(kakaoTo.map((to) => sendAlimtalk("missing", { to, vars, link: `${SITE_URL}/admin/clock` }, env, fetchFn)));
+    const failed = results.filter((r) => !r.ok);
+    sent.push({ channel: "kakao", ok: failed.length === 0, ...(failed.length ? { error: `${failed.length}/${results.length}건 실패: ${failed[0].error ?? "오류"}` } : {}) });
   }
   return { count: missing.length, sent };
 }

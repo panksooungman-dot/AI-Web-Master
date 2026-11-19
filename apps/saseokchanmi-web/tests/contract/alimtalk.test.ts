@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ALIMTALK, alimtalkMissing, clipVar, mobileOf, renderAlimtalk, sendAlimtalk } from "@/lib/contract/server/alimtalk";
+import { ALIMTALK, alimtalkMissing, clipVar, mobileOf, renderAlimtalk, sendAlimtalk, splitNumbers } from "@/lib/contract/server/alimtalk";
 import { kakaoPeople, runMissingCheckoutAlert } from "@/lib/contract/server/clock-alert";
 import { createMemoryStore } from "@/lib/contract/server/backends";
 import { addEvent } from "@/lib/contract/server/clock";
@@ -23,6 +23,13 @@ describe("알림톡 도우미", () => {
     expect(mobileOf("010-1234-5678")).toBe("01012345678");
     expect(mobileOf("02-123-4567")).toBeNull();
     expect(mobileOf("")).toBeNull();
+  });
+
+  it("여러 번호를 쉼표·공백으로 나누고 중복은 한 번만 쓴다", () => {
+    expect(splitNumbers("010-1111-2222, 010-3333-4444")).toEqual(["01011112222", "01033334444"]);
+    expect(splitNumbers("010-1111-2222;010-1111-2222  010-3333-4444")).toEqual(["01011112222", "01033334444"]);
+    expect(splitNumbers("")).toEqual([]);
+    expect(splitNumbers(undefined)).toEqual([]);
   });
 
   it("변수는 40자로 줄이고, 문구에는 변수만 채운다", () => {
@@ -138,6 +145,21 @@ describe("퇴근 누락 알림톡", () => {
     const r3 = await runMissingCheckoutAlert(store, { ...noSms, SOLAPI_KAKAO_TO: "010-2222-3333" }, NOW, only);
     expect(r3.sent.map((s) => s.channel)).toEqual(["kakao"]);
     expect(sentOf(only)[0].to).toBe("01022223333");
+
+    // 번호를 2개 적으면 번호마다 따로 보내고, 결과는 알림톡 한 건으로 합친다.
+    const two = okFetch();
+    const r4 = await runMissingCheckoutAlert(store, { ...noSms, SOLAPI_KAKAO_TO: "010-2222-3333, 010-4444-5555" }, NOW, two);
+    expect(r4.sent).toEqual([{ channel: "kakao", ok: true }]);
+    expect(sentOf(two).map((m) => m.to).sort()).toEqual(["01022223333", "01044445555"]);
+
+    // 한 명이라도 실패하면 실패로 표시한다.
+    const partial = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ groupInfo: { count: { total: 1, registeredFailed: 0 } } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("no", { status: 403 }));
+    const r5 = await runMissingCheckoutAlert(store, { ...noSms, SOLAPI_KAKAO_TO: "010-2222-3333,010-4444-5555" }, NOW, partial);
+    expect(r5.sent).toHaveLength(1);
+    expect(r5.sent[0]).toMatchObject({ channel: "kakao", ok: false });
+    expect(r5.sent[0].error).toContain("1/2");
 
     const noKakao = okFetch();
     const { SOLAPI_KAKAO_PFID: _omit, ...rest } = ENV;

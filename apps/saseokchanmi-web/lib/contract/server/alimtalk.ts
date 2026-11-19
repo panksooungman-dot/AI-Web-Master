@@ -62,6 +62,16 @@ export function mobileOf(raw: string): string | null {
   return /^01[016789]\d{7,8}$/.test(d) ? d : null;
 }
 
+/** 쉼표·세미콜론·공백으로 여러 번호를 적은 값을 번호 목록으로 나눈다(중복·빈 값은 뺀다). 번호 검증은 sendAlimtalk가 한다. */
+export function splitNumbers(raw: string | undefined): string[] {
+  const seen = new Set<string>();
+  for (const part of String(raw ?? "").split(/[,;\s]+/)) {
+    const d = part.replace(/\D/g, "");
+    if (d) seen.add(d);
+  }
+  return [...seen];
+}
+
 /** 알림톡을 보내려면 필요한데 비어 있는 환경변수 이름들. 비어 있으면 보낼 수 있다. */
 export function alimtalkMissing(kind: AlimtalkKind, env: Env = process.env): string[] {
   const need = ["SOLAPI_API_KEY", "SOLAPI_API_SECRET", "SOLAPI_FROM", "SOLAPI_KAKAO_PFID", ALIMTALK[kind].env];

@@ -3,7 +3,7 @@ import { Container } from "@cnbiz/layout-primitives";
 import { LinkButton } from "@cnbiz/ui";
 import { MenuTabs } from "@/components/ui/MenuTabs";
 import { PageHero } from "@/components/ui/PageHero";
-import { ADDITIONAL_MENU, SIGNATURE_MENU } from "@/lib/content";
+import { ADDITIONAL_MENU, DRINK_MENU, MENU_ORDER_NOTE, SIGNATURE_MENU } from "@/lib/content";
 import { OG_DEFAULTS, OG_IMAGE, RESERVATION_HREF, seoKeywords } from "@/lib/site-config";
 
 const TITLE = "한정식 메뉴";
@@ -24,12 +24,12 @@ export default function MenuPage() {
       <PageHero
         eyebrow="Menu"
         title="사색찬미의 대표 한정식"
-        description="정갈한 한상, 건강한 맛. 모든 솥밥정식은 1인 가격이며, 2인 이상 주문하실 수 있습니다."
+        description={`정갈한 한상, 건강한 맛. ${MENU_ORDER_NOTE}`}
       />
       <section className="bg-background py-20">
         <Container>
           <div className="mx-auto max-w-3xl">
-            <MenuTabs signatureMenu={SIGNATURE_MENU} additionalMenu={ADDITIONAL_MENU} />
+            <MenuTabs signatureMenu={SIGNATURE_MENU} additionalMenu={ADDITIONAL_MENU} drinkMenu={DRINK_MENU} />
 
             <div className="mt-10 rounded-xl border border-dashed border-primary/30 bg-secondary/30 p-6 text-sm leading-relaxed text-muted">
               <p className="font-semibold text-foreground">안내</p>

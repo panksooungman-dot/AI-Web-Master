@@ -4,19 +4,20 @@ import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@cnbiz/utils";
 import { TodoBadge } from "@/components/ui/TodoBadge";
-import type { MenuItem } from "@/lib/content";
+import { MENU_ORDER_NOTE, type MenuItem } from "@/lib/content";
 
 /**
  * 네이버플레이스 메뉴 탭(추천 메뉴/솥밥정식/추가메뉴)을 참고한 카테고리 필터.
  * 다만 "추천 메뉴"는 매장이 실제로 지정한 적이 없는 항목이라 지어내지 않고, 우리가 실제로
  * 가진 두 카테고리(솥밥정식·추가메뉴)에 "전체" 탭을 더한 3탭 구성으로 만든다.
  */
-type TabKey = "all" | "signature" | "additional";
+type TabKey = "all" | "signature" | "additional" | "drink";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "전체" },
   { key: "signature", label: "솥밥정식" },
   { key: "additional", label: "추가메뉴" },
+  { key: "drink", label: "주류·음료" },
 ];
 
 function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number; fallbackLabel: string }) {
@@ -32,7 +33,14 @@ function MenuRow({ item, index, fallbackLabel }: { item: MenuItem; index: number
         {item.name ? (
           <>
             <p className="font-semibold text-foreground">{item.name}</p>
-            {item.price && <p className="mt-0.5 text-sm font-semibold text-primary">{item.price}</p>}
+            {item.price && (
+              <p className="mt-0.5 text-sm font-semibold text-primary">
+                {item.price}
+                {item.minPeople && (
+                  <span className="ml-2 text-xs font-medium text-muted">{item.minPeople === 1 ? "1인 주문 가능" : "2인 이상"}</span>
+                )}
+              </p>
+            )}
           </>
         ) : (
           <TodoBadge label={item.todo ?? "확인 필요"} />
@@ -65,9 +73,11 @@ function MenuGroup({ title, note, items, fallbackLabel }: {
 export function MenuTabs({
   signatureMenu,
   additionalMenu,
+  drinkMenu,
 }: {
   signatureMenu: MenuItem[];
   additionalMenu: MenuItem[];
+  drinkMenu: MenuItem[];
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
@@ -98,15 +108,18 @@ export function MenuTabs({
 
       <div className="mt-8 space-y-16">
         {(activeTab === "all" || activeTab === "signature") && (
-          <MenuGroup title="솥밥정식" items={signatureMenu} fallbackLabel="대표 메뉴" />
+          <MenuGroup title="솥밥정식" note={MENU_ORDER_NOTE} items={signatureMenu} fallbackLabel="대표 메뉴" />
         )}
         {(activeTab === "all" || activeTab === "additional") && (
           <MenuGroup
             title="추가메뉴"
-            note="정식은 1인 가격이며 2인 이상 주문하실 수 있습니다. 세 분 이상 오셨거나 더 푸짐하게 즐기고 싶다면 아래 추가메뉴로 넉넉하게 채워 보세요."
+            note="세 분 이상 오셨거나 더 푸짐하게 즐기고 싶다면 추가메뉴로 넉넉하게 채워 보세요."
             items={additionalMenu}
             fallbackLabel="메뉴"
           />
+        )}
+        {(activeTab === "all" || activeTab === "drink") && (
+          <MenuGroup title="주류·음료" items={drinkMenu} fallbackLabel="주류·음료" />
         )}
       </div>
     </div>

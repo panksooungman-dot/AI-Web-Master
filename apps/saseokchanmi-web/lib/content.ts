@@ -12,6 +12,8 @@ export interface MenuItem {
   /** 확정 전에는 null — 가격을 지어내지 않는다. */
   price: string | null;
   description: string | null;
+  /** 최소 주문 인원. 1이면 1인도 주문 가능, 2면 2인 이상 주문. 생략하면 표시하지 않는다(추가메뉴·주류 등). */
+  minPeople?: 1 | 2;
   /**
    * 2026-09-22 — 매장주가 네이버 스마트플레이스 "대표 메뉴" 탭에 이어 "전체 메뉴" 탭의
    * 실제 HTML도 전달해줘, SIGNATURE_MENU·ADDITIONAL_MENU 9종 전부 실제 사진(320x320,
@@ -40,48 +42,61 @@ export interface MenuItem {
  * 주문 가능(예: 18,000원 메뉴를 2인이 주문하면 36,000원). price 필드에 "1인" 접두사를
  * 명시해 더 이상 혼동되지 않도록 한다.
  */
+/**
+ * 2026-11-25 — 매장주가 새 메뉴판 사진을 전달해줘 메뉴명·가격을 전면 갱신했다. 모든 정식에
+ * "개인 곤드레 솥밥"이 포함되고, "제육 + 조기·가자미 정식"만 1인 주문이 가능하며 나머지 6종은
+ * 2인 이상 주문(가격은 모두 1인 기준)이다. 포스터에 있는 구성에 맞춰 이름을 붙였고 사진은 같은
+ * 메인 구성의 기존 사진을 그대로 연결했다 — 코다리 정식 등 구성이 바뀐 메뉴는 새 사진을 받으면 교체한다.
+ */
 export const SIGNATURE_MENU: MenuItem[] = [
   {
-    name: "제육·조기·가자미 솥밥정식",
-    price: "1인 18,000원",
-    description: "매콤한 제육볶음과 노릇한 조기, 담백한 가자미구이를 다채로운 솥밥과 반찬에 올린 두 분 한 상.",
+    name: "제육 + 조기·가자미 정식",
+    price: "1인 20,000원",
+    description: "매콤한 제육볶음과 노릇한 조기, 담백한 가자미구이를 개인 곤드레 솥밥과 정갈한 반찬에 올린 한 상.",
+    minPeople: 1,
     image: "/images/menu/sotbap-jeyuk.jpg",
   },
   {
-    name: "제육·코다리·조기·가자미 솥밥정식",
-    price: "1인 22,000원",
-    description: "제육볶음에 코다리조림, 조기와 가자미구이까지 한 상에 담아 가장 푸짐하게 차린 메뉴.",
+    name: "코다리 + 조기·가자미 정식",
+    price: "1인 23,000원",
+    description: "매콤하게 조려낸 코다리조림과 노릇한 조기, 담백한 가자미구이를 한 상에 담았습니다.",
+    minPeople: 2,
     image: "/images/menu/sotbap-jeyuk-kodari.jpg",
   },
   {
-    name: "고등어·조기·가자미 솥밥정식",
-    price: "1인 20,000원",
+    name: "고등어 + 조기·가자미 정식",
+    price: "1인 23,000원",
     description: "고소한 고등어구이와 조기, 가자미까지 세 가지 생선구이를 골라 먹는 재미가 있는 한 상.",
+    minPeople: 2,
     image: "/images/menu/sotbap-godeungeo.jpg",
   },
   {
-    name: "LA갈비·조기·가자미 솥밥정식",
-    price: "1인 25,000원",
-    description: "달콤짭짤한 양념 LA갈비구이와 조기·가자미구이를 함께 올려 가장 넉넉하게 차린 한 상.",
-    image: "/images/menu/sotbap-la-galbi.jpg",
-  },
-  {
-    name: "불고기·조기·가자미 솥밥정식",
-    price: "1인 22,000원",
-    description: "달콤한 불고기 한 입에 고소한 조기·가자미구이까지, 남녀노소 좋아하는 솥밥 한 상.",
-    image: "/images/menu/sotbap-bulgogi.jpg",
-  },
-  {
-    name: "더덕구이·제육볶음 솥밥정식",
-    price: "1인 20,000원",
-    description: "향긋한 더덕구이와 매콤달콤 제육볶음의 맛있는 만남, 솥밥과 정갈한 반찬 한 상.",
+    name: "더덕 + 제육·가자미 정식",
+    price: "1인 23,000원",
+    description: "향긋한 더덕구이와 매콤달콤 제육볶음, 담백한 가자미구이까지 솥밥과 정갈한 반찬 한 상.",
+    minPeople: 2,
     image: "/images/menu/sotbap-deodeok-jeyuk.jpg",
   },
   {
-    name: "더덕구이·조기·가자미 솥밥정식",
-    price: "1인 22,000원",
+    name: "더덕 + 조기·가자미 정식",
+    price: "1인 25,000원",
     description: "향긋하고 쫄깃한 더덕구이와 노릇하게 구운 조기·가자미를 함께 차린 솥밥 한 상.",
+    minPeople: 2,
     image: "/images/menu/sotbap-deodeok.jpg",
+  },
+  {
+    name: "불고기 + 조기·가자미 정식",
+    price: "1인 25,000원",
+    description: "달콤한 불고기 한 입에 고소한 조기·가자미구이까지, 남녀노소 좋아하는 솥밥 한 상.",
+    minPeople: 2,
+    image: "/images/menu/sotbap-bulgogi.jpg",
+  },
+  {
+    name: "LA갈비 + 조기·가자미 정식",
+    price: "1인 28,000원",
+    description: "달콤짭짤한 양념 LA갈비구이와 조기·가자미구이를 함께 올려 가장 넉넉하게 차린 한 상.",
+    minPeople: 2,
+    image: "/images/menu/sotbap-la-galbi.jpg",
   },
 ];
 
@@ -96,7 +111,7 @@ export const SIGNATURE_MENU: MenuItem[] = [
  */
 export const ADDITIONAL_MENU: MenuItem[] = [
   {
-    name: "제육볶음",
+    name: "제육",
     price: "20,000원",
     description: "매콤달콤 불맛 한 접시, 인원 늘릴 때 가장 먼저 찾는 메뉴.",
     image: "/images/menu/add-jeyuk-bokkeum.jpg",
@@ -120,18 +135,28 @@ export const ADDITIONAL_MENU: MenuItem[] = [
     image: "/images/menu/add-godeungeo.jpg",
   },
   {
-    name: "더덕구이",
-    price: "15,000원",
+    name: "더덕",
+    price: "20,000원",
     description: "향긋하고 쫄깃한 더덕 한 접시, 상의 품격을 한층 더.",
     image: "/images/menu/add-deodeok.jpg",
   },
   {
-    name: "솥밥 추가",
-    price: "2,000원",
-    description: "2,000원으로 솥밥 한 그릇 더, 마지막까지 든든하게.",
+    name: "곤드레 솥밥",
+    price: "3,000원",
+    description: "3,000원으로 곤드레 솥밥 한 그릇 더, 마지막까지 든든하게.",
     image: "/images/menu/add-sotbap-chuga.jpg",
   },
 ];
+
+/** 주류·음료 — 2026-11-25 새 메뉴판 사진 기준. 사진 없이 이름과 가격만 표시한다. */
+export const DRINK_MENU: MenuItem[] = [
+  { name: "소주·맥주·막걸리", price: "5,000원", description: null },
+  { name: "음료수", price: "2,000원", description: null },
+];
+
+/** 정식 주문 안내(메뉴 페이지·홈·탭에서 같은 문구를 쓴다). */
+export const MENU_ORDER_NOTE =
+  "모든 정식에는 개인 곤드레 솥밥이 포함되며 가격은 1인 기준입니다. 제육 + 조기·가자미 정식은 1인부터, 나머지 정식은 2인 이상 주문하실 수 있습니다.";
 
 export interface OccasionItem {
   slug: string;

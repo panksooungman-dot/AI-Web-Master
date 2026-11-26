@@ -1,4 +1,5 @@
-import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, PayrollSettingsRecord, PayslipRecord, SettingsRecord, SubmissionRecord } from "./store";
+import { depositKey } from "../deposit";
+import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, DepositRecord, DepositSettings, LoginAttempt, PayrollSettingsRecord, PayslipRecord, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * Postgres(Neon) 저장소. 드라이버에 묶이지 않도록 "SQL 한 줄 실행기"만 받는다
@@ -83,12 +84,40 @@ export const SCHEMA: readonly string[] = [
     confirmed_at text NOT NULL,
     UNIQUE (submission_id, month)
   )`,
+  `CREATE TABLE IF NOT EXISTS deposit (
+    id text PRIMARY KEY,
+    amount bigint NOT NULL,
+    depositor text NOT NULL,
+    occurred_at text NOT NULL,
+    received_at text NOT NULL,
+    confirmed_at text,
+    memo text NOT NULL,
+    unparsed boolean NOT NULL DEFAULT false,
+    dedupe_key text UNIQUE
+  )`,
+  `CREATE INDEX IF NOT EXISTS deposit_occurred_at ON deposit (occurred_at)`,
+  `CREATE TABLE IF NOT EXISTS deposit_setting (
+    id integer PRIMARY KEY CHECK (id = 1),
+    exclude_names jsonb NOT NULL DEFAULT '[]'::jsonb,
+    last_ingest_at text
+  )`,
 ];
 
 const json = (v: unknown): string => JSON.stringify(v);
 /** 드라이버에 따라 jsonb가 문자열로 올 수 있어 방어적으로 푼다. */
 const parse = <T>(v: unknown): T => (typeof v === "string" ? (JSON.parse(v) as T) : (v as T));
 const str = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
+
+const toDeposit = (r: Row): DepositRecord => ({
+  id: String(r.id),
+  amount: Number(r.amount),
+  depositor: String(r.depositor),
+  occurredAt: String(r.occurred_at),
+  receivedAt: String(r.received_at),
+  confirmedAt: str(r.confirmed_at),
+  memo: String(r.memo),
+  ...(r.unparsed === true ? { unparsed: true } : {}),
+});
 
 const toConfig = (r: Row): ConfigRecord => ({
   token: String(r.token),
@@ -317,6 +346,50 @@ export function createSqlStore(run: SqlRunner): ContractStore {
       if (opts.submissionId) where.push(`submission_id = $${params.push(opts.submissionId)}`);
       const sql = `SELECT * FROM clock_audit${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY at ASC, id ASC`;
       return (await q(sql, params)).map(toClockAudit);
+    },
+
+    insertDeposit: async (rec) => {
+      const rows = await q(
+        `INSERT INTO deposit (id, amount, depositor, occurred_at, received_at, confirmed_at, memo, unparsed, dedupe_key)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (dedupe_key) DO NOTHING RETURNING id`,
+        [rec.id, rec.amount, rec.depositor, rec.occurredAt, rec.receivedAt, rec.confirmedAt, rec.memo, rec.unparsed === true, depositKey(rec)],
+      );
+      return rows.length > 0;
+    },
+    listDeposits: async (opts = {}) => {
+      const where: string[] = [];
+      const params: unknown[] = [];
+      if (opts.from) where.push(`occurred_at >= $${params.push(opts.from)}`);
+      if (opts.to) where.push(`occurred_at < $${params.push(opts.to)}`);
+      const sql = `SELECT * FROM deposit${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY occurred_at DESC, id DESC`;
+      return (await q(sql, params)).map(toDeposit);
+    },
+    updateDeposit: async (id, patch) => {
+      const sets: string[] = [];
+      const params: unknown[] = [id];
+      if (patch.confirmedAt !== undefined) sets.push(`confirmed_at = $${params.push(patch.confirmedAt)}`);
+      if (patch.memo !== undefined) sets.push(`memo = $${params.push(patch.memo)}`);
+      const rows = sets.length ? await q(`UPDATE deposit SET ${sets.join(", ")} WHERE id = $1 RETURNING *`, params) : await q("SELECT * FROM deposit WHERE id = $1", [id]);
+      return rows[0] ? toDeposit(rows[0]) : null;
+    },
+    purgeDepositsBefore: async (before) => (await q("DELETE FROM deposit WHERE occurred_at < $1 RETURNING id", [before])).length,
+    getDepositSettings: async (): Promise<DepositSettings> => {
+      const r = (await q("SELECT * FROM deposit_setting WHERE id = 1"))[0];
+      return { excludeNames: r ? parse<string[]>(r.exclude_names) : [], lastIngestAt: r ? str(r.last_ingest_at) : null };
+    },
+    putDepositExcludes: async (names) => {
+      await q(
+        `INSERT INTO deposit_setting (id, exclude_names) VALUES (1, $1::jsonb)
+         ON CONFLICT (id) DO UPDATE SET exclude_names = EXCLUDED.exclude_names`,
+        [json(names)],
+      );
+    },
+    touchDepositIngest: async (at) => {
+      await q(
+        `INSERT INTO deposit_setting (id, last_ingest_at) VALUES (1, $1)
+         ON CONFLICT (id) DO UPDATE SET last_ingest_at = EXCLUDED.last_ingest_at`,
+        [at],
+      );
     },
 
     getPayrollSettings: async () => {

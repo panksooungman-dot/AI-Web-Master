@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, LoginAttempt, PayrollSettingsRecord, PayslipRecord, SettingsRecord, SubmissionRecord } from "./store";
+import { depositKey } from "../deposit";
+import type { ClockAuditRecord, ClockEventRecord, ClockPinRecord, ConfigRecord, ContractStore, DepositRecord, DepositSettings, LoginAttempt, PayrollSettingsRecord, PayslipRecord, SettingsRecord, SubmissionRecord } from "./store";
 
 /**
  * 파일/메모리 저장소 (개발·테스트용). 전체 데이터를 JSON 하나로 보관하고,
@@ -19,9 +20,11 @@ export interface DbShape {
   payrollSettings: PayrollSettingsRecord | null;
   /** 키: `${submissionId}:${month}` */
   payslips: Record<string, PayslipRecord>;
+  deposits: Record<string, DepositRecord>;
+  depositSettings: DepositSettings;
 }
 
-export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {}, clockAudit: {}, payrollSettings: null, payslips: {} });
+export const emptyDb = (): DbShape => ({ configs: {}, settings: null, submissions: {}, attempts: {}, clockPins: {}, clockEvents: {}, clockAudit: {}, payrollSettings: null, payslips: {}, deposits: {}, depositSettings: { excludeNames: [], lastIngestAt: null } });
 
 export interface Backend {
   read(): Promise<DbShape>;
@@ -170,6 +173,37 @@ export function createStore(backend: Backend): ContractStore {
       ),
     getPayslip: (submissionId, month) => read((db) => db.payslips[`${submissionId}:${month}`] ?? null),
     putPayslip: (rec) => mutate((db) => void (db.payslips[`${rec.submissionId}:${rec.month}`] = rec)),
+
+    insertDeposit: (rec) =>
+      mutate((db) => {
+        const key = depositKey(rec);
+        if (key !== null && Object.values(db.deposits ?? {}).some((d) => depositKey(d) === key)) return false;
+        db.deposits = { ...(db.deposits ?? {}), [rec.id]: rec };
+        return true;
+      }),
+    listDeposits: (opts = {}) =>
+      read((db) =>
+        Object.values(db.deposits ?? {})
+          .filter((d) => (!opts.from || d.occurredAt >= opts.from) && (!opts.to || d.occurredAt < opts.to))
+          .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id)),
+      ),
+    updateDeposit: (id, patch) =>
+      mutate((db) => {
+        const cur = db.deposits?.[id];
+        if (!cur) return null;
+        db.deposits[id] = { ...cur, ...(patch.confirmedAt !== undefined ? { confirmedAt: patch.confirmedAt } : {}), ...(patch.memo !== undefined ? { memo: patch.memo } : {}) };
+        return db.deposits[id];
+      }),
+    purgeDepositsBefore: (before) =>
+      mutate((db) => {
+        const keep = Object.entries(db.deposits ?? {}).filter(([, d]) => d.occurredAt >= before);
+        const removed = Object.keys(db.deposits ?? {}).length - keep.length;
+        db.deposits = Object.fromEntries(keep);
+        return removed;
+      }),
+    getDepositSettings: () => read((db) => ({ excludeNames: [...(db.depositSettings?.excludeNames ?? [])], lastIngestAt: db.depositSettings?.lastIngestAt ?? null })),
+    putDepositExcludes: (names) => mutate((db) => void (db.depositSettings = { lastIngestAt: db.depositSettings?.lastIngestAt ?? null, excludeNames: [...names] })),
+    touchDepositIngest: (at) => mutate((db) => void (db.depositSettings = { excludeNames: db.depositSettings?.excludeNames ?? [], lastIngestAt: at })),
 
     getAttempt: (key) => read((db) => db.attempts[key] ?? null),
     putAttempt: (a) => mutate((db) => void (db.attempts[a.key] = a)),

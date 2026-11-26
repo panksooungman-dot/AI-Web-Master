@@ -11,6 +11,7 @@ vi.mock("@neondatabase/serverless", () => ({
 }));
 
 import { createNeonStore } from "@/lib/contract/server/neon";
+import { SCHEMA } from "@/lib/contract/server/sql-store";
 
 describe("createNeonStore", () => {
   it("Neon 드라이버는 첫 질의 때 불러오고, 테이블을 먼저 만든 뒤 질의를 같은 연결 문자열로 보낸다", async () => {
@@ -19,7 +20,7 @@ describe("createNeonStore", () => {
 
     expect(await store.getConfig("abc")).toBeNull();
     const ddl = calls.filter((c) => c.text.startsWith("CREATE TABLE IF NOT EXISTS") || c.text.startsWith("CREATE INDEX IF NOT EXISTS"));
-    expect(ddl).toHaveLength(11);
+    expect(ddl).toHaveLength(SCHEMA.length); // 테이블이 늘어도 이 숫자를 손으로 고치지 않는다
     const last = calls[calls.length - 1];
     expect(last).toMatchObject({ url: "postgres://u:p@host/db?sslmode=require", params: ["abc"] });
     expect(last.text).toContain("FROM contract_config WHERE token = $1");

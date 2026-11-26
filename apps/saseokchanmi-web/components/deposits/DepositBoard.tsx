@@ -22,6 +22,45 @@ function ago(fromIso: string, nowMs: number): string {
   return h < 48 ? `${h}시간 전` : `${Math.floor(h / 24)}일 전`;
 }
 
+type NotifState = "unsupported" | NotificationPermission;
+
+/**
+ * 주기 실행. 창이 가려져 있으면 브라우저가 일반 타이머를 몇 분 뒤부터 1분에 한 번으로 늦추기 때문에,
+ * 늦춰지지 않는 Web Worker의 타이머로 박자를 맞춘다(워커를 못 쓰면 일반 타이머로 대신한다).
+ */
+function startTicker(fn: () => void, ms: number): () => void {
+  try {
+    const url = URL.createObjectURL(new Blob([`setInterval(() => postMessage(0), ${ms});`], { type: "text/javascript" }));
+    const w = new Worker(url);
+    w.onmessage = () => fn();
+    return () => {
+      w.terminate();
+      URL.revokeObjectURL(url);
+    };
+  } catch {
+    const t = setInterval(fn, ms);
+    return () => clearInterval(t);
+  }
+}
+
+/** 윈도우 알림 팝업. 포스 프로그램 위에도 화면 구석에 뜬다. 권한이 없거나 실패해도 화면 동작에는 영향이 없다. */
+function notifyDeposit(d: DepositRecord) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(d.unparsed ? "문자를 읽지 못한 입금이 있습니다" : `새 입금 ${won(d.amount)}`, {
+      body: d.unparsed ? "은행 앱에서 직접 확인해 주세요." : `${d.depositor} · ${md(d.occurredAt)} ${hm(d.occurredAt)}`,
+      tag: d.id,
+      requireInteraction: true, // 직원이 닫을 때까지 화면에 남는다(바빠서 놓치지 않도록)
+    });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch {
+    /* 알림을 만들지 못해도 목록과 소리는 그대로 동작한다 */
+  }
+}
+
 /** 짧은 알림음. 브라우저는 사용자가 한 번 눌러야 소리를 낼 수 있어서 "소리 켜기" 버튼에서 연결한다. */
 function beep(ctx: AudioContext) {
   const o = ctx.createOscillator();
@@ -47,6 +86,7 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
   const [error, setError] = useState<{ text: string; noDevice: boolean } | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const [sound, setSound] = useState(false);
+  const [notif, setNotif] = useState<NotifState>("unsupported");
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -65,7 +105,9 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
     setNow(Date.parse(r.serverNow));
     const ids = new Set(r.deposits.map((d) => d.id));
     if (seen.current) {
-      const added = r.deposits.filter((d) => !seen.current!.has(d.id) && !d.unparsed);
+      const all = r.deposits.filter((d) => !seen.current!.has(d.id));
+      all.slice(0, 5).forEach(notifyDeposit); // 한꺼번에 많이 와도 팝업은 5개까지만
+      const added = all.filter((d) => !d.unparsed);
       if (added.length) {
         setFresh((f) => new Set([...f, ...added.map((d) => d.id)]));
         if (soundOn.current && audio.current) beep(audio.current);
@@ -77,9 +119,12 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
   useEffect(() => {
     seen.current = null; // 기간을 바꾸면 처음부터 다시 본다(이미 있던 입금을 새 입금으로 알리지 않는다)
     queueMicrotask(() => void load());
-    const t = setInterval(() => void load(), REFRESH_MS);
-    return () => clearInterval(t);
+    return startTicker(() => void load(), REFRESH_MS);
   }, [load]);
+
+  useEffect(() => {
+    queueMicrotask(() => setNotif(typeof Notification === "undefined" ? "unsupported" : Notification.permission));
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNow((n) => (n === null ? n : n + 1000)), 1000);
@@ -92,6 +137,19 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
     beep(audio.current);
     soundOn.current = true;
     setSound(true);
+  }
+
+  async function enableNotify() {
+    if (typeof Notification === "undefined") return;
+    const p = await Notification.requestPermission();
+    setNotif(p);
+    if (p === "granted") {
+      try {
+        new Notification("입금 알림이 켜졌습니다", { body: "새 입금이 들어오면 이렇게 화면 구석에 표시됩니다." });
+      } catch {
+        /* 시험 알림이 실패해도 권한은 저장된다 */
+      }
+    }
   }
 
   async function patch(id: string, body: { confirmed?: boolean; memo?: string }) {
@@ -143,6 +201,11 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
               </button>
             ))}
           </div>
+          {notif !== "unsupported" ? (
+            <button type="button" className={notif === "granted" ? btnPrimary : btnOutline} onClick={enableNotify} disabled={notif === "denied"} aria-pressed={notif === "granted"}>
+              {notif === "granted" ? "팝업 알림 켜짐" : notif === "denied" ? "팝업 알림 막힘" : "팝업 알림 켜기"}
+            </button>
+          ) : null}
           <button type="button" className={sound ? btnPrimary : btnOutline} onClick={enableSound} aria-pressed={sound}>
             {sound ? "소리 켜짐" : "소리 켜기"}
           </button>
@@ -150,6 +213,9 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
       </div>
 
       {error ? <Notice tone="error">{error.text}</Notice> : null}
+      {notif === "denied" ? (
+        <Notice tone="error">팝업 알림이 막혀 있습니다. 크롬 주소창 왼쪽의 설정 아이콘(자물쇠) → 사이트 설정 → 알림을 &lsquo;허용&rsquo;으로 바꾼 뒤 이 화면을 새로 고쳐 주세요.</Notice>
+      ) : null}
       {stale ? (
         <Notice tone="error">
           {board.lastIngestAt ? `입금 문자를 마지막으로 받은 지 ${ago(board.lastIngestAt, now ?? Date.parse(board.serverNow))} 되었습니다.` : "아직 입금 문자를 받은 적이 없습니다."} 폰이 꺼졌거나 인터넷이 끊겼는지 확인해 주세요. 입금이 의심되면 은행 앱에서 직접 확인해 주세요.

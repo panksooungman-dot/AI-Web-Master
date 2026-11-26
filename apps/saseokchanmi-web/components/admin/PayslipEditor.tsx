@@ -122,9 +122,18 @@ export function PayslipEditor({ id, month }: { id: string; month: string }) {
   async function sendKakao() {
     setBusy(true);
     setNotice(null);
-    const r = await adminApi<object>("/api/admin/payroll/notify", { method: "POST", body: { id, month } });
+    const r = await adminApi<{ linked?: boolean }>("/api/admin/payroll/notify", { method: "POST", body: { id, month } });
     setBusy(false);
-    setNotice(r.ok ? { tone: "ok", text: "급여명세서 확정 안내를 알림톡으로 보냈습니다." } : { tone: "error", text: r.error });
+    setNotice(r.ok ? { tone: "ok", text: r.linked ? "급여명세서 확인 링크를 알림톡으로 보냈습니다. 직원이 PIN 4자리로 직접 확인할 수 있습니다." : "급여명세서 확정 안내를 알림톡으로 보냈습니다. (확인 링크 알림톡이 아직 설정되지 않아 안내만 갔습니다)" } : { tone: "error", text: r.error });
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/payslip/${id}`);
+      setNotice({ tone: "ok", text: "직원 확인 링크를 복사했습니다. 직원은 이 링크에서 출퇴근 PIN 4자리로 본인 명세서를 확인합니다." });
+    } catch {
+      setNotice({ tone: "error", text: "링크를 복사하지 못했습니다. 직접 복사해 주세요: " + `${window.location.origin}/payslip/${id}` });
+    }
   }
 
   async function confirm() {
@@ -206,6 +215,9 @@ export function PayslipEditor({ id, month }: { id: string; month: string }) {
                 </button>
                 <button type="button" className={btnOutline} disabled={busy} onClick={sendKakao}>
                   직원에게 알림톡 보내기
+                </button>
+                <button type="button" className={btnOutline} onClick={copyLink}>
+                  직원 확인 링크 복사
                 </button>
                 <button type="button" className={btnOutline} onClick={() => setMode("edit")}>
                   기록이 바뀌었나요? 다시 계산해 정정 발행

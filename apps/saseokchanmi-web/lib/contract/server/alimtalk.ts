@@ -8,7 +8,7 @@ import { postSolapiMessages, type Env, type NotifyResult } from "./notify";
  * - 환경변수가 없으면 보내지 않고 이유를 돌려준다. 실패해도 예외를 던지지 않는다.
  */
 
-export type AlimtalkKind = "contract" | "payslip" | "missing";
+export type AlimtalkKind = "contract" | "payslip" | "payslipLink" | "missing";
 
 export interface AlimtalkTemplate {
   label: string;
@@ -38,6 +38,14 @@ export const ALIMTALK: Record<AlimtalkKind, AlimtalkTemplate> = {
     body: "[사색찬미한정식]\n#{이름}님, #{귀속월} 급여명세서가 확정되었습니다.\n\n임금 지급일: #{지급일}\n명세서 내용은 매장으로 문의해 주세요.",
     button: "매장 안내 보기",
     buttonPath: "",
+  },
+  /** 직원이 PIN으로 본인 명세서를 확인하는 링크가 있는 버전. 템플릿이 승인되어 환경변수가 있을 때만 쓰고, 없으면 위 payslip(안내만)으로 보낸다. */
+  payslipLink: {
+    label: "급여명세서 확정 안내(확인 링크)",
+    env: "SOLAPI_TPL_PAYSLIP_LINK",
+    body: "[사색찬미한정식]\n#{이름}님, #{귀속월} 급여명세서가 확정되었습니다.\n\n임금 지급일: #{지급일}\n아래 버튼에서 PIN 4자리를 입력해 명세서를 확인해 주세요.",
+    button: "급여명세서 확인",
+    buttonPath: "/payslip/#{토큰}",
   },
   missing: {
     label: "퇴근 기록 누락 안내(사장님)",

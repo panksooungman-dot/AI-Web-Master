@@ -10,7 +10,7 @@ import type { PayslipRecord } from "@/lib/contract/server/store";
 import { Badge, btnOutline, btnPrimary, Field, inputCls, Notice, Panel } from "./ui";
 
 type Row = { id: string; name: string; status: "confirmed" | "draft"; gross: number; net: number; blocking: number; revision: number; payDate: string; payslip: PayslipRecord | null };
-type Data = { month: string; rows: Row[]; rates: PayrollRates; deductBreak: boolean };
+type Data = { month: string; rows: Row[]; rates: PayrollRates; autoRates: boolean; statutory: PayrollRates | null; deductBreak: boolean };
 const nowKstMonth = () => toKstLocal(new Date().toISOString()).slice(0, 7);
 
 const RATE_FIELDS: { key: keyof PayrollRates; label: string; hint: string }[] = [
@@ -28,6 +28,7 @@ export function PayrollOverview({ initialMonth }: { initialMonth?: string }) {
   const [error, setError] = useState("");
   const [rates, setRates] = useState<Record<keyof PayrollRates, string>>({ pension: "", health: "", ltc: "", employment: "", localTax: "" });
   const [deductBreak, setDeductBreak] = useState(true);
+  const [autoRates, setAutoRates] = useState(true);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -39,6 +40,7 @@ export function PayrollOverview({ initialMonth }: { initialMonth?: string }) {
       setData(r);
       setRates(Object.fromEntries(Object.entries(r.rates).map(([k, v]) => [k, String(v)])) as Record<keyof PayrollRates, string>);
       setDeductBreak(r.deductBreak);
+      setAutoRates(r.autoRates);
     } else {
       setData(null);
       setError(r.error);
@@ -49,16 +51,21 @@ export function PayrollOverview({ initialMonth }: { initialMonth?: string }) {
     queueMicrotask(() => void load());
   }, [load]);
 
+  // 자동 적용이 켜져 있고 이 해의 법정 요율이 있으면 입력칸은 그 값을 보여 주고 잠근다. 직접 입력한 값은 그대로 보존한다.
+  const statutory = data?.statutory ?? null;
+  const locked = autoRates && statutory !== null;
+  const shown = (k: keyof PayrollRates) => (locked ? String(statutory[k]) : rates[k]);
+
   async function saveSettings() {
     const parsed: Partial<PayrollRates> = {};
-    for (const f of RATE_FIELDS) {
+    for (const f of locked ? [] : RATE_FIELDS) {
       const raw = rates[f.key].trim();
       const v = raw === "" ? 0 : Number(raw);
       if (!Number.isFinite(v) || v < 0 || v > 100) return setNotice({ tone: "error", text: `${f.label}은 0 이상 100 이하의 숫자로 입력해 주세요.` });
       parsed[f.key] = v;
     }
     setSaving(true);
-    const r = await adminApi("/api/admin/payroll/settings", { method: "PUT", body: { rates: parsed, deductBreak } });
+    const r = await adminApi("/api/admin/payroll/settings", { method: "PUT", body: { ...(locked ? {} : { rates: parsed }), autoRates, deductBreak } });
     setSaving(false);
     if (!r.ok) return setNotice({ tone: "error", text: r.error });
     setNotice({ tone: "ok", text: "급여 설정을 저장했습니다. 이미 확정된 명세서는 바뀌지 않고, 앞으로 계산하는 급여부터 적용됩니다." });
@@ -167,11 +174,23 @@ export function PayrollOverview({ initialMonth }: { initialMonth?: string }) {
       <Panel title="급여 설정 (공제율)">
         <div className="space-y-4">
           {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
-          <p className="text-sm text-muted">공제율은 사업주가 직접 입력한 값으로만 계산합니다(비워 두거나 0이면 그 항목은 계산하지 않습니다). 공단에서 받은 고지 금액이 있으면 직원별 화면에서 금액을 직접 입력할 수 있습니다. 10원 미만은 절사합니다.</p>
+          <label htmlFor="auto-rates" className="flex items-start gap-2 text-sm text-foreground">
+            <input id="auto-rates" type="checkbox" checked={autoRates} onChange={(e) => setAutoRates(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--primary)]" />
+            <span>
+              <span className="font-semibold">법정 요율 자동 적용</span>
+              <span className="block text-muted">귀속 연도의 근로자 부담 요율을 자동으로 적용합니다. 요율이 바뀌는 해에는 새 요율이 반영될 때까지 아래에 직접 입력한 값을 씁니다.</span>
+            </span>
+          </label>
+          {autoRates && statutory ? (
+            <Notice tone="info">{`${month.slice(0, 4)}년 법정 요율을 자동으로 적용 중입니다. 계약서에서 미적용으로 표시한 보험은 공제하지 않습니다. 확정 전에 노무사나 급여 프로그램으로 한 번 더 확인해 주세요.`}</Notice>
+          ) : autoRates ? (
+            <Notice tone="error">{`${month.slice(0, 4)}년 법정 요율은 아직 반영되지 않아 아래에 직접 입력한 값으로 계산합니다. 입력하지 않은 항목은 공제하지 않습니다.`}</Notice>
+          ) : null}
+          <p className="text-sm text-muted">자동 적용을 끄면 사업주가 직접 입력한 값으로만 계산합니다(비워 두거나 0이면 그 항목은 계산하지 않습니다). 공단에서 받은 고지 금액이 있으면 직원별 화면에서 금액을 직접 입력할 수 있습니다. 10원 미만은 절사합니다.</p>
           <div className="grid gap-4 sm:grid-cols-3">
             {RATE_FIELDS.map((f) => (
               <Field key={f.key} id={`rate-${f.key}`} label={f.label} hint={f.hint}>
-                <input id={`rate-${f.key}`} className={inputCls} inputMode="decimal" value={rates[f.key]} onChange={(e) => setRates((r) => ({ ...r, [f.key]: e.target.value.replace(/[^\d.]/g, "") }))} />
+                <input id={`rate-${f.key}`} className={inputCls} inputMode="decimal" disabled={locked} value={shown(f.key)} onChange={(e) => setRates((r) => ({ ...r, [f.key]: e.target.value.replace(/[^\d.]/g, "") }))} />
               </Field>
             ))}
           </div>

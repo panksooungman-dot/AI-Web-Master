@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildConfig } from "@/lib/contract";
 import { createMemoryStore } from "@/lib/contract/server/backends";
 import { addEvent } from "@/lib/contract/server/clock";
-import { confirmPayslip, defaultPayDate, parsePayrollInput, parsePayrollSettings, payrollEmployee, payrollOverview, defaultPayrollSettings } from "@/lib/contract/server/payroll";
+import { confirmPayslip, defaultPayDate, effectiveRates, parsePayrollInput, parsePayrollSettings, payrollEmployee, payrollOverview, defaultPayrollSettings } from "@/lib/contract/server/payroll";
 import { setStoreForTests } from "@/lib/contract/server/select";
 import type { ContractStore, SubmissionRecord } from "@/lib/contract/server/store";
 import { POST as login } from "@/app/api/admin/login/route";
@@ -53,7 +53,7 @@ beforeEach(async () => {
   const res = await login(req("/api/admin/login", { method: "POST", body: { password: "correct-horse-battery" }, cookie: null }));
   cookie = res.headers.get("set-cookie")!.split(";")[0];
   // 기본 계약에는 공통 휴게시간(1시간)이 있어 자동 차감하면 시간이 달라지므로, 시험은 차감하지 않는 설정으로 한다.
-  await store.putPayrollSettings({ ...defaultPayrollSettings(), deductBreak: false, updatedAt: NOW.toISOString() });
+  await store.putPayrollSettings({ ...defaultPayrollSettings(), autoRates: false, deductBreak: false, updatedAt: NOW.toISOString() });
   await store.insertSubmission(sub("a", "홍길동"));
   await store.insertSubmission(sub("b", "김철수", false)); // 사업주 서명 대기
   await store.insertSubmission(sub("c", "이영희"));
@@ -163,11 +163,41 @@ describe("급여 확정", () => {
   });
 
   it("설정한 공제율이 적용되어 저장된다", async () => {
-    await store.putPayrollSettings({ rates: { pension: 4.5, health: 0, ltc: 0, employment: 1, localTax: 10 }, deductBreak: false, updatedAt: NOW.toISOString() });
+    await store.putPayrollSettings({ rates: { pension: 4.5, health: 0, ltc: 0, employment: 1, localTax: 10 }, autoRates: false, deductBreak: false, updatedAt: NOW.toISOString() });
     const r = await confirmPayslip(store, { id: "a", month: "2026-10", input: { payDate: "2026-11-10", override: { incomeTax: 3000 } } }, NOW);
     const s = (r.body.payslip as { statement: { deductions: { key: string; amount: number }[]; deductionTotal: number; net: number } }).statement;
     expect(Object.fromEntries(s.deductions.map((d) => [d.key, d.amount]))).toEqual({ pension: 9000, employment: 2000, incomeTax: 3000, localTax: 300 });
     expect(s.net).toBe(200000 - 14300);
+  });
+
+  it("법정 요율 자동 적용: 직접 입력한 값 대신 그 해의 법정 요율로 계산한다", async () => {
+    // 사업주가 예전에 잘못 입력한 값(국민연금 10%)이 저장돼 있어도 자동 적용이 켜져 있으면 무시한다.
+    await store.putPayrollSettings({ rates: { pension: 10, health: 0, ltc: 0, employment: 0, localTax: 10 }, deductBreak: false, updatedAt: NOW.toISOString() }); // autoRates 없음 = 켜짐
+    const r = await confirmPayslip(store, { id: "a", month: "2026-10", input: { payDate: "2026-11-10", override: { incomeTax: 3000 } } }, NOW);
+    const s = (r.body.payslip as { statement: { deductions: { key: string; amount: number }[]; net: number } }).statement;
+    // 총지급액 200,000원: 국민연금 4.75% · 건강보험 3.595% · 장기요양 건강보험료의 13.14%(10원 미만 절사) · 고용보험 0.9% · 지방소득세 소득세의 10%
+    expect(Object.fromEntries(s.deductions.map((d) => [d.key, d.amount]))).toEqual({ pension: 9500, health: 7190, ltc: 940, employment: 1800, incomeTax: 3000, localTax: 300 });
+    expect(s.net).toBe(200000 - (9500 + 7190 + 940 + 1800 + 3000 + 300));
+  });
+
+  it("법정 요율 자동 적용: 표에 없는 해는 직접 입력한 값을 쓰고, 끄면 항상 직접 입력한 값을 쓴다", () => {
+    const manual = { rates: { pension: 4, health: 0, ltc: 0, employment: 0, localTax: 10 }, deductBreak: true, updatedAt: "" };
+    expect(effectiveRates({ ...manual, autoRates: true }, "2026-10")).toMatchObject({ auto: true, rates: { pension: 4.75, health: 3.595, ltc: 13.14, employment: 0.9, localTax: 10 } });
+    expect(effectiveRates(manual, "2026-10").auto).toBe(true); // autoRates 없음 = 켜짐
+    expect(effectiveRates({ ...manual, autoRates: true }, "2099-01")).toEqual({ auto: false, rates: manual.rates }); // 요율 미반영 해: 옛 요율로 조용히 계산하지 않는다
+    expect(effectiveRates({ ...manual, autoRates: false }, "2026-10")).toEqual({ auto: false, rates: manual.rates });
+  });
+
+  it("법정 요율 자동 적용: 설정 API가 켜짐·꺼짐을 저장하고, 현황·직원 화면은 적용된 요율을 내려 준다", async () => {
+    expect((await settingsPut(req("/api/admin/payroll/settings", { method: "PUT", body: { autoRates: "yes" } }))).status).toBe(400);
+    expect(await data(await settingsPut(req("/api/admin/payroll/settings", { method: "PUT", body: { autoRates: true } })))).toMatchObject({ ok: true, autoRates: true });
+    const over = await data(await overviewGet(req("/api/admin/payroll/overview?month=2026-10")));
+    expect(over).toMatchObject({ autoRates: true, statutory: { pension: 4.75, health: 3.595, ltc: 13.14, employment: 0.9, localTax: 10 } });
+    expect((await data(await employeeGet(req("/api/admin/payroll/employee?id=a&month=2026-10")))).rates).toMatchObject({ pension: 4.75, employment: 0.9 });
+    expect((await data(await overviewGet(req("/api/admin/payroll/overview?month=2099-01")))).statutory).toBeNull();
+    await settingsPut(req("/api/admin/payroll/settings", { method: "PUT", body: { autoRates: false, rates: { pension: 4.5 } } }));
+    expect(await data(await settingsGet(req("/api/admin/payroll/settings")))).toMatchObject({ autoRates: false, rates: { pension: 4.5 } });
+    expect((await data(await employeeGet(req("/api/admin/payroll/employee?id=a&month=2026-10")))).rates).toMatchObject({ pension: 4.5, health: 0 });
   });
 
   it("API: 로그인·같은 출처가 없으면 거부하고, 있으면 저장한다", async () => {

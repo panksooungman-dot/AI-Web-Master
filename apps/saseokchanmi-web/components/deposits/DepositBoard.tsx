@@ -10,6 +10,10 @@ type Board = { days: number; deposits: DepositRecord[]; lastIngestAt: string | n
 
 const REFRESH_MS = 5000;
 const STALE_MS = 6 * 60 * 60 * 1000;
+/** 확인하지 않은 입금이 있으면 이 간격으로 알림을 다시 띄운다. */
+const REMIND_MS = 60 * 1000;
+/** 이보다 오래된 미확인 건은 다시 알리지 않는다(화면 목록에는 계속 남는다). */
+const REMIND_WINDOW_MS = 24 * 60 * 60 * 1000;
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 const hm = (iso: string) => toKstLocal(iso).slice(11, 16);
 const md = (iso: string) => toKstLocal(iso).slice(5, 10).replace("-", "/");
@@ -61,6 +65,33 @@ function notifyDeposit(d: DepositRecord) {
   }
 }
 
+let lastReminder: Notification | null = null;
+
+/**
+ * 아직 "확인"을 누르지 않은 입금이 있다는 재알림. 윈도우는 알림을 몇 초 뒤 알림 센터로 치워 버리므로,
+ * 직원이 확인할 때까지 이전 알림을 닫고 새 알림을 다시 띄워 계속 눈에 띄게 한다.
+ */
+function remindPending(pending: DepositRecord[]) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    lastReminder?.close();
+    const list = pending.slice(0, 3).map((d) => (d.unparsed ? "읽지 못한 입금 문자" : `${d.depositor} ${won(d.amount)}`));
+    const more = pending.length > 3 ? ` 외 ${pending.length - 3}건` : "";
+    const n = new Notification(`확인 안 된 입금 ${pending.length}건`, {
+      body: `${list.join(", ")}${more}\n입금 확인 화면에서 '확인'을 눌러 주세요.`,
+      tag: `pending-${Date.now()}`,
+      requireInteraction: true,
+    });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+    lastReminder = n;
+  } catch {
+    /* 재알림이 실패해도 목록은 그대로 동작한다 */
+  }
+}
+
 /** 짧은 알림음. 브라우저는 사용자가 한 번 눌러야 소리를 낼 수 있어서 "소리 켜기" 버튼에서 연결한다. */
 function beep(ctx: AudioContext) {
   const o = ctx.createOscillator();
@@ -93,6 +124,7 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
   const seen = useRef<Set<string> | null>(null);
   const audio = useRef<AudioContext | null>(null);
   const soundOn = useRef(false);
+  const pendingRef = useRef<DepositRecord[]>([]);
 
   const load = useCallback(async () => {
     const r = await api<Board>(`/api/deposits?days=${days}`);
@@ -170,6 +202,25 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
     const real = rows.filter((d) => !d.unparsed);
     return { total: real.reduce((t, d) => t + d.amount, 0), count: real.length, open: real.filter((d) => !d.confirmedAt).length, unparsed: rows.filter((d) => d.unparsed && !d.confirmedAt).length };
   }, [rows]);
+  const pending = useMemo(() => (now === null ? [] : rows.filter((d) => !d.confirmedAt && now - Date.parse(d.occurredAt) < REMIND_WINDOW_MS)), [rows, now]);
+  useEffect(() => {
+    pendingRef.current = pending;
+    document.title = pending.length ? `(${pending.length}) 확인 안 된 입금` : "입금 확인";
+    if (!pending.length) {
+      lastReminder?.close();
+      lastReminder = null;
+    }
+  }, [pending]);
+  useEffect(
+    () =>
+      startTicker(() => {
+        const p = pendingRef.current;
+        if (!p.length) return;
+        remindPending(p);
+        if (soundOn.current && audio.current) beep(audio.current);
+      }, REMIND_MS),
+    [],
+  );
   const stale = board && now !== null && (board.lastIngestAt === null || now - Date.parse(board.lastIngestAt) > STALE_MS);
 
   if (error && !board) {

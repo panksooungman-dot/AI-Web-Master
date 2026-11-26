@@ -209,6 +209,9 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
           <button type="button" className={sound ? btnPrimary : btnOutline} onClick={enableSound} aria-pressed={sound}>
             {sound ? "소리 켜짐" : "소리 켜기"}
           </button>
+          <a href="/api/deposits/autostart" download className={btnOutline} title="포스기에서 한 번 실행하면 PC를 켤 때 이 화면이 자동으로 열립니다">
+            자동 실행 설정 파일
+          </a>
         </div>
       </div>
 

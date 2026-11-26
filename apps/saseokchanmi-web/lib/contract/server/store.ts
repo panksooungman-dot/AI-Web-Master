@@ -65,6 +65,32 @@ export interface PayslipRecord {
   history: { revision: number; confirmedAt: string; gross: number; net: number }[];
 }
 
+/** 입금 확인(계좌이체 결제). 금액·입금자명·시각만 저장하고 계좌번호·잔액은 저장하지 않는다. */
+export interface DepositRecord {
+  id: string;
+  /** 원. 해석 실패 건은 0 */
+  amount: number;
+  /** 해석 실패 건은 "(해석 실패)" */
+  depositor: string;
+  /** 은행 문자에 찍힌 입금 시각(ISO) */
+  occurredAt: string;
+  /** 서버가 문자를 받은 시각(ISO) */
+  receivedAt: string;
+  /** 직원이 계산서와 대조해 확인한 시각. 아직이면 null */
+  confirmedAt: string | null;
+  /** 직원 메모(테이블 번호 등). 해석 실패 건은 문자 원문 일부 */
+  memo: string;
+  /** 문자를 해석하지 못해 원문 일부를 남긴 건 */
+  unparsed?: boolean;
+}
+
+export interface DepositSettings {
+  /** 사장님이 추가한 제외 입금자명(기본으로 "카드"는 항상 제외) */
+  excludeNames: string[];
+  /** 입금 문자를 마지막으로 받은 시각(폰·인터넷 연결 확인용). 한 번도 없으면 null */
+  lastIngestAt: string | null;
+}
+
 export interface LoginAttempt {
   key: string;
   count: number;
@@ -143,6 +169,18 @@ export interface ContractStore {
   getPayslip(submissionId: string, month: string): Promise<PayslipRecord | null>;
   /** 직원·달이 같으면 덮어쓴다(다시 확정). */
   putPayslip(rec: PayslipRecord): Promise<void>;
+
+  /** 같은 입금(시각·금액·입금자명)이 이미 있으면 저장하지 않고 false. 해석 실패 건은 항상 저장한다. */
+  insertDeposit(rec: DepositRecord): Promise<boolean>;
+  /** `from` 이상 `to` 미만(입금 시각, ISO)을 최신 입금부터. 조건은 모두 선택. */
+  listDeposits(opts?: { from?: string; to?: string }): Promise<DepositRecord[]>;
+  updateDeposit(id: string, patch: Partial<Pick<DepositRecord, "confirmedAt" | "memo">>): Promise<DepositRecord | null>;
+  /** 입금 시각이 `before`(ISO)보다 이전인 건을 정리하고 정리한 개수를 돌려준다. */
+  purgeDepositsBefore(before: string): Promise<number>;
+  getDepositSettings(): Promise<DepositSettings>;
+  putDepositExcludes(names: string[]): Promise<void>;
+  /** 입금 문자를 받았음을 기록한다(마지막 수신 시각). */
+  touchDepositIngest(at: string): Promise<void>;
 
   getAttempt(key: string): Promise<LoginAttempt | null>;
   putAttempt(a: LoginAttempt): Promise<void>;

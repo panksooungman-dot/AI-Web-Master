@@ -170,6 +170,44 @@ export function storeSuite(name: string, make: () => Promise<ContractStore>) {
       expect(await store.getPayslip("s1", "2026-10")).toMatchObject({ id: "p1b", revision: 2, statement: { gross: 150000 }, history: [{ revision: 1, gross: 100000 }] });
     });
 
+    it("입금 확인: 같은 입금은 한 번만 저장, 최신순·기간 조회, 확인·메모 수정, 오래된 건 정리, 해석 실패 건은 항상 저장", async () => {
+      const dep = (id: string, occurredAt: string, amount = 1000, depositor = "박성만") => ({ id, amount, depositor, occurredAt, receivedAt: occurredAt, confirmedAt: null, memo: "" });
+      expect(await store.insertDeposit(dep("d1", "2026-11-26T10:30:00.000Z"))).toBe(true);
+      expect(await store.insertDeposit(dep("d1b", "2026-11-26T10:30:00.000Z"))).toBe(false); // 같은 시각·금액·입금자명
+      expect(await store.insertDeposit(dep("d2", "2026-11-26T10:30:00.000Z", 2000))).toBe(true); // 금액이 다르면 다른 입금
+      expect(await store.insertDeposit(dep("d3", "2026-11-25T01:00:00.000Z", 5000, "김철수"))).toBe(true);
+      const bad = { id: "u1", amount: 0, depositor: "(해석 실패)", occurredAt: "2026-11-26T11:00:00.000Z", receivedAt: "2026-11-26T11:00:00.000Z", confirmedAt: null, memo: "원문", unparsed: true };
+      expect(await store.insertDeposit(bad)).toBe(true);
+      expect(await store.insertDeposit({ ...bad, id: "u2" })).toBe(true);
+
+      const all = await store.listDeposits();
+      expect(all.map((d) => d.id)).toEqual(["u2", "u1", "d2", "d1", "d3"]); // 입금 시각 내림차순, 같은 시각은 id 내림차순
+      expect(all.find((d) => d.id === "u1")).toMatchObject({ unparsed: true, amount: 0, memo: "원문" });
+      expect(all.find((d) => d.id === "d1")).not.toHaveProperty("unparsed");
+      expect(typeof all[0].amount).toBe("number");
+      expect((await store.listDeposits({ from: "2026-11-26T00:00:00.000Z" })).map((d) => d.id)).toEqual(["u2", "u1", "d2", "d1"]);
+      expect((await store.listDeposits({ from: "2026-11-25T00:00:00.000Z", to: "2026-11-26T00:00:00.000Z" })).map((d) => d.id)).toEqual(["d3"]);
+
+      expect(await store.updateDeposit("nope", { memo: "x" })).toBeNull();
+      expect(await store.updateDeposit("d1", { confirmedAt: "2026-11-26T10:40:00.000Z", memo: "3번" })).toMatchObject({ id: "d1", confirmedAt: "2026-11-26T10:40:00.000Z", memo: "3번" });
+      expect(await store.updateDeposit("d1", { confirmedAt: null })).toMatchObject({ confirmedAt: null, memo: "3번" }); // 보내지 않은 항목은 그대로
+      expect(await store.updateDeposit("d1", {})).toMatchObject({ memo: "3번" });
+
+      expect(await store.purgeDepositsBefore("2026-11-26T00:00:00.000Z")).toBe(1);
+      expect((await store.listDeposits()).map((d) => d.id)).toEqual(["u2", "u1", "d2", "d1"]);
+      expect(await store.purgeDepositsBefore("2026-11-26T00:00:00.000Z")).toBe(0);
+    });
+
+    it("입금 설정: 제외 이름과 마지막 수신 시각은 서로 덮어쓰지 않는다", async () => {
+      expect(await store.getDepositSettings()).toEqual({ excludeNames: [], lastIngestAt: null });
+      await store.touchDepositIngest("2026-11-26T10:00:00.000Z");
+      await store.putDepositExcludes(["나이스", "KIS"]);
+      expect(await store.getDepositSettings()).toEqual({ excludeNames: ["나이스", "KIS"], lastIngestAt: "2026-11-26T10:00:00.000Z" });
+      await store.touchDepositIngest("2026-11-26T11:00:00.000Z");
+      await store.putDepositExcludes([]);
+      expect(await store.getDepositSettings()).toEqual({ excludeNames: [], lastIngestAt: "2026-11-26T11:00:00.000Z" });
+    });
+
     it("로그인 시도 기록: 저장·덮어쓰기·삭제, 큰 숫자(밀리초 시각)도 숫자로 돌아온다", async () => {
       expect(await store.getAttempt("login:k")).toBeNull();
       const a = { key: "login:k", count: 3, firstAt: 1_763_100_000_000, lockedUntil: 0 };

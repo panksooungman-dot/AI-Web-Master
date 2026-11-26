@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildConfig } from "@/lib/contract";
 import { createMemoryStore } from "@/lib/contract/server/backends";
 import { setStoreForTests } from "@/lib/contract/server/select";
+import { SITE_URL } from "@/lib/site-config";
 import type { ContractStore, PayslipRecord, SubmissionRecord } from "@/lib/contract/server/store";
 import { POST as login } from "@/app/api/admin/login/route";
 import { POST as contractNotify } from "@/app/api/admin/configs/[token]/notify/route";
@@ -123,6 +124,25 @@ describe("급여명세서 확정 안내 알림톡", () => {
     expect(m.kakaoOptions.templateId).toBe("KA01TP-payslip");
     expect(m.kakaoOptions.variables).toEqual({ "#{이름}": "홍길동", "#{귀속월}": "2026년 10월", "#{지급일}": "2026-11-10" });
     expect(JSON.stringify(m)).not.toContain("987654");
+  });
+
+  it("확인 링크 템플릿이 설정돼 있으면 직원 확인 링크(PIN으로 열람)가 달린 알림톡으로 보낸다", async () => {
+    enableKakao();
+    process.env.SOLAPI_TPL_PAYSLIP_LINK = "KA01TP-payslip-link";
+    try {
+      await store.insertSubmission(sub);
+      await store.putPayslip(slip);
+      const r = await payslipNotify(req({ id: "a", month: "2026-10" }));
+      expect(r.status).toBe(200);
+      expect(await r.json()).toMatchObject({ ok: true, linked: true });
+      const m = sentMessages(fetchSpy)[0];
+      expect(m.kakaoOptions.templateId).toBe("KA01TP-payslip-link");
+      expect(m.kakaoOptions.variables).toEqual({ "#{이름}": "홍길동", "#{귀속월}": "2026년 10월", "#{지급일}": "2026-11-10", "#{토큰}": "a" });
+      expect(m.kakaoOptions.buttons[0]).toMatchObject({ buttonName: "급여명세서 확인", linkMo: `${SITE_URL}/payslip/a` });
+      expect(JSON.stringify(m)).not.toContain("987654");
+    } finally {
+      delete process.env.SOLAPI_TPL_PAYSLIP_LINK;
+    }
   });
 
   it("월 형식이 틀리면 400, 설정이 비어 있으면 503", async () => {

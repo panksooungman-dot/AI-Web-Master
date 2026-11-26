@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const denied = requireAdmin(request);
     if (denied) return denied;
     const s = await loadPayrollSettings(getStore());
-    return json({ ok: true, rates: s.rates, deductBreak: s.deductBreak });
+    return json({ ok: true, rates: s.rates, autoRates: s.autoRates !== false, deductBreak: s.deductBreak });
   });
 }
 
@@ -26,6 +26,6 @@ export async function PUT(request: Request) {
     const parsed = parsePayrollSettings(body.body, cur);
     if (!parsed.ok) return fail(400, parsed.error);
     await store.putPayrollSettings({ ...parsed.value, updatedAt: new Date().toISOString() });
-    return json({ ok: true, rates: parsed.value.rates, deductBreak: parsed.value.deductBreak });
+    return json({ ok: true, rates: parsed.value.rates, autoRates: parsed.value.autoRates, deductBreak: parsed.value.deductBreak });
   });
 }

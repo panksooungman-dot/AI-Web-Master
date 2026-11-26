@@ -1,6 +1,7 @@
 import { computePayroll, canConfirm, emptyInput, emptyRates, payrollWindow, type MoneyLine, type OverrideKey, type PayrollConfig, type PayrollInput, type PayrollRates, type PayStatement } from "../payroll";
 import { isMonth, toKstLocal } from "../clock-sheet";
 import { loadSettings, newId } from "./service";
+import { statutoryRatesFor } from "../statutory-rates";
 import { isOwnerSigned } from "./status";
 import type { ContractConfig } from "../types";
 import type { ClockEventRecord, ContractStore, PayrollSettingsRecord, PayslipRecord, SubmissionRecord } from "./store";
@@ -16,7 +17,13 @@ const OVERRIDE_KEYS: readonly OverrideKey[] = ["pension", "health", "ltc", "empl
 const MAX_MONEY = 1_000_000_000;
 const MAX_LINES = 10;
 
-export const defaultPayrollSettings = (): PayrollSettingsRecord => ({ rates: emptyRates(), deductBreak: true, updatedAt: "" });
+export const defaultPayrollSettings = (): PayrollSettingsRecord => ({ rates: emptyRates(), autoRates: true, deductBreak: true, updatedAt: "" });
+
+/** 이 달 급여 계산에 쓰는 공제율. 자동 적용이 켜져 있고 그 해의 법정 요율이 있으면 그것을, 아니면 사업주가 입력한 값을 쓴다. */
+export function effectiveRates(p: PayrollSettingsRecord, month: string): { rates: PayrollRates; auto: boolean } {
+  const st = p.autoRates === false ? null : statutoryRatesFor(month);
+  return st ? { rates: st, auto: true } : { rates: p.rates, auto: false };
+}
 
 export async function loadPayrollSettings(store: ContractStore): Promise<PayrollSettingsRecord> {
   const s = await store.getPayrollSettings();
@@ -27,7 +34,7 @@ const isRate = (v: unknown): v is number => typeof v === "number" && Number.isFi
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 /** 공제율 설정 검증. 보낸 값만 바꾼다. */
-export function parsePayrollSettings(body: unknown, cur: PayrollSettingsRecord): { ok: true; value: Pick<PayrollSettingsRecord, "rates" | "deductBreak"> } | { ok: false; error: string } {
+export function parsePayrollSettings(body: unknown, cur: PayrollSettingsRecord): { ok: true; value: Pick<PayrollSettingsRecord, "rates" | "deductBreak"> & { autoRates: boolean } } | { ok: false; error: string } {
   const b = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
   const rates: PayrollRates = { ...cur.rates };
   const given = typeof b.rates === "object" && b.rates !== null ? (b.rates as Record<string, unknown>) : {};
@@ -37,7 +44,8 @@ export function parsePayrollSettings(body: unknown, cur: PayrollSettingsRecord):
     rates[k] = round3(given[k] as number);
   }
   if (b.deductBreak !== undefined && typeof b.deductBreak !== "boolean") return { ok: false, error: "휴게시간 차감 설정이 올바르지 않습니다." };
-  return { ok: true, value: { rates, deductBreak: typeof b.deductBreak === "boolean" ? b.deductBreak : cur.deductBreak } };
+  if (b.autoRates !== undefined && typeof b.autoRates !== "boolean") return { ok: false, error: "법정 요율 자동 적용 설정이 올바르지 않습니다." };
+  return { ok: true, value: { rates, autoRates: typeof b.autoRates === "boolean" ? b.autoRates : cur.autoRates !== false, deductBreak: typeof b.deductBreak === "boolean" ? b.deductBreak : cur.deductBreak } };
 }
 
 const money = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= MAX_MONEY ? v : null);
@@ -126,7 +134,7 @@ export async function payrollEmployee(store: ContractStore, id: string, month: s
       minWage: settings.minWage,
       config: payrollConfigOf(sub.configSnapshot),
       defaultPayDate: defaultPayDate(month, sub.configSnapshot.payDay),
-      rates: payroll.rates,
+      rates: effectiveRates(payroll, month).rates,
       deductBreak: payroll.deductBreak,
       events: events.map(({ id: eid, kind, at, source, note }) => ({ id: eid, kind, at, source, note })),
       payslip,
@@ -153,15 +161,16 @@ export async function payrollOverview(store: ContractStore, month: string): Prom
   const bySub = new Map<string, ClockEventRecord[]>();
   for (const e of events) bySub.set(e.submissionId, [...(bySub.get(e.submissionId) ?? []), e]);
   const slip = new Map(payslips.map((p) => [p.submissionId, p]));
+  const eff = effectiveRates(payroll, month);
   const rows: OverviewRow[] = confirmedSubs(subs)
     .map((s) => {
       const p = slip.get(s.id) ?? null;
       if (p) return { id: s.id, name: s.name, status: "confirmed" as const, gross: p.statement.gross, net: p.statement.net, blocking: 0, revision: p.revision, payDate: p.payDate, payslip: p };
-      const st = computePayroll({ month, events: bySub.get(s.id) ?? [], config: payrollConfigOf(s.configSnapshot), deductBreak: payroll.deductBreak, minWage: settings.minWage, rates: payroll.rates, input: emptyInput() });
+      const st = computePayroll({ month, events: bySub.get(s.id) ?? [], config: payrollConfigOf(s.configSnapshot), deductBreak: payroll.deductBreak, minWage: settings.minWage, rates: eff.rates, input: emptyInput() });
       return { id: s.id, name: s.name, status: "draft" as const, gross: st.gross, net: st.net, blocking: st.blocking.length, revision: 0, payDate: "", payslip: null };
     })
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  return { status: 200, body: { ok: true, month, biz: settings.company.biz, rows, rates: payroll.rates, deductBreak: payroll.deductBreak } };
+  return { status: 200, body: { ok: true, month, biz: settings.company.biz, rows, rates: payroll.rates, autoRates: payroll.autoRates !== false, statutory: statutoryRatesFor(month), deductBreak: payroll.deductBreak } };
 }
 
 /** 급여를 확정해 저장한다. 서버가 다시 계산하고, 경고가 있으면 확인 표시(ack)가 있어야 한다. 다시 확정하면 차수가 올라간다. */
@@ -179,7 +188,7 @@ export async function confirmPayslip(store: ContractStore, body: unknown, now: D
   const sub = await store.getSubmission(id);
   if (!sub || !isOwnerSigned(sub)) return { status: 404, body: { ok: false, error: "확정된 계약의 직원을 찾을 수 없습니다." } };
   const [settings, payroll, events, existing] = await Promise.all([loadSettings(store), loadPayrollSettings(store), windowEvents(store, month, id), store.getPayslip(id, month)]);
-  const statement: PayStatement = computePayroll({ month, events, config: payrollConfigOf(sub.configSnapshot), deductBreak: payroll.deductBreak, minWage: settings.minWage, rates: payroll.rates, input });
+  const statement: PayStatement = computePayroll({ month, events, config: payrollConfigOf(sub.configSnapshot), deductBreak: payroll.deductBreak, minWage: settings.minWage, rates: effectiveRates(payroll, month).rates, input });
   if (statement.errors.length) return { status: 400, body: { ok: false, error: statement.errors[0] } };
   if (!canConfirm(statement, input)) return { status: 409, body: { ok: false, code: "needs_ack", error: "확인이 필요한 항목이 있습니다. 내용을 확인한 뒤 '확인했습니다'에 체크하고 다시 확정해 주세요.", blocking: statement.blocking } };
 

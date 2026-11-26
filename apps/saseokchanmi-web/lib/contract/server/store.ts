@@ -34,9 +34,11 @@ export interface SubmissionRecord {
   editedAt: string | null;
 }
 
-/** 급여 설정: 사업주가 정한 공제율과 근무시간 계산 방식. 공제율은 코드에 두지 않고 여기에만 저장한다. */
+/** 급여 설정: 사업주가 정한 공제율과 근무시간 계산 방식. rates는 사업주가 직접 입력한 값이고, 자동 적용이 켜져 있으면 그 해의 법정 요율(statutory-rates.ts)이 우선한다. */
 export interface PayrollSettingsRecord {
   rates: PayrollRates;
+  /** 법정 요율 자동 적용. 없거나 true면 켜진 것으로 본다(그 해의 요율이 표에 있을 때만 적용). */
+  autoRates?: boolean;
   /** 약정 휴게시간을 근무시간에서 자동으로 뺄지 */
   deductBreak: boolean;
   updatedAt: string;

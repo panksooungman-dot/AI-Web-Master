@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { publicApi } from "@/lib/contract/client/api";
 import { toKstLocal } from "@/lib/contract/clock-sheet";
 import type { DepositRecord } from "@/lib/contract/server/store";
@@ -9,6 +9,7 @@ import type { DepositRecord } from "@/lib/contract/server/store";
 type Board = { deposits: DepositRecord[]; serverNow: string };
 
 const REFRESH_MS = 3000;
+const CLOSE_DELAY_MS = 1800; // 로고 화면을 보여 준 뒤 창을 닫기까지의 시간
 const DONE_SHOW_MS = 1200; // 확인 완료 표시를 보여 주는 시간
 /** 이보다 오래된 미확인 건은 이 창에서 다시 알리지 않는다(입금 확인 화면 목록에는 남는다). */
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -35,7 +36,7 @@ export function DepositPopup() {
   // 방금 확인한 입금: 버튼이 초록색 "확인 완료"로 바뀐 모습을 잠깐 보여 준 뒤 목록에서 지운다.
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
   const [test] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("test"));
-  const sawPending = useRef(false);
+  const [sawPending, setSawPending] = useState(false);
 
   const load = useCallback(async () => {
     if (test) {
@@ -58,16 +59,20 @@ export function DepositPopup() {
 
   const pending = useMemo(() => (rows ?? []).filter((d) => (!d.confirmedAt || done.has(d.id)) && now - Date.parse(d.occurredAt) < WINDOW_MS), [rows, now, done]);
 
+  if (pending.length && !sawPending) setSawPending(true);
+
   useEffect(() => {
     if (pending.length) {
-      sawPending.current = true;
       document.title = `(${pending.length}) 확인 안 된 입금`;
       return;
     }
     document.title = "입금 확인";
     // 확인할 입금이 없어지면 창을 닫는다(스크립트로 열린 창만 닫힌다. 직접 연 창이면 안내 문구가 남는다).
-    if (rows !== null && sawPending.current && !test) window.close();
-  }, [pending, rows, test]);
+    // 로고 화면을 잠깐 보여 준 뒤에 닫는다.
+    if (rows === null || !sawPending || test) return;
+    const t = setTimeout(() => window.close(), CLOSE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [pending, rows, test, sawPending]);
 
   function markDone(id: string, after?: () => void) {
     setDone((cur) => new Set(cur).add(id));
@@ -99,10 +104,12 @@ export function DepositPopup() {
   if (rows === null) return <p className="p-6 text-lg text-muted">불러오는 중입니다...</p>;
 
   if (!pending.length) {
+    const finished = sawPending;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-2 p-8 text-center">
-        <p className="text-3xl font-bold text-foreground">확인할 입금이 없습니다</p>
-        <p className="text-lg text-muted">이 창은 닫으셔도 됩니다.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white p-8 text-center">
+        <Image src="/images/logo.png" alt="사색찬미한정식" width={2081} height={700} priority className="h-24 w-auto max-w-full" />
+        <p className="text-2xl font-bold text-foreground">{finished ? "입금 확인이 완료되었습니다" : "확인할 입금이 없습니다"}</p>
+        {finished ? null : <p className="text-lg text-muted">이 창은 닫으셔도 됩니다.</p>}
       </div>
     );
   }

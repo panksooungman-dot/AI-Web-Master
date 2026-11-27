@@ -21,6 +21,17 @@ describe("농협 입금 문자 해석", () => {
     expect(long.kind === "deposit" && long.depositor.length).toBe(30);
   });
 
+  it("앱 푸시 알림(입금자명 뒤에 잔액이 붙고 제목이 앞에 붙음)도 같은 입금으로 읽고, 잔액은 버린다", () => {
+    const push = "입출금 알림\n농협 입금1,000원\n11/27 13:28 301-****-4369-51\n박성만 잔액24,494,014원";
+    expect(parseNhSms(push, new Date("2026-11-27T04:30:00.000Z"))).toEqual({ kind: "deposit", amount: 1000, depositor: "박성만", occurredAt: "2026-11-27T04:28:00.000Z" });
+    // 한 줄로 이어져 와도 같다
+    expect(parseNhSms("농협 입금1,000원 11/27 13:28 301-****-4369-51 박성만 잔액24,494,014원", new Date("2026-11-27T04:30:00.000Z"))).toMatchObject({ kind: "deposit", depositor: "박성만" });
+    // 같은 입금의 문자와 푸시는 같은 키가 되어 한 번만 저장된다
+    const sms = parseNhSms("농협 입금1,000원\n11/27 13:28\n301-****-4369-51\n박성만", new Date("2026-11-27T04:35:00.000Z"));
+    const pu = parseNhSms(push, new Date("2026-11-27T04:30:00.000Z"));
+    expect(sms.kind === "deposit" && pu.kind === "deposit" && depositKey(sms)).toBe(pu.kind === "deposit" ? depositKey(pu) : null);
+  });
+
   it("출금 문자는 저장하지 않는다", () => {
     expect(parseNhSms("농협 출금28,380원\n11/26 19:16\n301-****-4369-51\n파주농협", NOW)).toEqual({ kind: "withdrawal" });
   });

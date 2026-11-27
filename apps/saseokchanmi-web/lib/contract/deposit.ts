@@ -9,6 +9,11 @@
  *   11/26 19:30
  *   301-****-4369-51
  *   박성만
+ *
+ * 농협 앱(NH올원뱅크) 푸시 알림도 같은 형식으로 읽는다(제목 "입출금 알림" 뒤에 이어 오고, 입금자명 뒤에 잔액이 붙는다):
+ *   농협 입금1,000원
+ *   11/27 13:28 301-****-4369-51
+ *   박성만 잔액24,494,014원
  */
 
 export type SmsParse =
@@ -24,13 +29,16 @@ const KST_MS = 9 * 60 * 60 * 1000;
 const MAX_FUTURE_MS = 36 * 60 * 60 * 1000;
 const MAX_NAME = 30;
 
-/** 입금자명이 비어 있으면 읽지 못한 것으로 본다. 첫 줄만 쓰고, 길이를 제한한다. */
+/**
+ * 입금자명이 비어 있으면 읽지 못한 것으로 본다. 첫 줄만 쓰고, 길이를 제한한다.
+ * 앱 푸시 알림은 입금자명 뒤에 "잔액24,494,014원"이 붙어 오므로 그 뒤는 잘라 낸다(잔액은 저장하지 않는다).
+ */
 function depositorOf(rest: string): string {
   const first = rest
     .split("\n")
     .map((l) => l.trim())
     .find((l) => l.length > 0);
-  return (first ?? "").replace(/\s+/g, " ").slice(0, MAX_NAME);
+  return (first ?? "").replace(/\s*잔액.*$/, "").replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
 }
 
 export function parseNhSms(raw: string, now: Date = new Date()): SmsParse {

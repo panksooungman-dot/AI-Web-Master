@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { publicApi } from "@/lib/contract/client/api";
 import { toKstLocal } from "@/lib/contract/clock-sheet";
@@ -96,15 +97,19 @@ export function DepositPopup() {
 
   return (
     <div className="-mx-4 -my-6 flex min-h-screen flex-col sm:-my-10">
-      <header className="flex items-center justify-between gap-3 bg-primary px-6 py-4 text-white">
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-3.5 w-3.5" aria-hidden>
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70 motion-reduce:animate-none" />
-            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-emerald-300" />
-          </span>
-          <h1 className="text-xl font-bold tracking-tight">입금 알림</h1>
+      <header className="flex items-center justify-between gap-3 border-b-4 border-primary bg-white px-6 py-3">
+        <div className="flex items-center gap-4">
+          <Image src="/images/logo.png" alt="사색찬미한정식" width={2081} height={700} priority className="h-10 w-auto" />
+          <span className="h-8 w-px bg-primary/25" aria-hidden />
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:animate-none" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-600" />
+            </span>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">입금 알림</h1>
+          </div>
         </div>
-        <p className="rounded-full bg-white/15 px-4 py-1.5 text-base font-semibold">확인 대기 {pending.length}건</p>
+        <p className="rounded-full bg-primary px-4 py-1.5 text-base font-semibold text-white">확인 대기 {pending.length}건</p>
       </header>
 
       <main className="flex-1 space-y-4 p-6">

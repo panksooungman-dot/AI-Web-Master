@@ -176,7 +176,7 @@ function beep(ctx: AudioContext) {
  */
 export function DepositBoard({ admin = false }: { admin?: boolean }) {
   const api = admin ? adminApi : publicApi;
-  const [days, setDays] = useState(1);
+  const [days] = useState(1); // 내역은 당일 것만 보관한다
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<{ text: string; noDevice: boolean } | null>(null);
   const [now, setNow] = useState<number | null>(null);
@@ -325,13 +325,6 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="기간" className="flex overflow-hidden rounded-lg border border-primary">
-            {[1, 7].map((d) => (
-              <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`px-3 py-2 text-sm font-semibold ${days === d ? "bg-primary text-white" : "text-primary"}`}>
-                {d === 1 ? "오늘" : "7일"}
-              </button>
-            ))}
-          </div>
           {notif !== "unsupported" ? (
             <button type="button" className={notif === "granted" ? btnPrimary : btnOutline} onClick={enableNotify} disabled={notif === "denied"} aria-pressed={notif === "granted"}>
               {notif === "granted" ? "팝업 알림 켜짐" : notif === "denied" ? "팝업 알림 막힘" : "팝업 알림 켜기"}

@@ -129,7 +129,7 @@ export function DepositPopup() {
             onClick={() => void confirm(first.id)}
             className="mt-6 h-16 w-full rounded-xl bg-primary text-2xl font-bold text-white transition-colors hover:opacity-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
           >
-            확인 완료
+            입금 확인했습니다. 감사합니다
           </button>
         </section>
 
@@ -158,7 +158,7 @@ export function DepositPopup() {
         {hidden > 0 ? <p className="text-base font-semibold text-muted">그 밖에 {hidden}건은 입금 확인 화면에서 확인해 주세요.</p> : null}
         {others.length ? (
           <button type="button" onClick={() => void confirmAll()} className="h-12 w-full rounded-xl border border-primary/40 text-lg font-semibold text-primary">
-            모두 확인 완료
+            모두 입금 확인했습니다. 감사합니다
           </button>
         ) : null}
       </main>

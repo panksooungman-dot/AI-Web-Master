@@ -13,6 +13,10 @@ const WINDOW_MS = 24 * 60 * 60 * 1000;
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 const hm = (iso: string) => toKstLocal(iso).slice(11, 16);
 const md = (iso: string) => toKstLocal(iso).slice(5, 10).replace("-", "/");
+const ago = (iso: string, nowMs: number) => {
+  const min = Math.max(0, Math.floor((nowMs - Date.parse(iso)) / 60000));
+  return min < 1 ? "방금" : min < 60 ? `${min}분 전` : `${Math.floor(min / 60)}시간 전`;
+};
 
 const SAMPLE: DepositRecord = { id: "sample", amount: 12000, depositor: "홍길동", occurredAt: new Date().toISOString(), receivedAt: new Date().toISOString(), confirmedAt: null, memo: "" };
 
@@ -79,48 +83,87 @@ export function DepositPopup() {
 
   if (!pending.length) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-2xl font-bold text-foreground">확인할 입금이 없습니다.</p>
-        <p className="mt-2 text-base text-muted">이 창은 닫으셔도 됩니다.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 p-8 text-center">
+        <p className="text-3xl font-bold text-foreground">확인할 입금이 없습니다</p>
+        <p className="text-lg text-muted">이 창은 닫으셔도 됩니다.</p>
       </div>
     );
   }
 
+  const [first, ...others] = pending;
+  const shown = others.slice(0, 4);
+  const hidden = others.length - shown.length;
+
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold text-foreground">확인 안 된 입금 {pending.length}건</h1>
-        {pending.length > 1 ? (
-          <button type="button" onClick={() => void confirmAll()} className="rounded-xl border-2 border-primary px-4 py-2 text-lg font-bold text-primary">
-            모두 확인
+    <div className="-mx-4 -my-6 flex min-h-screen flex-col sm:-my-10">
+      <header className="flex items-center justify-between gap-3 bg-primary px-6 py-4 text-white">
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-3.5 w-3.5" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70 motion-reduce:animate-none" />
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-emerald-300" />
+          </span>
+          <h1 className="text-xl font-bold tracking-tight">입금 알림</h1>
+        </div>
+        <p className="rounded-full bg-white/15 px-4 py-1.5 text-base font-semibold">확인 대기 {pending.length}건</p>
+      </header>
+
+      <main className="flex-1 space-y-4 p-6">
+        {error ? (
+          <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-base font-semibold text-red-700">
+            {error}
+          </p>
+        ) : null}
+
+        <section aria-label="새 입금" className="rounded-2xl border border-primary/30 bg-white p-6 shadow-sm">
+          <div className="flex items-baseline justify-between gap-3 text-muted">
+            <span className="text-sm font-semibold tracking-widest">{first.unparsed ? "확인 필요" : "계좌이체 입금"}</span>
+            <span className="text-base tabular-nums">
+              {md(first.occurredAt)} {hm(first.occurredAt)} · {ago(first.receivedAt, now)}
+            </span>
+          </div>
+          <p className="mt-3 text-6xl font-extrabold leading-none tracking-tight text-foreground tabular-nums">{first.unparsed ? "문자를 읽지 못했습니다" : won(first.amount)}</p>
+          <p className="mt-3 text-3xl font-semibold text-foreground">{first.unparsed ? "은행 앱에서 직접 확인해 주세요." : first.depositor}</p>
+          <button
+            type="button"
+            disabled={busy === first.id}
+            onClick={() => void confirm(first.id)}
+            className="mt-6 h-16 w-full rounded-xl bg-primary text-2xl font-bold text-white transition-colors hover:opacity-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
+          >
+            확인 완료
+          </button>
+        </section>
+
+        {shown.length ? (
+          <ul aria-label="다른 확인 대기 입금" className="divide-y divide-primary/15 overflow-hidden rounded-2xl border border-primary/20 bg-white">
+            {shown.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold text-foreground tabular-nums">{d.unparsed ? "읽지 못한 입금" : won(d.amount)}</p>
+                  <p className="truncate text-base text-muted">
+                    {d.unparsed ? "은행 앱에서 확인" : d.depositor} · {hm(d.occurredAt)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy === d.id}
+                  onClick={() => void confirm(d.id)}
+                  className="h-12 shrink-0 rounded-lg border-2 border-primary px-6 text-lg font-bold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
+                >
+                  확인
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {hidden > 0 ? <p className="text-base font-semibold text-muted">그 밖에 {hidden}건은 입금 확인 화면에서 확인해 주세요.</p> : null}
+        {others.length ? (
+          <button type="button" onClick={() => void confirmAll()} className="h-12 w-full rounded-xl border border-primary/40 text-lg font-semibold text-primary">
+            모두 확인 완료
           </button>
         ) : null}
-      </div>
-      {error ? <p className="rounded-lg bg-red-50 p-3 text-base font-semibold text-red-700">{error}</p> : null}
-      <ul className="space-y-3">
-        {pending.slice(0, 5).map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-primary bg-white p-4">
-            <div>
-              <p className="text-5xl font-extrabold leading-tight text-foreground">{d.unparsed ? "읽지 못한 입금" : won(d.amount)}</p>
-              <p className="mt-1 text-2xl font-semibold text-foreground">
-                {d.unparsed ? "은행 앱에서 직접 확인해 주세요." : d.depositor}
-                <span className="ml-3 text-lg font-normal text-muted">
-                  {md(d.occurredAt)} {hm(d.occurredAt)}
-                </span>
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={busy === d.id}
-              onClick={() => void confirm(d.id)}
-              className="min-h-16 min-w-32 rounded-2xl bg-primary px-8 py-4 text-3xl font-extrabold text-white disabled:opacity-60"
-            >
-              확인
-            </button>
-          </li>
-        ))}
-      </ul>
-      {pending.length > 5 ? <p className="text-lg font-semibold text-muted">그 밖에 {pending.length - 5}건은 입금 확인 화면에서 확인해 주세요.</p> : null}
+      </main>
+
+      <footer className="px-6 pb-5 text-sm text-muted">계산서와 금액을 대조한 뒤 확인해 주세요. 확인하면 알림이 사라지고 입금 확인 화면에 기록됩니다.</footer>
     </div>
   );
 }

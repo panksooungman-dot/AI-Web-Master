@@ -9,6 +9,7 @@ import type { DepositRecord } from "@/lib/contract/server/store";
 type Board = { deposits: DepositRecord[]; serverNow: string };
 
 const REFRESH_MS = 3000;
+const DONE_SHOW_MS = 1200; // 확인 완료 표시를 보여 주는 시간
 /** 이보다 오래된 미확인 건은 이 창에서 다시 알리지 않는다(입금 확인 화면 목록에는 남는다). */
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
@@ -31,6 +32,8 @@ export function DepositPopup() {
   const [now, setNow] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // 방금 확인한 입금: 버튼이 초록색 "확인 완료"로 바뀐 모습을 잠깐 보여 준 뒤 목록에서 지운다.
+  const [done, setDone] = useState<ReadonlySet<string>>(new Set());
   const [test] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("test"));
   const sawPending = useRef(false);
 
@@ -53,7 +56,7 @@ export function DepositPopup() {
     return () => clearInterval(t);
   }, [load]);
 
-  const pending = useMemo(() => (rows ?? []).filter((d) => !d.confirmedAt && now - Date.parse(d.occurredAt) < WINDOW_MS), [rows, now]);
+  const pending = useMemo(() => (rows ?? []).filter((d) => (!d.confirmedAt || done.has(d.id)) && now - Date.parse(d.occurredAt) < WINDOW_MS), [rows, now, done]);
 
   useEffect(() => {
     if (pending.length) {
@@ -66,17 +69,30 @@ export function DepositPopup() {
     if (rows !== null && sawPending.current && !test) window.close();
   }, [pending, rows, test]);
 
+  function markDone(id: string, after?: () => void) {
+    setDone((cur) => new Set(cur).add(id));
+    setTimeout(() => {
+      setDone((cur) => {
+        const next = new Set(cur);
+        next.delete(id);
+        return next;
+      });
+      after?.();
+    }, DONE_SHOW_MS);
+  }
+
   async function confirm(id: string) {
-    if (test) return setRows([]);
+    if (test) return markDone(id, () => setRows([]));
     setBusy(id);
     const r = await publicApi<{ deposit: DepositRecord }>("/api/deposits", { method: "PATCH", body: { id, confirmed: true } });
     setBusy(null);
     if (!r.ok) return setError(r.error);
+    markDone(id);
     setRows((cur) => (cur ?? []).map((d) => (d.id === id ? r.deposit : d)));
   }
 
   async function confirmAll() {
-    for (const d of pending) await confirm(d.id);
+    for (const d of pending) if (!done.has(d.id)) await confirm(d.id);
   }
 
   if (error && rows === null) return <p className="p-6 text-lg font-semibold text-red-700">{error}</p>;
@@ -130,11 +146,13 @@ export function DepositPopup() {
           <p className="mt-3 text-3xl font-semibold text-foreground">{first.unparsed ? "은행 앱에서 직접 확인해 주세요." : first.depositor}</p>
           <button
             type="button"
-            disabled={busy === first.id}
+            disabled={busy === first.id || done.has(first.id)}
             onClick={() => void confirm(first.id)}
-            className="mt-6 h-16 w-full rounded-xl bg-primary text-2xl font-bold text-white transition-colors hover:opacity-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
+            className={`mt-6 h-16 w-full rounded-xl text-2xl font-bold text-white transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+              done.has(first.id) ? "bg-emerald-600" : "bg-primary active:bg-primary/80 disabled:opacity-60"
+            }`}
           >
-            입금 확인했습니다. 감사합니다
+            {done.has(first.id) ? "✓ 확인 완료. 감사합니다" : "입금 확인했습니다. 감사합니다"}
           </button>
         </section>
 
@@ -150,11 +168,13 @@ export function DepositPopup() {
                 </div>
                 <button
                   type="button"
-                  disabled={busy === d.id}
+                  disabled={busy === d.id || done.has(d.id)}
                   onClick={() => void confirm(d.id)}
-                  className="h-12 shrink-0 rounded-lg border-2 border-primary px-6 text-lg font-bold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
+                  className={`h-12 shrink-0 rounded-lg border-2 px-6 text-lg font-bold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                    done.has(d.id) ? "border-emerald-600 bg-emerald-600 text-white" : "border-primary text-primary disabled:opacity-60"
+                  }`}
                 >
-                  확인
+                  {done.has(d.id) ? "✓ 완료" : "확인"}
                 </button>
               </li>
             ))}

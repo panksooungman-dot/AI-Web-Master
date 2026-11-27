@@ -47,15 +47,34 @@ function startTicker(fn: () => void, ms: number): () => void {
   }
 }
 
+let swReg: ServiceWorkerRegistration | null = null;
+
+/** 알림을 누르거나 알림창의 '확인' 버튼을 누르면 서비스 워커(public/deposit-sw.js)가 바로 확인 처리한다. */
+function noticeOf(d: DepositRecord): { title: string; options: NotificationOptions } {
+  return {
+    title: d.unparsed ? "문자를 읽지 못한 입금이 있습니다" : `새 입금 ${won(d.amount)}`,
+    options: {
+      body: d.unparsed ? "은행 앱에서 직접 확인해 주세요.\n알림을 누르면 확인 처리됩니다." : `${d.depositor} · ${md(d.occurredAt)} ${hm(d.occurredAt)}\n알림을 누르면 확인 처리됩니다.`,
+      tag: `dep-${d.id}`,
+      requireInteraction: true, // 직원이 누르기 전에는 화면에 남는다
+      data: { id: d.id },
+      actions: [{ action: "confirm", title: "확인" }],
+      renotify: true, // 같은 입금을 다시 띄워도 새로 알린다
+    } as NotificationOptions,
+  };
+}
+
 /** 윈도우 알림 팝업. 포스 프로그램 위에도 화면 구석에 뜬다. 권한이 없거나 실패해도 화면 동작에는 영향이 없다. */
 function notifyDeposit(d: DepositRecord) {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  const { title, options } = noticeOf(d);
   try {
-    const n = new Notification(d.unparsed ? "문자를 읽지 못한 입금이 있습니다" : `새 입금 ${won(d.amount)}`, {
-      body: d.unparsed ? "은행 앱에서 직접 확인해 주세요." : `${d.depositor} · ${md(d.occurredAt)} ${hm(d.occurredAt)}`,
-      tag: d.id,
-      requireInteraction: true, // 직원이 닫을 때까지 화면에 남는다(바빠서 놓치지 않도록)
-    });
+    if (swReg) {
+      void swReg.showNotification(title, options).catch(() => undefined);
+      return;
+    }
+    // 서비스 워커를 쓸 수 없는 환경: 알림을 누르면 이 창만 앞으로 나온다(확인 처리는 화면에서).
+    const n = new Notification(title, options);
     n.onclick = () => {
       window.focus();
       n.close();
@@ -65,31 +84,26 @@ function notifyDeposit(d: DepositRecord) {
   }
 }
 
-let lastReminder: Notification | null = null;
+/** 확인이 끝난 입금(목록에 없거나 이미 확인됨)의 알림은 화면에서 치운다. */
+function closeResolved(pendingIds: Set<string>) {
+  if (!swReg) return;
+  void swReg
+    .getNotifications()
+    .then((list) =>
+      list.forEach((n) => {
+        const id = (n.data as { id?: string } | null)?.id;
+        if (id && !pendingIds.has(id)) n.close();
+      }),
+    )
+    .catch(() => undefined);
+}
 
 /**
- * 아직 "확인"을 누르지 않은 입금이 있다는 재알림. 윈도우는 알림을 몇 초 뒤 알림 센터로 치워 버리므로,
- * 직원이 확인할 때까지 이전 알림을 닫고 새 알림을 다시 띄워 계속 눈에 띄게 한다.
+ * 아직 확인하지 않은 입금의 재알림. 윈도우는 알림을 몇 초 뒤 알림 센터로 치워 버리므로,
+ * 직원이 알림을 눌러 확인할 때까지 1분마다 같은 알림을 다시 띄운다.
  */
 function remindPending(pending: DepositRecord[]) {
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-  try {
-    lastReminder?.close();
-    const list = pending.slice(0, 3).map((d) => (d.unparsed ? "읽지 못한 입금 문자" : `${d.depositor} ${won(d.amount)}`));
-    const more = pending.length > 3 ? ` 외 ${pending.length - 3}건` : "";
-    const n = new Notification(`확인 안 된 입금 ${pending.length}건`, {
-      body: `${list.join(", ")}${more}\n입금 확인 화면에서 '확인'을 눌러 주세요.`,
-      tag: `pending-${Date.now()}`,
-      requireInteraction: true,
-    });
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-    lastReminder = n;
-  } catch {
-    /* 재알림이 실패해도 목록은 그대로 동작한다 */
-  }
+  pending.slice(0, 3).forEach(notifyDeposit);
 }
 
 /** 짧은 알림음. 브라우저는 사용자가 한 번 눌러야 소리를 낼 수 있어서 "소리 켜기" 버튼에서 연결한다. */
@@ -206,11 +220,17 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
   useEffect(() => {
     pendingRef.current = pending;
     document.title = pending.length ? `(${pending.length}) 확인 안 된 입금` : "입금 확인";
-    if (!pending.length) {
-      lastReminder?.close();
-      lastReminder = null;
-    }
+    closeResolved(new Set(pending.map((d) => d.id)));
   }, [pending]);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker
+      .register("/deposit-sw.js", { scope: "/deposits" })
+      .then((reg) => {
+        swReg = reg;
+      })
+      .catch(() => undefined);
+  }, []);
   useEffect(
     () =>
       startTicker(() => {

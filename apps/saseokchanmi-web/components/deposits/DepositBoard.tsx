@@ -82,10 +82,41 @@ function claimNotice(id: string, reminder: boolean): boolean {
   return true;
 }
 
+/** 큰 알림 창(/deposits/popup). 팝업이 막혀 있으면 false를 돌려주고, 그때는 작은 윈도우 알림으로 대신한다. */
+let popupWin: Window | null = null;
+let popupEnabled = false;
+let popupBlocked = false;
+function openPopup(): boolean {
+  if (!popupEnabled || typeof window === "undefined") return false;
+  try {
+    if (popupWin && !popupWin.closed) {
+      popupWin.focus();
+      return true;
+    }
+    const w = 680;
+    const h = 520;
+    const left = Math.max(0, Math.round((window.screen.availWidth - w) / 2));
+    const top = Math.max(0, Math.round((window.screen.availHeight - h) / 2));
+    const win = window.open("/deposits/popup", "deposit-popup", `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+    if (!win) {
+      popupBlocked = true;
+      return false;
+    }
+    popupBlocked = false;
+    popupWin = win;
+    win.focus();
+    return true;
+  } catch {
+    popupBlocked = true;
+    return false;
+  }
+}
+
 /** 윈도우 알림 팝업. 포스 프로그램 위에도 화면 구석에 뜬다. 권한이 없거나 실패해도 화면 동작에는 영향이 없다. */
 function notifyDeposit(d: DepositRecord, reminder = false) {
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   if (!claimNotice(d.id, reminder)) return;
+  if (openPopup()) return; // 큰 창이 열렸으면 작은 알림은 띄우지 않는다
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   const { title, options } = noticeOf(d, reminder);
   try {
     if (swReg) {
@@ -158,6 +189,14 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
   const audio = useRef<AudioContext | null>(null);
   const soundOn = useRef(false);
   const pendingRef = useRef<DepositRecord[]>([]);
+  const [popupBlockedUi, setPopupBlockedUi] = useState(false);
+
+  useEffect(() => {
+    popupEnabled = !admin; // 포스기(등록된 기기)에서만 큰 창을 연다. 관리자 화면에서는 열지 않는다.
+    return () => {
+      popupEnabled = false;
+    };
+  }, [admin]);
 
   const load = useCallback(async () => {
     const r = await api<Board>(`/api/deposits?days=${days}`);
@@ -172,6 +211,7 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
     if (seen.current) {
       const all = r.deposits.filter((d) => !seen.current!.has(d.id));
       all.slice(0, 5).forEach((d) => notifyDeposit(d)); // 한꺼번에 많이 와도 팝업은 5개까지만
+      setPopupBlockedUi(popupBlocked);
       const added = all.filter((d) => !d.unparsed);
       if (added.length) {
         setFresh((f) => new Set([...f, ...added.map((d) => d.id)]));
@@ -256,6 +296,7 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
         const p = pendingRef.current;
         if (!p.length) return;
         remindPending(p);
+        setPopupBlockedUi(popupBlocked);
         if (soundOn.current && audio.current) beep(audio.current);
       }, REMIND_MS),
     [],
@@ -299,6 +340,11 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
           <button type="button" className={sound ? btnPrimary : btnOutline} onClick={enableSound} aria-pressed={sound}>
             {sound ? "소리 켜짐" : "소리 켜기"}
           </button>
+          {!admin ? (
+            <button type="button" className={btnOutline} onClick={() => window.open("/deposits/popup?test=1", "deposit-popup-test", "popup=yes,width=680,height=520")}>
+              큰 알림 시험
+            </button>
+          ) : null}
           <a href="/api/deposits/autostart" download className={btnOutline} title="포스기에서 한 번 실행하면 PC를 켤 때 이 화면이 자동으로 열립니다">
             자동 실행 설정 파일
           </a>
@@ -306,6 +352,11 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
       </div>
 
       {error ? <Notice tone="error">{error.text}</Notice> : null}
+      {popupBlockedUi ? (
+        <Notice tone="error">
+          큰 알림 창이 막혀 있어 작은 알림으로 대신하고 있습니다. 크롬 설정 → 개인정보 및 보안 → 사이트 설정 → 팝업 및 리디렉션에서 &lsquo;팝업 전송 및 리디렉션 사용 가능&rsquo;에 https://www.saseokchanmi.com 을 추가해 주세요.
+        </Notice>
+      ) : null}
       {notif === "denied" ? (
         <Notice tone="error">팝업 알림이 막혀 있습니다. 크롬 주소창 왼쪽의 설정 아이콘(자물쇠) → 사이트 설정 → 알림을 &lsquo;허용&rsquo;으로 바꾼 뒤 이 화면을 새로 고쳐 주세요.</Notice>
       ) : null}

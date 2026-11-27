@@ -50,7 +50,7 @@ function startTicker(fn: () => void, ms: number): () => void {
 let swReg: ServiceWorkerRegistration | null = null;
 
 /** 알림을 누르거나 알림창의 '확인' 버튼을 누르면 서비스 워커(public/deposit-sw.js)가 바로 확인 처리한다. */
-function noticeOf(d: DepositRecord): { title: string; options: NotificationOptions } {
+function noticeOf(d: DepositRecord, renotify: boolean): { title: string; options: NotificationOptions } {
   return {
     title: d.unparsed ? "문자를 읽지 못한 입금이 있습니다" : `새 입금 ${won(d.amount)}`,
     options: {
@@ -59,15 +59,34 @@ function noticeOf(d: DepositRecord): { title: string; options: NotificationOptio
       requireInteraction: true, // 직원이 누르기 전에는 화면에 남는다
       data: { id: d.id },
       actions: [{ action: "confirm", title: "확인" }],
-      renotify: true, // 같은 입금을 다시 띄워도 새로 알린다
+      renotify, // 재알림일 때만 같은 알림을 새로 울린다(처음 알림은 한 번만)
     } as NotificationOptions,
   };
 }
 
+/**
+ * 입금 확인 화면이 두 곳(앱 창과 일반 탭 등)에 열려 있어도 같은 입금의 알림이 겹쳐 뜨지 않게, 같은 브라우저 안에서
+ * 최근에 이 입금을 알린 시각을 공유한다. 처음 알림은 20초, 재알림은 45초 안에는 다시 띄우지 않는다.
+ */
+function claimNotice(id: string, reminder: boolean): boolean {
+  const key = `deposit-notified:${id}`;
+  const gap = reminder ? 45_000 : 20_000;
+  try {
+    const last = Number(localStorage.getItem(key) ?? 0);
+    const t = Date.now();
+    if (t - last < gap) return false;
+    localStorage.setItem(key, String(t));
+  } catch {
+    /* 저장소를 못 쓰면 그냥 알린다 */
+  }
+  return true;
+}
+
 /** 윈도우 알림 팝업. 포스 프로그램 위에도 화면 구석에 뜬다. 권한이 없거나 실패해도 화면 동작에는 영향이 없다. */
-function notifyDeposit(d: DepositRecord) {
+function notifyDeposit(d: DepositRecord, reminder = false) {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-  const { title, options } = noticeOf(d);
+  if (!claimNotice(d.id, reminder)) return;
+  const { title, options } = noticeOf(d, reminder);
   try {
     if (swReg) {
       void swReg.showNotification(title, options).catch(() => undefined);
@@ -103,7 +122,7 @@ function closeResolved(pendingIds: Set<string>) {
  * 직원이 알림을 눌러 확인할 때까지 1분마다 같은 알림을 다시 띄운다.
  */
 function remindPending(pending: DepositRecord[]) {
-  pending.slice(0, 3).forEach(notifyDeposit);
+  pending.slice(0, 3).forEach((d) => notifyDeposit(d, true));
 }
 
 /** 짧은 알림음. 브라우저는 사용자가 한 번 눌러야 소리를 낼 수 있어서 "소리 켜기" 버튼에서 연결한다. */
@@ -152,7 +171,7 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
     const ids = new Set(r.deposits.map((d) => d.id));
     if (seen.current) {
       const all = r.deposits.filter((d) => !seen.current!.has(d.id));
-      all.slice(0, 5).forEach(notifyDeposit); // 한꺼번에 많이 와도 팝업은 5개까지만
+      all.slice(0, 5).forEach((d) => notifyDeposit(d)); // 한꺼번에 많이 와도 팝업은 5개까지만
       const added = all.filter((d) => !d.unparsed);
       if (added.length) {
         setFresh((f) => new Set([...f, ...added.map((d) => d.id)]));

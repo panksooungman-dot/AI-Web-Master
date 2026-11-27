@@ -14,7 +14,6 @@ import type { ContractStore, DepositRecord } from "./store";
  * - 문자를 읽지 못한 입금 건은 버리지 않고 "해석 실패"로 남겨, 직원이 은행 앱에서 확인할 수 있게 한다.
  */
 
-export const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KST_MS = 9 * 60 * 60 * 1000;
 const MAX_TEXT = 2000;
@@ -75,7 +74,8 @@ export async function ingestDepositSms(store: ContractStore, rawText: string, no
 
   const rec: DepositRecord = { id: newId(), amount: p.amount, depositor: p.depositor, occurredAt: p.occurredAt, receivedAt: nowIso, confirmedAt: null, memo: "" };
   const inserted = await store.insertDeposit(rec);
-  if (inserted) await store.purgeDepositsBefore(new Date(now.getTime() - RETENTION_DAYS * DAY_MS).toISOString());
+  // 당일 입금 확인만 쓰므로, 오늘(한국 시간) 0시 이전 내역은 새 입금이 들어올 때 지운다.
+  if (inserted) await store.purgeDepositsBefore(sinceKstDays(1, now));
   return { status: 200, body: { ok: true, saved: inserted, reason: inserted ? "saved" : "duplicate" } };
 }
 

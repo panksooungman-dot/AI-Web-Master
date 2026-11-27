@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStore } from "@/lib/contract/server/backends";
 import { ingestAuth, ingestDepositSms, readSmsText, sinceKstDays, depositBoard, updateDepositState } from "@/lib/contract/server/deposits";
 import { setStoreForTests } from "@/lib/contract/server/select";
@@ -77,12 +77,13 @@ describe("입금 문자 접수(서비스)", () => {
     expect((await store.listDeposits())[0]).toMatchObject({ unparsed: true, amount: 0, depositor: "(해석 실패)", memo: "농협 입금 확인바랍니다 문의 1588-2100" });
   });
 
-  it("90일이 지난 입금은 새 입금이 들어올 때 정리한다", async () => {
-    await store.insertDeposit({ id: "old", amount: 1, depositor: "옛날", occurredAt: "2026-08-01T00:00:00.000Z", receivedAt: "2026-08-01T00:00:00.000Z", confirmedAt: null, memo: "" });
-    await store.insertDeposit({ id: "mid", amount: 2, depositor: "최근", occurredAt: "2026-09-10T00:00:00.000Z", receivedAt: "2026-09-10T00:00:00.000Z", confirmedAt: null, memo: "" });
+  it("새 입금이 들어오면 어제까지의 내역은 지우고 오늘 것만 남긴다", async () => {
+    await store.insertDeposit({ id: "old", amount: 1, depositor: "어제", occurredAt: "2026-11-25T14:00:00.000Z", receivedAt: "2026-11-25T14:00:00.000Z", confirmedAt: null, memo: "" });
+    await store.insertDeposit({ id: "today", amount: 2, depositor: "오늘", occurredAt: "2026-11-25T15:00:00.000Z", receivedAt: "2026-11-25T15:00:00.000Z", confirmedAt: null, memo: "" }); // 한국 시간 11/26 0시 정각
     await ingestDepositSms(store, SMS, NOW);
-    expect((await store.listDeposits()).map((d) => d.id).sort()).toHaveLength(2);
-    expect((await store.listDeposits()).some((d) => d.id === "old")).toBe(false);
+    expect((await store.listDeposits()).map((d) => d.id)).not.toContain("old");
+    expect((await store.listDeposits()).map((d) => d.id)).toContain("today");
+    expect(await store.listDeposits()).toHaveLength(2);
   });
 });
 
@@ -90,11 +91,11 @@ describe("입금 확인 처리·조회(서비스)", () => {
   it("오늘 입금만 보여 주고, 최신이 먼저이며, 기간은 1~31일로 제한한다", async () => {
     await ingestDepositSms(store, SMS, NOW);
     await ingestDepositSms(store, "농협 입금2,000원\n11/26 19:20\n301-****-4369-51\n김철수", NOW);
-    await ingestDepositSms(store, "농협 입금3,000원\n11/25 12:00\n301-****-4369-51\n이영희", NOW); // 어제
+    await ingestDepositSms(store, "농협 입금3,000원\n11/25 12:00\n301-****-4369-51\n이영희", NOW); // 어제: 당일 보관이라 바로 지워진다
     const today = (await depositBoard(store, "1", NOW)).body;
     expect((today.deposits as { amount: number }[]).map((d) => d.amount)).toEqual([1000, 2000]);
     expect(today).toMatchObject({ days: 1, serverNow: NOW.toISOString(), lastIngestAt: NOW.toISOString() });
-    expect(((await depositBoard(store, "7", NOW)).body.deposits as unknown[]).length).toBe(3);
+    expect(((await depositBoard(store, "7", NOW)).body.deposits as unknown[]).length).toBe(2);
     expect((await depositBoard(store, "999", NOW)).body.days).toBe(1);
     expect(sinceKstDays(1, NOW)).toBe("2026-11-25T15:00:00.000Z"); // 한국 시간 11/26 0시
   });
@@ -112,6 +113,10 @@ describe("입금 확인 처리·조회(서비스)", () => {
 });
 
 describe("입금 문자 접수 API (폰 → 서버)", () => {
+  // 라우트는 현재 시각을 쓰므로, 문자의 날짜(11/26)와 같은 날로 고정한다(당일 보관이라 어제 입금은 지워진다).
+  beforeEach(() => void vi.useFakeTimers({ toFake: ["Date"], now: NOW }));
+  afterEach(() => void vi.useRealTimers());
+
   const post = (body: string, headers: Record<string, string> = withSecret()) => ingestPost(req("/api/deposits/ingest", { method: "POST", headers, body, origin: null }));
 
   it("비밀 키가 맞으면 문자 본문(줄바꿈 포함 text/plain)을 그대로 받아 저장한다", async () => {

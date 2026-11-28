@@ -9,6 +9,7 @@ import type { DepositRecord } from "@/lib/contract/server/store";
 type Board = { deposits: DepositRecord[]; serverNow: string };
 
 const REFRESH_MS = 3000;
+const POPUP_TITLE = "입금 알림";
 const CLOSE_DELAY_MS = 1800; // 로고 화면을 보여 준 뒤 창을 닫기까지의 시간
 const DONE_SHOW_MS = 1200; // 확인 완료 표시를 보여 주는 시간
 /** 이보다 오래된 미확인 건은 이 창에서 다시 알리지 않는다(입금 확인 화면 목록에는 남는다). */
@@ -63,7 +64,7 @@ export function DepositPopup() {
 
   useEffect(() => {
     if (pending.length) {
-      document.title = `(${pending.length}) 확인 안 된 입금`;
+      document.title = `${POPUP_TITLE} · 확인 대기 ${pending.length}건`; // 포스기 도우미 스크립트가 이 제목으로 창을 찾는다(lib/contract/server/raise-script.ts와 같아야 한다)
       return;
     }
     document.title = "입금 확인";

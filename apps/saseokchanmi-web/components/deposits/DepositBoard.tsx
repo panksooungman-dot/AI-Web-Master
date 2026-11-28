@@ -345,6 +345,11 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
           <a href="/api/deposits/autostart" download className={btnOutline} title="포스기에서 한 번 실행하면 PC를 켤 때 이 화면이 자동으로 열립니다">
             자동 실행 설정 파일
           </a>
+          {!admin ? (
+            <a href="/api/deposits/raise-script" download className={btnOutline} title="포스기에서 한 번 실행하면 큰 입금 알림 창이 포스 프로그램 위에 뜹니다">
+              큰 알림 앞으로 올리기 파일
+            </a>
+          ) : null}
         </div>
       </div>
 

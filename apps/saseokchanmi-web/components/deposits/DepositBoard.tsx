@@ -422,7 +422,7 @@ export function DepositBoard({ admin = false }: { admin?: boolean }) {
       )}
 
       <p className="text-xs text-muted">
-        {board.lastIngestAt ? `마지막 입금 문자 수신: ${ago(board.lastIngestAt, now ?? Date.parse(board.serverNow))}` : "마지막 입금 문자 수신: 없음"} · 5초마다 자동으로 새로 고칩니다. 입금 내역은 90일 후 지워집니다.
+        {board.lastIngestAt ? `마지막 입금 문자 수신: ${ago(board.lastIngestAt, now ?? Date.parse(board.serverNow))}` : "마지막 입금 문자 수신: 없음"} · 5초마다 자동으로 새로 고칩니다. 입금 내역은 당일 것만 보관하며, 다음 날 새 입금이 들어오면 지워집니다.
       </p>
     </div>
   );

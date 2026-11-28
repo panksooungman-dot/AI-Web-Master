@@ -82,7 +82,7 @@ function claimNotice(id: string, reminder: boolean): boolean {
   return true;
 }
 
-/** 큰 알림 창(/deposits/popup). 팝업이 막혀 있으면 false를 돌려준다. 윈도우 알림은 이 결과와 상관없이 항상 함께 띄운다. */
+/** 큰 알림 창(/deposits/popup). 팝업이 막혀 있으면 false를 돌려주고, 그때는 작은 윈도우 알림으로 대신한다. */
 let popupWin: Window | null = null;
 let popupEnabled = false;
 let popupBlocked = false;
@@ -113,13 +113,12 @@ function openPopup(): boolean {
 }
 
 /**
- * 새 입금 알림: 큰 창과 윈도우 알림(토스트)을 함께 띄운다.
- * 포스 프로그램이 전체 화면이면 큰 창은 그 뒤에 가려질 수 있지만, 윈도우 알림은 포스 위에도 화면 구석에 뜬다.
- * 그래서 큰 창이 열렸더라도 알림을 따로 띄운다. 확인 처리하면 두 알림 모두 사라진다. 권한이 없거나 실패해도 화면 동작에는 영향이 없다.
+ * 새 입금 알림: 큰 창을 띄운다. 포스기에는 큰 창을 포스 프로그램 위로 올려 주는 도우미(raise-script)가 있어서 윈도우 알림은 따로 띄우지 않는다.
+ * 큰 창을 열 수 없을 때(팝업 차단 등)만 윈도우 알림(토스트)으로 대신한다. 권한이 없거나 실패해도 화면 동작에는 영향이 없다.
  */
 function notifyDeposit(d: DepositRecord, reminder = false) {
   if (!claimNotice(d.id, reminder)) return;
-  openPopup();
+  if (openPopup()) return; // 큰 창이 열렸으면 윈도우 알림은 띄우지 않는다
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   const { title, options } = noticeOf(d, reminder);
   try {
